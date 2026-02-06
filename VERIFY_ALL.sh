@@ -73,6 +73,7 @@ cd "$ROOT"
 SCRIPTS=()
 for f in VERIFY_*.sh; do
   [ "$f" = "VERIFY_ALL.sh" ] && continue
+  [ "$f" = "VERIFY_CI.sh" ] && continue
   [ ! -f "$f" ] && continue
   SCRIPTS+=("$f")
 done
