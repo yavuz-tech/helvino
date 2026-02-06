@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - esbuild
+  - fastify-socket.io
+  - prisma
+  - sharp
+  - unrs-resolver

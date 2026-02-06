@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Helvino Widget - Embed Demo</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f9fafb;
+    }
+    .demo-card {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+    h1 {
+      color: #0F5C5C;
+      margin-bottom: 10px;
+    }
+    h2 {
+      color: #333;
+      margin-top: 30px;
+      margin-bottom: 15px;
+      font-size: 20px;
+    }
+    p {
+      color: #666;
+      line-height: 1.6;
+    }
+    code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+      color: #0F5C5C;
+    }
+    pre {
+      background: #1f2937;
+      color: #f9fafb;
+      padding: 20px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    button {
+      background: #0F5C5C;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #0d4d4d;
+    }
+    .api-section {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+    .badge {
+      display: inline-block;
+      background: #dcfce7;
+      color: #166534;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    .warning {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+    .warning strong {
+      color: #92400e;
+      display: block;
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-card">
+    <h1>🎉 Helvino Widget - Embed Demo</h1>
+    <p>This page demonstrates how to embed the Helvino chat widget on any website.</p>
+    <span class="badge">Widget Loaded ✓</span>
+  </div>
+
+  <div class="demo-card">
+    <h2>📋 Embedding Instructions</h2>
+    <p>Add these two lines to your website's HTML (before closing <code>&lt;/body&gt;</code> tag):</p>
+    
+    <h3 style="font-size: 16px; color: #0F5C5C; margin-top: 20px;">✅ Recommended (Site ID)</h3>
+    <pre>&lt;!-- Step 1: Set your site ID (public identifier) --&gt;
+&lt;script&gt;
+  window.HELVINO_SITE_ID = "site_xxxxxxxxxxxxxxxx";
+&lt;/script&gt;
+
+&lt;!-- Step 2: Load the widget --&gt;
+&lt;script src="https://your-cdn.com/embed.js"&gt;&lt;/script&gt;</pre>
+
+    <h3 style="font-size: 16px; color: #666; margin-top: 20px;">🔄 Legacy Support (Org Key)</h3>
+    <pre>&lt;!-- Legacy method still works but Site ID is preferred --&gt;
+&lt;script&gt;
+  window.HELVINO_ORG_KEY = "your-org-key";
+&lt;/script&gt;
+
+&lt;!-- Step 2: Load the widget --&gt;
+&lt;script src="https://your-cdn.com/embed.js"&gt;&lt;/script&gt;</pre>
+
+    <div class="warning">
+      <strong>⚠️ Important</strong>
+      Set <code>window.HELVINO_SITE_ID</code> (or legacy <code>HELVINO_ORG_KEY</code>) BEFORE loading the embed.js script.
+    </div>
+  </div>
+
+  <div class="demo-card">
+    <h2>🎮 Interactive API Demo</h2>
+    <p>Try the widget controls below or open your browser console and type:</p>
+    <pre>Helvino.open()   // Open widget
+Helvino.close()  // Close widget
+Helvino.toggle() // Toggle widget
+Helvino.isOpen() // Check if open</pre>
+
+    <div class="api-section">
+      <button onclick="Helvino.open()">Open Widget</button>
+      <button onclick="Helvino.close()">Close Widget</button>
+      <button onclick="Helvino.toggle()">Toggle Widget</button>
+      <button onclick="alert('Widget is ' + (Helvino.isOpen() ? 'OPEN' : 'CLOSED'))">
+        Check Status
+      </button>
+    </div>
+  </div>
+
+  <div class="demo-card">
+    <h2>🔧 Configuration</h2>
+    <p>Current configuration:</p>
+    <ul>
+      <li><strong>Site ID:</strong> <code id="site-id">Loading...</code></li>
+      <li><strong>Organization Key (legacy):</strong> <code id="org-key">Loading...</code></li>
+      <li><strong>API URL:</strong> <code id="api-url">Loading...</code></li>
+      <li><strong>Widget Status:</strong> <code id="widget-status">Initializing...</code></li>
+    </ul>
+  </div>
+
+  <div class="demo-card">
+    <h2>📚 Documentation</h2>
+    <p>For more information, see:</p>
+    <ul>
+      <li><a href="https://docs.helvino.io" style="color: #0F5C5C;">Developer Documentation</a></li>
+      <li><a href="https://helvino.io" style="color: #0F5C5C;">Helvino Homepage</a></li>
+    </ul>
+  </div>
+
+  <!-- Widget Embed Code (This is what users will copy) -->
+  <script>
+    // Step 1: Set organization identifier
+    // Using legacy orgKey for this demo (siteId is preferred in production)
+    window.HELVINO_ORG_KEY = "demo";
+    
+    // Preferred method (get your siteId from dashboard settings):
+    // window.HELVINO_SITE_ID = "site_xxxxxxxxxxxxxxxx";
+  </script>
+
+  <!-- Step 2: Load widget (in dev mode, use local embed.js from dist) -->
+  <script src="/embed.js"></script>
+
+  <!-- Demo page specific scripts -->
+  <script>
+    // Update configuration display
+    setTimeout(() => {
+      document.getElementById('site-id').textContent = window.HELVINO_SITE_ID || 'Not set (using legacy orgKey)';
+      document.getElementById('org-key').textContent = window.HELVINO_ORG_KEY || 'Not set';
+      document.getElementById('api-url').textContent = 'http://localhost:4000';
+      document.getElementById('widget-status').textContent = window.Helvino ? 'Ready ✓' : 'Failed ✗';
+    }, 100);
+
+    // Log widget API to console
+    console.log('🎉 Helvino Widget API:', window.Helvino);
+    console.log('Try: Helvino.open(), Helvino.close(), Helvino.toggle()');
+  </script>
+</body>
+</html>

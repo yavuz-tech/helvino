@@ -1,0 +1,395 @@
+import Fastify from "fastify";
+import cors from "@fastify/cors";
+import cookie from "@fastify/cookie";
+import session from "@fastify/session";
+import socketioServer from "fastify-socket.io";
+import type { Socket } from "socket.io";
+import dotenv from "dotenv";
+import { APP_NAME } from "@helvino/shared";
+import { store } from "./store";
+import { bootloaderRoutes } from "./routes/bootloader";
+import { orgAdminRoutes } from "./routes/org-admin";
+import { observabilityRoutes } from "./routes/observability";
+import { internalAdminRoutes } from "./routes/internal-admin";
+import { authRoutes } from "./routes/auth";
+import { securityRoutes } from "./routes/security";
+import { orgAuthRoutes } from "./routes/org-auth";
+import { orgCustomerRoutes } from "./routes/org-customer";
+import { portalAuthRoutes } from "./routes/portal-auth";
+import { portalOrgRoutes } from "./routes/portal-org";
+import { portalBillingRoutes } from "./routes/portal-billing";
+import { stripeWebhookRoutes } from "./routes/stripe-webhook";
+import { upsertVisitor } from "./utils/visitor";
+import { requestContextPlugin } from "./plugins/request-context";
+import { metricsTracker } from "./utils/metrics";
+import { createRateLimitMiddleware } from "./middleware/rate-limit";
+import { validateOrgKey, validateVisitorId, validateJsonContentType, validateMessageContent } from "./middleware/validation";
+import { validateDomainAllowlist } from "./middleware/domain-allowlist";
+import { requireOrgToken } from "./middleware/require-org-token";
+import { isBillingWriteBlocked } from "./utils/billing-enforcement";
+import { enforceWidgetBillingLock } from "./middleware/billing-lock";
+import { RedisSessionStore } from "./utils/redis-session-store";
+import {
+  checkConversationEntitlement,
+  checkMessageEntitlement,
+  recordConversationUsage,
+  recordMessageUsage,
+} from "./utils/entitlements";
+import type {
+  CreateConversationResponse,
+  CreateMessageRequest,
+  CreateMessageResponse,
+  Conversation,
+  ConversationDetail,
+} from "./types";
+
+dotenv.config();
+
+const PORT = parseInt(process.env.PORT || "4000", 10);
+const HOST = process.env.HOST || "0.0.0.0";
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
+
+// Configure trusted proxies
+// In production, set TRUSTED_PROXIES to your actual proxy IPs (comma-separated)
+// Example: TRUSTED_PROXIES="10.0.0.1,172.16.0.1" or "loopback,linklocal,uniquelocal"
+const trustedProxies = process.env.TRUSTED_PROXIES
+  ? process.env.TRUSTED_PROXIES.split(",").map((s) => s.trim())
+  : ["127.0.0.1", "::1"]; // Default: trust only localhost (for dev)
+
+// Initialize Fastify
+const fastify = Fastify({
+  logger: {
+    level: process.env.LOG_LEVEL || "info",
+    transport: {
+      target: "pino-pretty",
+      options: {
+        translateTime: "HH:MM:ss Z",
+        ignore: "pid,hostname",
+      },
+    },
+  },
+  bodyLimit: 32 * 1024, // 32KB max body size
+  trustProxy: trustedProxies, // Only trust specific proxy IPs to prevent X-Forwarded-For spoofing
+});
+
+// Register plugins
+fastify.register(cors, {
+  origin: true, // Allow all origins in development
+  credentials: true, // Allow cookies in CORS requests
+});
+
+// Register cookie support (required for sessions)
+fastify.register(cookie);
+
+// Capture raw JSON body for Stripe webhook verification
+fastify.addContentTypeParser(
+  "application/json",
+  { parseAs: "buffer" },
+  (request, body, done) => {
+    const raw = body.toString("utf8");
+    if (request.url === "/stripe/webhook" || request.url === "/webhooks/stripe") {
+      (request as any).rawBody = raw;
+    }
+    try {
+      const parsed = raw.length ? JSON.parse(raw) : {};
+      done(null, parsed);
+    } catch (err) {
+      done(err as Error, undefined);
+    }
+  }
+);
+
+// Register session support with secure settings
+const isProduction = process.env.NODE_ENV === "production";
+const sessionSecret = process.env.SESSION_SECRET;
+
+if (!sessionSecret) {
+  throw new Error("SESSION_SECRET environment variable is required");
+}
+
+const sessionStore = new RedisSessionStore(7 * 24 * 60 * 60); // 7 days TTL
+
+fastify.register(session, {
+  secret: sessionSecret,
+  store: sessionStore as any,
+  cookie: {
+    secure: isProduction, // HTTPS only in production
+    httpOnly: true, // Prevent JavaScript access
+    sameSite: "lax", // CSRF protection
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+    path: "/", // Cookie available for all paths
+  },
+  saveUninitialized: false, // Don't create session until something stored
+  rolling: true, // Reset maxAge on every request
+});
+
+fastify.register(socketioServer, {
+  cors: {
+    origin: "*", // Allow all origins for Socket.IO in development
+  },
+});
+
+fastify.register(requestContextPlugin);
+
+// Metrics tracking (global onResponse hook)
+fastify.addHook("onResponse", async (request, reply) => {
+  // Ensure startTime is set (from requestContextPlugin)
+  if (request.startTime) {
+    const latencyMs = Date.now() - request.startTime;
+    const route = request.routeOptions?.url || request.url;
+    
+    // Skip health/metrics endpoints to avoid noise
+    if (!route.includes("/health") && !route.includes("/metrics")) {
+      metricsTracker.recordRequest(reply.statusCode, latencyMs, route);
+    }
+  }
+});
+
+// Register routes
+fastify.register(authRoutes); // Internal admin auth (no prefix)
+fastify.register(orgAuthRoutes); // Org user auth (customer portal, no prefix)
+fastify.register(portalAuthRoutes); // Portal auth (no prefix)
+fastify.register(portalBillingRoutes); // Portal billing
+fastify.register(observabilityRoutes); // Health + metrics
+fastify.register(bootloaderRoutes, { prefix: "/api" });
+fastify.register(orgAdminRoutes, { prefix: "/api" });
+fastify.register(securityRoutes, { prefix: "/api" }); // Security management
+fastify.register(internalAdminRoutes); // Internal admin (no prefix)
+fastify.register(orgCustomerRoutes); // Org customer routes (customer portal, no prefix)
+fastify.register(portalOrgRoutes); // Portal org routes (no prefix)
+fastify.register(stripeWebhookRoutes); // Stripe webhooks
+
+// Root info
+fastify.get("/", async () => {
+  return {
+    app: APP_NAME,
+    version: "1.0.0",
+    status: "operational",
+    endpoints: {
+      health: "GET /health",
+      conversations: {
+        list: "GET /conversations",
+        create: "POST /conversations",
+        detail: "GET /conversations/:id",
+        addMessage: "POST /conversations/:id/messages",
+      },
+    },
+  };
+});
+
+// Create conversation
+fastify.post<{
+  Reply: CreateConversationResponse | { error: string; code?: string };
+}>("/conversations", {
+  preHandler: [
+    createRateLimitMiddleware({ limit: 30, windowMs: 60000 }), // 30 per minute
+    requireOrgToken, // Require valid org token (or internal bypass)
+    enforceWidgetBillingLock,
+    validateVisitorId,
+    validateJsonContentType,
+    validateDomainAllowlist(), // Widget endpoint: enforce domain allowlist
+  ],
+}, async (request, reply) => {
+  // Org is already validated and attached by requireOrgToken middleware
+  const org = request.org!;
+  const visitorKey = request.headers["x-visitor-id"] as string | undefined;
+  const userAgent = request.headers["user-agent"] as string | undefined;
+
+  const internalKey = request.headers["x-internal-key"] as string | undefined;
+  const isAdminBypass =
+    Boolean(request.session.adminUserId) ||
+    (INTERNAL_API_KEY && internalKey === INTERNAL_API_KEY);
+
+  if (!isAdminBypass && isBillingWriteBlocked(org)) {
+    reply.code(402);
+    return { error: "payment_required" };
+  }
+
+  const entitlement = await checkConversationEntitlement(org.id);
+  if (!entitlement.allowed) {
+    reply.code(402);
+    return { error: entitlement.error || "Plan limit exceeded", code: entitlement.code };
+  }
+
+  // Upsert visitor if visitorKey provided
+  let visitorId: string | undefined;
+  if (visitorKey) {
+    try {
+      const visitor = await upsertVisitor(org.id, visitorKey, userAgent);
+      visitorId = visitor.id;
+    } catch (error) {
+      console.error("Failed to upsert visitor:", error);
+      // Continue without visitor (backward compatible)
+    }
+  }
+
+  const conversation = await store.createConversation(org.id, visitorId);
+  await recordConversationUsage(org.id);
+
+  reply.code(201);
+  return {
+    id: conversation.id,
+    createdAt: conversation.createdAt,
+  };
+});
+
+// List conversations
+fastify.get<{
+  Reply: Conversation[] | { error: string };
+}>("/conversations", async (request, reply) => {
+  const orgKey = request.headers["x-org-key"] as string;
+
+  if (!orgKey) {
+    reply.code(401);
+    return { error: "Missing x-org-key header" };
+  }
+
+  const org = await store.getOrganizationByKey(orgKey);
+  if (!org) {
+    reply.code(401);
+    return { error: "Invalid organization key" };
+  }
+
+  return await store.listConversations(org.id);
+});
+
+// Get conversation detail with messages
+fastify.get<{
+  Params: { id: string };
+  Reply: ConversationDetail | { error: string };
+}>("/conversations/:id", async (request, reply) => {
+  const { id } = request.params;
+  const orgKey = request.headers["x-org-key"] as string;
+
+  if (!orgKey) {
+    reply.code(401);
+    return { error: "Missing x-org-key header" };
+  }
+
+  const org = await store.getOrganizationByKey(orgKey);
+  if (!org) {
+    reply.code(401);
+    return { error: "Invalid organization key" };
+  }
+
+  const conversation = await store.getConversationWithMessages(id, org.id);
+
+  if (!conversation) {
+    reply.code(404);
+    return { error: "Conversation not found" };
+  }
+
+  return conversation;
+});
+
+// Add message to conversation
+fastify.post<{
+  Params: { id: string };
+  Body: CreateMessageRequest;
+  Reply: CreateMessageResponse | { error: string; code?: string };
+}>("/conversations/:id/messages", {
+  preHandler: [
+    createRateLimitMiddleware({ limit: 120, windowMs: 60000 }), // 120 per minute
+    requireOrgToken, // Require valid org token (or internal bypass)
+    enforceWidgetBillingLock,
+    validateVisitorId,
+    validateJsonContentType,
+    validateMessageContent,
+    validateDomainAllowlist(), // Widget endpoint: enforce domain allowlist
+  ],
+}, async (request, reply) => {
+  const { id } = request.params;
+  const { role, content } = request.body;
+  // Org is already validated and attached by requireOrgToken middleware
+  const org = request.org!;
+
+  const internalKey = request.headers["x-internal-key"] as string | undefined;
+  const isAdminBypass =
+    Boolean(request.session.adminUserId) ||
+    (INTERNAL_API_KEY && internalKey === INTERNAL_API_KEY);
+
+  if (!isAdminBypass && isBillingWriteBlocked(org)) {
+    reply.code(402);
+    return { error: "payment_required" };
+  }
+
+  const entitlement = await checkMessageEntitlement(org.id);
+  if (!entitlement.allowed) {
+    reply.code(402);
+    return { error: entitlement.error || "Plan limit exceeded", code: entitlement.code };
+  }
+
+  // Validate input
+  if (!role || !content) {
+    reply.code(400);
+    return { error: "Missing required fields: role, content" };
+  }
+
+  if (role !== "user" && role !== "assistant") {
+    reply.code(400);
+    return { error: "Invalid role. Must be 'user' or 'assistant'" };
+  }
+
+  const message = await store.addMessage(id, org.id, role, content);
+
+  if (!message) {
+    reply.code(404);
+    return { error: "Conversation not found" };
+  }
+
+  // Emit Socket.IO event to org room only
+  fastify.io.to(`org:${org.id}`).emit("message:new", {
+    conversationId: id,
+    message,
+  });
+
+  await recordMessageUsage(org.id);
+
+  reply.code(201);
+  return message;
+});
+
+// Socket.IO connection handlers with org-based rooms
+fastify.ready().then(() => {
+  fastify.io.on("connection", async (socket: Socket) => {
+    const orgKey = socket.handshake.auth?.orgKey as string;
+
+    if (!orgKey) {
+      console.log(`❌ Socket rejected (no orgKey): ${socket.id}`);
+      socket.disconnect();
+      return;
+    }
+
+    const org = await store.getOrganizationByKey(orgKey);
+    if (!org) {
+      console.log(`❌ Socket rejected (invalid orgKey): ${socket.id}`);
+      socket.disconnect();
+      return;
+    }
+
+    // Join organization room
+    const roomName = `org:${org.id}`;
+    socket.join(roomName);
+    console.log(`✅ Socket connected: ${socket.id} → ${roomName} (${org.name})`);
+
+    socket.on("disconnect", () => {
+      console.log(`❌ Socket disconnected: ${socket.id} from ${roomName}`);
+    });
+  });
+});
+
+// Start server
+const start = async () => {
+  try {
+    await fastify.listen({ port: PORT, host: HOST });
+    console.log(`\n🚀 ${APP_NAME} API is running!`);
+    console.log(`📡 Health check: http://localhost:${PORT}/health`);
+    console.log(`📚 API docs: http://localhost:${PORT}/`);
+    console.log(`🔌 Socket.IO enabled on the same port\n`);
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};
+
+start();

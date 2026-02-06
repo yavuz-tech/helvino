@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Next.js
+.next/
+.next-verify/
+out/
+build/
+dist/
+
+# Production
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Environment
+.env
+.env*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma dev artifacts
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+
+# Verify artifacts
+.verify-logs/
+
+# Misc
+.turbo
+.vercel
+*.tsbuildinfo

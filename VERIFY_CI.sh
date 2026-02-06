@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# VERIFY_CI.sh — CI-friendly single entrypoint
+# Runs builds + VERIFY_ALL.sh in strict mode.
+# Exit 0 = PASS, Exit 1 = FAIL.
+# Does NOT require interactive TTY.
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+echo "============================================================"
+echo "  VERIFY_CI — $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+echo "============================================================"
+echo ""
+
+# ── 1. Preflight ──
+if [ -x "$ROOT/scripts/preflight.sh" ]; then
+  echo "--- Preflight ---"
+  bash "$ROOT/scripts/preflight.sh" || true
+  echo ""
+fi
+
+# ── 2. API build ──
+echo "--- API build ---"
+cd "$ROOT/apps/api"
+pnpm build
+echo ""
+
+# ── 3. Web build (isolated) ──
+echo "--- Web build ---"
+cd "$ROOT/apps/web"
+NEXT_BUILD_DIR=.next-verify pnpm build
+rm -rf .next-verify 2>/dev/null || true
+echo ""
+
+# ── 4. Run VERIFY_ALL.sh ──
+echo "--- VERIFY_ALL ---"
+cd "$ROOT"
+EXIT=0
+bash "$ROOT/VERIFY_ALL.sh" || EXIT=$?
+
+echo ""
+
+# ── 5. Final verdict ──
+echo "============================================================"
+if [ "$EXIT" -eq 0 ]; then
+  echo "  VERIFY_CI: PASS (all scripts clean)"
+else
+  echo "  VERIFY_CI: NOT PASSING (exit $EXIT from VERIFY_ALL.sh)"
+fi
+echo "============================================================"
+
+exit $EXIT

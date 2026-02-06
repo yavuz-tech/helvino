@@ -1,0 +1,167 @@
+// Prisma schema for Helvino API
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id                    String         @id @default(cuid())
+  key                   String         @unique
+  siteId                String         @unique // Public identifier for widget embedding
+  name                  String
+  stripeCustomerId      String?        @unique
+  stripeSubscriptionId  String?        @unique
+  stripePriceId         String?
+  billingStatus         String         @default("none") // none|trialing|active|past_due|canceled|unpaid|incomplete
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean        @default(false)
+  billingEnforced       Boolean        @default(false)
+  billingGraceDays      Int            @default(7)
+  lastStripeEventAt     DateTime?
+  lastStripeEventId     String?        // For webhook idempotency
+  graceEndsAt           DateTime?
+  billingLockedAt       DateTime?
+  lastPaymentFailureAt  DateTime?
+  lastBillingReconcileAt DateTime?
+  lastBillingReconcileResult Json?
+  trialEndsAt           DateTime?
+  planKey               String         @default("free")
+  planStatus            String         @default("inactive") // "active" | "inactive" | "past_due" | "canceled"
+  allowedDomains        String[]       @default([])
+  allowLocalhost        Boolean        @default(true) // Allow localhost/127.0.0.1 for development
+  widgetEnabled         Boolean        @default(true)
+  writeEnabled          Boolean        @default(true)
+  aiEnabled             Boolean        @default(true)
+  primaryColor          String         @default("#0F5C5C")
+  widgetName            String         @default("Brand Name")
+  widgetSubtitle        String         @default("Default Subtitle")
+  language              String         @default("en")
+  launcherText          String?
+  position              String         @default("right")
+  messageRetentionDays  Int            @default(365)
+  hardDeleteOnRetention Boolean        @default(false)
+  lastRetentionRunAt    DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  conversations         Conversation[]
+  messages              Message[]
+  visitors              Visitor[]
+  orgUsers              OrgUser[]
+  usages                Usage[]
+
+  @@index([siteId])
+  @@map("organizations")
+}
+
+model Plan {
+  id                        String  @id @default(cuid())
+  key                       String  @unique // "free" | "pro" | "business"
+  name                      String
+  stripePriceId             String? @unique // Stripe Price ID mapping
+  monthlyPriceUsd           Int?
+  maxConversationsPerMonth  Int
+  maxMessagesPerMonth       Int
+  maxAgents                 Int
+
+  @@map("plans")
+}
+
+model Usage {
+  id                    String   @id @default(cuid())
+  orgId                 String
+  organization          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  monthKey              String   // YYYY-MM
+  conversationsCreated  Int      @default(0)
+  messagesSent          Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([orgId, monthKey])
+  @@index([orgId])
+  @@map("usages")
+}
+
+model Visitor {
+  id             String         @id @default(cuid())
+  orgId          String
+  organization   Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  visitorKey     String         // visitorId from x-visitor-id header
+  firstSeenAt    DateTime       @default(now())
+  lastSeenAt     DateTime       @default(now())
+  userAgent      String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  conversations  Conversation[]
+
+  @@unique([orgId, visitorKey])
+  @@index([orgId])
+  @@index([visitorKey])
+  @@index([orgId, lastSeenAt])
+  @@map("visitors")
+}
+
+model Conversation {
+  id           String        @id
+  orgId        String
+  organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  visitorId    String?
+  visitor      Visitor?      @relation(fields: [visitorId], references: [id], onDelete: SetNull)
+  createdAt    DateTime
+  updatedAt    DateTime
+  messageCount Int           @default(0)
+  messages     Message[]
+
+  @@index([orgId])
+  @@index([orgId, updatedAt])
+  @@index([orgId, id])
+  @@index([visitorId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  role           String
+  content        String       @db.Text
+  timestamp      DateTime
+
+  @@index([conversationId])
+  @@index([orgId])
+  @@index([orgId, conversationId, timestamp(sort: Desc)])
+  @@map("messages")
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   // "owner" | "admin" | "agent"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([email])
+  @@map("admin_users")
+}
+
+model OrgUser {
+  id           String       @id @default(cuid())
+  orgId        String
+  email        String       @unique
+  passwordHash String
+  role         String       // "owner" | "admin" | "agent"
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([email])
+  @@map("org_users")
+}
