@@ -95,7 +95,7 @@ echo "========================================"
 
 SETTINGS_PAGE="apps/web/src/app/dashboard/settings/page.tsx"
 
-if grep -q "Security" "$SETTINGS_PAGE"; then
+if grep -q "security\|Security\|nav\.security" "$SETTINGS_PAGE"; then
   pass "Settings page links to Security"
 else
   fail "Settings page missing Security link"

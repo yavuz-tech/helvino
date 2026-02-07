@@ -14,6 +14,7 @@ import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { validateJsonContentType, validateMessageContent } from "../middleware/validation";
 import { checkMessageEntitlement, recordMessageUsage } from "../utils/entitlements";
 import { isBillingWriteBlocked } from "../utils/billing-enforcement";
+import { buildHistogramUpdateSql } from "../utils/widget-histogram";
 import type {
   Conversation,
   ConversationDetail,
@@ -86,6 +87,7 @@ export async function orgCustomerRoutes(fastify: FastifyInstance) {
       ],
     },
     async (request, reply) => {
+      const msgStartMs = Date.now();
       const { id } = request.params;
       const { role, content } = request.body;
       const orgUser = request.orgUser!;
@@ -156,6 +158,11 @@ export async function orgCustomerRoutes(fastify: FastifyInstance) {
       });
 
       await recordMessageUsage(orgUser.orgId);
+
+      // Widget response-time histogram (fire-and-forget, best-effort)
+      const msgDurationMs = Date.now() - msgStartMs;
+      const { sql: histSql, params: histParams } = buildHistogramUpdateSql(orgUser.orgId, msgDurationMs);
+      prisma.$executeRawUnsafe(histSql, histParams[0], histParams[1]).catch(() => {});
 
       reply.code(201);
       return message;

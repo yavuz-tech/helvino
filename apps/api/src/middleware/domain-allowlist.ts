@@ -101,6 +101,17 @@ export function validateDomainAllowlist() {
         "Domain not in allowlist, rejecting request"
       );
 
+      // Widget health: track domain mismatch (fire-and-forget)
+      prisma.$executeRawUnsafe(
+        `UPDATE "organizations" SET "widgetDomainMismatchTotal" = "widgetDomainMismatchTotal" + 1 WHERE "id" = $1`,
+        org.id
+      ).catch(() => {});
+
+      // Emit widget health notification if this is the first or a significant mismatch (best-effort, dedupe will prevent spam)
+      import("../utils/notifications")
+        .then((mod) => mod.emitWidgetNeedsAttention(org.id, (request as any).requestId))
+        .catch(() => {});
+
       reply.code(403);
       return reply.send({
         error: "Domain not allowed",

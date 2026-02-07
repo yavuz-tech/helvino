@@ -9,6 +9,7 @@ import {
   portalApiFetch,
   type PortalUser,
 } from "@/lib/portal-auth";
+import { useI18n } from "@/i18n/I18nContext";
 
 interface Settings {
   widgetEnabled: boolean;
@@ -21,6 +22,7 @@ interface Settings {
 
 export default function PortalSettingsPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [user, setUser] = useState<PortalUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -49,7 +51,7 @@ export default function PortalSettingsPage() {
     const load = async () => {
       const res = await portalApiFetch("/portal/org/me");
       if (!res.ok) {
-        setMessage("Failed to load settings");
+        setMessage(t("portal.failedLoadSettings"));
         setLoading(false);
         return;
       }
@@ -67,7 +69,7 @@ export default function PortalSettingsPage() {
       setLoading(false);
     };
     load();
-  }, [authLoading]);
+  }, [authLoading, t]);
 
   const handleLogout = async () => {
     await portalLogout();
@@ -91,7 +93,7 @@ export default function PortalSettingsPage() {
     });
 
     if (!res.ok) {
-      setMessage("Failed to save settings");
+      setMessage(t("portal.failedSaveSettings"));
       setSaving(false);
       return;
     }
@@ -107,7 +109,7 @@ export default function PortalSettingsPage() {
     };
     setSettings(next);
     setOriginal(next);
-    setMessage("Settings saved");
+    setMessage(t("portal.settingsSaved"));
     setSaving(false);
   };
 
@@ -119,7 +121,7 @@ export default function PortalSettingsPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">Loading...</div>
+        <div className="text-slate-600">{t("common.loading")}</div>
       </div>
     );
   }
@@ -127,7 +129,7 @@ export default function PortalSettingsPage() {
   if (loading || !settings) {
     return (
       <PortalLayout user={user} onLogout={handleLogout}>
-        <div className="text-slate-600">Loading settings...</div>
+        <div className="text-slate-600">{t("portal.loadingSettings")}</div>
       </PortalLayout>
     );
   }
@@ -135,9 +137,9 @@ export default function PortalSettingsPage() {
   return (
     <PortalLayout user={user} onLogout={handleLogout}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("portal.settings")}</h1>
         <p className="text-sm text-slate-600 mt-1">
-          Control widget access and retention
+          {t("portal.settingsSubtitle")}
         </p>
       </div>
 
@@ -151,9 +153,9 @@ export default function PortalSettingsPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <label className="flex items-center justify-between border rounded-lg p-4">
             <div>
-              <div className="font-medium">Widget Enabled</div>
+              <div className="font-medium">{t("portal.widgetEnabled")}</div>
               <div className="text-xs text-slate-500">
-                Allow widget to load
+                {t("portal.widgetEnabledDesc")}
               </div>
             </div>
             <input
@@ -167,9 +169,9 @@ export default function PortalSettingsPage() {
           </label>
           <label className="flex items-center justify-between border rounded-lg p-4">
             <div>
-              <div className="font-medium">Write Enabled</div>
+              <div className="font-medium">{t("portal.writeEnabled")}</div>
               <div className="text-xs text-slate-500">
-                Allow new messages
+                {t("portal.writeEnabledDesc")}
               </div>
             </div>
             <input
@@ -183,9 +185,9 @@ export default function PortalSettingsPage() {
           </label>
           <label className="flex items-center justify-between border rounded-lg p-4">
             <div>
-              <div className="font-medium">AI Enabled</div>
+              <div className="font-medium">{t("portal.aiEnabled")}</div>
               <div className="text-xs text-slate-500">
-                Enable AI responses
+                {t("portal.aiEnabledDesc")}
               </div>
             </div>
             <input
@@ -202,7 +204,7 @@ export default function PortalSettingsPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Message Retention Days
+              {t("portal.messageRetentionDays")}
             </label>
             <input
               type="number"
@@ -220,9 +222,9 @@ export default function PortalSettingsPage() {
           </div>
           <label className="flex items-center justify-between border rounded-lg p-4">
             <div>
-              <div className="font-medium">Hard Delete</div>
+              <div className="font-medium">{t("portal.hardDelete")}</div>
               <div className="text-xs text-slate-500">
-                Delete messages instead of redacting
+                {t("portal.hardDeleteDesc")}
               </div>
             </div>
             <input
@@ -241,8 +243,8 @@ export default function PortalSettingsPage() {
 
         {settings.lastRetentionRunAt && (
           <div className="text-xs text-slate-500">
-            Last retention run:{" "}
-            {new Date(settings.lastRetentionRunAt).toLocaleString()}
+            <span suppressHydrationWarning>{t("portal.lastRetentionRun")}:{" "}
+            {new Date(settings.lastRetentionRunAt).toLocaleString()}</span>
           </div>
         )}
 
@@ -252,7 +254,7 @@ export default function PortalSettingsPage() {
             disabled={!hasChanges || saving}
             className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
           >
-            {saving ? "Saving..." : "Save Settings"}
+            {saving ? t("common.saving") : t("portal.saveSettings")}
           </button>
         )}
       </div>

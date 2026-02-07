@@ -30,6 +30,17 @@ model Organization {
   lastBillingReconcileAt DateTime?
   lastBillingReconcileResult Json?
   trialEndsAt           DateTime?
+  trialStartedAt        DateTime?
+  firstConversationAt   DateTime?      // Conversion signal
+  firstWidgetEmbedAt    DateTime?      // Conversion signal
+  firstInviteSentAt     DateTime?      // Conversion signal
+  // Widget health metrics (Step 11.35)
+  widgetLoadsTotal         Int         @default(0)
+  widgetLoadFailuresTotal  Int         @default(0)
+  widgetDomainMismatchTotal Int        @default(0)
+  widgetRtBucketsJson      Json?       // Rolling histogram {buckets:[{max,count},...]}
+  widgetRtTotalCount       Int         @default(0)
+  lastWidgetSeenAt      DateTime?
   planKey               String         @default("free")
   planStatus            String         @default("inactive") // "active" | "inactive" | "past_due" | "canceled"
   allowedDomains        String[]       @default([])
@@ -46,6 +57,11 @@ model Organization {
   messageRetentionDays  Int            @default(365)
   hardDeleteOnRetention Boolean        @default(false)
   lastRetentionRunAt    DateTime?
+  extraConversationQuota Int           @default(0)
+  extraMessageQuota     Int            @default(0)
+  isActive              Boolean        @default(true)
+  ownerUserId           String?        // FK to OrgUser who is the org owner (Step 11.39)
+  createdVia            String         @default("admin") // "admin" | "self_serve"
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
   conversations         Conversation[]
@@ -55,6 +71,7 @@ model Organization {
   usages                Usage[]
 
   @@index([siteId])
+  @@index([ownerUserId])
   @@map("organizations")
 }
 
@@ -106,21 +123,43 @@ model Visitor {
 }
 
 model Conversation {
-  id           String        @id
-  orgId        String
-  organization Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  visitorId    String?
-  visitor      Visitor?      @relation(fields: [visitorId], references: [id], onDelete: SetNull)
-  createdAt    DateTime
-  updatedAt    DateTime
-  messageCount Int           @default(0)
-  messages     Message[]
+  id                   String              @id
+  orgId                String
+  organization         Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  visitorId            String?
+  visitor              Visitor?            @relation(fields: [visitorId], references: [id], onDelete: SetNull)
+  createdAt            DateTime
+  updatedAt            DateTime
+  messageCount         Int                 @default(0)
+  status               String              @default("OPEN") // OPEN | CLOSED
+  assignedToOrgUserId  String?
+  assignedTo           OrgUser?            @relation(fields: [assignedToOrgUserId], references: [id], onDelete: SetNull)
+  closedAt             DateTime?
+  messages             Message[]
+  notes                ConversationNote[]
 
   @@index([orgId])
   @@index([orgId, updatedAt])
   @@index([orgId, id])
   @@index([visitorId])
+  @@index([orgId, status])
+  @@index([assignedToOrgUserId])
   @@map("conversations")
+}
+
+model ConversationNote {
+  id               String       @id @default(cuid())
+  orgId            String
+  conversationId   String
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  authorOrgUserId  String
+  author           OrgUser      @relation(fields: [authorOrgUserId], references: [id], onDelete: Cascade)
+  body             String       @db.Text
+  createdAt        DateTime     @default(now())
+
+  @@index([orgId, conversationId, createdAt])
+  @@index([conversationId])
+  @@map("conversation_notes")
 }
 
 model Message {
@@ -140,28 +179,235 @@ model Message {
 }
 
 model AdminUser {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  role         String   // "owner" | "admin" | "agent"
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  role           String   // "owner" | "admin" | "agent"
+  mfaEnabled     Boolean  @default(false)
+  mfaSecret      String?  // encrypted TOTP secret
+  mfaVerifiedAt  DateTime?
+  backupCodesHash String? // JSON array of hashed backup codes
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([email])
   @@map("admin_users")
 }
 
 model OrgUser {
-  id           String       @id @default(cuid())
-  orgId        String
-  email        String       @unique
-  passwordHash String
-  role         String       // "owner" | "admin" | "agent"
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  id              String       @id @default(cuid())
+  orgId           String
+  email           String       @unique
+  passwordHash    String
+  role            String       // "owner" | "admin" | "agent"
+  isActive        Boolean      @default(true)
+  emailVerifiedAt DateTime?    // null = not verified (Step 11.36)
+  lastLoginAt     DateTime?
+  mfaEnabled      Boolean      @default(false)
+  mfaSecret       String?      // encrypted TOTP secret
+  mfaVerifiedAt   DateTime?
+  backupCodesHash String?      // JSON array of hashed backup codes
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invitesCreated  PortalInvite[] @relation("InviteCreator")
+  passwordResetTokens PasswordResetToken[]
+  portalSessions  PortalSession[]
+  assignedConversations Conversation[]
+  conversationNotes ConversationNote[]
 
   @@index([orgId])
   @@index([email])
   @@map("org_users")
+}
+
+model PortalInvite {
+  id                   String    @id @default(cuid())
+  orgId                String
+  email                String
+  role                 String    // "admin" | "agent"
+  tokenHash            String    @unique
+  expiresAt            DateTime
+  acceptedAt           DateTime?
+  createdAt            DateTime  @default(now())
+  createdByPortalUserId String
+  createdBy            OrgUser   @relation("InviteCreator", fields: [createdByPortalUserId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, email])
+  @@index([orgId])
+  @@index([tokenHash])
+  @@map("portal_invites")
+}
+
+model PasswordResetToken {
+  id          String    @id @default(cuid())
+  orgUserId   String
+  orgUser     OrgUser   @relation(fields: [orgUserId], references: [id], onDelete: Cascade)
+  hashedToken String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([hashedToken])
+  @@index([orgUserId])
+  @@map("password_reset_tokens")
+}
+
+model PortalSession {
+  id          String    @id @default(cuid())
+  orgUserId   String
+  orgUser     OrgUser   @relation(fields: [orgUserId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique
+  createdAt   DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  revokedAt   DateTime?
+  ip          String?
+  userAgent   String?
+
+  @@index([orgUserId])
+  @@index([tokenHash])
+  @@map("portal_sessions")
+}
+
+model TrustedDevice {
+  id             String   @id @default(cuid())
+  userId         String   // OrgUser or AdminUser id
+  userType       String   // "portal" | "admin"
+  userAgentHash  String
+  label          String?
+  trusted        Boolean  @default(false)
+  firstSeenAt    DateTime @default(now())
+  lastSeenAt     DateTime @default(now())
+  lastIp         String?
+  userAgentRaw   String?  // Truncated UA for display
+
+  @@unique([userId, userType, userAgentHash])
+  @@index([userId, userType])
+  @@map("trusted_devices")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  orgId     String
+  actor     String   // admin email, "system", "webhook"
+  action    String   // e.g. "usage.reset", "quota.grant", "billing.lock", "billing.unlock", "webhook.state_change"
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@map("audit_logs")
+}
+
+model AccountRecoveryRequest {
+  id          String    @id @default(cuid())
+  userType    String    // "admin" | "portal"
+  userId      String
+  email       String
+  reason      String    @db.Text
+  status      String    @default("pending") // "pending" | "approved" | "rejected" | "expired"
+  requestedAt DateTime  @default(now())
+  expiresAt   DateTime
+  resolvedAt  DateTime?
+  resolvedBy  String?   // admin email who resolved
+  ip          String?
+  userAgent   String?
+
+  @@index([userId, userType])
+  @@index([status])
+  @@map("account_recovery_requests")
+}
+
+model WebAuthnCredential {
+  id           String   @id @default(cuid())
+  userType     String   // "admin" | "portal"
+  userId       String
+  credentialId String   @unique // base64url encoded credential ID
+  publicKey    String   @db.Text // base64url encoded public key (COSE → SubjectPublicKeyInfo)
+  counter      Int      @default(0)
+  transports   String?  // JSON array e.g. ["usb","ble","nfc","internal"]
+  aaguid       String?  // authenticator attestation GUID
+  nickname     String?
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime @default(now())
+
+  @@index([userId, userType])
+  @@index([credentialId])
+  @@map("webauthn_credentials")
+}
+
+model WebAuthnChallenge {
+  id        String    @id @default(cuid())
+  userType  String    // "admin" | "portal"
+  userId    String?   // null for dummy/anonymous challenges
+  challenge String    @unique // base64url challenge string
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  ip        String?
+  userAgent String?
+
+  @@index([userId, userType])
+  @@index([challenge])
+  @@map("webauthn_challenges")
+}
+
+model Notification {
+  id           String    @id @default(cuid())
+  orgId        String
+  userId       String?   // null => org-wide; if set, only that user sees it
+  severity     String    @default("INFO") // INFO | WARN | CRITICAL
+  type         String    // SECURITY | WIDGET_HEALTH | BILLING | SYSTEM (category)
+  sourceAction String?   // Optional traceability: "mfa.enabled", "billing.locked", etc.
+  titleKey     String    // i18n key
+  bodyKey      String    // i18n key
+  metaJson     Json?
+  createdAt    DateTime  @default(now())
+  readAt       DateTime? // DEPRECATED — per-user read state in NotificationRead
+
+  reads NotificationRead[]
+
+  @@index([orgId, createdAt])
+  @@index([orgId, userId, readAt])
+  @@map("notifications")
+}
+
+model NotificationRead {
+  id             String       @id @default(cuid())
+  notificationId String
+  orgUserId      String
+  readAt         DateTime     @default(now())
+
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, orgUserId])
+  @@index([orgUserId, readAt])
+  @@index([notificationId])
+  @@map("notification_reads")
+}
+
+model NotificationPreference {
+  id              String   @id @default(cuid())
+  orgUserId       String   @unique
+  securityEnabled Boolean  @default(true)
+  billingEnabled  Boolean  @default(true)
+  widgetEnabled   Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("notification_preferences")
+}
+
+model EmergencyAccessToken {
+  id          String    @id @default(cuid())
+  userId      String
+  userType    String    // "admin" | "portal"
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+  cooldownUntil DateTime // cannot regenerate until this date
+
+  @@index([userId, userType])
+  @@index([tokenHash])
+  @@map("emergency_access_tokens")
 }

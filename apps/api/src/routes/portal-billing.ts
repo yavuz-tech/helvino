@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { requirePortalUser } from "../middleware/require-portal-user";
+import { requireStepUp } from "../middleware/require-step-up";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import {
   createCheckoutSession,
@@ -12,6 +13,8 @@ import {
   getUsageForMonth,
   getPlanLimits,
   getAvailablePlans,
+  computeTrialStatus,
+  getRecommendedPlan,
 } from "../utils/entitlements";
 import { getBillingLockStatus } from "../utils/billing-state";
 import { prisma } from "../prisma";
@@ -31,11 +34,14 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
       });
       if (!org) return { error: "Organization not found" };
 
-      const [limits, usage, plans] = await Promise.all([
+      const [limits, usage, plans, recommended] = await Promise.all([
         getPlanLimits(user.orgId),
         getUsageForMonth(user.orgId),
         getAvailablePlans(),
+        getRecommendedPlan(user.orgId),
       ]);
+
+      const trial = computeTrialStatus(org);
 
       return {
         stripeConfigured: isStripeConfigured(),
@@ -56,12 +62,15 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
               maxConversationsPerMonth: limits.maxConversationsPerMonth,
               maxMessagesPerMonth: limits.maxMessagesPerMonth,
               maxAgents: limits.maxAgents,
+              extraConversationQuota: limits.extraConversationQuota || 0,
+              extraMessageQuota: limits.extraMessageQuota || 0,
             }
           : null,
         usage: {
           monthKey: usage.monthKey,
           conversationsCreated: usage.conversationsCreated,
           messagesSent: usage.messagesSent,
+          nextResetDate: usage.nextResetDate,
         },
         subscription: {
           status: org.billingStatus,
@@ -76,6 +85,38 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
           billingGraceDays: org.billingGraceDays,
         },
         availablePlans: plans,
+        // Step 11.32 — additive fields
+        trial,
+        recommendedPlan: recommended,
+        conversionSignals: {
+          firstConversationAt: org.firstConversationAt?.toISOString() || null,
+          firstWidgetEmbedAt: org.firstWidgetEmbedAt?.toISOString() || null,
+          firstInviteSentAt: org.firstInviteSentAt?.toISOString() || null,
+        },
+      };
+    }
+  );
+
+  // ────────────────────────────────────────────────
+  // GET /portal/billing/trial-status
+  // Returns trial lifecycle information
+  // ────────────────────────────────────────────────
+  fastify.get(
+    "/portal/billing/trial-status",
+    { preHandler: [requirePortalUser] },
+    async (request) => {
+      const user = request.portalUser!;
+      const org = await prisma.organization.findUnique({
+        where: { id: user.orgId },
+      });
+      if (!org) return { error: "Organization not found" };
+
+      const trial = computeTrialStatus(org);
+      const recommended = await getRecommendedPlan(user.orgId);
+
+      return {
+        ...trial,
+        recommendedPlan: recommended,
       };
     }
   );
@@ -216,13 +257,18 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────
   fastify.post(
     "/portal/billing/checkout",
-    { preHandler: [requirePortalUser] },
+    { preHandler: [requirePortalUser, requireStepUp("portal")] },
     async (request, reply) => {
       const user = request.portalUser!;
       const body = request.body as {
         planKey?: string;
         returnUrl?: string;
       };
+
+      if (!isStripeConfigured()) {
+        reply.code(501);
+        return { error: "Stripe is not configured on this server.", code: "STRIPE_NOT_CONFIGURED" };
+      }
 
       try {
         const url = await createCheckoutSession(
@@ -233,8 +279,8 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
         return { url };
       } catch (err) {
         if (err instanceof StripeNotConfiguredError) {
-          reply.code(400);
-          return { error: "Stripe not configured" };
+          reply.code(501);
+          return { error: "Stripe is not configured on this server.", code: "STRIPE_NOT_CONFIGURED" };
         }
         reply.code(500);
         return { error: "Checkout failed" };
@@ -247,18 +293,23 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────
   fastify.post(
     "/portal/billing/portal",
-    { preHandler: [requirePortalUser] },
+    { preHandler: [requirePortalUser, requireStepUp("portal")] },
     async (request, reply) => {
       const user = request.portalUser!;
       const { returnUrl } = request.body as { returnUrl?: string };
+
+      if (!isStripeConfigured()) {
+        reply.code(501);
+        return { error: "Stripe is not configured on this server.", code: "STRIPE_NOT_CONFIGURED" };
+      }
 
       try {
         const url = await createCustomerPortalSession(user.orgId, returnUrl);
         return { url };
       } catch (err) {
         if (err instanceof StripeNotConfiguredError) {
-          reply.code(400);
-          return { error: "Stripe not configured" };
+          reply.code(501);
+          return { error: "Stripe is not configured on this server.", code: "STRIPE_NOT_CONFIGURED" };
         }
         if (
           err instanceof Error &&
@@ -285,6 +336,7 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
       preHandler: [
         createRateLimitMiddleware({ limit: 30, windowMs: 60000 }),
         requirePortalUser,
+        requireStepUp("portal"),
       ],
     },
     async (request, reply) => {
@@ -384,13 +436,18 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
       const user = request.portalUser!;
       const { returnUrl } = request.body as { returnUrl?: string };
 
+      if (!isStripeConfigured()) {
+        reply.code(501);
+        return { error: "Stripe is not configured on this server.", code: "STRIPE_NOT_CONFIGURED" };
+      }
+
       try {
         const url = await createCustomerPortalSession(user.orgId, returnUrl);
         return { url };
       } catch (err) {
         if (err instanceof StripeNotConfiguredError) {
-          reply.code(400);
-          return { error: "Stripe not configured" };
+          reply.code(501);
+          return { error: "Stripe is not configured on this server.", code: "STRIPE_NOT_CONFIGURED" };
         }
         reply.code(500);
         return { error: "Portal session failed" };

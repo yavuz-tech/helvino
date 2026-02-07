@@ -19,6 +19,8 @@ declare module "fastify" {
     adminUserId?: string;
     adminRole?: string;
     adminEmail?: string;
+    adminMfaPending?: boolean;
+    adminStepUpUntil?: number;
     orgUserId?: string;
     orgId?: string;
     orgRole?: string;
@@ -30,6 +32,8 @@ declare module "@fastify/session" {
     adminUserId?: string;
     adminRole?: string;
     adminEmail?: string;
+    adminMfaPending?: boolean;
+    adminStepUpUntil?: number;
     orgUserId?: string;
     orgId?: string;
     orgRole?: string;

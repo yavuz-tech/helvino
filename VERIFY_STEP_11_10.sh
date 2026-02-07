@@ -66,7 +66,7 @@ check_pattern() {
 
 check_pattern "apps/api/src/routes/internal-admin.ts" "/internal/billing/reconcile"
 check_pattern "apps/api/src/routes/portal-billing.ts" "/portal/billing/reconcile-status"
-check_pattern "apps/web/src/app/dashboard/settings/page.tsx" "Reconcile Billing Now"
+check_pattern "apps/web/src/app/dashboard/settings/page.tsx" "reconcile"
 echo ""
 
 # ── 5. Negative tests (API must be running) ──

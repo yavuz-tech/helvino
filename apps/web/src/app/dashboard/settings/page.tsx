@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { checkAuth, logout, type AdminUser } from "@/lib/auth";
 import { useOrg } from "@/contexts/OrgContext";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useI18n } from "@/i18n/I18nContext";
+import MfaSetupSection from "@/components/MfaSetupSection";
+import PasskeySection from "@/components/PasskeySection";
+import { useStepUp } from "@/contexts/StepUpContext";
 
 interface OrgSettings {
   widgetEnabled: boolean;
@@ -36,6 +40,25 @@ interface BillingInfo {
   };
 }
 
+interface UsageInfo {
+  org: { id: string; key: string; name: string };
+  usage: {
+    monthKey: string;
+    conversationsCreated: number;
+    messagesSent: number;
+    nextResetDate: string;
+  };
+  limits: {
+    planKey: string;
+    planName: string;
+    maxConversationsPerMonth: number;
+    maxMessagesPerMonth: number;
+    maxAgents: number;
+    extraConversationQuota: number;
+    extraMessageQuota: number;
+  } | null;
+}
+
 interface OrgInfo {
   id: string;
   key: string;
@@ -44,6 +67,8 @@ interface OrgInfo {
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { t } = useI18n();
+  const { withStepUp } = useStepUp();
   const { selectedOrg, isLoading: orgLoading } = useOrg();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -55,6 +80,15 @@ export default function SettingsPage() {
     billingEnforced: boolean;
     billingGraceDays: number;
   } | null>(null);
+  const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
+  const [usageLoading, setUsageLoading] = useState(true);
+  const [usageMessage, setUsageMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [resettingUsage, setResettingUsage] = useState(false);
+  const [grantingQuota, setGrantingQuota] = useState(false);
+  const [extraConvInput, setExtraConvInput] = useState(0);
+  const [extraMsgInput, setExtraMsgInput] = useState(0);
+  const [lockingBilling, setLockingBilling] = useState(false);
+  const [unlockingBilling, setUnlockingBilling] = useState(false);
   const [loading, setLoading] = useState(true);
   const [billingLoading, setBillingLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -63,6 +97,10 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [billingMessage, setBillingMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // MFA state
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [mfaVerifiedAt, setMfaVerifiedAt] = useState<string | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -79,6 +117,26 @@ export default function SettingsPage() {
     };
     verifyAuth();
   }, [router]);
+
+  // Fetch MFA status
+  useEffect(() => {
+    if (authLoading) return;
+    const loadMfaStatus = async () => {
+      try {
+        const res = await fetch(`${API_URL}/internal/security/mfa/status`, {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setMfaEnabled(data.mfaEnabled || false);
+          setMfaVerifiedAt(data.mfaVerifiedAt || null);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadMfaStatus();
+  }, [authLoading, API_URL]);
 
   // Fetch current settings
   useEffect(() => {
@@ -100,13 +158,37 @@ export default function SettingsPage() {
         setOriginalSettings(data.settings);
       } catch (err) {
         console.error("Failed to fetch settings:", err);
-        setError("Failed to load settings");
+        setError(t("settings.failedLoadSettings"));
       } finally {
         setLoading(false);
       }
     };
 
     fetchSettings();
+  }, [API_URL, selectedOrg, authLoading, orgLoading, t]);
+
+  // Fetch usage info
+  useEffect(() => {
+    if (authLoading || orgLoading || !selectedOrg) return;
+    const fetchUsage = async () => {
+      setUsageLoading(true);
+      try {
+        const response = await fetch(`${API_URL}/internal/org/${selectedOrg.key}/usage`, {
+          credentials: "include",
+        });
+        if (response.ok) {
+          const data: UsageInfo = await response.json();
+          setUsageInfo(data);
+          setExtraConvInput(data.limits?.extraConversationQuota || 0);
+          setExtraMsgInput(data.limits?.extraMessageQuota || 0);
+        }
+      } catch (err) {
+        console.error("Failed to fetch usage:", err);
+      } finally {
+        setUsageLoading(false);
+      }
+    };
+    fetchUsage();
   }, [API_URL, selectedOrg, authLoading, orgLoading]);
 
   // Fetch billing info
@@ -169,7 +251,7 @@ export default function SettingsPage() {
 
       // Only send PATCH if there are changes
       if (Object.keys(updates).length === 0) {
-        setSaveMessage({ type: "success", text: "No changes to save" });
+        setSaveMessage({ type: "success", text: t("common.noChanges") });
         setTimeout(() => setSaveMessage(null), 3000);
         setSaving(false);
         return;
@@ -191,13 +273,13 @@ export default function SettingsPage() {
       const data = await response.json();
       setSettings(data.settings);
       setOriginalSettings(data.settings);
-      setSaveMessage({ type: "success", text: "Settings saved successfully" });
+      setSaveMessage({ type: "success", text: t("settings.saved") });
 
       // Clear success message after 3 seconds
       setTimeout(() => setSaveMessage(null), 3000);
     } catch (err) {
       console.error("Failed to save settings:", err);
-      setSaveMessage({ type: "error", text: "Failed to save settings" });
+      setSaveMessage({ type: "error", text: t("settings.failedSave") });
     } finally {
       setSaving(false);
     }
@@ -215,7 +297,7 @@ export default function SettingsPage() {
     }
 
     if (Object.keys(updates).length === 0) {
-      setBillingMessage({ type: "success", text: "No billing changes to save" });
+      setBillingMessage({ type: "success", text: t("settings.noBillingChanges") });
       setTimeout(() => setBillingMessage(null), 3000);
       return;
     }
@@ -223,130 +305,203 @@ export default function SettingsPage() {
     setBillingSaving(true);
     setBillingMessage(null);
 
-    try {
-      const response = await fetch(`${API_URL}/internal/org/${selectedOrg.key}/billing`, {
+    const result = await withStepUp(() =>
+      fetch(`${API_URL}/internal/org/${selectedOrg.key}/billing`, {
         method: "PATCH",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
-      });
+      }),
+      "admin"
+    );
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+    if (result.cancelled) { setBillingSaving(false); return; }
+    if (!result.ok) {
+      setBillingMessage({ type: "error", text: t("settings.failedSave") });
+      setBillingSaving(false);
+      return;
+    }
 
-      const data = await response.json();
+    const data = result.data as Record<string, Record<string, unknown>> | undefined;
+    if (data?.billing) {
       setBillingInfo({
         ...billingInfo,
         billing: {
           ...billingInfo.billing,
-          billingEnforced: data.billing.billingEnforced,
-          billingGraceDays: data.billing.billingGraceDays,
+          billingEnforced: data.billing.billingEnforced as boolean,
+          billingGraceDays: data.billing.billingGraceDays as number,
         },
       });
       setBillingOriginal({
-        billingEnforced: data.billing.billingEnforced,
-        billingGraceDays: data.billing.billingGraceDays,
+        billingEnforced: data.billing.billingEnforced as boolean,
+        billingGraceDays: data.billing.billingGraceDays as number,
       });
-      setBillingMessage({ type: "success", text: "Billing settings saved" });
-      setTimeout(() => setBillingMessage(null), 3000);
-    } catch (err) {
-      console.error("Failed to save billing settings:", err);
-      setBillingMessage({ type: "error", text: "Failed to save billing settings" });
-    } finally {
-      setBillingSaving(false);
     }
+    setBillingMessage({ type: "success", text: t("settings.saved") });
+    setTimeout(() => setBillingMessage(null), 3000);
+    setBillingSaving(false);
   };
 
   const handleStartSubscription = async () => {
     if (!selectedOrg) return;
-    const response = await fetch(
-      `${API_URL}/internal/org/${selectedOrg.key}/billing/checkout-session`,
-      {
+    const result = await withStepUp(() =>
+      fetch(`${API_URL}/internal/org/${selectedOrg.key}/billing/checkout-session`, {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          returnUrl: window.location.origin + "/dashboard/settings",
-        }),
-      }
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ returnUrl: window.location.origin + "/dashboard/settings" }),
+      }),
+      "admin"
     );
-
-    if (!response.ok) {
-      setBillingMessage({ type: "error", text: "Failed to start checkout" });
+    if (result.cancelled) return;
+    if (!result.ok) {
+      setBillingMessage({ type: "error", text: t("settings.failedStartCheckout") });
       return;
     }
-
-    const data = await response.json();
-    if (data.url) {
-      window.location.href = data.url;
-    }
+    const data = result.data as Record<string, string> | undefined;
+    if (data?.url) window.location.href = data.url;
   };
 
   const handleManageBilling = async () => {
     if (!selectedOrg) return;
-    const response = await fetch(
-      `${API_URL}/internal/org/${selectedOrg.key}/billing/portal-session`,
-      {
+    const result = await withStepUp(() =>
+      fetch(`${API_URL}/internal/org/${selectedOrg.key}/billing/portal-session`, {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          returnUrl: window.location.origin + "/dashboard/settings",
-        }),
-      }
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ returnUrl: window.location.origin + "/dashboard/settings" }),
+      }),
+      "admin"
     );
-
-    if (!response.ok) {
-      setBillingMessage({ type: "error", text: "Failed to open billing portal" });
+    if (result.cancelled) return;
+    if (!result.ok) {
+      setBillingMessage({ type: "error", text: t("settings.failedOpenPortal") });
       return;
     }
+    const data = result.data as Record<string, string> | undefined;
+    if (data?.url) window.location.href = data.url;
+  };
 
-    const data = await response.json();
-    if (data.url) {
-      window.location.href = data.url;
+  const handleResetUsage = async () => {
+    if (!selectedOrg || !confirm(t("settings.resetUsageConfirm"))) return;
+    setResettingUsage(true);
+    setUsageMessage(null);
+    const result = await withStepUp(() =>
+      fetch(`${API_URL}/internal/org/${selectedOrg.key}/usage/reset`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      }),
+      "admin"
+    );
+    if (result.cancelled) { setResettingUsage(false); return; }
+    if (!result.ok) {
+      setUsageMessage({ type: "error", text: t("settings.failedResetUsage") });
+      setResettingUsage(false);
+      return;
     }
+    setUsageMessage({ type: "success", text: t("settings.usageResetSuccess") });
+    const res = await fetch(`${API_URL}/internal/org/${selectedOrg.key}/usage`, { credentials: "include" });
+    if (res.ok) setUsageInfo(await res.json());
+    setTimeout(() => setUsageMessage(null), 3000);
+    setResettingUsage(false);
+  };
+
+  const handleGrantQuota = async () => {
+    if (!selectedOrg) return;
+    setGrantingQuota(true);
+    setUsageMessage(null);
+    const result = await withStepUp(() =>
+      fetch(`${API_URL}/internal/org/${selectedOrg.key}/usage/grant-quota`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          extraConversations: extraConvInput,
+          extraMessages: extraMsgInput,
+        }),
+      }),
+      "admin"
+    );
+    if (result.cancelled) { setGrantingQuota(false); return; }
+    if (!result.ok) {
+      setUsageMessage({ type: "error", text: t("settings.failedGrantQuota") });
+      setGrantingQuota(false);
+      return;
+    }
+    setUsageMessage({ type: "success", text: t("settings.quotaUpdatedSuccess") });
+    const res = await fetch(`${API_URL}/internal/org/${selectedOrg.key}/usage`, { credentials: "include" });
+    if (res.ok) setUsageInfo(await res.json());
+    setTimeout(() => setUsageMessage(null), 3000);
+    setGrantingQuota(false);
+  };
+
+  const handleBillingLock = async () => {
+    if (!selectedOrg || !confirm(t("settings.lockConfirm"))) return;
+    setLockingBilling(true);
+    setBillingMessage(null);
+    const result = await withStepUp(() =>
+      fetch(`${API_URL}/internal/org/${selectedOrg.key}/billing/lock`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      }),
+      "admin"
+    );
+    if (result.cancelled) { setLockingBilling(false); return; }
+    if (result.ok) {
+      setBillingMessage({ type: "success", text: t("settings.billingLockedSuccess") });
+      setTimeout(() => setBillingMessage(null), 3000);
+    } else {
+      setBillingMessage({ type: "error", text: t("settings.failedLockBilling") });
+    }
+    setLockingBilling(false);
+  };
+
+  const handleBillingUnlock = async () => {
+    if (!selectedOrg || !confirm(t("settings.unlockConfirm"))) return;
+    setUnlockingBilling(true);
+    setBillingMessage(null);
+    const result = await withStepUp(() =>
+      fetch(`${API_URL}/internal/org/${selectedOrg.key}/billing/unlock`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      }),
+      "admin"
+    );
+    if (result.cancelled) { setUnlockingBilling(false); return; }
+    if (result.ok) {
+      setBillingMessage({ type: "success", text: t("settings.billingUnlockedSuccess") });
+      setTimeout(() => setBillingMessage(null), 3000);
+    } else {
+      setBillingMessage({ type: "error", text: t("settings.failedUnlockBilling") });
+    }
+    setUnlockingBilling(false);
   };
 
   const handleBillingReconcile = async () => {
     if (!selectedOrg) return;
     setReconciling(true);
     setBillingMessage(null);
-    try {
-      const response = await fetch(`${API_URL}/internal/billing/reconcile`, {
+    const result = await withStepUp(() =>
+      fetch(`${API_URL}/internal/billing/reconcile`, {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orgKey: selectedOrg.key }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        setBillingMessage({
-          type: "error",
-          text: data.error || "Billing reconcile failed",
-        });
-        return;
-      }
-
-      setBillingMessage({
-        type: "success",
-        text: "Billing reconcile completed",
-      });
-    } catch (err) {
-      console.error("Failed to reconcile billing:", err);
-      setBillingMessage({ type: "error", text: "Billing reconcile failed" });
-    } finally {
+      }),
+      "admin"
+    );
+    if (result.cancelled) { setReconciling(false); return; }
+    if (!result.ok) {
+      const data = result.data as Record<string, string> | undefined;
+      setBillingMessage({ type: "error", text: data?.error || t("settings.reconcileFailed") });
       setReconciling(false);
+      return;
     }
+    setBillingMessage({ type: "success", text: t("settings.reconcileSuccess") });
+    setReconciling(false);
   };
 
   // Check if there are unsaved changes
@@ -373,7 +528,7 @@ export default function SettingsPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">Checking authentication...</div>
+        <div className="text-slate-600">{t("common.checkingAuth")}</div>
       </div>
     );
   }
@@ -382,7 +537,7 @@ export default function SettingsPage() {
     return (
       <DashboardLayout user={user} onLogout={handleLogout}>
         <div className="text-center py-12 text-slate-500">
-          Loading settings...
+          {t("settings.loadingSettings")}
         </div>
       </DashboardLayout>
     );
@@ -392,7 +547,7 @@ export default function SettingsPage() {
     return (
       <DashboardLayout user={user} onLogout={handleLogout}>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-          {error || "Failed to load settings"}
+          {error || t("settings.failedLoadSettings")}
         </div>
       </DashboardLayout>
     );
@@ -402,7 +557,7 @@ export default function SettingsPage() {
     <DashboardLayout user={user} onLogout={handleLogout}>
       {/* Page Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Organization Settings</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("settings.orgSettings")}</h1>
         <p className="text-sm text-slate-500 mt-1">
           {orgInfo.name} ({orgInfo.key})
         </p>
@@ -428,30 +583,30 @@ export default function SettingsPage() {
         {/* Navigation Tabs */}
         <div className="flex gap-4 border-b border-slate-200 pb-4">
           <div className="px-4 py-2 border-b-2 border-slate-900 text-slate-900 font-medium">
-            General Settings
+            {t("nav.generalSettings")}
           </div>
           <a
             href="/dashboard/settings/security"
             className="px-4 py-2 text-slate-600 hover:text-slate-900 transition-colors"
           >
-            🔒 Security
+            🔒 {t("nav.security")}
           </a>
         </div>
 
         {/* Kill Switches Section */}
         <div className="bg-white rounded-lg border border-slate-200 p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">
-            Kill Switches
+            {t("settings.killSwitches")}
           </h2>
           <div className="space-y-4">
             {/* Widget Enabled */}
             <div className="flex items-center justify-between py-3 border-b border-slate-100">
               <div className="flex-1">
                 <label className="text-sm font-medium text-slate-900">
-                  Widget Enabled
+                  {t("settings.widgetEnabled")}
                 </label>
                 <p className="text-xs text-slate-500 mt-1">
-                  When disabled, widget will not render on client pages
+                  {t("settings.widgetEnabledDesc")}
                 </p>
               </div>
               <button
@@ -474,14 +629,14 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between py-3 border-b border-slate-100">
               <div className="flex-1">
                 <label className="text-sm font-medium text-slate-900">
-                  Write Enabled
+                  {t("settings.writeEnabled")}
                 </label>
                 <p className="text-xs text-slate-500 mt-1">
-                  When disabled, all POST operations will be blocked
+                  {t("settings.writeEnabledDesc")}
                 </p>
                 {!settings.writeEnabled && (
                   <p className="text-xs text-orange-600 font-medium mt-2">
-                    ⚠️ Write operations will be blocked (read-only mode).
+                    ⚠️ {t("settings.writeDisabledWarning")}
                   </p>
                 )}
               </div>
@@ -505,10 +660,10 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between py-3">
               <div className="flex-1">
                 <label className="text-sm font-medium text-slate-900">
-                  AI Enabled
+                  {t("settings.aiEnabled")}
                 </label>
                 <p className="text-xs text-slate-500 mt-1">
-                  Enable or disable AI features (future use)
+                  {t("settings.aiEnabledDesc")}
                 </p>
               </div>
               <button
@@ -532,16 +687,16 @@ export default function SettingsPage() {
         {/* Data Retention Section */}
         <div className="bg-white rounded-lg border border-slate-200 p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">
-            Data Retention Policy
+            {t("settings.dataRetention")}
           </h2>
           <div className="space-y-4">
             {/* Retention Days */}
             <div className="py-3 border-b border-slate-100">
               <label className="block text-sm font-medium text-slate-900 mb-2">
-                Message Retention Days
+                {t("settings.retentionDays")}
               </label>
               <p className="text-xs text-slate-500 mb-3">
-                Messages older than this will be processed by retention policy (1-3650 days)
+                {t("settings.retentionDaysDesc")}
               </p>
               <input
                 type="number"
@@ -557,8 +712,8 @@ export default function SettingsPage() {
                 className="w-full max-w-xs px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
               />
               <p className="text-xs text-slate-500 mt-2">
-                Current: {settings.messageRetentionDays} days (~
-                {Math.floor(settings.messageRetentionDays / 365)} years)
+                {t("settings.currentRetention")} {settings.messageRetentionDays} {t("settings.retentionDays2")} (~
+                {Math.floor(settings.messageRetentionDays / 365)} {t("settings.retentionYears")})
               </p>
             </div>
 
@@ -567,15 +722,15 @@ export default function SettingsPage() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <label className="text-sm font-medium text-slate-900">
-                    Hard Delete on Retention
+                    {t("settings.hardDelete")}
                   </label>
                   <p className="text-xs text-slate-500 mt-1">
-                    When enabled: Permanently delete old messages<br />
-                    When disabled: Redact content to &ldquo;[redacted]&rdquo; (soft delete)
+                    {t("settings.hardDeleteDesc")}<br />
+                    {t("settings.softDeleteDesc")}
                   </p>
                   {settings.hardDeleteOnRetention && (
                     <p className="text-xs text-red-600 font-medium mt-2">
-                      ⚠️ Hard delete permanently removes messages. No recovery possible.
+                      ⚠️ {t("settings.hardDeleteWarning")}
                     </p>
                   )}
                 </div>
@@ -602,26 +757,232 @@ export default function SettingsPage() {
             {/* Last Retention Run (Read-only) */}
             <div className="py-3">
               <label className="block text-sm font-medium text-slate-900 mb-2">
-                Last Retention Run
+                {t("settings.lastRetentionRun")}
               </label>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-slate-600" suppressHydrationWarning>
                 {settings.lastRetentionRunAt
                   ? new Date(settings.lastRetentionRunAt).toLocaleString()
-                  : "Never"}
+                  : t("common.never")}
               </p>
               {settings.lastRetentionRunAt && (
                 <p className="text-xs text-slate-500 mt-1">
-                  Retention job processes messages older than retention period
+                  {t("settings.retentionJobDesc")}
                 </p>
               )}
             </div>
           </div>
         </div>
 
+        {/* Usage & Overrides Section */}
+        <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+            {t("settings.usageOverrides")}
+          </h2>
+
+          {usageMessage && (
+            <div
+              className={`rounded-lg p-3 mb-4 ${
+                usageMessage.type === "success"
+                  ? "bg-green-50 border border-green-200 text-green-800"
+                  : "bg-red-50 border border-red-200 text-red-800"
+              }`}
+            >
+              {usageMessage.text}
+            </div>
+          )}
+
+          {usageLoading || !usageInfo ? (
+            <div className="text-slate-600 text-sm">{t("settings.loadingUsage")}</div>
+          ) : (
+            <div className="space-y-5">
+              {/* Current Month Usage */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">
+                    {t("settings.currentMonth")} {usageInfo.usage.monthKey}
+                  </span>
+                  <span className="text-xs text-slate-500" suppressHydrationWarning>
+                    {t("settings.nextResetLabel")} {new Date(usageInfo.usage.nextResetDate).toLocaleDateString()}
+                  </span>
+                </div>
+                {usageInfo.limits && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                      <div className="text-xs text-slate-500">{t("settings.conversations")}</div>
+                      <div className="text-lg font-semibold text-slate-900">
+                        {usageInfo.usage.conversationsCreated} / {usageInfo.limits.maxConversationsPerMonth}
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-1.5 mt-1.5">
+                        <div
+                          className={`h-1.5 rounded-full ${usageInfo.usage.conversationsCreated >= usageInfo.limits.maxConversationsPerMonth ? 'bg-red-500' : 'bg-emerald-500'}`}
+                          style={{ width: `${Math.min((usageInfo.usage.conversationsCreated / usageInfo.limits.maxConversationsPerMonth) * 100, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                      <div className="text-xs text-slate-500">{t("settings.messages")}</div>
+                      <div className="text-lg font-semibold text-slate-900">
+                        {usageInfo.usage.messagesSent} / {usageInfo.limits.maxMessagesPerMonth}
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-1.5 mt-1.5">
+                        <div
+                          className={`h-1.5 rounded-full ${usageInfo.usage.messagesSent >= usageInfo.limits.maxMessagesPerMonth ? 'bg-red-500' : 'bg-emerald-500'}`}
+                          style={{ width: `${Math.min((usageInfo.usage.messagesSent / usageInfo.limits.maxMessagesPerMonth) * 100, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Reset Usage */}
+              <div className="border-t border-slate-100 pt-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{t("settings.resetUsage")}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {t("settings.resetUsageDesc")}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleResetUsage}
+                    disabled={resettingUsage}
+                    className="px-4 py-2 bg-orange-50 text-orange-900 text-sm rounded-lg hover:bg-orange-100 disabled:opacity-50 border border-orange-200"
+                  >
+                    {resettingUsage ? t("settings.resetting") : t("settings.resetUsage")}
+                  </button>
+                </div>
+              </div>
+
+              {/* Grant Extra Quota */}
+              <div className="border-t border-slate-100 pt-4">
+                <p className="text-sm font-medium text-slate-900 mb-1">{t("settings.grantQuota")}</p>
+                <p className="text-xs text-slate-500 mb-3">
+                  {t("settings.grantQuotaDesc")}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">{t("settings.extraConversations")}</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={extraConvInput}
+                      onChange={(e) => setExtraConvInput(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-600 mb-1">{t("settings.extraMessages")}</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={extraMsgInput}
+                      onChange={(e) => setExtraMsgInput(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={handleGrantQuota}
+                  disabled={grantingQuota}
+                  className="mt-3 px-4 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-700 disabled:opacity-50"
+                >
+                  {grantingQuota ? t("common.saving") : t("settings.updateQuota")}
+                </button>
+              </div>
+
+              {/* Manual Billing Lock/Unlock */}
+              <div className="border-t border-slate-100 pt-4">
+                <p className="text-sm font-medium text-slate-900 mb-1">{t("settings.manualBillingLock")}</p>
+                <p className="text-xs text-slate-500 mb-3">
+                  {t("settings.manualLockDesc")}
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleBillingLock}
+                    disabled={lockingBilling}
+                    className="px-4 py-2 bg-red-50 text-red-900 text-sm rounded-lg hover:bg-red-100 disabled:opacity-50 border border-red-200"
+                  >
+                    {lockingBilling ? t("settings.locking") : t("settings.lockBilling")}
+                  </button>
+                  <button
+                    onClick={handleBillingUnlock}
+                    disabled={unlockingBilling}
+                    className="px-4 py-2 bg-green-50 text-green-900 text-sm rounded-lg hover:bg-green-100 disabled:opacity-50 border border-green-200"
+                  >
+                    {unlockingBilling ? t("settings.unlocking") : t("settings.unlockBilling")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* MFA Section */}
+        <MfaSetupSection
+          mfaEnabled={mfaEnabled}
+          mfaVerifiedAt={mfaVerifiedAt}
+          onSetup={async () => {
+            try {
+              const res = await fetch(`${API_URL}/internal/security/mfa/setup`, {
+                method: "POST",
+                credentials: "include",
+              });
+              if (!res.ok) return null;
+              return await res.json();
+            } catch {
+              return null;
+            }
+          }}
+          onVerify={async (code) => {
+            try {
+              const res = await fetch(`${API_URL}/internal/security/mfa/verify`, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code }),
+              });
+              return res.ok;
+            } catch {
+              return false;
+            }
+          }}
+          onDisable={async (code) => {
+            try {
+              const res = await fetch(`${API_URL}/internal/security/mfa/disable`, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code }),
+              });
+              return res.ok;
+            } catch {
+              return false;
+            }
+          }}
+          onRefresh={async () => {
+            try {
+              const res = await fetch(`${API_URL}/internal/security/mfa/status`, {
+                credentials: "include",
+              });
+              if (res.ok) {
+                const data = await res.json();
+                setMfaEnabled(data.mfaEnabled || false);
+                setMfaVerifiedAt(data.mfaVerifiedAt || null);
+              }
+            } catch {
+              // ignore
+            }
+          }}
+        />
+
+        {/* Passkeys Section */}
+        <PasskeySection area="admin" />
+
         {/* Billing Section */}
         <div className="bg-white rounded-lg border border-slate-200 p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">
-            Billing
+            {t("settings.billing")}
           </h2>
 
           {billingMessage && (
@@ -637,35 +998,35 @@ export default function SettingsPage() {
           )}
 
           {billingLoading || !billingInfo ? (
-            <div className="text-slate-600">Loading billing...</div>
+            <div className="text-slate-600">{t("settings.loadingBilling")}</div>
           ) : (
             <div className="space-y-4">
               {!billingInfo.stripeConfigured && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-yellow-900 text-sm">
-                  Stripe not configured. Checkout/portal sessions will fail until env vars are set.
+                  {t("settings.stripeNotConfigured")}
                 </div>
               )}
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                  <div className="text-xs text-slate-500">Status</div>
+                  <div className="text-xs text-slate-500">{t("settings.billingStatus")}</div>
                   <div className="text-lg font-semibold text-slate-900 capitalize">
                     {billingInfo.billing.billingStatus}
                   </div>
                   <div className="text-xs text-slate-500 mt-2">
-                    Cancel at period end:{" "}
-                    {billingInfo.billing.cancelAtPeriodEnd ? "Yes" : "No"}
+                    {t("settings.cancelAtPeriodEnd")}{" "}
+                    {billingInfo.billing.cancelAtPeriodEnd ? t("common.yes") : t("common.no")}
                   </div>
                 </div>
                 <div className="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                  <div className="text-xs text-slate-500">Current Period End</div>
-                  <div className="text-sm font-semibold text-slate-900">
+                  <div className="text-xs text-slate-500">{t("settings.currentPeriodEnd")}</div>
+                  <div className="text-sm font-semibold text-slate-900" suppressHydrationWarning>
                     {billingInfo.billing.currentPeriodEnd
                       ? new Date(billingInfo.billing.currentPeriodEnd).toLocaleString()
                       : "-"}
                   </div>
                   <div className="text-xs text-slate-500 mt-2">
-                    Price ID: {billingInfo.billing.stripePriceId || "-"}
+                    {t("settings.priceId")} {billingInfo.billing.stripePriceId || "-"}
                   </div>
                 </div>
               </div>
@@ -676,21 +1037,21 @@ export default function SettingsPage() {
                   className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50"
                   disabled={!billingInfo.stripeConfigured}
                 >
-                  Start Subscription
+                  {t("settings.startSubscription")}
                 </button>
                 <button
                   onClick={handleManageBilling}
                   className="px-4 py-2 bg-slate-100 text-slate-900 rounded-lg hover:bg-slate-200 disabled:opacity-50"
                   disabled={!billingInfo.stripeConfigured}
                 >
-                  Manage Billing
+                  {t("settings.manageBilling")}
                 </button>
                 <button
                   onClick={handleBillingReconcile}
                   className="px-4 py-2 bg-blue-50 text-blue-900 rounded-lg hover:bg-blue-100 disabled:opacity-50"
                   disabled={reconciling}
                 >
-                  {reconciling ? "Reconciling..." : "Reconcile Billing Now"}
+                  {reconciling ? t("settings.reconciling") : t("settings.reconcileBilling")}
                 </button>
               </div>
 
@@ -698,10 +1059,10 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between py-3">
                   <div className="flex-1">
                     <label className="text-sm font-medium text-slate-900">
-                      Enforce Billing
+                      {t("settings.enforceBilling")}
                     </label>
                     <p className="text-xs text-slate-500 mt-1">
-                      When enabled, unpaid or inactive subscriptions block writes after grace period.
+                      {t("settings.enforceBillingDesc")}
                     </p>
                   </div>
                   <button
@@ -728,7 +1089,7 @@ export default function SettingsPage() {
 
                 <div className="py-3">
                   <label className="block text-sm font-medium text-slate-900 mb-2">
-                    Grace Days
+                    {t("settings.graceDays")}
                   </label>
                   <input
                     type="number"
@@ -752,10 +1113,10 @@ export default function SettingsPage() {
                   <div className="text-sm text-slate-600">
                     {hasBillingChanges ? (
                       <span className="text-orange-600 font-medium">
-                        ⚠️ You have unsaved billing changes
+                        ⚠️ {t("settings.unsavedBilling")}
                       </span>
                     ) : (
-                      <span>No billing changes</span>
+                      <span>{t("settings.noBillingChanges")}</span>
                     )}
                   </div>
                   <button
@@ -767,7 +1128,7 @@ export default function SettingsPage() {
                         : "bg-slate-300 text-slate-500 cursor-not-allowed"
                     }`}
                   >
-                    {billingSaving ? "Saving..." : "Save Billing"}
+                    {billingSaving ? t("common.saving") : t("settings.saveBilling")}
                   </button>
                 </div>
               </div>
@@ -780,10 +1141,10 @@ export default function SettingsPage() {
           <div className="text-sm text-slate-600">
             {hasChanges ? (
               <span className="text-orange-600 font-medium">
-                ⚠️ You have unsaved changes
+                ⚠️ {t("common.unsavedChanges")}
               </span>
             ) : (
-              <span>No changes</span>
+              <span>{t("common.noChanges")}</span>
             )}
           </div>
           <button
@@ -795,27 +1156,27 @@ export default function SettingsPage() {
                 : "bg-slate-300 text-slate-500 cursor-not-allowed"
             }`}
           >
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? t("common.saving") : t("common.saveChanges")}
           </button>
         </div>
 
         {/* Info Section */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-blue-900 mb-2">
-            ℹ️ Important Notes
+            ℹ️ {t("settings.importantNotes")}
           </h3>
           <ul className="text-xs text-blue-800 space-y-1">
             <li>
-              • Kill switches take effect immediately for new requests
+              • {t("settings.note1")}
             </li>
             <li>
-              • Retention policy runs on schedule (manual execution via API)
+              • {t("settings.note2")}
             </li>
             <li>
-              • Hard delete is permanent - consider soft delete for audit trails
+              • {t("settings.note3")}
             </li>
             <li>
-              • Widget settings are cached by clients (may take up to 5 minutes to update)
+              • {t("settings.note4")}
             </li>
           </ul>
         </div>

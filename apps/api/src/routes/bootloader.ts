@@ -12,6 +12,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "../prisma";
 import { validateDomainAllowlist } from "../middleware/domain-allowlist";
 import { createOrgToken } from "../utils/org-token";
+import { buildHistogramUpdateSql } from "../utils/widget-histogram";
 
 interface BootloaderResponse {
   ok: boolean;
@@ -82,81 +83,119 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
       validateDomainAllowlist(), // Widget endpoint: enforce domain allowlist
     ],
   }, async (request: FastifyRequest<{ Querystring: { siteId?: string; orgKey?: string } }>, reply: FastifyReply) => {
-    // Try to get identifier from headers (preferred) or query parameters
-    const siteId = 
-      (request.headers["x-site-id"] as string) || 
-      request.query.siteId;
-    
-    const orgKey = 
-      (request.headers["x-org-key"] as string) || 
-      request.query.orgKey;
+    const bootloaderStartMs = Date.now();
+    let resolvedOrgId: string | null = null;
 
-    // Must have either siteId (preferred) or orgKey (legacy)
-    if (!siteId && !orgKey) {
-      reply.code(400);
-      return { error: "siteId or orgKey required" };
-    }
+    try {
+      // Try to get identifier from headers (preferred) or query parameters
+      const siteId = 
+        (request.headers["x-site-id"] as string) || 
+        request.query.siteId;
+      
+      const orgKey = 
+        (request.headers["x-org-key"] as string) || 
+        request.query.orgKey;
 
-    // Load organization from database
-    // Prefer siteId lookup, fallback to key lookup (legacy)
-    const org = await prisma.organization.findUnique({
-      where: siteId ? { siteId } : { key: orgKey },
-      select: {
-        id: true,
-        key: true,
-        siteId: true,
-        name: true,
-        widgetEnabled: true,
-        writeEnabled: true,
-        aiEnabled: true,
-        primaryColor: true,
-        widgetName: true,
-        widgetSubtitle: true,
-        language: true,
-        launcherText: true,
-        position: true,
-      },
-    });
+      // Must have either siteId (preferred) or orgKey (legacy)
+      if (!siteId && !orgKey) {
+        reply.code(400);
+        return { error: "siteId or orgKey required" };
+      }
 
-    if (!org) {
-      reply.code(404);
-      return { error: "Organization not found" };
-    }
-
-    // Generate short-lived signed token for widget operations
-    const orgToken = createOrgToken({
-      orgId: org.id,
-      orgKey: org.key,
-    });
-
-    // Build response with organization config from database
-    const response: BootloaderResponse = {
-      ok: true,
-      org: {
-        id: org.id,
-        key: org.key,
-        name: org.name,
-      },
-      config: {
-        widgetEnabled: org.widgetEnabled,
-        writeEnabled: org.writeEnabled,
-        aiEnabled: org.aiEnabled,
-        language: org.language, // From DB
-        theme: {
-          primaryColor: org.primaryColor, // From DB (has default)
+      // Load organization from database
+      // Prefer siteId lookup, fallback to key lookup (legacy)
+      const org = await prisma.organization.findUnique({
+        where: siteId ? { siteId } : { key: orgKey },
+        select: {
+          id: true,
+          key: true,
+          siteId: true,
+          name: true,
+          widgetEnabled: true,
+          writeEnabled: true,
+          aiEnabled: true,
+          primaryColor: true,
+          widgetName: true,
+          widgetSubtitle: true,
+          language: true,
+          launcherText: true,
+          position: true,
+          firstWidgetEmbedAt: true,
         },
-        branding: {
-          widgetName: org.widgetName, // From DB
-          widgetSubtitle: org.widgetSubtitle, // From DB
-          launcherText: org.launcherText, // From DB (nullable)
-          position: org.position, // From DB
-        },
-      },
-      orgToken, // Short-lived signed token (5 minutes)
-      env: process.env.NODE_ENV ?? "dev",
-      timestamp: new Date().toISOString(),
-    };
+      });
 
-    return response;
+      if (!org) {
+        reply.code(404);
+        return { error: "Organization not found" };
+      }
+
+      resolvedOrgId = org.id;
+
+      // Generate short-lived signed token for widget operations
+      const orgToken = createOrgToken({
+        orgId: org.id,
+        orgKey: org.key,
+      });
+
+      // Track conversion signal: widget embed (best-effort, fire-and-forget)
+      if (org.firstWidgetEmbedAt == null) {
+        prisma.organization
+          .updateMany({
+            where: { id: org.id, firstWidgetEmbedAt: null },
+            data: { firstWidgetEmbedAt: new Date() },
+          })
+          .catch(() => {});
+      }
+
+      // Widget health metrics: increment load count + update lastSeenAt (fire-and-forget)
+      prisma.$executeRawUnsafe(
+        `UPDATE "organizations" SET "widgetLoadsTotal" = "widgetLoadsTotal" + 1, "lastWidgetSeenAt" = NOW() WHERE "id" = $1`,
+        org.id
+      ).catch(() => {});
+
+      // Build response with organization config from database
+      const response: BootloaderResponse = {
+        ok: true,
+        org: {
+          id: org.id,
+          key: org.key,
+          name: org.name,
+        },
+        config: {
+          widgetEnabled: org.widgetEnabled,
+          writeEnabled: org.writeEnabled,
+          aiEnabled: org.aiEnabled,
+          language: org.language, // From DB
+          theme: {
+            primaryColor: org.primaryColor, // From DB (has default)
+          },
+          branding: {
+            widgetName: org.widgetName, // From DB
+            widgetSubtitle: org.widgetSubtitle, // From DB
+            launcherText: org.launcherText, // From DB (nullable)
+            position: org.position, // From DB
+          },
+        },
+        orgToken, // Short-lived signed token (5 minutes)
+        env: process.env.NODE_ENV ?? "dev",
+        timestamp: new Date().toISOString(),
+      };
+
+      // Widget health: update response time histogram (fire-and-forget)
+      const latencyMs = Date.now() - bootloaderStartMs;
+      const { sql: histSql, params: histParams } = buildHistogramUpdateSql(org.id, latencyMs);
+      prisma.$executeRawUnsafe(histSql, histParams[0], histParams[1]).catch(() => {});
+
+      return response;
+    } catch (err) {
+      // Increment widgetLoadFailuresTotal if org was resolved (best-effort)
+      if (resolvedOrgId) {
+        prisma.$executeRawUnsafe(
+          `UPDATE "organizations" SET "widgetLoadFailuresTotal" = "widgetLoadFailuresTotal" + 1 WHERE "id" = $1`,
+          resolvedOrgId
+        ).catch(() => {});
+      }
+      throw err; // re-throw for Fastify error handler
+    }
   });
 }

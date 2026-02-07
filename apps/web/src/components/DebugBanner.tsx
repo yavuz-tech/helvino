@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useDebug } from "@/contexts/DebugContext";
+import { useI18n } from "@/i18n/I18nContext";
 
 export default function DebugBanner() {
   const { apiUrl, socketStatus, requests, isMounted } = useDebug();
+  const { t } = useI18n();
   const [isMinimized, setIsMinimized] = useState(false);
 
   // Only render on client-side in development
@@ -19,9 +21,9 @@ export default function DebugBanner() {
   }[socketStatus];
 
   const statusText = {
-    connected: "Connected",
-    disconnected: "Disconnected",
-    connecting: "Connecting...",
+    connected: t("debug.connected"),
+    disconnected: t("debug.disconnected"),
+    connecting: t("debug.connecting"),
   }[socketStatus];
 
   if (isMinimized) {
@@ -31,7 +33,7 @@ export default function DebugBanner() {
           onClick={() => setIsMinimized(false)}
           className="bg-slate-800 text-white px-3 py-2 rounded-lg shadow-lg text-xs font-mono hover:bg-slate-700 transition-colors"
         >
-          🐛 Debug
+          🐛 {t("debug.panel")}
         </button>
       </div>
     );
@@ -42,8 +44,8 @@ export default function DebugBanner() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold">🐛 Debug Panel</span>
-          <span className="text-xs text-slate-400">(DEV only)</span>
+          <span className="text-sm font-semibold">🐛 {t("debug.panel")}</span>
+          <span className="text-xs text-slate-400">({t("debug.devOnly")})</span>
         </div>
         <button
           onClick={() => setIsMinimized(true)}
@@ -57,7 +59,7 @@ export default function DebugBanner() {
       <div className="p-4 space-y-3 font-mono text-xs">
         {/* API URL */}
         <div>
-          <div className="text-slate-400 mb-1">API Base URL:</div>
+          <div className="text-slate-400 mb-1">{t("debug.apiUrl")}:</div>
           <div className="bg-slate-900 px-2 py-1 rounded text-green-400 break-all">
             {apiUrl}
           </div>
@@ -65,7 +67,7 @@ export default function DebugBanner() {
 
         {/* Socket Status */}
         <div>
-          <div className="text-slate-400 mb-1">Socket.IO Status:</div>
+          <div className="text-slate-400 mb-1">{t("debug.socketStatus")}:</div>
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${statusColor} animate-pulse`}></div>
             <span className="text-white">{statusText}</span>
@@ -74,9 +76,9 @@ export default function DebugBanner() {
 
         {/* Recent Requests */}
         <div>
-          <div className="text-slate-400 mb-1">Last 5 API Requests:</div>
+          <div className="text-slate-400 mb-1">{t("debug.lastRequests")}:</div>
           {requests.length === 0 ? (
-            <div className="text-slate-500 italic">No requests yet</div>
+            <div className="text-slate-500 italic">{t("debug.noRequests")}</div>
           ) : (
             <div className="space-y-1 max-h-40 overflow-y-auto">
               {requests.map((req) => (
@@ -115,7 +117,7 @@ export default function DebugBanner() {
 
       {/* Footer */}
       <div className="px-4 py-2 border-t border-slate-700 text-[10px] text-slate-500 text-center">
-        Auto-hides in production builds
+        {t("debug.autoHides")}
       </div>
     </div>
   );

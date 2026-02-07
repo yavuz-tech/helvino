@@ -32,7 +32,7 @@ echo ""
 
 # --- 2. Admin login + GET settings ---
 echo "--- 2. API GET /api/org/:key/settings ---"
-LOGIN_CODE=$(curl -s -o /dev/null -w "%{http_code}" -c "$COOKIE_JAR" -X POST \
+LOGIN_CODE=$(curl -s -m 10 -o /dev/null -w "%{http_code}" -c "$COOKIE_JAR" -X POST \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" \
   "$API_URL/internal/auth/login" 2>/dev/null || echo "000")
@@ -46,7 +46,7 @@ else
 fi
 
 if [ "$LIVE" = true ]; then
-  SETTINGS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -b "$COOKIE_JAR" "$API_URL/api/org/$ORG_KEY/settings")
+  SETTINGS_CODE=$(curl -s -m 10 -o /dev/null -w "%{http_code}" -b "$COOKIE_JAR" "$API_URL/api/org/$ORG_KEY/settings")
   if [ "$SETTINGS_CODE" = "200" ]; then
     pass "GET settings returns 200"
   else
@@ -58,9 +58,9 @@ echo ""
 # --- 3. PATCH settings ---
 echo "--- 3. API PATCH /api/org/:key/settings ---"
 if [ "$LIVE" = true ]; then
-  CURRENT_RETENTION=$(curl -s -b "$COOKIE_JAR" "$API_URL/api/org/$ORG_KEY/settings" | jq -r '.settings.messageRetentionDays // 365')
+  CURRENT_RETENTION=$(curl -s -m 10 -b "$COOKIE_JAR" "$API_URL/api/org/$ORG_KEY/settings" | jq -r '.settings.messageRetentionDays // 365')
 
-  PATCH_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH \
+  PATCH_CODE=$(curl -s -m 10 -o /dev/null -w "%{http_code}" -X PATCH \
     -b "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
     -d '{"messageRetentionDays":90}' \
@@ -73,7 +73,7 @@ if [ "$LIVE" = true ]; then
   fi
 
   # Restore
-  curl -s -o /dev/null -X PATCH -b "$COOKIE_JAR" \
+  curl -s -m 10 -o /dev/null -X PATCH -b "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
     -d "{\"messageRetentionDays\":$CURRENT_RETENTION}" \
     "$API_URL/api/org/$ORG_KEY/settings"
@@ -86,13 +86,13 @@ echo ""
 echo "--- 4. Write kill switch ---"
 if [ "$LIVE" = true ]; then
   # Disable writes
-  curl -s -o /dev/null -X PATCH -b "$COOKIE_JAR" \
+  curl -s -m 10 -o /dev/null -X PATCH -b "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
     -d '{"writeEnabled":false}' \
     "$API_URL/api/org/$ORG_KEY/settings"
 
-  TOKEN=$(curl -s -H "x-org-key: $ORG_KEY" "$API_URL/api/bootloader" | jq -r .orgToken)
-  WRITE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+  TOKEN=$(curl -s -m 10 -H "x-org-key: $ORG_KEY" "$API_URL/api/bootloader" | jq -r .orgToken)
+  WRITE_CODE=$(curl -s -m 10 -o /dev/null -w "%{http_code}" -X POST \
     -H "x-org-key: $ORG_KEY" -H "x-org-token: $TOKEN" \
     -H "x-visitor-id: v_killswitch_test" \
     -H "Content-Type: application/json" \
@@ -106,7 +106,7 @@ if [ "$LIVE" = true ]; then
   fi
 
   # Re-enable
-  curl -s -o /dev/null -X PATCH -b "$COOKIE_JAR" \
+  curl -s -m 10 -o /dev/null -X PATCH -b "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
     -d '{"writeEnabled":true}' \
     "$API_URL/api/org/$ORG_KEY/settings"

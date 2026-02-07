@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { checkAuth, logout, type AdminUser } from "@/lib/auth";
 import { useOrg } from "@/contexts/OrgContext";
 import DashboardLayout from "@/components/DashboardLayout";
+import { useI18n } from "@/i18n/I18nContext";
 
 interface SecuritySettings {
   siteId: string;
@@ -20,6 +21,7 @@ interface OrgInfo {
 
 export default function SecurityPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null);
@@ -74,14 +76,14 @@ export default function SecurityPage() {
         setOriginalSecurity(data.security);
       } catch (err) {
         console.error("Failed to fetch security settings:", err);
-        setError("Failed to load security settings");
+        setError(t("security.failedLoadSettings"));
       } finally {
         setLoading(false);
       }
     };
 
     fetchSecurity();
-  }, [API_URL, selectedOrg, authLoading, orgLoading]);
+  }, [API_URL, selectedOrg, authLoading, orgLoading, t]);
 
   // Save security settings
   const handleSave = async () => {
@@ -110,7 +112,7 @@ export default function SecurityPage() {
 
         // Validate count
         if (unique.length > 100) {
-          setSaveMessage({ type: "error", text: "Maximum 100 domains allowed" });
+          setSaveMessage({ type: "error", text: t("security.maxDomainsError") });
           setSaving(false);
           return;
         }
@@ -124,7 +126,7 @@ export default function SecurityPage() {
 
       // Only send PATCH if there are changes
       if (Object.keys(updates).length === 0) {
-        setSaveMessage({ type: "success", text: "No changes to save" });
+        setSaveMessage({ type: "success", text: t("common.noChanges") });
         setTimeout(() => setSaveMessage(null), 3000);
         setSaving(false);
         return;
@@ -146,12 +148,12 @@ export default function SecurityPage() {
       const data = await response.json();
       setSecurity(data.security);
       setOriginalSecurity(data.security);
-      setSaveMessage({ type: "success", text: "Security settings saved successfully" });
+      setSaveMessage({ type: "success", text: t("security.saved") });
 
       setTimeout(() => setSaveMessage(null), 3000);
     } catch (err) {
       console.error("Failed to save security settings:", err);
-      setSaveMessage({ type: "error", text: "Failed to save security settings" });
+      setSaveMessage({ type: "error", text: t("security.failedSave") });
     } finally {
       setSaving(false);
     }
@@ -189,14 +191,14 @@ export default function SecurityPage() {
 
       setSaveMessage({
         type: "success",
-        text: `Site ID rotated successfully. Old: ${data.security.oldSiteId}`,
+        text: `${t("security.siteIdRotated")}. ${t("security.oldSiteId")} ${data.security.oldSiteId}`,
       });
 
       setRotateInput("");
       setTimeout(() => setSaveMessage(null), 5000);
     } catch (err) {
       console.error("Failed to rotate site ID:", err);
-      setSaveMessage({ type: "error", text: "Failed to rotate site ID" });
+      setSaveMessage({ type: "error", text: t("security.failedRotate") });
     } finally {
       setRotating(false);
     }
@@ -260,7 +262,7 @@ export default function SecurityPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">Checking authentication...</div>
+        <div className="text-slate-600">{t("common.checkingAuth")}</div>
       </div>
     );
   }
@@ -269,7 +271,7 @@ export default function SecurityPage() {
     return (
       <DashboardLayout user={user} onLogout={handleLogout}>
         <div className="text-center py-12 text-slate-500">
-          Loading security settings...
+          {t("security.loadingSettings")}
         </div>
       </DashboardLayout>
     );
@@ -279,7 +281,7 @@ export default function SecurityPage() {
     return (
       <DashboardLayout user={user} onLogout={handleLogout}>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-          {error || "Failed to load security settings"}
+          {error || t("security.failedLoadSettings")}
         </div>
       </DashboardLayout>
     );
@@ -289,7 +291,7 @@ export default function SecurityPage() {
     <DashboardLayout user={user} onLogout={handleLogout}>
       {/* Page Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Security</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("nav.security")}</h1>
         <p className="text-sm text-slate-500 mt-1">
           {orgInfo.name} ({orgInfo.key})
         </p>
@@ -316,10 +318,10 @@ export default function SecurityPage() {
           href="/dashboard/settings"
           className="px-4 py-2 text-slate-600 hover:text-slate-900 transition-colors"
         >
-          General Settings
+          {t("nav.generalSettings")}
         </a>
         <div className="px-4 py-2 border-b-2 border-slate-900 text-slate-900 font-medium">
-          🔒 Security
+          🔒 {t("nav.security")}
         </div>
       </div>
 
@@ -329,10 +331,10 @@ export default function SecurityPage() {
         {/* Site ID Card */}
         <div className="bg-white rounded-lg border border-slate-200 p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">
-            Site ID (Public Identifier)
+            {t("security.siteId")}
           </h2>
           <p className="text-sm text-slate-600 mb-4">
-            Use this public identifier in your widget embed code. It&apos;s safe to expose on client pages.
+            {t("security.siteIdDesc")}
           </p>
 
           <div className="flex items-center gap-3 mb-4">
@@ -343,16 +345,16 @@ export default function SecurityPage() {
               onClick={handleCopy}
               className="px-4 py-3 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors"
             >
-              {copied ? "✓ Copied" : "Copy"}
+              {copied ? t("security.copied") : t("security.copy")}
             </button>
           </div>
 
           <div className="border-t border-slate-200 pt-4">
             <h3 className="text-sm font-semibold text-slate-900 mb-2">
-              Rotate Site ID
+              {t("security.rotateSiteId")}
             </h3>
             <p className="text-xs text-slate-600 mb-3">
-              Generate a new site ID. This will invalidate the current one. You&apos;ll need to update your embed code.
+              {t("security.rotateSiteIdDesc")}
             </p>
 
             <div className="flex items-center gap-3">
@@ -360,7 +362,7 @@ export default function SecurityPage() {
                 type="text"
                 value={rotateInput}
                 onChange={(e) => setRotateInput(e.target.value)}
-                placeholder="Type &quot;ROTATE&quot; to confirm"
+                placeholder={t("security.rotateConfirmPlaceholder")}
                 className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
               />
               <button
@@ -372,13 +374,13 @@ export default function SecurityPage() {
                     : "bg-slate-200 text-slate-400 cursor-not-allowed"
                 }`}
               >
-                {rotating ? "Rotating..." : "Rotate"}
+                {rotating ? t("security.rotating") : t("security.rotate")}
               </button>
             </div>
 
             {rotateInput && rotateInput !== "ROTATE" && (
               <p className="text-xs text-orange-600 mt-2">
-                Please type exactly &quot;ROTATE&quot; to confirm
+                {t("security.rotateHint")}
               </p>
             )}
           </div>
@@ -387,10 +389,10 @@ export default function SecurityPage() {
         {/* Allowed Domains Card */}
         <div className="bg-white rounded-lg border border-slate-200 p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">
-            Allowed Domains
+            {t("security.allowedDomains")}
           </h2>
           <p className="text-sm text-slate-600 mb-4">
-            Only these domains can load your widget. Supports wildcards like <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">*.helvino.io</code>
+            {t("security.allowedDomainsDesc")}
           </p>
 
           <div className="space-y-2 mb-4">
@@ -407,7 +409,7 @@ export default function SecurityPage() {
                   onClick={() => handleRemoveDomain(index)}
                   className="px-3 py-2 text-red-600 hover:text-red-800 text-sm font-medium"
                 >
-                  Remove
+                  {t("security.remove")}
                 </button>
               </div>
             ))}
@@ -418,21 +420,21 @@ export default function SecurityPage() {
             disabled={security.allowedDomains.length >= 100}
             className="px-4 py-2 bg-slate-100 text-slate-900 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
           >
-            + Add Domain
+            + {t("security.addDomain")}
           </button>
 
           {security.allowedDomains.length >= 100 && (
             <p className="text-xs text-orange-600 mt-2">
-              Maximum 100 domains reached
+              {t("security.maxDomainsReached")}
             </p>
           )}
 
           <div className="mt-4 text-xs text-slate-500">
-            <p className="font-semibold mb-1">Examples:</p>
+            <p className="font-semibold mb-1">{t("security.examplesTitle")}</p>
             <ul className="list-disc list-inside space-y-1">
-              <li><code>helvino.io</code> - exact domain match</li>
-              <li><code>*.helvino.io</code> - all subdomains</li>
-              <li><code>localhost:3000</code> - with port</li>
+              <li><code>helvino.io</code> - {t("security.exampleExact")}</li>
+              <li><code>*.helvino.io</code> - {t("security.exampleWildcard")}</li>
+              <li><code>localhost:3000</code> - {t("security.examplePort")}</li>
             </ul>
           </div>
         </div>
@@ -442,10 +444,10 @@ export default function SecurityPage() {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <h3 className="text-sm font-semibold text-slate-900">
-                Allow Localhost
+                {t("security.allowLocalhost")}
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Enable this to allow localhost and 127.0.0.1 for development/testing
+                {t("security.allowLocalhostDesc")}
               </p>
             </div>
             <button
@@ -473,10 +475,10 @@ export default function SecurityPage() {
           <div className="text-sm text-slate-600">
             {hasChanges ? (
               <span className="text-orange-600 font-medium">
-                ⚠️ You have unsaved changes
+                ⚠️ {t("common.unsavedChanges")}
               </span>
             ) : (
-              <span>No changes</span>
+              <span>{t("common.noChanges")}</span>
             )}
           </div>
           <button
@@ -488,21 +490,21 @@ export default function SecurityPage() {
                 : "bg-slate-300 text-slate-500 cursor-not-allowed"
             }`}
           >
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? t("common.saving") : t("common.saveChanges")}
           </button>
         </div>
 
         {/* Info Section */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-blue-900 mb-2">
-            ℹ️ Important Notes
+            ℹ️ {t("settings.importantNotes")}
           </h3>
           <ul className="text-xs text-blue-800 space-y-1">
-            <li>• Use Site ID in your widget embed: <code className="bg-blue-100 px-1">window.HELVINO_SITE_ID</code></li>
-            <li>• Legacy <code className="bg-blue-100 px-1">HELVINO_ORG_KEY</code> still works for backward compatibility</li>
-            <li>• Rotating Site ID immediately invalidates the old one</li>
-            <li>• Domain checks use Origin or Referer headers</li>
-            <li>• Wildcard patterns: <code className="bg-blue-100 px-1">*.domain.com</code> matches all subdomains</li>
+            <li>• {t("security.note1")}</li>
+            <li>• {t("security.note2")}</li>
+            <li>• {t("security.note3")}</li>
+            <li>• {t("security.note4")}</li>
+            <li>• {t("security.note5")}</li>
           </ul>
         </div>
       </div>

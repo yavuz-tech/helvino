@@ -8,7 +8,7 @@ echo ""
 
 # Test 1: Create conversation with visitor ID
 echo "Test 1: Create conversation with visitor ID"
-CONV1=$(curl -s -X POST \
+CONV1=$(curl -s -m 10 -X POST \
   -H "x-org-key: demo" \
   -H "x-visitor-id: v_test_user_123" \
   http://localhost:4000/conversations | jq -r .id)
@@ -17,7 +17,7 @@ echo ""
 
 # Test 2: Create another conversation with SAME visitor
 echo "Test 2: Create another conversation with SAME visitor"
-CONV2=$(curl -s -X POST \
+CONV2=$(curl -s -m 10 -X POST \
   -H "x-org-key: demo" \
   -H "x-visitor-id: v_test_user_123" \
   http://localhost:4000/conversations | jq -r .id)
@@ -27,7 +27,7 @@ echo ""
 
 # Test 3: Create conversation with DIFFERENT visitor
 echo "Test 3: Create conversation with DIFFERENT visitor"
-CONV3=$(curl -s -X POST \
+CONV3=$(curl -s -m 10 -X POST \
   -H "x-org-key: demo" \
   -H "x-visitor-id: v_test_user_456" \
   http://localhost:4000/conversations | jq -r .id)
@@ -37,7 +37,7 @@ echo ""
 
 # Test 4: Backward compatibility - no visitor header
 echo "Test 4: Backward compatibility (no visitor header)"
-CONV4=$(curl -s -X POST \
+CONV4=$(curl -s -m 10 -X POST \
   -H "x-org-key: demo" \
   http://localhost:4000/conversations | jq -r .id)
 echo "  ✅ Created conversation: $CONV4"
@@ -46,7 +46,7 @@ echo ""
 
 # Test 5: Send message with visitor
 echo "Test 5: Send message with visitor ID"
-MSG1=$(curl -s -X POST \
+MSG1=$(curl -s -m 10 -X POST \
   -H "x-org-key: demo" \
   -H "x-visitor-id: v_test_user_123" \
   -H "Content-Type: application/json" \

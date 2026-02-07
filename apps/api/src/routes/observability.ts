@@ -126,4 +126,55 @@ export async function observabilityRoutes(fastify: FastifyInstance) {
     const snapshot = metricsTracker.getSnapshot();
     return { ok: true, message: "Test metrics recorded", snapshot };
   });
+
+  /**
+   * GET /internal/metrics/summary
+   *
+   * Lightweight system summary for admin dashboards.
+   * Requires admin authentication via session cookie.
+   *
+   * Response:
+   *   {
+   *     uptimeSec, env, nodeVersion, processMemory,
+   *     totalOrgs, totalConversations, totalMessages,
+   *     lastWebhookAt?
+   *   }
+   */
+  fastify.get("/internal/metrics/summary", {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const uptimeSec = Math.floor((Date.now() - startTime) / 1000);
+    const mem = process.memoryUsage();
+
+    // Gather DB counts (lightweight aggregates)
+    const [orgCount, convCount, msgCount, lastWebhook] = await Promise.all([
+      prisma.organization.count().catch(() => null),
+      prisma.conversation.count().catch(() => null),
+      prisma.message.count().catch(() => null),
+      prisma.auditLog.findFirst({
+        where: { action: { startsWith: "webhook." } },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      }).catch(() => null),
+    ]);
+
+    const summary: Record<string, unknown> = {
+      uptimeSec,
+      env: process.env.NODE_ENV || "development",
+      nodeVersion: process.version,
+      processMemory: {
+        rss: Math.round(mem.rss / 1024 / 1024),
+        heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
+        heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
+        unit: "MB",
+      },
+    };
+
+    if (orgCount !== null) summary.totalOrgs = orgCount;
+    if (convCount !== null) summary.totalConversations = convCount;
+    if (msgCount !== null) summary.totalMessages = msgCount;
+    if (lastWebhook?.createdAt) summary.lastWebhookAt = lastWebhook.createdAt.toISOString();
+
+    return summary;
+  });
 }

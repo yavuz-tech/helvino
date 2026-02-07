@@ -1,0 +1,414 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import PortalLayout from "@/components/PortalLayout";
+import {
+  checkPortalAuth,
+  portalLogout,
+  portalApiFetch,
+  type PortalUser,
+} from "@/lib/portal-auth";
+import { useI18n } from "@/i18n/I18nContext";
+import { useStepUp } from "@/contexts/StepUpContext";
+import EmptyState from "@/components/EmptyState";
+
+interface TeamUser {
+  id: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+interface PendingInvite {
+  id: string;
+  email: string;
+  role: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export default function PortalTeamPage() {
+  const router = useRouter();
+  const { t } = useI18n();
+  const { withStepUp } = useStepUp();
+  const [user, setUser] = useState<PortalUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<TeamUser[]>([]);
+  const [invites, setInvites] = useState<PendingInvite[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  // Invite form
+  const [invEmail, setInvEmail] = useState("");
+  const [invRole, setInvRole] = useState("agent");
+  const [invSending, setInvSending] = useState(false);
+  const [invSuccess, setInvSuccess] = useState<string | null>(null);
+  const [invError, setInvError] = useState<string | null>(null);
+  const [invLink, setInvLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // Role change
+  const [roleUserId, setRoleUserId] = useState<string | null>(null);
+  const [roleValue, setRoleValue] = useState("");
+
+  useEffect(() => {
+    const init = async () => {
+      const u = await checkPortalAuth();
+      if (!u) { router.push("/portal/login"); return; }
+      setUser(u);
+      setLoading(false);
+    };
+    init();
+  }, [router]);
+
+  const fetchTeam = useCallback(async () => {
+    try {
+      const res = await portalApiFetch("/portal/org/users");
+      if (!res.ok) { setError(t("team.failedLoad")); return; }
+      const data = await res.json();
+      setUsers(data.users || []);
+      setInvites(data.invites || []);
+    } catch {
+      setError(t("team.networkError"));
+    }
+  }, [t]);
+
+  useEffect(() => {
+    if (!loading && user) fetchTeam();
+  }, [loading, user, fetchTeam]);
+
+  const handleLogout = async () => {
+    await portalLogout();
+    router.push("/portal/login");
+  };
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInvSending(true);
+    setInvError(null);
+    setInvSuccess(null);
+    setInvLink(null);
+    const result = await withStepUp(() =>
+      portalApiFetch("/portal/org/users/invite", {
+        method: "POST",
+        body: JSON.stringify({ email: invEmail, role: invRole }),
+      }),
+      "portal"
+    );
+    if (result.cancelled) { setInvSending(false); return; }
+    if (!result.ok) {
+      const d = result.data as Record<string, string> | undefined;
+      setInvError(d?.error || t("team.failedInvite"));
+    } else {
+      const d = result.data as Record<string, string> | undefined;
+      setInvSuccess(t("team.inviteSent"));
+      if (d?.inviteLink) setInvLink(d.inviteLink);
+      setInvEmail("");
+      fetchTeam();
+    }
+    setInvSending(false);
+  };
+
+  const handleResend = async (inviteId: string) => {
+    const result = await withStepUp(() =>
+      portalApiFetch("/portal/org/users/invite/resend", {
+        method: "POST",
+        body: JSON.stringify({ inviteId }),
+      }),
+      "portal"
+    );
+    if (result.cancelled) return;
+    if (result.ok) {
+      const d = result.data as Record<string, string> | undefined;
+      if (d?.inviteLink) {
+        setInvLink(d.inviteLink);
+        setInvSuccess(t("team.inviteSent"));
+      }
+      fetchTeam();
+    }
+  };
+
+  const handleRevoke = async (inviteId: string) => {
+    if (!confirm(t("team.confirmRevoke"))) return;
+    const result = await withStepUp(() =>
+      portalApiFetch("/portal/org/users/invite/revoke", {
+        method: "POST",
+        body: JSON.stringify({ inviteId }),
+      }),
+      "portal"
+    );
+    if (result.cancelled) return;
+    fetchTeam();
+  };
+
+  const handleDeactivate = async (userId: string, currentActive: boolean) => {
+    if (!currentActive) {
+      const result = await withStepUp(() =>
+        portalApiFetch("/portal/org/users/deactivate", {
+          method: "POST",
+          body: JSON.stringify({ userId, active: true }),
+        }),
+        "portal"
+      );
+      if (!result.cancelled) fetchTeam();
+      return;
+    }
+    if (!confirm(t("team.confirmDeactivate"))) return;
+    const result = await withStepUp(() =>
+      portalApiFetch("/portal/org/users/deactivate", {
+        method: "POST",
+        body: JSON.stringify({ userId, active: false }),
+      }),
+      "portal"
+    );
+    if (!result.cancelled) fetchTeam();
+  };
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    const result = await withStepUp(() =>
+      portalApiFetch("/portal/org/users/role", {
+        method: "POST",
+        body: JSON.stringify({ userId, role: newRole }),
+      }),
+      "portal"
+    );
+    if (result.cancelled) { setRoleUserId(null); return; }
+    if (!result.ok) {
+      const d = result.data as Record<string, string> | undefined;
+      alert(d?.error || t("team.failedAction"));
+    }
+    setRoleUserId(null);
+    fetchTeam();
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const roleBadge = (role: string) => {
+    const colors: Record<string, string> = {
+      owner: "bg-purple-100 text-purple-800",
+      admin: "bg-blue-100 text-blue-800",
+      agent: "bg-slate-100 text-slate-700",
+    };
+    const labels: Record<string, string> = {
+      owner: t("team.owner"),
+      admin: t("team.admin"),
+      agent: t("team.agent"),
+    };
+    return (
+      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[role] || colors.agent}`}>
+        {labels[role] || role}
+      </span>
+    );
+  };
+
+  const isOwnerOrAdmin = user?.role === "owner" || user?.role === "admin";
+  const isOwner = user?.role === "owner";
+
+  if (loading) {
+    return (
+      <PortalLayout user={null} onLogout={handleLogout}>
+        <div className="text-slate-600">{t("common.loading")}</div>
+      </PortalLayout>
+    );
+  }
+
+  return (
+    <PortalLayout user={user ? { email: user.email, role: user.role, orgName: user.orgName } : null} onLogout={handleLogout}>
+      <div className="max-w-4xl mx-auto space-y-8">
+        <h1 className="text-2xl font-bold text-slate-900">{t("team.title")}</h1>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
+            {error}
+          </div>
+        )}
+
+        {/* ── Invite Form ── */}
+        {isOwnerOrAdmin && (
+          <div className="bg-white rounded-lg border border-slate-200 p-6">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">{t("team.inviteMember")}</h2>
+            <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="email"
+                value={invEmail}
+                onChange={(e) => setInvEmail(e.target.value)}
+                placeholder={t("team.inviteEmail")}
+                required
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 text-sm"
+              />
+              <select
+                value={invRole}
+                onChange={(e) => setInvRole(e.target.value)}
+                className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 text-sm bg-white"
+              >
+                <option value="agent">{t("team.agent")}</option>
+                <option value="admin">{t("team.admin")}</option>
+              </select>
+              <button
+                type="submit"
+                disabled={invSending}
+                className="px-6 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm font-medium disabled:bg-slate-400"
+              >
+                {invSending ? t("team.sending") : t("team.sendInvite")}
+              </button>
+            </form>
+            {invError && (
+              <p className="mt-3 text-sm text-red-600">{invError}</p>
+            )}
+            {invSuccess && (
+              <p className="mt-3 text-sm text-green-600">{invSuccess}</p>
+            )}
+            {invLink && (
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-xs text-slate-500">{t("team.inviteLink")}:</span>
+                <code className="text-xs bg-slate-100 px-2 py-1 rounded font-mono truncate max-w-md">
+                  {invLink}
+                </code>
+                <button
+                  onClick={() => copyToClipboard(invLink)}
+                  className="text-xs text-slate-600 hover:text-slate-900 underline"
+                >
+                  {copied ? t("team.copied") : t("team.copyLink")}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Team Members Table ── */}
+        <div className="bg-white rounded-lg border border-slate-200">
+          <div className="px-6 py-4 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-slate-900">{t("team.members")}</h2>
+          </div>
+          {users.length === 0 ? (
+            <EmptyState
+              icon="👥"
+              title={t("empty.team")}
+              description={t("empty.teamDesc")}
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-slate-500">
+                    <th className="px-6 py-3 font-medium">{t("team.email")}</th>
+                    <th className="px-6 py-3 font-medium">{t("team.role")}</th>
+                    <th className="px-6 py-3 font-medium">{t("team.status")}</th>
+                    <th className="px-6 py-3 font-medium">{t("team.lastLogin")}</th>
+                    {isOwnerOrAdmin && <th className="px-6 py-3 font-medium">{t("team.actions")}</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {users.map((u) => (
+                    <tr key={u.id} className="hover:bg-slate-50">
+                      <td className="px-6 py-3 font-medium text-slate-900">{u.email}</td>
+                      <td className="px-6 py-3">
+                        {roleUserId === u.id ? (
+                          <select
+                            value={roleValue}
+                            onChange={(e) => setRoleValue(e.target.value)}
+                            onBlur={() => {
+                              if (roleValue !== u.role) handleRoleChange(u.id, roleValue);
+                              else setRoleUserId(null);
+                            }}
+                            autoFocus
+                            className="text-xs border border-slate-300 rounded px-2 py-1"
+                          >
+                            <option value="owner">{t("team.owner")}</option>
+                            <option value="admin">{t("team.admin")}</option>
+                            <option value="agent">{t("team.agent")}</option>
+                          </select>
+                        ) : (
+                          <span
+                            onClick={() => { if (isOwner && u.id !== user?.id) { setRoleUserId(u.id); setRoleValue(u.role); } }}
+                            className={isOwner && u.id !== user?.id ? "cursor-pointer" : ""}
+                          >
+                            {roleBadge(u.role)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                          {u.isActive ? t("team.active") : t("team.inactive")}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 text-slate-500 text-xs" suppressHydrationWarning>
+                        {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : t("team.never")}
+                      </td>
+                      {isOwnerOrAdmin && (
+                        <td className="px-6 py-3">
+                          {u.id !== user?.id && (
+                            <button
+                              onClick={() => handleDeactivate(u.id, u.isActive)}
+                              className="text-xs text-slate-600 hover:text-slate-900 underline"
+                            >
+                              {u.isActive ? t("team.deactivate") : t("team.reactivate")}
+                            </button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* ── Pending Invites ── */}
+        <div className="bg-white rounded-lg border border-slate-200">
+          <div className="px-6 py-4 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-slate-900">{t("team.pendingInvites")}</h2>
+          </div>
+          {invites.length === 0 ? (
+            <EmptyState
+              icon="✉️"
+              title={t("empty.invites")}
+              description={t("empty.invitesDesc")}
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-slate-500">
+                    <th className="px-6 py-3 font-medium">{t("team.email")}</th>
+                    <th className="px-6 py-3 font-medium">{t("team.role")}</th>
+                    <th className="px-6 py-3 font-medium">{t("team.expiresAt")}</th>
+                    {isOwnerOrAdmin && <th className="px-6 py-3 font-medium">{t("team.actions")}</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {invites.map((inv) => (
+                    <tr key={inv.id} className="hover:bg-slate-50">
+                      <td className="px-6 py-3 font-medium text-slate-900">{inv.email}</td>
+                      <td className="px-6 py-3">{roleBadge(inv.role)}</td>
+                      <td className="px-6 py-3 text-slate-500 text-xs" suppressHydrationWarning>
+                        {new Date(inv.expiresAt).toLocaleDateString()}
+                      </td>
+                      {isOwnerOrAdmin && (
+                        <td className="px-6 py-3 flex gap-3">
+                          <button onClick={() => handleResend(inv.id)} className="text-xs text-blue-600 hover:text-blue-800 underline">
+                            {t("team.resend")}
+                          </button>
+                          <button onClick={() => handleRevoke(inv.id)} className="text-xs text-red-600 hover:text-red-800 underline">
+                            {t("team.revoke")}
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </PortalLayout>
+  );
+}

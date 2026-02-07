@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { checkOrgAuth, orgLogout, orgApiFetch, type OrgUser } from "@/lib/org-auth";
 import OrgPortalLayout from "@/components/OrgPortalLayout";
 import { Copy, Check, Plus, X } from "lucide-react";
+import { useI18n } from "@/i18n/I18nContext";
 
 interface SecuritySettings {
   siteId: string;
@@ -20,6 +21,7 @@ interface OrgInfo {
 
 export default function OrgSecurityPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [user, setUser] = useState<OrgUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null);
@@ -31,7 +33,6 @@ export default function OrgSecurityPage() {
   const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Check authentication on mount
   useEffect(() => {
     const verifyAuth = async () => {
       const user = await checkOrgAuth();
@@ -45,7 +46,6 @@ export default function OrgSecurityPage() {
     verifyAuth();
   }, [router]);
 
-  // Fetch security settings
   useEffect(() => {
     if (authLoading) return;
 
@@ -63,21 +63,20 @@ export default function OrgSecurityPage() {
         setOriginalSecurity(data.security);
       } catch (err) {
         console.error("Failed to fetch security settings:", err);
-        setError("Failed to load security settings");
+        setError(t("app.failedLoadSecurity"));
       } finally {
         setLoading(false);
       }
     };
 
     fetchSecurity();
-  }, [authLoading]);
+  }, [authLoading, t]);
 
   const handleLogout = async () => {
     await orgLogout();
     router.push("/app/login");
   };
 
-  // Copy siteId to clipboard
   const copySiteId = () => {
     if (security) {
       navigator.clipboard.writeText(security.siteId);
@@ -86,7 +85,6 @@ export default function OrgSecurityPage() {
     }
   };
 
-  // Add domain
   const handleAddDomain = () => {
     if (!security) return;
     setSecurity({
@@ -95,7 +93,6 @@ export default function OrgSecurityPage() {
     });
   };
 
-  // Remove domain
   const handleRemoveDomain = (index: number) => {
     if (!security) return;
     setSecurity({
@@ -104,7 +101,6 @@ export default function OrgSecurityPage() {
     });
   };
 
-  // Update domain value
   const handleDomainChange = (index: number, value: string) => {
     if (!security) return;
     const newDomains = [...security.allowedDomains];
@@ -115,7 +111,6 @@ export default function OrgSecurityPage() {
     });
   };
 
-  // Save settings
   const handleSave = async () => {
     if (!security || !originalSecurity) return;
 
@@ -130,7 +125,7 @@ export default function OrgSecurityPage() {
         security.allowLocalhost !== originalSecurity.allowLocalhost;
 
       if (!domainsChanged && !localhostChanged) {
-        setSaveMessage({ type: "success", text: "No changes to save" });
+        setSaveMessage({ type: "success", text: t("app.noChangesToSave") });
         setTimeout(() => setSaveMessage(null), 3000);
         setSaving(false);
         return;
@@ -151,12 +146,12 @@ export default function OrgSecurityPage() {
       const data = await response.json();
       setSecurity(data.security);
       setOriginalSecurity(data.security);
-      setSaveMessage({ type: "success", text: "Security settings saved" });
+      setSaveMessage({ type: "success", text: t("app.securitySaved") });
 
       setTimeout(() => setSaveMessage(null), 3000);
     } catch (err) {
       console.error("Failed to save security:", err);
-      setSaveMessage({ type: "error", text: "Failed to save settings" });
+      setSaveMessage({ type: "error", text: t("app.failedSaveSecurity") });
     } finally {
       setSaving(false);
     }
@@ -171,7 +166,7 @@ export default function OrgSecurityPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">Checking authentication...</div>
+        <div className="text-slate-600">{t("common.checkingAuth")}</div>
       </div>
     );
   }
@@ -180,7 +175,7 @@ export default function OrgSecurityPage() {
     return (
       <OrgPortalLayout user={user} onLogout={handleLogout}>
         <div className="text-center py-12 text-slate-500">
-          Loading security settings...
+          {t("security.loadingSettings")}
         </div>
       </OrgPortalLayout>
     );
@@ -190,7 +185,7 @@ export default function OrgSecurityPage() {
     return (
       <OrgPortalLayout user={user} onLogout={handleLogout}>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-          {error || "Failed to load security settings"}
+          {error || t("app.failedLoadSecurity")}
         </div>
       </OrgPortalLayout>
     );
@@ -199,13 +194,12 @@ export default function OrgSecurityPage() {
   return (
     <OrgPortalLayout user={user} onLogout={handleLogout}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Security</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("app.securitySettings")}</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Manage widget embedding security
+          {t("app.securitySubtitle")}
         </p>
       </div>
 
-      {/* Save Message */}
       {saveMessage && (
         <div className="mb-6">
           <div
@@ -221,11 +215,10 @@ export default function OrgSecurityPage() {
       )}
 
       <div className="space-y-6">
-        {/* Site ID Section */}
         <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Site ID</h2>
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">{t("security.siteId")}</h2>
           <p className="text-sm text-slate-600 mb-4">
-            Use this public identifier in your widget embed code
+            {t("app.siteIdDesc")}
           </p>
           <div className="flex gap-2">
             <code className="flex-1 px-4 py-2 bg-slate-50 rounded border border-slate-200 text-sm font-mono">
@@ -238,29 +231,28 @@ export default function OrgSecurityPage() {
               {copied ? (
                 <>
                   <Check size={16} />
-                  Copied!
+                  {t("security.copied")}
                 </>
               ) : (
                 <>
                   <Copy size={16} />
-                  Copy
+                  {t("security.copy")}
                 </>
               )}
             </button>
           </div>
         </div>
 
-        {/* Allowed Domains Section */}
         <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Allowed Domains</h2>
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">{t("security.allowedDomains")}</h2>
           <p className="text-sm text-slate-600 mb-4">
-            Restrict widget embedding to specific domains. Use * for wildcard subdomains.
+            {t("app.allowedDomainsDesc")}
           </p>
 
           <div className="space-y-2 mb-4">
             {security.allowedDomains.length === 0 ? (
               <div className="text-sm text-slate-500 text-center py-4">
-                No domains configured. Add your first domain below.
+                {t("app.noDomains")}
               </div>
             ) : (
               security.allowedDomains.map((domain, index) => (
@@ -288,19 +280,18 @@ export default function OrgSecurityPage() {
             className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-900 rounded-lg hover:bg-slate-200 transition-colors"
           >
             <Plus size={16} />
-            Add Domain
+            {t("app.addDomain")}
           </button>
         </div>
 
-        {/* Allow Localhost Section */}
         <div className="bg-white rounded-lg border border-slate-200 p-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-slate-900 mb-1">
-                Allow Localhost
+                {t("security.allowLocalhost")}
               </h3>
               <p className="text-sm text-slate-600">
-                Enable for local development and testing
+                {t("app.allowLocalhostDesc")}
               </p>
             </div>
             <input
@@ -315,14 +306,13 @@ export default function OrgSecurityPage() {
           </div>
         </div>
 
-        {/* Save Button */}
         <div>
           <button
             onClick={handleSave}
             disabled={saving || !hasChanges}
             className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
           >
-            {saving ? "Saving..." : hasChanges ? "Save Security Settings" : "No Changes"}
+            {saving ? t("common.saving") : hasChanges ? t("app.saveSecuritySettings") : t("common.noChanges")}
           </button>
         </div>
       </div>

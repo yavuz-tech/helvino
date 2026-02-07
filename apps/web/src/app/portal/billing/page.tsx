@@ -9,6 +9,13 @@ import {
   portalApiFetch,
   type PortalUser,
 } from "@/lib/portal-auth";
+import { useI18n } from "@/i18n/I18nContext";
+import ErrorBanner from "@/components/ErrorBanner";
+import type { TranslationKey } from "@/i18n/translations";
+import { useStepUp } from "@/contexts/StepUpContext";
+import PlanComparisonTable from "@/components/PlanComparisonTable";
+import TrialBanner from "@/components/TrialBanner";
+import UsageNudge from "@/components/UsageNudge";
 
 /* ────────── Types ────────── */
 
@@ -28,6 +35,7 @@ interface Usage {
   monthKey: string;
   conversationsCreated: number;
   messagesSent: number;
+  nextResetDate?: string;
 }
 
 interface Subscription {
@@ -53,6 +61,13 @@ interface AvailablePlan {
   maxAgents: number;
 }
 
+interface TrialInfo {
+  isTrialing: boolean;
+  isExpired: boolean;
+  daysLeft: number;
+  endsAt: string | null;
+}
+
 interface BillingStatus {
   stripeConfigured: boolean;
   org: { id: string; key: string; name: string };
@@ -61,6 +76,8 @@ interface BillingStatus {
   usage: Usage;
   subscription: Subscription;
   availablePlans: AvailablePlan[];
+  trial?: TrialInfo;
+  recommendedPlan?: string;
 }
 
 interface BillingLockStatus {
@@ -87,6 +104,7 @@ interface Invoice {
 /* ────────── Small components ────────── */
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useI18n();
   const colors: Record<string, string> = {
     active: "bg-emerald-100 text-emerald-800",
     trialing: "bg-blue-100 text-blue-800",
@@ -101,16 +119,22 @@ function StatusBadge({ status }: { status: string }) {
     draft: "bg-slate-100 text-slate-500",
     uncollectible: "bg-red-100 text-red-800",
   };
+
+  const statusKey = `billing.status.${status}` as TranslationKey;
+  const translated = t(statusKey);
+  const label = translated === statusKey ? (status === "none" ? t("billing.noSubscription") : status.replace("_", " ")) : translated;
+
   return (
     <span
       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[status] || colors.none}`}
     >
-      {status === "none" ? "No subscription" : status.replace("_", " ")}
+      {label}
     </span>
   );
 }
 
 function StateBadge({ state }: { state: string }) {
+  const { t } = useI18n();
   const colors: Record<string, string> = {
     active: "bg-emerald-100 text-emerald-800",
     grace: "bg-amber-100 text-amber-800",
@@ -118,11 +142,15 @@ function StateBadge({ state }: { state: string }) {
     free: "bg-slate-100 text-slate-700",
   };
 
+  const stateKey = `billing.state.${state}` as TranslationKey;
+  const translated = t(stateKey);
+  const label = translated === stateKey ? state.toUpperCase() : translated.toUpperCase();
+
   return (
     <span
       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[state] || colors.free}`}
     >
-      {state.toUpperCase()}
+      {label}
     </span>
   );
 }
@@ -146,6 +174,7 @@ function UsageBar({
         <span className="text-slate-600">{label}</span>
         <span
           className={`font-medium ${isFull ? "text-red-600" : isHigh ? "text-amber-600" : "text-slate-900"}`}
+          suppressHydrationWarning
         >
           {used.toLocaleString()} / {limit.toLocaleString()}
         </span>
@@ -180,9 +209,12 @@ export default function PortalBillingPage() {
   const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [invoicesError, setInvoicesError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorRequestId, setErrorRequestId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const { t } = useI18n();
+  const { withStepUp } = useStepUp();
 
   // Auth check
   useEffect(() => {
@@ -205,19 +237,20 @@ export default function PortalBillingPage() {
       try {
         const res = await portalApiFetch("/portal/billing/status");
         if (!res.ok) {
-          setError("Failed to load billing information");
+          setErrorRequestId(res.headers.get("x-request-id") || null);
+          setError(t("billing.failedLoad"));
           setLoading(false);
           return;
         }
         const data = await res.json();
         setBilling(data);
       } catch {
-        setError("Network error loading billing");
+        setError(t("billing.networkError"));
       }
       setLoading(false);
     };
     load();
-  }, [authLoading]);
+  }, [authLoading, t]);
 
   // Load billing lock/grace status
   useEffect(() => {
@@ -246,23 +279,23 @@ export default function PortalBillingPage() {
       try {
         const res = await portalApiFetch("/portal/billing/invoices?limit=10");
         if (res.status === 501) {
-          setInvoicesError("Stripe not configured");
+          setInvoicesError(t("billing.stripeNotConfigured"));
         } else if (res.status === 409) {
           // No customer yet — not an error, just no invoices
           setInvoices([]);
         } else if (!res.ok) {
-          setInvoicesError("Could not load invoices");
+          setInvoicesError(t("billing.failedLoadInvoices"));
         } else {
           const data = await res.json();
           setInvoices(data.invoices || []);
         }
       } catch {
-        setInvoicesError("Network error loading invoices");
+        setInvoicesError(t("billing.networkErrorInvoices"));
       }
       setInvoicesLoading(false);
     };
     loadInvoices();
-  }, [billing]);
+  }, [billing, t]);
 
   const handleLogout = async () => {
     await portalLogout();
@@ -271,55 +304,53 @@ export default function PortalBillingPage() {
 
   const handleCheckout = async (planKey: string) => {
     setCheckoutLoading(planKey);
-    try {
-      const res = await portalApiFetch("/portal/billing/checkout", {
+    const result = await withStepUp(() =>
+      portalApiFetch("/portal/billing/checkout", {
         method: "POST",
         body: JSON.stringify({
           planKey,
           returnUrl: window.location.origin + "/portal/billing",
         }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Checkout failed");
-        setCheckoutLoading(null);
-        return;
-      }
-      const data = await res.json();
-      window.location.href = data.url;
-    } catch {
-      setError("Checkout failed");
+      }),
+      "portal"
+    );
+    if (result.cancelled) { setCheckoutLoading(null); return; }
+    if (!result.ok) {
+      const errData = result.data as Record<string, string> | undefined;
+      setError(errData?.error || t("billing.checkoutFailed"));
       setCheckoutLoading(null);
+      return;
     }
+    const successData = result.data as Record<string, string> | undefined;
+    if (successData?.url) window.location.href = successData.url;
   };
 
   const handleManageSubscription = async () => {
     setPortalLoading(true);
-    try {
-      const res = await portalApiFetch("/portal/billing/portal-session", {
+    const result = await withStepUp(() =>
+      portalApiFetch("/portal/billing/portal-session", {
         method: "POST",
         body: JSON.stringify({
           returnUrl: window.location.origin + "/portal/billing",
         }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Could not open billing portal");
-        setPortalLoading(false);
-        return;
-      }
-      const data = await res.json();
-      window.location.href = data.url;
-    } catch {
-      setError("Could not open billing portal");
+      }),
+      "portal"
+    );
+    if (result.cancelled) { setPortalLoading(false); return; }
+    if (!result.ok) {
+      const errData = result.data as Record<string, string> | undefined;
+      setError(errData?.error || t("billing.failedOpenPortal"));
       setPortalLoading(false);
+      return;
     }
+    const successData = result.data as Record<string, string> | undefined;
+    if (successData?.url) window.location.href = successData.url;
   };
 
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">Loading...</div>
+        <div className="text-slate-600">{t("common.loading")}</div>
       </div>
     );
   }
@@ -327,6 +358,14 @@ export default function PortalBillingPage() {
   const isFreePlan = billing?.plan?.key === "free";
   const hasSubscription = billing?.subscription?.stripeSubscriptionId != null;
   const hasCustomer = billing?.subscription?.stripeCustomerId != null;
+
+  /** Translate plan name using i18n keys, fallback to raw name */
+  const translatePlanName = (key: string, fallbackName: string): string => {
+    const i18nKey = `billing.planName.${key}` as TranslationKey;
+    const translated = t(i18nKey);
+    // If translation key is returned as-is, it means no translation found
+    return translated === i18nKey ? fallbackName : translated;
+  };
   const subStatus = billing?.subscription?.status || "none";
   const isGrace = lockStatus?.reason === "grace";
   const isLocked = lockStatus?.reason === "locked";
@@ -339,38 +378,67 @@ export default function PortalBillingPage() {
           ? "locked"
           : "free";
 
+  // Usage percentages for alert banners
+  const convPct =
+    billing?.limits && billing.limits.maxConversationsPerMonth > 0
+      ? (billing.usage.conversationsCreated / billing.limits.maxConversationsPerMonth) * 100
+      : 0;
+  const msgPct =
+    billing?.limits && billing.limits.maxMessagesPerMonth > 0
+      ? (billing.usage.messagesSent / billing.limits.maxMessagesPerMonth) * 100
+      : 0;
+  const usageHigh = convPct >= 80 || msgPct >= 80;
+  const usageFull = convPct >= 100 || msgPct >= 100;
+
   return (
     <PortalLayout user={user} onLogout={handleLogout}>
+      {billing?.trial && (billing.trial.isTrialing || billing.trial.isExpired) && (
+        <TrialBanner
+          daysLeft={billing.trial.daysLeft}
+          isExpired={billing.trial.isExpired}
+          isTrialing={billing.trial.isTrialing}
+          endsAt={billing.trial.endsAt}
+          className="mb-4"
+        />
+      )}
+
+      {billing?.limits && billing?.usage && (
+        <UsageNudge
+          usedConversations={billing.usage.conversationsCreated}
+          limitConversations={billing.limits.maxConversationsPerMonth}
+          usedMessages={billing.usage.messagesSent}
+          limitMessages={billing.limits.maxMessagesPerMonth}
+          className="mb-4"
+        />
+      )}
+
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Billing</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("billing.title")}</h1>
         <p className="text-sm text-slate-600 mt-1">
-          Manage your plan, usage, and subscription
+          {t("billing.subtitle")}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-          <span>
-            Last sync:{" "}
+          <span suppressHydrationWarning>
+            {t("billing.lastSync")}{" "}
             {lockStatus?.lastReconcileAt
               ? new Date(lockStatus.lastReconcileAt).toLocaleString()
-              : "Never"}
+              : t("billing.never")}
           </span>
           <StateBadge state={stateLabel} />
         </div>
       </div>
 
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 flex justify-between items-center">
-          <span>{error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="text-red-600 hover:text-red-800 text-sm font-medium"
-          >
-            Dismiss
-          </button>
-        </div>
+        <ErrorBanner
+          message={error}
+          requestId={errorRequestId}
+          onDismiss={() => { setError(null); setErrorRequestId(null); }}
+          className="mb-6"
+        />
       )}
 
       {loading || !billing ? (
-        <div className="text-slate-600">Loading billing...</div>
+        <div className="text-slate-600">{t("billing.loadingBilling")}</div>
       ) : (
         <div className="space-y-6">
           {(isGrace || isLocked) && (
@@ -379,15 +447,15 @@ export default function PortalBillingPage() {
                 <div>
                   <p className="font-semibold">
                     {isGrace
-                      ? "Payment required — grace period active"
-                      : "Payment required — billing locked"}
+                      ? t("billing.gracePeriodActive")
+                      : t("billing.billingLocked")}
                   </p>
-                  <p className="text-sm text-amber-800 mt-1">
+                  <p className="text-sm text-amber-800 mt-1" suppressHydrationWarning>
                     {isGrace && lockStatus?.graceEndsAt
-                      ? `Grace ends on ${new Date(
+                      ? `${t("billing.graceEndsOn")} ${new Date(
                           lockStatus.graceEndsAt
                         ).toLocaleDateString()}.`
-                      : "Widget write operations are disabled until payment is resolved."}
+                      : t("billing.writeDisabled")}
                   </p>
                 </div>
                 {billing.stripeConfigured && hasCustomer ? (
@@ -396,11 +464,11 @@ export default function PortalBillingPage() {
                     disabled={portalLoading}
                     className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
                   >
-                    {portalLoading ? "Opening portal..." : "Manage Subscription"}
+                    {portalLoading ? t("billing.openingPortal") : t("billing.manageSubscription")}
                   </button>
                 ) : (
                   <span className="text-sm text-amber-700">
-                    Billing portal unavailable in this environment.
+                    {t("billing.portalUnavailable")}
                   </span>
                 )}
               </div>
@@ -410,9 +478,46 @@ export default function PortalBillingPage() {
           {/* Stripe not configured notice */}
           {!billing.stripeConfigured && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-900 text-sm">
-              <strong>Billing not configured.</strong> Stripe environment
-              variables are not set. Subscription features will be unavailable
-              until configured.
+              {t("billing.notConfigured")}
+            </div>
+          )}
+
+          {/* Usage alert banners */}
+          {usageFull && !isLocked && !isGrace && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-900 text-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                {t("billing.limitReached")}
+              </div>
+              {billing.stripeConfigured && (
+                <button
+                  onClick={() => {
+                    const plansSection = document.getElementById("available-plans");
+                    plansSection?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors whitespace-nowrap"
+                >
+                  {t("billing.upgradeNow")}
+                </button>
+              )}
+            </div>
+          )}
+
+          {usageHigh && !usageFull && !isLocked && !isGrace && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-900 text-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                {t("billing.approachingLimit")}
+              </div>
+              {billing.stripeConfigured && (
+                <button
+                  onClick={() => {
+                    const plansSection = document.getElementById("available-plans");
+                    plansSection?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors whitespace-nowrap"
+                >
+                  {t("billing.viewPlans")}
+                </button>
+              )}
             </div>
           )}
 
@@ -421,20 +526,20 @@ export default function PortalBillingPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">
-                  Current Plan
+                  {t("billing.currentPlan")}
                 </p>
                 <h2 className="text-2xl font-bold text-slate-900 mt-1">
-                  {billing.plan.name}
+                  {translatePlanName(billing.plan.key, billing.plan.name)}
                 </h2>
                 {billing.plan.monthlyPriceUsd != null &&
                   billing.plan.monthlyPriceUsd > 0 && (
                     <p className="text-sm text-slate-600 mt-0.5">
-                      ${billing.plan.monthlyPriceUsd}/month
+                      ${billing.plan.monthlyPriceUsd}{t("billing.perMonth")}
                     </p>
                   )}
                 {isFreePlan && (
                   <p className="text-sm text-slate-500 mt-0.5">
-                    Free forever
+                    {t("billing.freeForever")}
                   </p>
                 )}
               </div>
@@ -448,10 +553,10 @@ export default function PortalBillingPage() {
                   <div>
                     <p className="text-xs text-slate-500">
                       {billing.subscription.cancelAtPeriodEnd
-                        ? "Cancels on"
-                        : "Renews on"}
+                        ? t("billing.cancelsOn")
+                        : t("billing.renewsOn")}
                     </p>
-                    <p className="text-sm font-medium text-slate-900">
+                    <p className="text-sm font-medium text-slate-900" suppressHydrationWarning>
                       {new Date(
                         billing.subscription.currentPeriodEnd
                       ).toLocaleDateString()}
@@ -460,8 +565,8 @@ export default function PortalBillingPage() {
                 )}
                 {billing.subscription.trialEndsAt && (
                   <div>
-                    <p className="text-xs text-slate-500">Trial ends</p>
-                    <p className="text-sm font-medium text-slate-900">
+                    <p className="text-xs text-slate-500">{t("billing.trialEnds")}</p>
+                    <p className="text-sm font-medium text-slate-900" suppressHydrationWarning>
                       {new Date(
                         billing.subscription.trialEndsAt
                       ).toLocaleDateString()}
@@ -473,8 +578,7 @@ export default function PortalBillingPage() {
 
             {billing.subscription.cancelAtPeriodEnd && (
               <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                Your subscription will be canceled at the end of the current
-                billing period. You can reactivate from the billing portal.
+                {t("billing.cancelAtPeriodEnd")}
               </div>
             )}
 
@@ -487,8 +591,8 @@ export default function PortalBillingPage() {
                   className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors"
                 >
                   {portalLoading
-                    ? "Opening portal..."
-                    : "Manage Subscription"}
+                    ? t("billing.openingPortal")
+                    : t("billing.manageSubscription")}
                 </button>
               </div>
             )}
@@ -498,93 +602,61 @@ export default function PortalBillingPage() {
           {billing.limits && (
             <div className="bg-white rounded-lg border border-slate-200 p-6">
               <h3 className="text-sm font-semibold text-slate-900 mb-4 uppercase tracking-wider">
-                Usage This Month
+                {t("billing.usageThisMonth")}
               </h3>
-              <p className="text-xs text-slate-500 mb-4">
-                Period: {billing.usage.monthKey}
-              </p>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs text-slate-500">
+                  {t("billing.period")} {billing.usage.monthKey}
+                </p>
+                {billing.usage.nextResetDate && (
+                  <p className="text-xs text-slate-500" suppressHydrationWarning>
+                    {t("billing.nextReset")} {new Date(billing.usage.nextResetDate).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
               <div className="space-y-4">
                 <UsageBar
-                  label="Conversations"
+                  label={t("usage.conversations")}
                   used={billing.usage.conversationsCreated}
                   limit={billing.limits.maxConversationsPerMonth}
                 />
                 <UsageBar
-                  label="Messages"
+                  label={t("usage.messages")}
                   used={billing.usage.messagesSent}
                   limit={billing.limits.maxMessagesPerMonth}
                 />
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Agent seats</span>
+                  <span className="text-slate-600">{t("billing.agentSeats")}</span>
                   <span className="font-medium text-slate-900">
-                    {billing.limits.maxAgents} included
+                    {billing.limits.maxAgents} {t("billing.included")}
                   </span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Available Plans */}
-          {billing.stripeConfigured && billing.availablePlans.length > 0 && (
-            <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4 uppercase tracking-wider">
-                Available Plans
-              </h3>
-              <div className="grid gap-4 md:grid-cols-3">
-                {billing.availablePlans.map((plan) => {
-                  const isCurrent = plan.key === billing.plan.key;
-                  const canUpgrade =
-                    !isCurrent &&
-                    plan.key !== "free" &&
-                    plan.stripePriceId != null;
+          {/* Locked — contact support */}
+          {isLocked && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-900 text-sm">
+              {t("billing.accountLocked")}
+            </div>
+          )}
 
-                  return (
-                    <div
-                      key={plan.key}
-                      className={`border rounded-lg p-4 ${isCurrent ? "border-emerald-300 bg-emerald-50" : "border-slate-200"}`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-semibold text-slate-900">
-                          {plan.name}
-                        </h4>
-                        {isCurrent && (
-                          <span className="text-xs font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                            Current
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-lg font-bold text-slate-900">
-                        {plan.monthlyPriceUsd != null &&
-                        plan.monthlyPriceUsd > 0
-                          ? `$${plan.monthlyPriceUsd}/mo`
-                          : "Free"}
-                      </p>
-                      <ul className="mt-3 space-y-1 text-sm text-slate-600">
-                        <li>
-                          {plan.maxConversationsPerMonth.toLocaleString()}{" "}
-                          conversations/mo
-                        </li>
-                        <li>
-                          {plan.maxMessagesPerMonth.toLocaleString()}{" "}
-                          messages/mo
-                        </li>
-                        <li>{plan.maxAgents} agents</li>
-                      </ul>
-                      {canUpgrade && (
-                        <button
-                          onClick={() => handleCheckout(plan.key)}
-                          disabled={checkoutLoading === plan.key}
-                          className="mt-4 w-full px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors"
-                        >
-                          {checkoutLoading === plan.key
-                            ? "Redirecting..."
-                            : `Upgrade to ${plan.name}`}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+          {/* Available Plans — full comparison */}
+          {billing.stripeConfigured && billing.availablePlans.length > 0 && (
+            <div id="available-plans" className="bg-white rounded-lg border border-slate-200 p-6">
+              <h3 className="text-sm font-semibold text-slate-900 mb-6 uppercase tracking-wider">
+                {t("billing.availablePlans")}
+              </h3>
+              <PlanComparisonTable
+                plans={billing.availablePlans}
+                currentPlanKey={billing.plan.key}
+                onUpgrade={handleCheckout}
+                upgradeLoading={checkoutLoading}
+                showBillingToggle={true}
+                mode="portal"
+                recommendedPlan={billing.recommendedPlan}
+              />
             </div>
           )}
 
@@ -592,11 +664,11 @@ export default function PortalBillingPage() {
           {billing.stripeConfigured && (
             <div className="bg-white rounded-lg border border-slate-200 p-6">
               <h3 className="text-sm font-semibold text-slate-900 mb-4 uppercase tracking-wider">
-                Billing History
+                {t("billing.billingHistory")}
               </h3>
 
               {invoicesLoading && (
-                <p className="text-sm text-slate-500">Loading invoices...</p>
+                <p className="text-sm text-slate-500">{t("billing.loadingInvoices")}</p>
               )}
 
               {invoicesError && (
@@ -605,8 +677,7 @@ export default function PortalBillingPage() {
 
               {!invoicesLoading && !invoicesError && !hasCustomer && (
                 <p className="text-sm text-slate-500">
-                  No billing history yet. Start a subscription to see invoices
-                  here.
+                  {t("billing.noBillingHistory")}
                 </p>
               )}
 
@@ -615,7 +686,7 @@ export default function PortalBillingPage() {
                 hasCustomer &&
                 invoices.length === 0 && (
                   <p className="text-sm text-slate-500">
-                    No invoices found yet.
+                    {t("billing.noInvoices")}
                   </p>
                 )}
 
@@ -625,19 +696,19 @@ export default function PortalBillingPage() {
                     <thead>
                       <tr className="border-b border-slate-200 text-left">
                         <th className="py-2 pr-4 font-medium text-slate-600">
-                          Invoice
+                          {t("billing.invoice")}
                         </th>
                         <th className="py-2 pr-4 font-medium text-slate-600">
-                          Date
+                          {t("billing.date")}
                         </th>
                         <th className="py-2 pr-4 font-medium text-slate-600">
-                          Amount
+                          {t("billing.amount")}
                         </th>
                         <th className="py-2 pr-4 font-medium text-slate-600">
-                          Status
+                          {t("billing.status")}
                         </th>
                         <th className="py-2 font-medium text-slate-600">
-                          Actions
+                          {t("billing.actions")}
                         </th>
                       </tr>
                     </thead>
@@ -650,7 +721,7 @@ export default function PortalBillingPage() {
                           <td className="py-3 pr-4 font-mono text-xs text-slate-700">
                             {inv.number || inv.id.slice(0, 16)}
                           </td>
-                          <td className="py-3 pr-4 text-slate-700">
+                          <td className="py-3 pr-4 text-slate-700" suppressHydrationWarning>
                             {new Date(inv.created * 1000).toLocaleDateString()}
                           </td>
                           <td className="py-3 pr-4 font-medium text-slate-900">
@@ -668,7 +739,7 @@ export default function PortalBillingPage() {
                                   rel="noopener noreferrer"
                                   className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                                 >
-                                  View
+                                  {t("billing.view")}
                                 </a>
                               )}
                               {inv.invoicePdf && (

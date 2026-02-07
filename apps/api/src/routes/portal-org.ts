@@ -12,6 +12,7 @@ import {
   requirePortalUser,
   requirePortalRole,
 } from "../middleware/require-portal-user";
+import { requireStepUp } from "../middleware/require-step-up";
 import { generateSiteId } from "../utils/site-id";
 import { getUsageForMonth } from "../utils/entitlements";
 
@@ -196,7 +197,7 @@ export async function portalOrgRoutes(fastify: FastifyInstance) {
   fastify.patch(
     "/portal/org/me/security",
     {
-      preHandler: [requirePortalUser, requirePortalRole(["owner", "admin"])],
+      preHandler: [requirePortalUser, requirePortalRole(["owner", "admin"]), requireStepUp("portal")],
     },
     async (request, reply) => {
       const user = request.portalUser!;
@@ -255,7 +256,7 @@ export async function portalOrgRoutes(fastify: FastifyInstance) {
   fastify.post(
     "/portal/org/me/rotate-site-id",
     {
-      preHandler: [requirePortalUser, requirePortalRole(["owner"])],
+      preHandler: [requirePortalUser, requirePortalRole(["owner"]), requireStepUp("portal")],
     },
     async (request, reply) => {
       const user = request.portalUser!;

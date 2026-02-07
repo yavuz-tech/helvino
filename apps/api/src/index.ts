@@ -16,9 +16,23 @@ import { securityRoutes } from "./routes/security";
 import { orgAuthRoutes } from "./routes/org-auth";
 import { orgCustomerRoutes } from "./routes/org-customer";
 import { portalAuthRoutes } from "./routes/portal-auth";
+import { portalSignupRoutes } from "./routes/portal-signup";
 import { portalOrgRoutes } from "./routes/portal-org";
 import { portalBillingRoutes } from "./routes/portal-billing";
+import { portalTeamRoutes } from "./routes/portal-team";
+import { portalSecurityRoutes } from "./routes/portal-security";
+import { portalMfaRoutes } from "./routes/portal-mfa";
+import { adminMfaRoutes } from "./routes/admin-mfa";
+import { deviceRoutes } from "./routes/device-routes";
+import { recoveryRoutes } from "./routes/recovery-routes";
+import { webauthnRoutes } from "./routes/webauthn-routes";
 import { stripeWebhookRoutes } from "./routes/stripe-webhook";
+import { widgetAnalyticsRoutes } from "./routes/widget-analytics";
+import { adminOrgDirectoryRoutes } from "./routes/admin-orgs";
+import { portalWidgetConfigRoutes } from "./routes/portal-widget-config";
+import { auditLogRoutes } from "./routes/audit-log-routes";
+import { portalNotificationRoutes } from "./routes/portal-notifications";
+import { portalConversationRoutes } from "./routes/portal-conversations";
 import { upsertVisitor } from "./utils/visitor";
 import { requestContextPlugin } from "./plugins/request-context";
 import { metricsTracker } from "./utils/metrics";
@@ -29,6 +43,8 @@ import { requireOrgToken } from "./middleware/require-org-token";
 import { isBillingWriteBlocked } from "./utils/billing-enforcement";
 import { enforceWidgetBillingLock } from "./middleware/billing-lock";
 import { RedisSessionStore } from "./utils/redis-session-store";
+import { hostTrustPlugin } from "./middleware/host-trust";
+import { securityHeadersPlugin } from "./middleware/security-headers";
 import {
   checkConversationEntitlement,
   checkMessageEntitlement,
@@ -130,6 +146,8 @@ fastify.register(socketioServer, {
 });
 
 fastify.register(requestContextPlugin);
+fastify.register(hostTrustPlugin);
+fastify.register(securityHeadersPlugin);
 
 // Metrics tracking (global onResponse hook)
 fastify.addHook("onResponse", async (request, reply) => {
@@ -149,6 +167,7 @@ fastify.addHook("onResponse", async (request, reply) => {
 fastify.register(authRoutes); // Internal admin auth (no prefix)
 fastify.register(orgAuthRoutes); // Org user auth (customer portal, no prefix)
 fastify.register(portalAuthRoutes); // Portal auth (no prefix)
+fastify.register(portalSignupRoutes); // Portal self-serve signup (Step 11.36)
 fastify.register(portalBillingRoutes); // Portal billing
 fastify.register(observabilityRoutes); // Health + metrics
 fastify.register(bootloaderRoutes, { prefix: "/api" });
@@ -157,7 +176,20 @@ fastify.register(securityRoutes, { prefix: "/api" }); // Security management
 fastify.register(internalAdminRoutes); // Internal admin (no prefix)
 fastify.register(orgCustomerRoutes); // Org customer routes (customer portal, no prefix)
 fastify.register(portalOrgRoutes); // Portal org routes (no prefix)
+fastify.register(portalTeamRoutes); // Portal team management (no prefix)
+fastify.register(portalSecurityRoutes); // Portal security: password reset, sessions (no prefix)
+fastify.register(portalMfaRoutes); // Portal MFA: TOTP setup, verify, challenge (no prefix)
+fastify.register(adminMfaRoutes); // Admin MFA: TOTP setup, verify, challenge (no prefix)
+fastify.register(deviceRoutes); // Device management: admin + portal (no prefix)
+fastify.register(recoveryRoutes); // Account recovery + emergency access (no prefix)
+fastify.register(webauthnRoutes); // WebAuthn passkeys: admin + portal (no prefix)
 fastify.register(stripeWebhookRoutes); // Stripe webhooks
+fastify.register(widgetAnalyticsRoutes); // Widget analytics + health (no prefix)
+fastify.register(adminOrgDirectoryRoutes); // Admin org directory (Step 11.39)
+fastify.register(portalWidgetConfigRoutes); // Portal widget config + domains (Step 11.40)
+fastify.register(auditLogRoutes); // Audit log routes: portal + admin (Step 11.42)
+fastify.register(portalNotificationRoutes); // Portal notifications (Step 11.43)
+fastify.register(portalConversationRoutes); // Portal conversation management (Step 11.47)
 
 // Root info
 fastify.get("/", async () => {

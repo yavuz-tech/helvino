@@ -2,8 +2,10 @@
  * Portal auth middleware
  *
  * Ensures the request has a valid portal session (customer portal).
+ * Checks session revocation and updates lastSeenAt.
  */
 
+import crypto from "crypto";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../prisma";
 import {
@@ -20,6 +22,10 @@ declare module "fastify" {
       role: string;
     };
   }
+}
+
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 export async function requirePortalUser(
@@ -40,6 +46,25 @@ export async function requirePortalUser(
   if (!payload) {
     reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
     return reply.status(401).send({ error: "Invalid session" });
+  }
+
+  // Check session revocation in DB
+  const tokenHash = hashToken(token);
+  const sessionRecord = await prisma.portalSession.findFirst({
+    where: { tokenHash },
+  });
+
+  if (sessionRecord && sessionRecord.revokedAt) {
+    reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
+    return reply.status(401).send({ error: "Session revoked" });
+  }
+
+  // Update lastSeenAt (best-effort, don't block)
+  if (sessionRecord) {
+    prisma.portalSession.update({
+      where: { id: sessionRecord.id },
+      data: { lastSeenAt: new Date() },
+    }).catch(() => {/* ignore */});
   }
 
   const orgUser = await prisma.orgUser.findUnique({

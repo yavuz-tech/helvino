@@ -23,7 +23,7 @@ echo ""
 
 # --- Admin login ---
 echo "--- 0. Admin login ---"
-LOGIN_CODE=$(curl -s -o /dev/null -w "%{http_code}" -c "$COOKIE_JAR" -X POST \
+LOGIN_CODE=$(curl -s -m 10 -o /dev/null -w "%{http_code}" -c "$COOKIE_JAR" -X POST \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" \
   "$API_URL/internal/auth/login" 2>/dev/null || echo "000")
@@ -40,7 +40,7 @@ echo ""
 # --- 1. Check retention settings via API ---
 echo "--- 1. Retention settings ---"
 if [ "$LIVE" = true ]; then
-  SETTINGS=$(curl -s -b "$COOKIE_JAR" "$API_URL/api/org/$ORG_KEY/settings")
+  SETTINGS=$(curl -s -m 10 -b "$COOKIE_JAR" "$API_URL/api/org/$ORG_KEY/settings")
   RETENTION_DAYS=$(echo "$SETTINGS" | jq -r '.settings.messageRetentionDays // empty')
   HARD_DELETE=$(echo "$SETTINGS" | jq -r '.settings.hardDeleteOnRetention // empty')
 
@@ -63,7 +63,7 @@ echo ""
 # --- 2. Retention endpoint (admin auth) ---
 echo "--- 2. Retention endpoint ---"
 if [ "$LIVE" = true ]; then
-  RET_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -b "$COOKIE_JAR" "$API_URL/internal/retention/run")
+  RET_CODE=$(curl -s -m 10 -o /dev/null -w "%{http_code}" -X POST -b "$COOKIE_JAR" "$API_URL/internal/retention/run")
   if [ "$RET_CODE" = "200" ]; then
     pass "Retention endpoint returns 200"
   else
@@ -71,7 +71,7 @@ if [ "$LIVE" = true ]; then
   fi
 
   # Unauth check
-  UNAUTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API_URL/internal/retention/run")
+  UNAUTH_CODE=$(curl -s -m 10 -o /dev/null -w "%{http_code}" -X POST "$API_URL/internal/retention/run")
   if [ "$UNAUTH_CODE" = "401" ] || [ "$UNAUTH_CODE" = "403" ]; then
     pass "Retention endpoint requires auth ($UNAUTH_CODE)"
   else

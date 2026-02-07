@@ -2,12 +2,20 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useDebug } from "@/contexts/DebugContext";
 import { useOrg } from "@/contexts/OrgContext";
-import { apiFetch, setDebugLogger } from "@/utils/api";
+import { apiFetch, setDebugLogger, getRequestId } from "@/utils/api";
 import { SystemStatus } from "@/components/SystemStatus";
 import { checkAuth, logout, type AdminUser } from "@/lib/auth";
 import DashboardLayout from "@/components/DashboardLayout";
+import MfaPolicyBanner from "@/components/MfaPolicyBanner";
+import OnboardingOverlay from "@/components/OnboardingOverlay";
+import EmptyState from "@/components/EmptyState";
+import SecurityBadges from "@/components/SecurityBadges";
+import AdminWidgetHealthSummary from "@/components/AdminWidgetHealthSummary";
+import AdminAuditSummary from "@/components/AdminAuditSummary";
+import { useI18n } from "@/i18n/I18nContext";
 
 interface Conversation {
   id: string;
@@ -30,6 +38,7 @@ interface ConversationDetail extends Conversation {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const { logRequest, socket, isMounted } = useDebug();
   const { selectedOrg, isLoading: orgLoading } = useOrg();
   const [user, setUser] = useState<AdminUser | null>(null);
@@ -37,6 +46,7 @@ export default function DashboardPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorRequestId, setErrorRequestId] = useState<string | null>(null);
   
   // Conversation detail state
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -44,6 +54,26 @@ export default function DashboardPage() {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [replyContent, setReplyContent] = useState("");
   const [isSending, setIsSending] = useState(false);
+
+  // MFA policy
+  const [adminMfaRequired, setAdminMfaRequired] = useState(false);
+  const [adminMfaEnabled, setAdminMfaEnabled] = useState(true); // default true to avoid flash
+
+  // Widget health summary state (admin)
+  interface WidgetSummaryData {
+    totals: {
+      orgsTotal: number; connectedOrgs: number;
+      loadsTotal: number; failuresTotal: number; domainMismatchTotal: number;
+      okCount: number; needsAttentionCount: number; notConnectedCount: number;
+    };
+    topByFailures: { orgKey: string; orgName: string; failuresTotal: number; loadsTotal: number; lastSeenAt: string | null }[];
+    topByDomainMismatch: { orgKey: string; orgName: string; domainMismatchTotal: number; lastSeenAt: string | null }[];
+    lastSeenDistribution: { never: number; lt1h: number; lt24h: number; lt7d: number; gte7d: number };
+    requestId?: string;
+  }
+  const [widgetSummary, setWidgetSummary] = useState<WidgetSummaryData | null>(null);
+
+  const API_URL_POLICY = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
   // Check authentication on mount
   useEffect(() => {
@@ -54,10 +84,29 @@ export default function DashboardPage() {
         return;
       }
       setUser(user);
+      setAdminMfaEnabled((user as AdminUser & { mfaEnabled?: boolean }).mfaEnabled ?? false);
       setAuthLoading(false);
+
+      // Check MFA policy
+      try {
+        const res = await fetch(`${API_URL_POLICY}/internal/security/mfa-policy`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setAdminMfaRequired(data.adminMfaRequired ?? false);
+        }
+      } catch { /* ignore */ }
+
+      // Load widget health summary (best-effort)
+      try {
+        const wRes = await fetch(`${API_URL_POLICY}/internal/metrics/widget-health-summary`, { credentials: "include" });
+        if (wRes.ok) {
+          const wData = await wRes.json();
+          setWidgetSummary(wData);
+        }
+      } catch { /* ignore */ }
     };
     verifyAuth();
-  }, [router]);
+  }, [router, API_URL_POLICY]);
 
   // Set debug logger on mount
   useEffect(() => {
@@ -81,11 +130,13 @@ export default function DashboardPage() {
     try {
       setIsLoading(true);
       setError(null);
+      setErrorRequestId(null);
       const response = await apiFetch("/conversations", {
         orgKey: selectedOrg.key,
       });
       
       if (!response.ok) {
+        setErrorRequestId(getRequestId(response));
         throw new Error(`HTTP ${response.status}`);
       }
       
@@ -93,11 +144,11 @@ export default function DashboardPage() {
       setConversations(data);
     } catch (err) {
       console.error("Failed to fetch conversations:", err);
-      setError("Failed to load conversations");
+      setError(t("dashboard.failedLoadConversations"));
     } finally {
       setIsLoading(false);
     }
-  }, [selectedOrg]);
+  }, [selectedOrg, t]);
 
   // Initial fetch on mount
   useEffect(() => {
@@ -177,7 +228,7 @@ export default function DashboardPage() {
       });
     } catch (err) {
       console.error("Failed to send reply:", err);
-      alert("Failed to send message");
+      alert(t("dashboard.failedSendMessage"));
       setReplyContent(content); // Restore content on error
     } finally {
       setIsSending(false);
@@ -251,7 +302,7 @@ export default function DashboardPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">Loading...</div>
+        <div className="text-slate-600">{t("common.loading")}</div>
       </div>
     );
   }
@@ -263,16 +314,16 @@ export default function DashboardPage() {
         <div className="flex items-center justify-center h-[60vh]">
           <div className="text-center">
             <div className="text-6xl mb-4">🏢</div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">No Organization Selected</h2>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">{t("dashboard.noOrgSelected")}</h2>
             <p className="text-slate-600 mb-6">
-              Create your first organization to get started
+              {t("dashboard.createFirstOrg")}
             </p>
-            <a
+            <Link
               href="/dashboard/orgs/new"
               className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors"
             >
-              Create Organization
-            </a>
+              {t("nav.createOrg")}
+            </Link>
           </div>
         </div>
       </DashboardLayout>
@@ -281,25 +332,40 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout user={user} onLogout={handleLogout}>
+      <OnboardingOverlay area="admin" />
+      {adminMfaRequired && !adminMfaEnabled && (
+        <MfaPolicyBanner blocking={true} securityUrl="/dashboard/settings" />
+      )}
       {/* System Status */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 mb-4">Overview</h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-slate-900">{t("nav.overview")}</h1>
+          <SecurityBadges mfaEnabled={adminMfaEnabled} auditActive={true} />
+        </div>
         <SystemStatus />
       </div>
+
+      {/* Widget Health Summary */}
+      {widgetSummary && (
+        <AdminWidgetHealthSummary data={widgetSummary} className="mb-6" />
+      )}
+
+      {/* Audit Summary (24h) */}
+      <AdminAuditSummary className="mb-6" />
 
       <div className="flex gap-6 h-[calc(100vh-16rem)]">
         {/* Left: Inbox List */}
         <div className="w-96 bg-white border-r border-slate-200 flex flex-col">
           <div className="px-6 py-4 border-b border-slate-200">
             <h2 className="text-lg font-semibold text-slate-900 mb-1">
-              Inbox ({conversations.length})
+              {t("dashboard.inbox")} ({conversations.length})
             </h2>
             <button
               onClick={fetchConversations}
               disabled={isLoading}
               className="text-xs text-slate-600 hover:text-slate-900 disabled:text-slate-400"
             >
-              {isLoading ? "Loading..." : "↻ Refresh"}
+              {isLoading ? t("common.loading") : t("common.refresh")}
             </button>
           </div>
 
@@ -307,21 +373,24 @@ export default function DashboardPage() {
             {error && (
               <div className="px-6 py-4 text-sm text-red-600">
                 {error}
+                {errorRequestId && (
+                  <span className="block text-xs text-red-400 font-mono mt-1">
+                    Request ID: {errorRequestId}
+                  </span>
+                )}
               </div>
             )}
 
             {isLoading && conversations.length === 0 ? (
               <div className="px-6 py-8 text-center text-sm text-slate-500">
-                Loading conversations...
+                {t("dashboard.loadingConversations")}
               </div>
             ) : conversations.length === 0 ? (
-              <div className="px-6 py-12 text-center">
-                <div className="text-4xl mb-3">📭</div>
-                <p className="text-sm font-medium text-slate-700 mb-1">No conversations yet</p>
-                <p className="text-xs text-slate-500">
-                  Conversations will appear here when visitors use the widget
-                </p>
-              </div>
+              <EmptyState
+                icon="📭"
+                title={t("empty.conversations")}
+                description={t("empty.conversationsDesc")}
+              />
             ) : (
               conversations.map((conv) => (
                 <div
@@ -341,7 +410,7 @@ export default function DashboardPage() {
                       {conv.messageCount}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-slate-500" suppressHydrationWarning>
                     {formatDate(conv.updatedAt)}
                   </div>
                 </div>
@@ -356,7 +425,7 @@ export default function DashboardPage() {
             <div className="flex-1 flex items-center justify-center text-slate-400">
               <div className="text-center">
                 <div className="text-4xl mb-2">💬</div>
-                <p>Select a conversation to view messages</p>
+                <p>{t("dashboard.selectConversation")}</p>
               </div>
             </div>
           ) : (
@@ -365,12 +434,12 @@ export default function DashboardPage() {
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {isLoadingDetail ? (
                   <div className="text-center text-slate-500 py-8">
-                    Loading messages...
+                    {t("dashboard.loadingMessages")}
                   </div>
                 ) : conversationDetail ? (
                   conversationDetail.messages.length === 0 ? (
                     <div className="text-center text-slate-400 py-8">
-                      No messages yet
+                      {t("dashboard.noMessages")}
                     </div>
                   ) : (
                     conversationDetail.messages.map((msg) => (
@@ -386,7 +455,7 @@ export default function DashboardPage() {
                           }`}
                         >
                           <div className="text-sm mb-1">{msg.content}</div>
-                          <div className={`text-xs ${msg.role === "user" ? "text-slate-300" : "text-slate-500"}`}>
+                          <div className={`text-xs ${msg.role === "user" ? "text-slate-300" : "text-slate-500"}`} suppressHydrationWarning>
                             {new Date(msg.timestamp).toLocaleTimeString()}
                           </div>
                         </div>
@@ -409,7 +478,7 @@ export default function DashboardPage() {
                         sendReply();
                       }
                     }}
-                    placeholder="Type agent reply..."
+                    placeholder={t("dashboard.typeReply")}
                     disabled={isSending}
                     className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:bg-slate-100"
                   />
@@ -418,11 +487,11 @@ export default function DashboardPage() {
                     disabled={isSending || !replyContent.trim()}
                     className="bg-slate-900 text-white px-6 py-2 rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
                   >
-                    {isSending ? "Sending..." : "Send"}
+                    {isSending ? t("common.sending") : t("common.send")}
                   </button>
                 </div>
                 <div className="mt-2 text-xs text-slate-500">
-                  Press Enter to send • Shift+Enter for new line
+                  {t("dashboard.pressEnter")}
                 </div>
               </div>
             </>

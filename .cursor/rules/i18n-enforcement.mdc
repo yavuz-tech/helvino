@@ -1,0 +1,118 @@
+---
+description: i18n enforcement - ALL UI strings MUST use translation system (MANDATORY for all future work)
+globs: apps/web/src/**/*.tsx
+alwaysApply: true
+---
+
+# 🌍 i18n Enforcement Rule — Helvino (MANDATORY)
+
+**CRITICAL**: ALL visible text in the Helvino web app MUST go through the i18n translation system. No hardcoded strings in UI.
+
+This rule is **ALWAYS ACTIVE** for all future development. Any new page, component, or feature MUST follow this rule.
+
+## How it works
+
+```tsx
+import { useI18n } from "@/i18n/I18nContext";
+
+export default function MyPage() {
+  const { t } = useI18n();
+  
+  // ✅ CORRECT
+  return <h1>{t("myPage.title")}</h1>;
+  
+  // ❌ WRONG — hardcoded string
+  return <h1>My Page Title</h1>;
+}
+```
+
+## When adding a new page or component with visible text
+
+**MANDATORY STEPS** (no exceptions):
+
+1. **Add translation keys** to `apps/web/src/i18n/translations.ts`
+   - Add key to `en` object (English) — MUST be first
+   - Add key to `tr` object (Turkish)
+   - Add key to `es` object (Spanish)
+   - All three languages MUST have the same keys
+
+2. **Import and use** `useI18n()` hook in the component:
+   ```tsx
+   const { t } = useI18n();
+   ```
+
+3. **Use `t("key.name")`** for ALL user-visible strings:
+   - Page titles
+   - Headings
+   - Buttons
+   - Labels
+   - Placeholders
+   - Error messages
+   - Success messages
+   - Descriptions
+   - Tooltips
+   - Alt text
+   - Aria labels
+
+## Translation key naming convention
+
+- Use dot-notation groups: `"section.keyName"`
+- Sections: `common`, `auth`, `nav`, `dashboard`, `settings`, `portal`, `billing`, `usage`, `audit`, `orgs`, `security`, `app`, `debug`
+- Examples: `"common.save"`, `"dashboard.title"`, `"billing.upgradeNow"`
+- Be specific: `"settings.widgetEnabled"` not `"settings.enabled"`
+
+## Files involved
+
+- **Dictionary**: `apps/web/src/i18n/translations.ts` — ALL keys in EN/TR/ES
+- **Context**: `apps/web/src/i18n/I18nContext.tsx` — provider + `useI18n` hook
+- **Switcher**: `apps/web/src/components/LanguageSwitcher.tsx` — UI component
+- **Provider**: `apps/web/src/app/providers.tsx` — wraps app with `I18nProvider`
+
+## Language detection priority (automatic)
+
+1. Cookie `helvino_lang` (user previously chose → always respect)
+2. `navigator.languages` / `navigator.language` (browser setting)
+3. Timezone-based guess (Istanbul → tr, Madrid/Mexico → es)
+4. Fallback → `"en"`
+
+Cookie persists for 180 days. User can switch language via `LanguageSwitcher` component.
+
+## Rules (STRICT - NO EXCEPTIONS)
+
+- ❌ NEVER write bare strings in JSX for user-visible text
+- ❌ NEVER add text in only one language — always add EN + TR + ES
+- ✅ ALWAYS use `t()` from `useI18n()` hook
+- ✅ Placeholders, aria-labels, alt text → also use `t()`
+- ✅ Technical identifiers (CSS classes, HTML ids, data attributes) → keep as-is
+- ✅ Console logs → keep in English (not user-visible)
+- ✅ Widget language options (en/de/fr/es in dropdowns) → keep as-is (widget config, not UI)
+
+## Before submitting ANY code
+
+1. Check: Are there any hardcoded strings in JSX?
+2. Check: Are all keys present in EN + TR + ES?
+3. Run: `pnpm build` (both api + web) to verify TypeScript types
+4. Test: Switch language in UI to verify all strings translate
+
+## Error handling
+
+If you see a TypeScript error like:
+```
+Argument of type 'string' is not assignable to parameter of type 'TranslationKey'
+```
+
+This means the key is missing from `translations.ts`. Add it to EN first (determines the type), then TR and ES.
+
+## Future Development Mandate
+
+**ALL future features, pages, and components MUST follow this rule from day 1.**
+
+Do not implement a feature and "add translations later." Translations are part of the implementation, not an afterthought.
+
+When building new UI:
+1. Define translation keys first
+2. Add to translations.ts (EN/TR/ES)
+3. Build UI using t() calls
+4. Verify in all three languages
+
+This ensures Helvino remains a fully internationalized product for global users.

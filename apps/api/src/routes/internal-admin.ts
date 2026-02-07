@@ -8,6 +8,7 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import { requireAdmin } from "../middleware/require-admin";
+import { requireStepUp } from "../middleware/require-step-up";
 import { hashPassword } from "../utils/password";
 import crypto from "crypto";
 import {
@@ -18,6 +19,8 @@ import {
 } from "../utils/stripe";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { reconcileOrgBilling } from "../utils/billing-reconcile";
+import { writeAuditLog } from "../utils/audit-log";
+import { getMonthKey, getUsageForMonth, getPlanLimits } from "../utils/entitlements";
 
 interface RetentionRunResult {
   ok: boolean;
@@ -321,7 +324,7 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
    */
   fastify.patch<{ Params: { key: string } }>(
     "/internal/org/:key/billing",
-    { preHandler: [requireAdmin] },
+    { preHandler: [requireAdmin, requireStepUp("admin")] },
     async (request, reply) => {
       const { key } = request.params;
       const { billingEnforced, billingGraceDays } = request.body as {
@@ -375,7 +378,7 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { key: string } }>(
     "/internal/org/:key/billing/checkout-session",
-    { preHandler: [requireAdmin] },
+    { preHandler: [requireAdmin, requireStepUp("admin")] },
     async (request, reply) => {
       const { key } = request.params;
       const { returnUrl } = request.body as { returnUrl?: string };
@@ -407,7 +410,7 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { key: string } }>(
     "/internal/org/:key/billing/portal-session",
-    { preHandler: [requireAdmin] },
+    { preHandler: [requireAdmin, requireStepUp("admin")] },
     async (request, reply) => {
       const { key } = request.params;
       const { returnUrl } = request.body as { returnUrl?: string };
@@ -446,6 +449,7 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
     {
       preHandler: [
         requireAdmin,
+        requireStepUp("admin"),
         createRateLimitMiddleware({ limit: 5, windowMs: 60000 }),
       ],
     },
@@ -534,7 +538,7 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
   fastify.post<{ Params: { key: string }; Body: CreateOrgUserRequest }>(
     "/internal/org/:key/users",
     {
-      preHandler: [requireAdmin],
+      preHandler: [requireAdmin, requireStepUp("admin")],
     },
     async (request, reply) => {
       const { key } = request.params;
@@ -594,6 +598,243 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
         },
         tempPassword: password ? undefined : tempPassword,
       };
+    }
+  );
+
+  // ────────────────────────────────────────────────
+  // GET /internal/org/:key/usage
+  // Returns current month usage, limits (incl extra quota), next reset date
+  // ────────────────────────────────────────────────
+  fastify.get<{ Params: { key: string } }>(
+    "/internal/org/:key/usage",
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const { key } = request.params;
+      const org = await prisma.organization.findUnique({
+        where: { key },
+        select: { id: true, key: true, name: true },
+      });
+      if (!org) {
+        reply.code(404);
+        return { error: "Organization not found" };
+      }
+
+      const [usage, limits] = await Promise.all([
+        getUsageForMonth(org.id),
+        getPlanLimits(org.id),
+      ]);
+
+      return {
+        org: { id: org.id, key: org.key, name: org.name },
+        usage,
+        limits,
+      };
+    }
+  );
+
+  // ────────────────────────────────────────────────
+  // POST /internal/org/:key/usage/reset
+  // Admin override: reset current month usage counters to zero
+  // ────────────────────────────────────────────────
+  fastify.post<{ Params: { key: string } }>(
+    "/internal/org/:key/usage/reset",
+    { preHandler: [requireAdmin, requireStepUp("admin")] },
+    async (request, reply) => {
+      const { key } = request.params;
+      const org = await prisma.organization.findUnique({
+        where: { key },
+        select: { id: true, key: true },
+      });
+      if (!org) {
+        reply.code(404);
+        return { error: "Organization not found" };
+      }
+
+      const monthKey = getMonthKey();
+      await prisma.usage.upsert({
+        where: { orgId_monthKey: { orgId: org.id, monthKey } },
+        update: { conversationsCreated: 0, messagesSent: 0 },
+        create: { orgId: org.id, monthKey, conversationsCreated: 0, messagesSent: 0 },
+      });
+
+      const adminEmail = (request.session as unknown as Record<string, unknown>)?.adminEmail as string || "admin";
+      await writeAuditLog(org.id, adminEmail, "usage.reset", { monthKey });
+
+      return { ok: true, monthKey, message: "Usage counters reset to zero" };
+    }
+  );
+
+  // ────────────────────────────────────────────────
+  // POST /internal/org/:key/usage/grant-quota
+  // Admin override: grant extra quota on top of plan limits
+  // Body: { extraConversations?: number, extraMessages?: number }
+  // ────────────────────────────────────────────────
+  fastify.post<{ Params: { key: string } }>(
+    "/internal/org/:key/usage/grant-quota",
+    { preHandler: [requireAdmin, requireStepUp("admin")] },
+    async (request, reply) => {
+      const { key } = request.params;
+      const body = request.body as {
+        extraConversations?: number;
+        extraMessages?: number;
+      };
+
+      if (
+        (body.extraConversations !== undefined &&
+          (typeof body.extraConversations !== "number" || body.extraConversations < 0)) ||
+        (body.extraMessages !== undefined &&
+          (typeof body.extraMessages !== "number" || body.extraMessages < 0))
+      ) {
+        reply.code(400);
+        return { error: "Quota values must be non-negative numbers" };
+      }
+
+      const org = await prisma.organization.findUnique({
+        where: { key },
+        select: { id: true, key: true, extraConversationQuota: true, extraMessageQuota: true },
+      });
+      if (!org) {
+        reply.code(404);
+        return { error: "Organization not found" };
+      }
+
+      const updateData: Record<string, number> = {};
+      if (body.extraConversations !== undefined) {
+        updateData.extraConversationQuota = body.extraConversations;
+      }
+      if (body.extraMessages !== undefined) {
+        updateData.extraMessageQuota = body.extraMessages;
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return { ok: true, updated: false };
+      }
+
+      const updated = await prisma.organization.update({
+        where: { key },
+        data: updateData,
+        select: { extraConversationQuota: true, extraMessageQuota: true },
+      });
+
+      const adminEmail = (request.session as unknown as Record<string, unknown>)?.adminEmail as string || "admin";
+      await writeAuditLog(org.id, adminEmail, "quota.grant", {
+        previous: {
+          extraConversationQuota: org.extraConversationQuota,
+          extraMessageQuota: org.extraMessageQuota,
+        },
+        current: updated,
+      });
+
+      return {
+        ok: true,
+        extraConversationQuota: updated.extraConversationQuota,
+        extraMessageQuota: updated.extraMessageQuota,
+      };
+    }
+  );
+
+  // ────────────────────────────────────────────────
+  // POST /internal/org/:key/billing/lock
+  // Admin override: manually lock billing (block writes)
+  // ────────────────────────────────────────────────
+  fastify.post<{ Params: { key: string } }>(
+    "/internal/org/:key/billing/lock",
+    { preHandler: [requireAdmin, requireStepUp("admin")] },
+    async (request, reply) => {
+      const { key } = request.params;
+      const org = await prisma.organization.findUnique({
+        where: { key },
+        select: { id: true, billingLockedAt: true },
+      });
+      if (!org) {
+        reply.code(404);
+        return { error: "Organization not found" };
+      }
+
+      if (org.billingLockedAt) {
+        return { ok: true, message: "Already locked" };
+      }
+
+      await prisma.organization.update({
+        where: { key },
+        data: { billingLockedAt: new Date() },
+      });
+
+      const adminEmail = (request.session as unknown as Record<string, unknown>)?.adminEmail as string || "admin";
+      await writeAuditLog(org.id, adminEmail, "billing.lock", { manual: true });
+
+      // Emit notification to owners
+      const { emitBillingLocked } = await import("../utils/notifications");
+      await emitBillingLocked(org.id, request.requestId);
+
+      return { ok: true, message: "Billing locked — writes are now blocked" };
+    }
+  );
+
+  // ────────────────────────────────────────────────
+  // POST /internal/org/:key/billing/unlock
+  // Admin override: manually unlock billing (allow writes)
+  // ────────────────────────────────────────────────
+  fastify.post<{ Params: { key: string } }>(
+    "/internal/org/:key/billing/unlock",
+    { preHandler: [requireAdmin, requireStepUp("admin")] },
+    async (request, reply) => {
+      const { key } = request.params;
+      const org = await prisma.organization.findUnique({
+        where: { key },
+        select: { id: true, billingLockedAt: true },
+      });
+      if (!org) {
+        reply.code(404);
+        return { error: "Organization not found" };
+      }
+
+      if (!org.billingLockedAt) {
+        return { ok: true, message: "Already unlocked" };
+      }
+
+      await prisma.organization.update({
+        where: { key },
+        data: { billingLockedAt: null, graceEndsAt: null },
+      });
+
+      const adminEmail = (request.session as unknown as Record<string, unknown>)?.adminEmail as string || "admin";
+      await writeAuditLog(org.id, adminEmail, "billing.unlock", { manual: true });
+
+      // Emit notification to owners
+      const { emitBillingUnlocked } = await import("../utils/notifications");
+      await emitBillingUnlocked(org.id, request.requestId);
+
+      return { ok: true, message: "Billing unlocked — writes are now allowed" };
+    }
+  );
+
+  // ────────────────────────────────────────────────
+  // GET /internal/org/:key/audit-log
+  // Returns recent audit log entries for an org
+  // ────────────────────────────────────────────────
+  fastify.get<{ Params: { key: string }; Querystring: { limit?: string } }>(
+    "/internal/org/:key/audit-log",
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const { key } = request.params;
+      const org = await prisma.organization.findUnique({
+        where: { key },
+        select: { id: true },
+      });
+      if (!org) {
+        reply.code(404);
+        return { error: "Organization not found" };
+      }
+
+      const take = Math.min(Math.max(parseInt(request.query.limit || "50", 10) || 50, 1), 200);
+      const entries = await prisma.auditLog.findMany({
+        where: { orgId: org.id },
+        orderBy: { createdAt: "desc" },
+        take,
+      });
+
+      return { entries };
     }
   );
 

@@ -6,9 +6,11 @@ import { checkAuth, logout, type AdminUser } from "@/lib/auth";
 import { useOrg } from "@/contexts/OrgContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Copy, Check } from "lucide-react";
+import { useI18n } from "@/i18n/I18nContext";
 
 export default function NewOrgPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const { createOrg } = useOrg();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -52,7 +54,7 @@ export default function NewOrgPage() {
     setError(null);
 
     if (!name.trim()) {
-      setError("Organization name is required");
+      setError(t("orgs.orgNameRequired"));
       return;
     }
 
@@ -74,7 +76,7 @@ export default function NewOrgPage() {
       setCreatedOrg(org);
     } catch (err) {
       console.error("Failed to create organization:", err);
-      setError(err instanceof Error ? err.message : "Failed to create organization");
+      setError(err instanceof Error ? err.message : t("orgs.failedCreate"));
       setIsSubmitting(false);
     }
   };
@@ -95,7 +97,7 @@ export default function NewOrgPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">Loading...</div>
+        <div className="text-slate-600">{t("common.loading")}</div>
       </div>
     );
   }
@@ -109,17 +111,17 @@ export default function NewOrgPage() {
             <div className="text-center mb-6">
               <div className="text-6xl mb-4">🎉</div>
               <h1 className="text-2xl font-bold text-slate-900 mb-2">
-                Organization Created!
+                {t("orgs.orgCreated")}
               </h1>
               <p className="text-slate-600">
-                <strong>{createdOrg.name}</strong> is ready to use
+                <strong>{createdOrg.name}</strong> {t("orgs.readyToUse")}
               </p>
             </div>
 
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Organization Key
+                  {t("orgs.orgKeyLabel")}
                 </label>
                 <code className="block px-4 py-2 bg-slate-50 rounded border border-slate-200 text-sm font-mono">
                   {createdOrg.key}
@@ -128,7 +130,7 @@ export default function NewOrgPage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Site ID (Public)
+                  {t("orgs.siteIdPublic")}
                 </label>
                 <code className="block px-4 py-2 bg-slate-50 rounded border border-slate-200 text-sm font-mono">
                   {createdOrg.siteId}
@@ -140,10 +142,10 @@ export default function NewOrgPage() {
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h3 className="font-semibold text-blue-900 mb-1">
-                    Embed Snippet
+                    {t("orgs.embedSnippet")}
                   </h3>
                   <p className="text-sm text-blue-700">
-                    Copy and paste this code before the closing &lt;/body&gt; tag on your website
+                    {t("orgs.embedHint")}
                   </p>
                 </div>
                 <button
@@ -153,12 +155,12 @@ export default function NewOrgPage() {
                   {copied ? (
                     <>
                       <Check size={16} />
-                      Copied!
+                      {t("security.copied")}
                     </>
                   ) : (
                     <>
                       <Copy size={16} />
-                      Copy
+                      {t("security.copy")}
                     </>
                   )}
                 </button>
@@ -173,13 +175,13 @@ export default function NewOrgPage() {
                 href="/dashboard"
                 className="flex-1 px-4 py-2 bg-slate-900 text-white text-center rounded-lg hover:bg-slate-700 transition-colors"
               >
-                Go to Dashboard
+                {t("orgs.goToDashboard")}
               </a>
               <a
                 href="/dashboard/settings"
                 className="flex-1 px-4 py-2 bg-slate-100 text-slate-900 text-center rounded-lg hover:bg-slate-200 transition-colors"
               >
-                Configure Settings
+                {t("orgs.configureSettings")}
               </a>
             </div>
           </div>
@@ -194,10 +196,10 @@ export default function NewOrgPage() {
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900 mb-2">
-            Create Organization
+            {t("orgs.createTitle")}
           </h1>
           <p className="text-slate-600">
-            Set up a new organization to manage conversations and widgets
+            {t("orgs.createOrgSubtitle")}
           </p>
         </div>
 
@@ -215,7 +217,7 @@ export default function NewOrgPage() {
                 htmlFor="name"
                 className="block text-sm font-medium text-slate-700 mb-2"
               >
-                Organization Name <span className="text-red-500">*</span>
+                {t("orgs.orgNameLabel")} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -228,7 +230,7 @@ export default function NewOrgPage() {
                 disabled={isSubmitting}
               />
               <p className="mt-1 text-xs text-slate-500">
-                A unique key will be automatically generated from this name
+                {t("orgs.autoKeyHint")}
               </p>
             </div>
 
@@ -238,7 +240,7 @@ export default function NewOrgPage() {
                 htmlFor="domains"
                 className="block text-sm font-medium text-slate-700 mb-2"
               >
-                Allowed Domains (Optional)
+                {t("orgs.allowedDomainsOptional")}
               </label>
               <textarea
                 id="domains"
@@ -250,7 +252,7 @@ export default function NewOrgPage() {
                 disabled={isSubmitting}
               />
               <p className="mt-1 text-xs text-slate-500">
-                One domain per line. Use * for wildcard subdomains (e.g., *.example.com)
+                {t("orgs.domainPerLine")}
               </p>
             </div>
 
@@ -265,7 +267,7 @@ export default function NewOrgPage() {
                 disabled={isSubmitting}
               />
               <label htmlFor="localhost" className="text-sm text-slate-700">
-                Allow localhost (for development)
+                {t("orgs.allowLocalhostDev")}
               </label>
             </div>
           </div>
@@ -277,14 +279,14 @@ export default function NewOrgPage() {
               className="flex-1 px-4 py-2 bg-slate-100 text-slate-900 rounded-lg hover:bg-slate-200 transition-colors"
               disabled={isSubmitting}
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Creating..." : "Create Organization"}
+              {isSubmitting ? t("orgs.creating") : t("orgs.createTitle")}
             </button>
           </div>
         </form>

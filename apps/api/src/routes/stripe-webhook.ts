@@ -1,6 +1,11 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
-import { verifyWebhookSignature, mapPriceToplanKey } from "../utils/stripe";
+import {
+  verifyWebhookSignature,
+  mapPriceToplanKey,
+  StripeNotConfiguredError,
+} from "../utils/stripe";
+import { writeAuditLog } from "../utils/audit-log";
 
 type BillingStatus =
   | "none"
@@ -60,7 +65,11 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
     let event;
     try {
       event = verifyWebhookSignature(rawBody, signature);
-    } catch {
+    } catch (err) {
+      if (err instanceof StripeNotConfiguredError) {
+        reply.code(501);
+        return { error: "Stripe webhook secret is not configured.", code: "STRIPE_NOT_CONFIGURED" };
+      }
       reply.code(400);
       return { error: "Invalid signature" };
     }
@@ -101,6 +110,9 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
               lastStripeEventAt: now,
               lastStripeEventId: eventId,
             },
+          });
+          await writeAuditLog(org.id, "webhook", "webhook.state_change", {
+            event: event.type, eventId, planKey, billingStatus: "active",
           });
         }
         break;
@@ -164,6 +176,10 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
               lastStripeEventId: eventId,
             },
           });
+          await writeAuditLog(org.id, "webhook", "webhook.state_change", {
+            event: event.type, eventId, billingStatus: newStatus, planKey, planStatus,
+            graceEndsAt: isPastDueOrUnpaid ? graceEndsAt.toISOString() : null,
+          });
         }
         break;
       }
@@ -191,6 +207,10 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
               lastStripeEventId: eventId,
             },
           });
+          await writeAuditLog(org.id, "webhook", "webhook.state_change", {
+            event: event.type, eventId, billingStatus: "active",
+            cleared: ["lastPaymentFailureAt", "graceEndsAt", "billingLockedAt"],
+          });
         }
         break;
       }
@@ -215,6 +235,10 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
               lastStripeEventAt: now,
               lastStripeEventId: eventId,
             },
+          });
+          await writeAuditLog(org.id, "webhook", "webhook.state_change", {
+            event: event.type, eventId, billingStatus: "past_due",
+            graceEndsAt: graceEndsAt.toISOString(),
           });
         }
         break;

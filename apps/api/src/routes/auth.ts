@@ -10,6 +10,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "../prisma";
 import { verifyPassword } from "../utils/password";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { upsertDevice } from "../utils/device";
 
 interface LoginBody {
   email: string;
@@ -93,10 +94,31 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
     }
 
+    // Check if MFA is enabled
+    if (adminUser.mfaEnabled && adminUser.mfaSecret) {
+      // Set partial session with MFA pending flag
+      request.session.adminUserId = adminUser.id;
+      request.session.adminMfaPending = true;
+      // Do NOT set role/email until MFA passes
+
+      return reply.send({
+        ok: false,
+        mfaRequired: true,
+      });
+    }
+
     // Set session
     request.session.adminUserId = adminUser.id;
     request.session.adminRole = adminUser.role;
     request.session.adminEmail = adminUser.email;
+
+    // Upsert device record
+    await upsertDevice(
+      adminUser.id,
+      "admin",
+      request.headers["user-agent"] as string | undefined,
+      request.ip
+    );
 
     request.log.info(
       { userId: adminUser.id, email: adminUser.email, role: adminUser.role },
@@ -160,7 +182,21 @@ export async function authRoutes(fastify: FastifyInstance) {
     const email = request.session.adminEmail;
     const role = request.session.adminRole;
 
-    if (!userId || !email || !role) {
+    if (!userId) {
+      return reply.status(401).send({
+        error: "Not authenticated",
+      });
+    }
+
+    // If MFA pending, they haven't completed login
+    if (request.session.adminMfaPending) {
+      return reply.status(401).send({
+        error: "MFA verification pending",
+        mfaRequired: true,
+      });
+    }
+
+    if (!email || !role) {
       return reply.status(401).send({
         error: "Not authenticated",
       });
@@ -187,6 +223,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         id: adminUser.id,
         email: adminUser.email,
         role: adminUser.role,
+        mfaEnabled: adminUser.mfaEnabled,
       },
       timestamp: new Date().toISOString(),
     });

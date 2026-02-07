@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { checkOrgAuth, orgLogout, orgApiFetch, type OrgUser } from "@/lib/org-auth";
 import OrgPortalLayout from "@/components/OrgPortalLayout";
+import { useI18n } from "@/i18n/I18nContext";
 
 interface Conversation {
   id: string;
@@ -26,20 +27,19 @@ interface ConversationDetail extends Conversation {
 
 export default function OrgPortalPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [user, setUser] = useState<OrgUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Conversation detail state
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [conversationDetail, setConversationDetail] = useState<ConversationDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [replyContent, setReplyContent] = useState("");
   const [isSending, setIsSending] = useState(false);
 
-  // Check authentication on mount
   useEffect(() => {
     const verifyAuth = async () => {
       const user = await checkOrgAuth();
@@ -53,13 +53,11 @@ export default function OrgPortalPage() {
     verifyAuth();
   }, [router]);
 
-  // Handle logout
   const handleLogout = async () => {
     await orgLogout();
     router.push("/app/login");
   };
 
-  // Fetch conversations from API
   const fetchConversations = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -74,19 +72,17 @@ export default function OrgPortalPage() {
       setConversations(data);
     } catch (err) {
       console.error("Failed to fetch conversations:", err);
-      setError("Failed to load conversations");
+      setError(t("dashboard.failedLoadConversations"));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
-  // Initial fetch on mount
   useEffect(() => {
     if (authLoading) return;
     fetchConversations();
   }, [authLoading, fetchConversations]);
 
-  // Fetch conversation detail with messages
   const fetchConversationDetail = useCallback(async (conversationId: string) => {
     try {
       setIsLoadingDetail(true);
@@ -105,13 +101,11 @@ export default function OrgPortalPage() {
     }
   }, []);
 
-  // Select conversation
   const selectConversation = (conversationId: string) => {
     setSelectedConversationId(conversationId);
     fetchConversationDetail(conversationId);
   };
 
-  // Send agent reply
   const sendReply = async () => {
     if (!selectedConversationId || !replyContent.trim() || isSending) return;
 
@@ -135,7 +129,6 @@ export default function OrgPortalPage() {
 
       const message = await response.json();
 
-      // Optimistic UI: Add to thread immediately
       setConversationDetail((prev) => {
         if (!prev) return prev;
         return {
@@ -144,7 +137,6 @@ export default function OrgPortalPage() {
         };
       });
 
-      // Update inbox count
       setConversations((prev) => {
         return prev.map((conv) => {
           if (conv.id === selectedConversationId) {
@@ -159,29 +151,26 @@ export default function OrgPortalPage() {
       });
     } catch (err) {
       console.error("Failed to send reply:", err);
-      alert(err instanceof Error ? err.message : "Failed to send message");
-      setReplyContent(content); // Restore content on error
+      alert(err instanceof Error ? err.message : t("dashboard.failedSendMessage"));
+      setReplyContent(content);
     } finally {
       setIsSending(false);
     }
   };
 
-  // Format date helper
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString();
   };
 
-  // Short ID helper
   const shortId = (id: string) => {
     return id.substring(0, 12) + "...";
   };
 
-  // Show loading while checking auth
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">Loading...</div>
+        <div className="text-slate-600">{t("common.loading")}</div>
       </div>
     );
   }
@@ -189,25 +178,24 @@ export default function OrgPortalPage() {
   return (
     <OrgPortalLayout user={user} onLogout={handleLogout}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Conversations</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("app.conversations")}</h1>
         <p className="text-sm text-slate-600 mt-1">
-          Manage customer conversations for {user?.orgName}
+          {t("app.conversationsSubtitle")} {user?.orgName}
         </p>
       </div>
 
       <div className="flex gap-6 h-[calc(100vh-12rem)]">
-        {/* Left: Inbox List */}
         <div className="w-96 bg-white rounded-lg border border-slate-200 flex flex-col">
           <div className="px-6 py-4 border-b border-slate-200">
             <h2 className="text-lg font-semibold text-slate-900 mb-1">
-              Inbox ({conversations.length})
+              {t("app.inbox")} ({conversations.length})
             </h2>
             <button
               onClick={fetchConversations}
               disabled={isLoading}
               className="text-xs text-slate-600 hover:text-slate-900 disabled:text-slate-400"
             >
-              {isLoading ? "Loading..." : "↻ Refresh"}
+              {isLoading ? t("common.loading") : `↻ ${t("common.refresh")}`}
             </button>
           </div>
 
@@ -220,14 +208,14 @@ export default function OrgPortalPage() {
 
             {isLoading && conversations.length === 0 ? (
               <div className="px-6 py-8 text-center text-sm text-slate-500">
-                Loading conversations...
+                {t("dashboard.loadingConversations")}
               </div>
             ) : conversations.length === 0 ? (
               <div className="px-6 py-12 text-center">
                 <div className="text-4xl mb-3">📭</div>
-                <p className="text-sm font-medium text-slate-700 mb-1">No conversations yet</p>
+                <p className="text-sm font-medium text-slate-700 mb-1">{t("dashboard.noConversationsYet")}</p>
                 <p className="text-xs text-slate-500">
-                  Conversations will appear here when visitors use the widget
+                  {t("dashboard.conversationsHint")}
                 </p>
               </div>
             ) : (
@@ -249,7 +237,7 @@ export default function OrgPortalPage() {
                       {conv.messageCount}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-slate-500" suppressHydrationWarning>
                     {formatDate(conv.updatedAt)}
                   </div>
                 </div>
@@ -258,27 +246,25 @@ export default function OrgPortalPage() {
           </div>
         </div>
 
-        {/* Right: Conversation Detail */}
         <div className="flex-1 bg-white rounded-lg border border-slate-200 flex flex-col">
           {!selectedConversationId ? (
             <div className="flex-1 flex items-center justify-center text-slate-400">
               <div className="text-center">
                 <div className="text-4xl mb-2">💬</div>
-                <p>Select a conversation to view messages</p>
+                <p>{t("dashboard.selectConversation")}</p>
               </div>
             </div>
           ) : (
             <>
-              {/* Messages Thread */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {isLoadingDetail ? (
                   <div className="text-center text-slate-500 py-8">
-                    Loading messages...
+                    {t("dashboard.loadingMessages")}
                   </div>
                 ) : conversationDetail ? (
                   conversationDetail.messages.length === 0 ? (
                     <div className="text-center text-slate-400 py-8">
-                      No messages yet
+                      {t("dashboard.noMessages")}
                     </div>
                   ) : (
                     conversationDetail.messages.map((msg) => (
@@ -294,7 +280,7 @@ export default function OrgPortalPage() {
                           }`}
                         >
                           <div className="text-sm mb-1">{msg.content}</div>
-                          <div className={`text-xs ${msg.role === "user" ? "text-slate-300" : "text-slate-500"}`}>
+                          <div className={`text-xs ${msg.role === "user" ? "text-slate-300" : "text-slate-500"}`} suppressHydrationWarning>
                             {new Date(msg.timestamp).toLocaleTimeString()}
                           </div>
                         </div>
@@ -304,7 +290,6 @@ export default function OrgPortalPage() {
                 ) : null}
               </div>
 
-              {/* Agent Reply Box */}
               <div className="border-t border-slate-200 p-4">
                 <div className="flex gap-2">
                   <input
@@ -317,7 +302,7 @@ export default function OrgPortalPage() {
                         sendReply();
                       }
                     }}
-                    placeholder="Type your reply..."
+                    placeholder={t("app.typeReply")}
                     disabled={isSending}
                     className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:bg-slate-100"
                   />
@@ -326,11 +311,11 @@ export default function OrgPortalPage() {
                     disabled={isSending || !replyContent.trim()}
                     className="bg-slate-900 text-white px-6 py-2 rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
                   >
-                    {isSending ? "Sending..." : "Send"}
+                    {isSending ? t("common.sending") : t("common.send")}
                   </button>
                 </div>
                 <div className="mt-2 text-xs text-slate-500">
-                  Press Enter to send
+                  {t("app.pressEnter")}
                 </div>
               </div>
             </>

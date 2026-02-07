@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useI18n } from "@/i18n/I18nContext";
 
 interface HealthData {
   ok: boolean;
@@ -44,6 +45,7 @@ interface OrgSettings {
 }
 
 export function SystemStatus() {
+  const { t } = useI18n();
   const [health, setHealth] = useState<HealthData | null>(null);
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
   const [orgSettings, setOrgSettings] = useState<OrgSettings | null>(null);
@@ -95,11 +97,11 @@ export function SystemStatus() {
       }
     } catch (err) {
       console.error("Failed to fetch system status:", err);
-      setError("Failed to connect to API");
+      setError(t("common.error"));
     } finally {
       setLoading(false);
     }
-  }, [API_URL, ORG_KEY]);
+  }, [API_URL, ORG_KEY, t]);
 
   useEffect(() => {
     fetchData();
@@ -114,8 +116,8 @@ export function SystemStatus() {
     return (
       <div className="system-status loading">
         <div className="status-header">
-          <h3>System Status</h3>
-          <span className="status-indicator">Loading...</span>
+          <h3>{t("common.status")}</h3>
+          <span className="status-indicator">{t("common.loading")}</span>
         </div>
       </div>
     );
@@ -125,7 +127,7 @@ export function SystemStatus() {
     return (
       <div className="system-status error">
         <div className="status-header">
-          <h3>System Status</h3>
+          <h3>{t("common.status")}</h3>
           <span className="status-indicator error">❌ {error}</span>
         </div>
       </div>
@@ -139,30 +141,30 @@ export function SystemStatus() {
   return (
     <div className="system-status">
       <div className="status-header">
-        <h3>System Status</h3>
+        <h3>{t("dashboard.systemStatus")}</h3>
         <span className={`status-indicator ${health?.ok ? "ok" : "down"}`}>
-          {health?.ok ? "✅ Healthy" : "❌ Down"}
+          {health?.ok ? `✅ ${t("dashboard.healthy")}` : `❌ ${t("dashboard.down")}`}
         </span>
       </div>
 
       {/* Health Status */}
       <div className="status-grid">
         <div className={`status-card ${health?.db === "ok" ? "ok" : "down"}`}>
-          <div className="status-label">Database</div>
+          <div className="status-label">{t("dashboard.database")}</div>
           <div className="status-value">
-            {health?.db === "ok" ? "✅ OK" : "❌ Down"}
+            {health?.db === "ok" ? "✅ OK" : `❌ ${t("dashboard.down")}`}
           </div>
         </div>
 
         <div className={`status-card ${health?.redis === "ok" ? "ok" : "down"}`}>
-          <div className="status-label">Redis</div>
+          <div className="status-label">{t("dashboard.redis")}</div>
           <div className="status-value">
-            {health?.redis === "ok" ? "✅ OK" : "❌ Down"}
+            {health?.redis === "ok" ? "✅ OK" : `❌ ${t("dashboard.down")}`}
           </div>
         </div>
 
         <div className="status-card">
-          <div className="status-label">Uptime</div>
+          <div className="status-label">{t("dashboard.uptime")}</div>
           <div className="status-value">
             {health?.uptimeSec
               ? `${Math.floor(health.uptimeSec / 60)}m`
@@ -175,20 +177,20 @@ export function SystemStatus() {
       {metrics && (
         <>
           <div className="metrics-header">
-            <h4>Metrics (Last 60s)</h4>
+            <h4>{t("dashboard.metricsLast60s")}</h4>
             <span className="metrics-timestamp">
-              Updated: {new Date(metrics.timestamp).toLocaleTimeString()}
+              {t("dashboard.updated")}: {new Date(metrics.timestamp).toLocaleTimeString()}
             </span>
           </div>
 
           <div className="metrics-grid">
             <div className="metric-card">
-              <div className="metric-label">Total Requests</div>
+              <div className="metric-label">{t("dashboard.totalRequests")}</div>
               <div className="metric-value">{metrics.req_total}</div>
             </div>
 
             <div className={`metric-card ${parseInt(errorRate) > 1 ? "alert" : ""}`}>
-              <div className="metric-label">5xx Errors</div>
+              <div className="metric-label">{t("dashboard.errors5xx")}</div>
               <div className="metric-value">
                 {metrics.req_5xx}
                 <span className="metric-subtext">({errorRate}%)</span>
@@ -196,7 +198,7 @@ export function SystemStatus() {
             </div>
 
             <div className={`metric-card ${metrics.p95_latency_ms > 500 ? "warning" : ""}`}>
-              <div className="metric-label">P95 Latency</div>
+              <div className="metric-label">{t("dashboard.p95Latency")}</div>
               <div className="metric-value">
                 {metrics.p95_latency_ms || 0}
                 <span className="metric-subtext">ms</span>
@@ -204,22 +206,22 @@ export function SystemStatus() {
             </div>
 
             <div className={`metric-card ${metrics.rate_limited_429 > 50 ? "warning" : ""}`}>
-              <div className="metric-label">Rate Limited</div>
+              <div className="metric-label">{t("dashboard.rateLimited")}</div>
               <div className="metric-value">{metrics.rate_limited_429}</div>
             </div>
           </div>
 
           <div className="metrics-secondary">
             <div className="metric-inline">
-              <span className="metric-label">Conversations:</span>
+              <span className="metric-label">{t("settings.conversations")}:</span>
               <span className="metric-value">{metrics.conversations_posts}</span>
             </div>
             <div className="metric-inline">
-              <span className="metric-label">Messages:</span>
+              <span className="metric-label">{t("settings.messages")}:</span>
               <span className="metric-value">{metrics.messages_posts}</span>
             </div>
             <div className="metric-inline">
-              <span className="metric-label">Bootloader Calls:</span>
+              <span className="metric-label">{t("dashboard.bootloaderCalls")}:</span>
               <span className="metric-value">{metrics.bootloader_calls}</span>
             </div>
           </div>
@@ -230,28 +232,28 @@ export function SystemStatus() {
         {orgSettings && (
         <>
           <div className="retention-header">
-            <h4>Data Retention</h4>
+            <h4>{t("dashboard.dataRetention")}</h4>
           </div>
 
           <div className="retention-info">
             <div className="retention-item">
-              <span className="retention-label">Retention Period:</span>
+              <span className="retention-label">{t("dashboard.retentionPeriod")}:</span>
               <span className="retention-value">
-                {orgSettings.settings.messageRetentionDays || 365} days
+                {orgSettings.settings.messageRetentionDays || 365} {t("dashboard.days")}
               </span>
             </div>
             <div className="retention-item">
-              <span className="retention-label">Delete Mode:</span>
+              <span className="retention-label">{t("dashboard.deleteMode")}:</span>
               <span className="retention-value">
-                {orgSettings.settings.hardDeleteOnRetention ? "Hard Delete" : "Soft Delete (Redact)"}
+                {orgSettings.settings.hardDeleteOnRetention ? t("dashboard.hardDeleteMode") : t("dashboard.softDelete")}
               </span>
             </div>
             <div className="retention-item">
-              <span className="retention-label">Last Run:</span>
-              <span className="retention-value">
+              <span className="retention-label">{t("dashboard.lastRun")}:</span>
+              <span className="retention-value" suppressHydrationWarning>
                 {orgSettings.settings.lastRetentionRunAt
                   ? new Date(orgSettings.settings.lastRetentionRunAt).toLocaleString()
-                  : "Never"}
+                  : t("common.never")}
               </span>
             </div>
           </div>

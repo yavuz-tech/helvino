@@ -34,7 +34,7 @@ retry_if_429() {
 
 # Test 1: Bootloader returns orgToken
 echo "Test 1: Bootloader returns orgToken"
-BOOTLOADER_RESPONSE=$(curl -s -X GET -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader)
+BOOTLOADER_RESPONSE=$(curl -s -m 10 -X GET -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader)
 ORG_TOKEN=$(echo "$BOOTLOADER_RESPONSE" | jq -r .orgToken)
 
 if [ -n "$ORG_TOKEN" ] && [ "$ORG_TOKEN" != "null" ]; then
@@ -48,7 +48,7 @@ echo ""
 
 # Test 2: POST without token is rejected
 echo "Test 2: POST /conversations without token (must be rejected)"
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+RESPONSE=$(curl -s -m 10 -w "\n%{http_code}" -X POST \
   -H "x-org-key: $ORG_KEY" \
   -H "x-visitor-id: v_test_$(date +%s)" \
   -H "Content-Type: application/json" \
@@ -60,7 +60,7 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 
 if [ "$(retry_if_429 "$RESPONSE")" = "RETRY" ]; then
-  RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+  RESPONSE=$(curl -s -m 10 -w "\n%{http_code}" -X POST \
     -H "x-org-key: $ORG_KEY" \
     -H "x-visitor-id: v_test_$(date +%s)" \
     -H "Content-Type: application/json" \
@@ -81,7 +81,7 @@ echo ""
 
 # Test 3: POST with valid token succeeds
 echo "Test 3: POST /conversations with valid token (should succeed)"
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+RESPONSE=$(curl -s -m 10 -w "\n%{http_code}" -X POST \
   -H "x-org-key: $ORG_KEY" \
   -H "x-org-token: $ORG_TOKEN" \
   -H "x-visitor-id: v_test_$(date +%s)" \
@@ -95,7 +95,7 @@ BODY=$(echo "$RESPONSE" | sed '$d')
 CONV_ID=$(echo "$BODY" | jq -r .id)
 
 if [ "$(retry_if_429 "$RESPONSE")" = "RETRY" ]; then
-  RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+  RESPONSE=$(curl -s -m 10 -w "\n%{http_code}" -X POST \
     -H "x-org-key: $ORG_KEY" \
     -H "x-org-token: $ORG_TOKEN" \
     -H "x-visitor-id: v_test_$(date +%s)" \
@@ -119,7 +119,7 @@ echo ""
 
 # Test 4: Send message with token
 echo "Test 4: POST /messages with valid token (should succeed)"
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+RESPONSE=$(curl -s -m 10 -w "\n%{http_code}" -X POST \
   -H "x-org-key: $ORG_KEY" \
   -H "x-org-token: $ORG_TOKEN" \
   -H "x-visitor-id: v_test" \
@@ -133,7 +133,7 @@ BODY=$(echo "$RESPONSE" | sed '$d')
 MSG_ID=$(echo "$BODY" | jq -r .id)
 
 if [ "$(retry_if_429 "$RESPONSE")" = "RETRY" ]; then
-  RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+  RESPONSE=$(curl -s -m 10 -w "\n%{http_code}" -X POST \
     -H "x-org-key: $ORG_KEY" \
     -H "x-org-token: $ORG_TOKEN" \
     -H "x-visitor-id: v_test" \
@@ -156,7 +156,7 @@ echo ""
 
 # Test 5: Invalid token is rejected
 echo "Test 5: POST with invalid token (must be rejected)"
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+RESPONSE=$(curl -s -m 10 -w "\n%{http_code}" -X POST \
   -H "x-org-key: $ORG_KEY" \
   -H "x-org-token: invalid.token.here" \
   -H "x-visitor-id: v_test" \
@@ -177,7 +177,7 @@ echo ""
 
 # Test 6: Internal bypass works
 echo "Test 6: Internal bypass with x-internal-key (should succeed)"
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+RESPONSE=$(curl -s -m 10 -w "\n%{http_code}" -X POST \
   -H "x-org-key: $ORG_KEY" \
   -H "x-internal-key: $INTERNAL_KEY" \
   -H "x-visitor-id: v_internal_$(date +%s)" \
@@ -219,7 +219,7 @@ echo ""
 
 # Test 8: GET endpoints still work without token
 echo "Test 8: GET /conversations works without token (should succeed)"
-RESPONSE=$(curl -s -w "\n%{http_code}" -X GET \
+RESPONSE=$(curl -s -m 10 -w "\n%{http_code}" -X GET \
   -H "x-org-key: $ORG_KEY" \
   $API_URL/conversations)
 

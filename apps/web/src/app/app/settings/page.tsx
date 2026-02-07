@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { checkOrgAuth, orgLogout, orgApiFetch, type OrgUser } from "@/lib/org-auth";
 import OrgPortalLayout from "@/components/OrgPortalLayout";
+import { useI18n } from "@/i18n/I18nContext";
 
 interface OrgSettings {
   widgetEnabled: boolean;
@@ -28,6 +29,7 @@ interface OrgInfo {
 
 export default function OrgSettingsPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [user, setUser] = useState<OrgUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null);
@@ -38,7 +40,6 @@ export default function OrgSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Check authentication on mount
   useEffect(() => {
     const verifyAuth = async () => {
       const user = await checkOrgAuth();
@@ -52,7 +53,6 @@ export default function OrgSettingsPage() {
     verifyAuth();
   }, [router]);
 
-  // Fetch current settings
   useEffect(() => {
     if (authLoading) return;
 
@@ -70,21 +70,20 @@ export default function OrgSettingsPage() {
         setOriginalSettings(data.settings);
       } catch (err) {
         console.error("Failed to fetch settings:", err);
-        setError("Failed to load settings");
+        setError(t("app.failedLoadSettings"));
       } finally {
         setLoading(false);
       }
     };
 
     fetchSettings();
-  }, [authLoading]);
+  }, [authLoading, t]);
 
   const handleLogout = async () => {
     await orgLogout();
     router.push("/app/login");
   };
 
-  // Save settings (only branding fields)
   const handleSave = async () => {
     if (!settings || !originalSettings) return;
 
@@ -114,7 +113,7 @@ export default function OrgSettingsPage() {
       }
 
       if (Object.keys(updates).length === 0) {
-        setSaveMessage({ type: "success", text: "No changes to save" });
+        setSaveMessage({ type: "success", text: t("app.noChangesToSave") });
         setTimeout(() => setSaveMessage(null), 3000);
         setSaving(false);
         return;
@@ -132,12 +131,12 @@ export default function OrgSettingsPage() {
       const data = await response.json();
       setSettings(data.settings);
       setOriginalSettings(data.settings);
-      setSaveMessage({ type: "success", text: "Settings saved successfully" });
+      setSaveMessage({ type: "success", text: t("app.settingsSaved") });
 
       setTimeout(() => setSaveMessage(null), 3000);
     } catch (err) {
       console.error("Failed to save settings:", err);
-      setSaveMessage({ type: "error", text: "Failed to save settings" });
+      setSaveMessage({ type: "error", text: t("app.failedSaveSettings") });
     } finally {
       setSaving(false);
     }
@@ -155,7 +154,7 @@ export default function OrgSettingsPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">Checking authentication...</div>
+        <div className="text-slate-600">{t("common.checkingAuth")}</div>
       </div>
     );
   }
@@ -164,7 +163,7 @@ export default function OrgSettingsPage() {
     return (
       <OrgPortalLayout user={user} onLogout={handleLogout}>
         <div className="text-center py-12 text-slate-500">
-          Loading settings...
+          {t("app.loadingSettings")}
         </div>
       </OrgPortalLayout>
     );
@@ -174,7 +173,7 @@ export default function OrgSettingsPage() {
     return (
       <OrgPortalLayout user={user} onLogout={handleLogout}>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-          {error || "Failed to load settings"}
+          {error || t("app.failedLoadSettings")}
         </div>
       </OrgPortalLayout>
     );
@@ -183,13 +182,12 @@ export default function OrgSettingsPage() {
   return (
     <OrgPortalLayout user={user} onLogout={handleLogout}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Widget Settings</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("app.widgetSettings")}</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Customize your widget appearance
+          {t("app.widgetSettingsSubtitle")}
         </p>
       </div>
 
-      {/* Save Message */}
       {saveMessage && (
         <div className="mb-6">
           <div
@@ -205,10 +203,9 @@ export default function OrgSettingsPage() {
       )}
 
       <div className="bg-white rounded-lg border border-slate-200 p-6 space-y-6">
-        {/* Widget Name */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">
-            Widget Name
+            {t("app.widgetName")}
           </label>
           <input
             type="text"
@@ -219,10 +216,9 @@ export default function OrgSettingsPage() {
           />
         </div>
 
-        {/* Widget Subtitle */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">
-            Widget Subtitle
+            {t("app.widgetSubtitle")}
           </label>
           <input
             type="text"
@@ -233,10 +229,9 @@ export default function OrgSettingsPage() {
           />
         </div>
 
-        {/* Primary Color */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">
-            Primary Color
+            {t("app.primaryColor")}
           </label>
           <div className="flex gap-2">
             <input
@@ -255,10 +250,9 @@ export default function OrgSettingsPage() {
           </div>
         </div>
 
-        {/* Language */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">
-            Language
+            {t("app.language")}
           </label>
           <select
             value={settings.language}
@@ -273,10 +267,9 @@ export default function OrgSettingsPage() {
           </select>
         </div>
 
-        {/* Position */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">
-            Widget Position
+            {t("app.position")}
           </label>
           <div className="flex gap-3">
             <label className="flex-1 flex items-center gap-2 px-4 py-3 border-2 rounded-lg cursor-pointer hover:border-slate-400 transition-colors">
@@ -287,7 +280,7 @@ export default function OrgSettingsPage() {
                 onChange={(e) => setSettings({ ...settings, position: e.target.value })}
                 className="w-4 h-4"
               />
-              <span className="text-sm">Right</span>
+              <span className="text-sm">{t("app.right")}</span>
             </label>
             <label className="flex-1 flex items-center gap-2 px-4 py-3 border-2 rounded-lg cursor-pointer hover:border-slate-400 transition-colors">
               <input
@@ -297,47 +290,45 @@ export default function OrgSettingsPage() {
                 onChange={(e) => setSettings({ ...settings, position: e.target.value })}
                 className="w-4 h-4"
               />
-              <span className="text-sm">Left</span>
+              <span className="text-sm">{t("app.left")}</span>
             </label>
           </div>
         </div>
 
-        {/* Read-only status info */}
         <div className="pt-6 border-t border-slate-200">
-          <h3 className="text-sm font-medium text-slate-700 mb-3">Status</h3>
+          <h3 className="text-sm font-medium text-slate-700 mb-3">{t("app.status")}</h3>
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">
               <div className={`text-2xl mb-1 ${settings.widgetEnabled ? "text-green-600" : "text-red-600"}`}>
                 {settings.widgetEnabled ? "✓" : "✗"}
               </div>
-              <p className="text-xs text-slate-600">Widget</p>
+              <p className="text-xs text-slate-600">{t("app.widget")}</p>
             </div>
             <div className="text-center">
               <div className={`text-2xl mb-1 ${settings.writeEnabled ? "text-green-600" : "text-red-600"}`}>
                 {settings.writeEnabled ? "✓" : "✗"}
               </div>
-              <p className="text-xs text-slate-600">Write</p>
+              <p className="text-xs text-slate-600">{t("app.write")}</p>
             </div>
             <div className="text-center">
               <div className={`text-2xl mb-1 ${settings.aiEnabled ? "text-green-600" : "text-red-600"}`}>
                 {settings.aiEnabled ? "✓" : "✗"}
               </div>
-              <p className="text-xs text-slate-600">AI</p>
+              <p className="text-xs text-slate-600">{t("app.ai")}</p>
             </div>
           </div>
           <p className="text-xs text-slate-500 text-center mt-3">
-            Contact support to change these settings
+            {t("app.contactSupportChange")}
           </p>
         </div>
 
-        {/* Save Button */}
         <div className="pt-6">
           <button
             onClick={handleSave}
             disabled={saving || !hasChanges}
             className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
           >
-            {saving ? "Saving..." : hasChanges ? "Save Changes" : "No Changes"}
+            {saving ? t("common.saving") : hasChanges ? t("common.saveChanges") : t("common.noChanges")}
           </button>
         </div>
       </div>

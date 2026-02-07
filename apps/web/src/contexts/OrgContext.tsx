@@ -45,6 +45,13 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!response.ok) {
+        // 401/403 is expected on non-admin pages (portal, public)
+        // Silently return empty list instead of throwing
+        if (response.status === 401 || response.status === 403) {
+          setOrganizations([]);
+          setSelectedOrg(null);
+          return;
+        }
         throw new Error(`HTTP ${response.status}`);
       }
 

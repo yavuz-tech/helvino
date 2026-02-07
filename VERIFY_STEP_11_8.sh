@@ -80,7 +80,7 @@ echo "--- 5. Negative tests ---"
 API_URL="${API_URL:-http://localhost:4000}"
 
 # 5a. Missing auth -> 401
-CODE_INV=$(curl -s -o /dev/null -w "%{http_code}" \
+CODE_INV=$(curl -s -m 10 -o /dev/null -w "%{http_code}" \
   "$API_URL/portal/billing/invoices" 2>/dev/null || echo "000")
 
 if [ "$CODE_INV" = "401" ]; then
@@ -92,7 +92,7 @@ else
 fi
 
 # 5b. Missing auth -> 401 on portal-session
-CODE_PS=$(curl -s -o /dev/null -w "%{http_code}" \
+CODE_PS=$(curl -s -m 10 -o /dev/null -w "%{http_code}" \
   -X POST "$API_URL/portal/billing/portal-session" \
   -H "Content-Type: application/json" -d '{}' 2>/dev/null || echo "000")
 
@@ -105,7 +105,7 @@ else
 fi
 
 # 5c. Existing billing/status still works
-CODE_ST=$(curl -s -o /dev/null -w "%{http_code}" \
+CODE_ST=$(curl -s -m 10 -o /dev/null -w "%{http_code}" \
   "$API_URL/portal/billing/status" 2>/dev/null || echo "000")
 
 if [ "$CODE_ST" = "401" ]; then

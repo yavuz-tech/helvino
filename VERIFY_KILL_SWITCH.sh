@@ -22,7 +22,7 @@ NC='\033[0m'
 # Test 1: Get current settings
 echo "Test 1: Get current organization settings"
 # Login to obtain admin session cookie
-LOGIN=$(curl -s -w "\n%{http_code}" -c "$COOKIE_JAR" -X POST \
+LOGIN=$(curl -s -m 10 -w "\n%{http_code}" -c "$COOKIE_JAR" -X POST \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" \
   $API_URL/internal/auth/login)
@@ -33,20 +33,20 @@ if [ "$LOGIN_CODE" != "200" ]; then
   exit 1
 fi
 
-SETTINGS=$(curl -s -b "$COOKIE_JAR" $API_URL/api/org/$ORG_KEY/settings)
+SETTINGS=$(curl -s -m 10 -b "$COOKIE_JAR" $API_URL/api/org/$ORG_KEY/settings)
 echo "$SETTINGS" | jq '{widgetEnabled: .settings.widgetEnabled, writeEnabled: .settings.writeEnabled}'
 echo ""
 
 # Test 2: Normal operation (writeEnabled=true)
 echo "Test 2: Normal operation (writeEnabled=true)"
-curl -s -X PATCH \
+curl -s -m 10 -X PATCH \
   -b "$COOKIE_JAR" \
   -H "Content-Type: application/json" \
   -d '{"writeEnabled":true}' \
   $API_URL/api/org/$ORG_KEY/settings > /dev/null
 
-TOKEN=$(curl -s -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader | jq -r .orgToken)
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+TOKEN=$(curl -s -m 10 -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader | jq -r .orgToken)
+RESPONSE=$(curl -s -m 10 -w "\n%{http_code}" -X POST \
   -H "x-org-key: $ORG_KEY" \
   -H "x-org-token: $TOKEN" \
   -H "x-visitor-id: v_test_$(date +%s)" \
@@ -70,7 +70,7 @@ echo ""
 
 # Test 3: Disable writes
 echo "Test 3: Disable writes via admin API"
-DISABLE_RESPONSE=$(curl -s -X PATCH \
+DISABLE_RESPONSE=$(curl -s -m 10 -X PATCH \
   -b "$COOKIE_JAR" \
   -H "Content-Type: application/json" \
   -d '{"writeEnabled":false}' \
@@ -88,8 +88,8 @@ echo ""
 
 # Test 4: POST rejected when writeEnabled=false
 echo "Test 4: POST blocked when writeEnabled=false"
-TOKEN=$(curl -s -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader | jq -r .orgToken)
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+TOKEN=$(curl -s -m 10 -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader | jq -r .orgToken)
+RESPONSE=$(curl -s -m 10 -w "\n%{http_code}" -X POST \
   -H "x-org-key: $ORG_KEY" \
   -H "x-org-token: $TOKEN" \
   -H "x-visitor-id: v_test_disabled" \
@@ -112,7 +112,7 @@ echo ""
 
 # Test 5: Bootloader reflects writeEnabled=false
 echo "Test 5: Bootloader reflects current state"
-BOOTLOADER=$(curl -s -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader)
+BOOTLOADER=$(curl -s -m 10 -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader)
 BOOTLOADER_WRITE_ENABLED=$(echo "$BOOTLOADER" | jq -r .config.writeEnabled)
 
 if [ "$BOOTLOADER_WRITE_ENABLED" = "false" ]; then
@@ -125,7 +125,7 @@ echo ""
 # Test 6: Internal bypass respects writeEnabled (default behavior)
 echo "Test 6: Internal bypass respects writeEnabled"
 if [ -n "$INTERNAL_KEY" ]; then
-  RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+  RESPONSE=$(curl -s -m 10 -w "\n%{http_code}" -X POST \
     -H "x-org-key: $ORG_KEY" \
     -H "x-internal-key: $INTERNAL_KEY" \
     -H "x-visitor-id: v_internal" \
@@ -156,7 +156,7 @@ echo ""
 
 # Test 7: Re-enable writes
 echo "Test 7: Re-enable writes"
-ENABLE_RESPONSE=$(curl -s -X PATCH \
+ENABLE_RESPONSE=$(curl -s -m 10 -X PATCH \
   -b "$COOKIE_JAR" \
   -H "Content-Type: application/json" \
   -d '{"writeEnabled":true}' \
@@ -173,8 +173,8 @@ echo ""
 
 # Test 8: POST works after re-enabling
 echo "Test 8: POST works after re-enabling"
-TOKEN=$(curl -s -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader | jq -r .orgToken)
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+TOKEN=$(curl -s -m 10 -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader | jq -r .orgToken)
+RESPONSE=$(curl -s -m 10 -w "\n%{http_code}" -X POST \
   -H "x-org-key: $ORG_KEY" \
   -H "x-org-token: $TOKEN" \
   -H "x-visitor-id: v_test_reenabled" \
@@ -196,13 +196,13 @@ echo ""
 
 # Test 9: Disable widget entirely
 echo "Test 9: Disable widget entirely (widgetEnabled=false)"
-curl -s -X PATCH \
+curl -s -m 10 -X PATCH \
   -b "$COOKIE_JAR" \
   -H "Content-Type: application/json" \
   -d '{"widgetEnabled":false}' \
   $API_URL/api/org/$ORG_KEY/settings > /dev/null
 
-BOOTLOADER=$(curl -s -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader)
+BOOTLOADER=$(curl -s -m 10 -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader)
 WIDGET_ENABLED=$(echo "$BOOTLOADER" | jq -r .config.widgetEnabled)
 
 if [ "$WIDGET_ENABLED" = "false" ]; then
@@ -215,13 +215,13 @@ echo ""
 
 # Test 10: Re-enable widget
 echo "Test 10: Re-enable widget"
-curl -s -X PATCH \
+curl -s -m 10 -X PATCH \
   -b "$COOKIE_JAR" \
   -H "Content-Type: application/json" \
   -d '{"widgetEnabled":true}' \
   $API_URL/api/org/$ORG_KEY/settings > /dev/null
 
-BOOTLOADER=$(curl -s -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader)
+BOOTLOADER=$(curl -s -m 10 -H "x-org-key: $ORG_KEY" $API_URL/api/bootloader)
 WIDGET_ENABLED=$(echo "$BOOTLOADER" | jq -r .config.widgetEnabled)
 
 if [ "$WIDGET_ENABLED" = "true" ]; then
@@ -250,7 +250,7 @@ echo ""
 echo "Kill Switch Status: 🚨 OPERATIONAL"
 echo ""
 echo "Emergency Commands:"
-echo "  Disable writes:  curl -X PATCH -H 'x-internal-key: KEY' -H 'Content-Type: application/json' -d '{\"writeEnabled\":false}' $API_URL/api/org/ORGKEY/settings"
-echo "  Enable writes:   curl -X PATCH -H 'x-internal-key: KEY' -H 'Content-Type: application/json' -d '{\"writeEnabled\":true}' $API_URL/api/org/ORGKEY/settings"
+echo "  Disable writes:  curl -m 10 -X PATCH -H 'x-internal-key: KEY' -H 'Content-Type: application/json' -d '{\"writeEnabled\":false}' $API_URL/api/org/ORGKEY/settings"
+echo "  Enable writes:   curl -m 10 -X PATCH -H 'x-internal-key: KEY' -H 'Content-Type: application/json' -d '{\"writeEnabled\":true}' $API_URL/api/org/ORGKEY/settings"
 echo "  Check status:    curl -H 'x-internal-key: KEY' $API_URL/api/org/ORGKEY/settings"
 echo ""

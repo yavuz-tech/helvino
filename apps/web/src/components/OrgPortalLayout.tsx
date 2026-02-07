@@ -12,17 +12,20 @@ import {
   LogOut,
   Building2,
 } from "lucide-react";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useI18n } from "@/i18n/I18nContext";
+import type { TranslationKey } from "@/i18n/translations";
 
-interface NavItem {
-  label: string;
+interface NavItemDef {
+  labelKey: TranslationKey;
   href: string;
   icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
 }
 
-const navItems: NavItem[] = [
-  { label: "Conversations", href: "/app", icon: MessageSquare },
-  { label: "Settings", href: "/app/settings", icon: Settings },
-  { label: "Security", href: "/app/settings/security", icon: Shield },
+const navItemDefs: NavItemDef[] = [
+  { labelKey: "nav.conversations", href: "/app", icon: MessageSquare },
+  { labelKey: "nav.settings", href: "/app/settings", icon: Settings },
+  { labelKey: "nav.security", href: "/app/settings/security", icon: Shield },
 ];
 
 interface OrgPortalLayoutProps {
@@ -43,6 +46,7 @@ export default function OrgPortalLayout({
 }: OrgPortalLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const { t } = useI18n();
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -93,7 +97,7 @@ export default function OrgPortalLayout({
 
         {/* Navigation */}
         <nav className="p-4 space-y-1">
-          {navItems.map((item) => {
+          {navItemDefs.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
 
@@ -109,7 +113,7 @@ export default function OrgPortalLayout({
                 onClick={() => setSidebarOpen(false)}
               >
                 <Icon size={20} strokeWidth={2} />
-                <span className="font-medium text-sm">{item.label}</span>
+                <span className="font-medium text-sm">{t(item.labelKey)}</span>
               </Link>
             );
           })}
@@ -119,7 +123,7 @@ export default function OrgPortalLayout({
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200">
           {user && (
             <div className="px-4 py-2 text-xs">
-              <p className="text-slate-600">Logged in as</p>
+              <p className="text-slate-600">{t("auth.loggedInAs")}</p>
               <p className="font-medium text-slate-900 truncate">{user.email}</p>
               <p className="text-slate-500">({user.role})</p>
             </div>
@@ -139,6 +143,7 @@ export default function OrgPortalLayout({
           </button>
 
           <div className="flex items-center gap-3 ml-auto">
+            <LanguageSwitcher />
             {user && (
               <>
                 <div className="text-right hidden sm:block">
@@ -154,10 +159,10 @@ export default function OrgPortalLayout({
                   <button
                     onClick={onLogout}
                     className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                    title="Logout"
+                    title={t("common.logout")}
                   >
                     <LogOut size={18} strokeWidth={2} />
-                    <span className="hidden sm:inline">Logout</span>
+                    <span className="hidden sm:inline">{t("common.logout")}</span>
                   </button>
                 )}
               </>

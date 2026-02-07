@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -12,7 +12,16 @@ import {
   Menu,
   X,
   CreditCard,
+  BarChart3,
+  Users,
+  Puzzle,
+  FileText,
+  Bell,
 } from "lucide-react";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useI18n } from "@/i18n/I18nContext";
+import type { TranslationKey } from "@/i18n/translations";
+import { portalApiFetch } from "@/lib/portal-auth";
 
 interface PortalUser {
   email: string;
@@ -20,18 +29,22 @@ interface PortalUser {
   orgName: string;
 }
 
-interface NavItem {
-  label: string;
+interface NavItemDef {
+  labelKey: TranslationKey;
   href: string;
   icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
 }
 
-const navItems: NavItem[] = [
-  { label: "Overview", href: "/portal", icon: Home },
-  { label: "Inbox", href: "/portal/inbox", icon: Inbox },
-  { label: "Settings", href: "/portal/settings", icon: Settings },
-  { label: "Security", href: "/portal/security", icon: Shield },
-  { label: "Billing", href: "/portal/billing", icon: CreditCard },
+const navItemDefs: NavItemDef[] = [
+  { labelKey: "nav.overview", href: "/portal", icon: Home },
+  { labelKey: "nav.inbox", href: "/portal/inbox", icon: Inbox },
+  { labelKey: "nav.widgetSettings", href: "/portal/widget", icon: Puzzle },
+  { labelKey: "nav.usage", href: "/portal/usage", icon: BarChart3 },
+  { labelKey: "nav.settings", href: "/portal/settings", icon: Settings },
+  { labelKey: "nav.security", href: "/portal/security", icon: Shield },
+  { labelKey: "nav.billing", href: "/portal/billing", icon: CreditCard },
+  { labelKey: "nav.team", href: "/portal/team", icon: Users },
+  { labelKey: "nav.auditLogs", href: "/portal/audit", icon: FileText },
 ];
 
 export default function PortalLayout({
@@ -44,7 +57,31 @@ export default function PortalLayout({
   onLogout?: () => void;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
+  const { t } = useI18n();
+
+  // Poll unread notification count every 30s
+  useEffect(() => {
+    if (!user) return;
+    let mounted = true;
+
+    const fetchCount = async () => {
+      try {
+        const res = await portalApiFetch("/portal/notifications/unread-count");
+        if (res.ok && mounted) {
+          const data = await res.json();
+          setUnreadCount(data.unreadCount ?? 0);
+        }
+      } catch {
+        // silent
+      }
+    };
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 30_000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -66,7 +103,7 @@ export default function PortalLayout({
               <span className="text-slate-900 font-bold text-sm">H</span>
             </div>
             <span className="font-semibold text-sm tracking-wide">
-              Customer Portal
+              {t("nav.customerPortal")}
             </span>
           </div>
           <button
@@ -79,14 +116,14 @@ export default function PortalLayout({
 
         {user && (
           <div className="px-6 py-4 border-b border-slate-800">
-            <div className="text-xs text-slate-300">Organization</div>
+            <div className="text-xs text-slate-300">{t("portal.organization")}</div>
             <div className="text-sm font-medium truncate">{user.orgName}</div>
             <div className="text-xs text-slate-400">{user.role}</div>
           </div>
         )}
 
         <nav className="p-4 space-y-1">
-          {navItems.map((item) => {
+          {navItemDefs.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
             return (
@@ -101,7 +138,7 @@ export default function PortalLayout({
                 onClick={() => setSidebarOpen(false)}
               >
                 <Icon size={18} strokeWidth={2} />
-                <span className="text-sm font-medium">{item.label}</span>
+                <span className="text-sm font-medium">{t(item.labelKey)}</span>
               </Link>
             );
           })}
@@ -117,14 +154,27 @@ export default function PortalLayout({
             <Menu size={20} strokeWidth={2} className="text-slate-600" />
           </button>
 
-          <div className="flex items-center gap-4 ml-auto">
+          <div className="flex items-center gap-3 ml-auto">
+            <Link
+              href="/portal/notifications"
+              className="relative p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              title={t("notifications.title")}
+            >
+              <Bell size={18} strokeWidth={2} className="text-slate-600" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </Link>
+            <LanguageSwitcher />
             {user && (
               <>
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-medium text-slate-900">
                     {user.email}
                   </p>
-                  <p className="text-xs text-slate-500">Customer Portal</p>
+                  <p className="text-xs text-slate-500">{t("nav.customerPortal")}</p>
                 </div>
                 <div className="w-9 h-9 bg-slate-200 rounded-full flex items-center justify-center">
                   <span className="text-sm font-semibold text-slate-600">
@@ -135,10 +185,10 @@ export default function PortalLayout({
                   <button
                     onClick={onLogout}
                     className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                    title="Logout"
+                    title={t("common.logout")}
                   >
                     <LogOut size={16} strokeWidth={2} />
-                    <span className="hidden sm:inline">Logout</span>
+                    <span className="hidden sm:inline">{t("common.logout")}</span>
                   </button>
                 )}
               </>
