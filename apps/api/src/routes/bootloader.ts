@@ -35,6 +35,8 @@ interface BootloaderResponse {
       launcherText?: string | null;
       position?: string;
     };
+    /** Server-enforced entitlement: true = branding must be shown (free plan) */
+    brandingRequired: boolean;
     widgetSettings?: {
       primaryColor: string;
       position: string;
@@ -196,6 +198,9 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
             launcherText: org.launcherText, // From DB (nullable)
             position: org.position, // From DB
           },
+          // Server-enforced: Free plan always requires branding.
+          // TODO: once plan model exists, derive from org.planKey !== 'free'
+          brandingRequired: true,
           // Widget appearance settings (Step 11.52)
           widgetSettings: widgetSettings || {
             primaryColor: "#0F5C5C",

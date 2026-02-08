@@ -28,6 +28,8 @@ export interface Message {
 export const APP_NAME = "Helvino";
 export const APP_DOMAIN = "helvino.io";
 
+export { EMOJI_LIST } from "./emojis";
+
 export function formatDate(date: Date): string {
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",

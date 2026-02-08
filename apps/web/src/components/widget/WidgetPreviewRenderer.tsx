@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { MessageCircle, X, Send, ChevronDown, Home, HelpCircle, User } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
+import { EMOJI_LIST } from "@helvino/shared";
 
 interface WidgetSettings {
   primaryColor: string;
@@ -30,6 +31,32 @@ export default function WidgetPreviewRenderer({ settings, theme }: WidgetPreview
   const { t } = useI18n();
   const [widgetState, setWidgetState] = useState<WidgetState>("closed");
   const [messageInput, setMessageInput] = useState("");
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const previewInputRef = useRef<HTMLInputElement>(null);
+
+  const RECENT_EMOJI_KEY = "helvino_recent_emojis_preview";
+  const MAX_RECENT = 16;
+  const [recentEmojis, setRecentEmojis] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(localStorage.getItem(RECENT_EMOJI_KEY) || "[]"); } catch { return []; }
+  });
+
+  const pickEmoji = (emoji: string) => {
+    const input = previewInputRef.current;
+    if (input) {
+      const start = input.selectionStart ?? messageInput.length;
+      const end = input.selectionEnd ?? messageInput.length;
+      setMessageInput(messageInput.slice(0, start) + emoji + messageInput.slice(end));
+    } else {
+      setMessageInput((v) => v + emoji);
+    }
+    setRecentEmojis((prev) => {
+      const updated = [emoji, ...prev.filter((e) => e !== emoji)].slice(0, MAX_RECENT);
+      try { localStorage.setItem(RECENT_EMOJI_KEY, JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    setEmojiOpen(false);
+  };
 
   const accent = theme?.accentColor || settings.primaryColor;
   const surface = theme?.surfaceColor || "#F8FAFC";
@@ -87,23 +114,32 @@ export default function WidgetPreviewRenderer({ settings, theme }: WidgetPreview
 
         {/* Widget Launcher */}
         {widgetState === "closed" && (
-          <button
-            onClick={toggleWidget}
-            style={{ background: headerBg }}
-            className={`absolute bottom-6 ${
-              settings.position === "right" ? "right-6" : "left-6"
-            } w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white hover:scale-110 transition-all duration-200 group`}
-            aria-label={t("widgetPreview.openChat")}
-          >
-            {settings.launcher === "bubble" ? (
-              <MessageCircle size={24} strokeWidth={2} className="group-hover:rotate-12 transition-transform" />
-            ) : (
-              <HelpCircle size={24} strokeWidth={2} className="group-hover:rotate-12 transition-transform" />
-            )}
-            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center text-white font-bold shadow-md" style={{ backgroundColor: accent }}>
-              2
-            </span>
-          </button>
+          <div className={`absolute bottom-6 flex flex-col items-center gap-1.5 ${
+            settings.position === "right" ? "right-6" : "left-6"
+          }`}>
+            <button
+              onClick={toggleWidget}
+              style={{ background: headerBg }}
+              className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white hover:scale-110 transition-all duration-200 group relative"
+              aria-label={t("widgetPreview.openChat")}
+            >
+              {settings.launcher === "bubble" ? (
+                <MessageCircle size={24} strokeWidth={2} className="group-hover:rotate-12 transition-transform" />
+              ) : (
+                <HelpCircle size={24} strokeWidth={2} className="group-hover:rotate-12 transition-transform" />
+              )}
+              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center text-white font-bold shadow-md" style={{ backgroundColor: accent }}>
+                2
+              </span>
+            </button>
+            <div className="text-[10px] text-center leading-tight text-slate-400" role="contentinfo">
+              {t("widgetPreview.poweredByPrefix")}
+              <a href="https://helvino.io" target="_blank" rel="noopener noreferrer" className="helvino-brand-shimmer hover:opacity-90 transition-opacity">
+                Helvino
+              </a>
+              {t("widgetPreview.poweredBySuffix")}
+            </div>
+          </div>
         )}
 
         {/* Welcome State */}
@@ -185,8 +221,12 @@ export default function WidgetPreviewRenderer({ settings, theme }: WidgetPreview
                 </button>
               </div>
 
-              <div className="text-center text-xs text-slate-400">
-                {t("widgetPreview.poweredBy")}
+              <div className="text-center text-[0.65rem] tracking-wide leading-none py-1.5 select-none text-slate-400" role="contentinfo">
+                {t("widgetPreview.poweredByPrefix")}
+                <a href="https://helvino.io" target="_blank" rel="noopener noreferrer" className="helvino-brand-shimmer hover:opacity-90 transition-opacity">
+                  Helvino
+                </a>
+                {t("widgetPreview.poweredBySuffix")}
               </div>
             </div>
           </div>
@@ -304,8 +344,27 @@ export default function WidgetPreviewRenderer({ settings, theme }: WidgetPreview
 
             {/* Message Composer */}
             <div className="px-4 py-3 bg-white border-t border-slate-200/80 flex-shrink-0">
-              <div className="flex gap-2 items-end">
+              <div className="flex gap-2 items-center relative">
+                <button
+                  type="button"
+                  onClick={() => setEmojiOpen((v) => !v)}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 border border-slate-300 flex-shrink-0 transition-colors"
+                  aria-label={t("widgetPreview.emojiBtn")}
+                >
+                  <span className="text-lg" aria-hidden>😀</span>
+                </button>
+                {emojiOpen && (
+                  <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-[180px] overflow-y-auto grid grid-cols-8 gap-0.5 p-2 z-10">
+                    {recentEmojis.length > 0 && recentEmojis.map((e, i) => (
+                      <button key={`r-${i}`} type="button" onClick={() => pickEmoji(e)} className="text-lg p-1 rounded-lg hover:bg-slate-100 transition-colors text-center">{e}</button>
+                    ))}
+                    {EMOJI_LIST.map((e, i) => (
+                      <button key={i} type="button" onClick={() => pickEmoji(e)} className="text-lg p-1 rounded-lg hover:bg-slate-100 transition-colors text-center">{e}</button>
+                    ))}
+                  </div>
+                )}
                 <input
+                  ref={previewInputRef}
                   type="text"
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
@@ -321,8 +380,13 @@ export default function WidgetPreviewRenderer({ settings, theme }: WidgetPreview
                   <Send size={18} />
                 </button>
               </div>
-              <div className="text-xs text-slate-400 mt-2 text-center">
-                {t("widgetPreview.enterToSend")}
+              {/* Branding – always visible in preview (server-enforced in production) */}
+              <div className="text-center text-[0.65rem] tracking-wide leading-none pt-2.5 pb-0.5 select-none text-slate-400" role="contentinfo">
+                {t("widgetPreview.poweredByPrefix")}
+                <a href="https://helvino.io" target="_blank" rel="noopener noreferrer" className="helvino-brand-shimmer hover:opacity-90 transition-opacity">
+                  Helvino
+                </a>
+                {t("widgetPreview.poweredBySuffix")}
               </div>
             </div>
           </div>

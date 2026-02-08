@@ -28,6 +28,7 @@ export class PostmarkEmailProvider implements EmailProvider {
       TrackOpens: false, // Disable open tracking — tracking pixel triggers spam filters
       TrackLinks: "None", // Disable link tracking — redirect URLs trigger Gmail spam
       ...(payload.replyTo && { ReplyTo: payload.replyTo }),
+      ...(payload.tags?.length && { Tag: payload.tags[0] }), // Postmark supports 1 tag per message
     };
 
     try {

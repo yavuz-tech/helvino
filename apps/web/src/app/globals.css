@@ -1,3 +1,129 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Helvino brand shimmer (preview renderer) ── */
+@keyframes helvino-brand-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.helvino-brand-shimmer {
+  font-weight: 700;
+  background: linear-gradient(
+    90deg,
+    #0f766e 0%,
+    #0d9488 18%,
+    #2dd4bf 38%,
+    #5eead4 50%,
+    #2dd4bf 62%,
+    #0d9488 82%,
+    #0f766e 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: helvino-brand-shimmer 2.5s ease-in-out infinite;
+  backface-visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .helvino-brand-shimmer {
+    animation: none;
+    background: #0f766e;
+    -webkit-text-fill-color: #0f766e;
+  }
+}
+
+/* ── Accordion button: flowing gradient border ── */
+@keyframes customize-btn-flow {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.customize-btn-animated {
+  position: relative;
+  overflow: hidden;
+  border: none !important;
+  border-radius: 0.75rem;
+  padding: 3px;
+  background: linear-gradient(
+    90deg,
+    #4f46e5 0%,
+    #6d28d9 14%,
+    #be185d 28%,
+    #b91c1c 42%,
+    #c2410c 56%,
+    #b45309 70%,
+    #15803d 84%,
+    #0e7490 92%,
+    #4f46e5 100%
+  ) !important;
+  background-size: 300% 100% !important;
+  background-origin: border-box !important;
+  animation: customize-btn-flow 9s linear infinite;
+}
+
+.customize-btn-animated > .customize-btn-inner {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  text-align: left;
+  border-radius: calc(0.75rem - 3px);
+  margin: 0;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  transition: background 0.2s ease;
+}
+
+.customize-btn-animated:hover > .customize-btn-inner {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .customize-btn-animated {
+    animation: none;
+  }
+}
+
+/* ── Preset theme cards ── */
+@keyframes preset-card-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+  50% { box-shadow: 0 4px 20px -4px var(--preset-glow, rgba(79,70,229,0.3)); }
+}
+
+.preset-card {
+  position: relative;
+  border-radius: 1rem;
+  padding: 3px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.preset-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -8px var(--preset-glow, rgba(79,70,229,0.35));
+}
+
+.preset-card.active {
+  animation: preset-card-glow 2s ease-in-out infinite;
+  transform: translateY(-2px);
+}
+
+.preset-card > .preset-card-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.5rem;
+  border-radius: calc(1rem - 3px);
+  background: white;
+  transition: background 0.2s ease;
+}
+
+.preset-card:hover > .preset-card-inner {
+  background: #f8fafc;
+}

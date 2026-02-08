@@ -18,6 +18,18 @@ import {
   findPresetByColor,
   type WidgetTheme,
 } from "@/lib/widgetThemePresets";
+import {
+  DEFAULT_WIDGET_CONFIG,
+  loadWidgetConfig,
+  saveWidgetConfig,
+  getWidthFromPreset,
+  getMaxHeightFromPreset,
+  type WidgetConfig,
+  type WidgetConfigPatch,
+  type WidthPreset,
+  type HeightPreset,
+  type LauncherStyle,
+} from "@/lib/widgetConfig";
 
 interface WidgetSettings {
   primaryColor: string;
@@ -94,9 +106,26 @@ export default function PortalWidgetAppearancePage() {
   const [requestId, setRequestId] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [showCustomize, setShowCustomize] = useState(false);
+  const [showSizeMenu, setShowSizeMenu] = useState(false);
+  const [showAvatarLauncher, setShowAvatarLauncher] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [widgetConfig, setWidgetConfig] = useState<WidgetConfig>(
+    () => loadWidgetConfig() ?? DEFAULT_WIDGET_CONFIG
+  );
 
   const canEdit = user?.role === "owner" || user?.role === "admin";
+
+  const updateWidgetConfig = (patch: WidgetConfigPatch) => {
+    const updated: WidgetConfig = {
+      size: { ...widgetConfig.size, ...patch.size },
+      avatars: { ...widgetConfig.avatars, ...patch.avatars },
+      branding: { ...widgetConfig.branding, ...patch.branding },
+      launcher: { ...widgetConfig.launcher, ...patch.launcher },
+    };
+    setWidgetConfig(updated);
+    saveWidgetConfig(updated);
+  };
 
   /* ── Fetch API settings ── */
   const fetchSettings = useCallback(async () => {
@@ -248,14 +277,12 @@ export default function PortalWidgetAppearancePage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* ─── LEFT: Settings Form ─── */}
-          <div className="space-y-6">
-            {/* ── Preset Swatches ── */}
-            <Card variant="elevated" padding="lg">
-              <SectionTitle title={t("widgetTheme.presetsTitle")} />
-              <p className="text-sm text-slate-500 mb-4">
-                {t("widgetTheme.presetsSubtitle")}
-              </p>
-
+          <div className="space-y-4">
+            {/* ── Preset Theme Cards (stunning) ── */}
+            <div>
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">
+                {t("widgetTheme.presetsTitle")}
+              </h3>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                 {WIDGET_THEME_PRESETS.map((preset) => {
                   const isActive = localTheme.presetId === preset.presetId;
@@ -264,52 +291,55 @@ export default function PortalWidgetAppearancePage() {
                       key={preset.presetId}
                       onClick={() => applyPreset(preset)}
                       disabled={!canEdit}
-                      className={`group flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all duration-150 ${
-                        isActive
-                          ? "border-slate-900 bg-slate-50 ring-2 ring-slate-900/10"
-                          : "border-slate-200 hover:border-slate-400"
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`preset-card ${isActive ? "active" : ""} disabled:opacity-50 disabled:cursor-not-allowed`}
+                      style={{
+                        background: `linear-gradient(${preset.gradient.angle}deg, ${preset.gradient.from}, ${preset.gradient.to})`,
+                        ["--preset-glow" as string]: `${preset.gradient.from}80`,
+                      }}
                       title={t(`widgetTheme.preset.${preset.presetId}.desc`)}
                       data-preset-id={preset.presetId}
                     >
-                      {/* Gradient swatch circle */}
-                      <div
-                        className={`w-12 h-12 rounded-full shadow-md transition-transform duration-150 ${
-                          isActive ? "scale-110 ring-2 ring-white" : "group-hover:scale-105"
-                        }`}
-                        style={{
-                          background: `linear-gradient(${preset.gradient.angle}deg, ${preset.gradient.from}, ${preset.gradient.to})`,
-                        }}
-                      />
-                      <span className="text-[11px] font-semibold text-slate-700 text-center leading-tight">
-                        {t(`widgetTheme.preset.${preset.presetId}`)}
-                      </span>
+                      <div className="preset-card-inner">
+                        {/* Large gradient swatch */}
+                        <div
+                          className="w-full aspect-square rounded-lg shadow-inner"
+                          style={{
+                            background: `linear-gradient(${preset.gradient.angle + 45}deg, ${preset.gradient.from}, ${preset.primaryColor}, ${preset.gradient.to})`,
+                          }}
+                        />
+                        <span className="text-[10px] font-bold text-slate-700 text-center leading-tight truncate w-full">
+                          {t(`widgetTheme.preset.${preset.presetId}`)}
+                        </span>
+                      </div>
                     </button>
                   );
                 })}
               </div>
-            </Card>
+            </div>
 
-            {/* ── Customize Accordion ── */}
-            <Card variant="elevated" padding="none">
+            {/* ── 1. Renkleri Özelleştir — customize-btn-animated ── */}
+            <div>
               <button
+                type="button"
                 onClick={() => setShowCustomize(!showCustomize)}
-                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50 transition-colors rounded-xl"
+                className="w-full rounded-xl customize-btn-animated text-left"
               >
-                <div className="flex items-center gap-2">
-                  {showCustomize ? (
-                    <ChevronDown size={18} className="text-slate-500" />
-                  ) : (
-                    <ChevronRight size={18} className="text-slate-500" />
-                  )}
-                  <span className="text-sm font-semibold text-slate-700">
-                    {t("widgetTheme.customizeTitle")}
-                  </span>
+                <div className="customize-btn-inner">
+                  <div className="flex items-center gap-2">
+                    {showCustomize ? (
+                      <ChevronDown size={18} className="text-slate-600" />
+                    ) : (
+                      <ChevronRight size={18} className="text-slate-600" />
+                    )}
+                    <span className="text-sm font-semibold text-slate-800">
+                      {t("widgetTheme.customizeTitle")}
+                    </span>
+                  </div>
                 </div>
               </button>
 
               {showCustomize && (
-                <div className="px-5 pb-5 space-y-5">
+                <div className="mt-3 bg-white rounded-xl border border-slate-200 px-5 pt-4 pb-5 space-y-5">
                   {/* Primary Color */}
                   <ColorField
                     label={t("widgetAppearance.primaryColor")}
@@ -423,95 +453,431 @@ export default function PortalWidgetAppearancePage() {
                   </button>
                 </div>
               )}
-            </Card>
+            </div>
 
-            {/* ── Content fields ── */}
-            <Card variant="elevated" padding="lg">
-              <SectionTitle title={t("portal.settings")} />
-
-              {/* Welcome Title */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  {t("widgetAppearance.welcomeTitle")}
-                </label>
-                <input
-                  type="text"
-                  value={settings.welcomeTitle}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      welcomeTitle: e.target.value.slice(0, 60),
-                    })
-                  }
-                  disabled={!canEdit}
-                  maxLength={60}
-                  className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-200 focus:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
-                />
-                <div className="text-xs text-slate-400 mt-1">
-                  {settings.welcomeTitle.length}/60
+            {/* ── 2. Avatar, Logo & Launcher — customize-btn-animated ── */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowAvatarLauncher(!showAvatarLauncher)}
+                className="w-full rounded-xl customize-btn-animated text-left"
+              >
+                <div className="customize-btn-inner">
+                  <div className="flex items-center gap-2">
+                    {showAvatarLauncher ? (
+                      <ChevronDown size={18} className="text-slate-600" />
+                    ) : (
+                      <ChevronRight size={18} className="text-slate-600" />
+                    )}
+                    <span className="text-sm font-semibold text-slate-800">
+                      {t("widgetConfig.avatarTitle")}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              </button>
 
-              {/* Welcome Message */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  {t("widgetAppearance.welcomeMessage")}
-                </label>
-                <textarea
-                  value={settings.welcomeMessage}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      welcomeMessage: e.target.value.slice(0, 240),
-                    })
-                  }
-                  disabled={!canEdit}
-                  maxLength={240}
-                  rows={3}
-                  className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-200 focus:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
-                />
-                <div className="text-xs text-slate-400 mt-1">
-                  {settings.welcomeMessage.length}/240
+              {showAvatarLauncher && (
+                <div className="mt-3 bg-white rounded-xl border border-slate-200 px-5 pt-4 pb-5 space-y-5">
+                  {/* Bot Avatar */}
+                  <div>
+                    <label className="flex items-center gap-2 text-xs font-medium text-slate-700 mb-2">
+                      <input
+                        type="checkbox"
+                        checked={widgetConfig.avatars.botEnabled}
+                        onChange={(e) =>
+                          updateWidgetConfig({ avatars: { botEnabled: e.target.checked } })
+                        }
+                        disabled={!canEdit}
+                        className="rounded border-slate-300"
+                      />
+                      {t("widgetConfig.botAvatarEnabled")}
+                    </label>
+                    {widgetConfig.avatars.botEnabled && widgetConfig.avatars.botAsset.kind !== "none" && (
+                      <input
+                        type="url"
+                        value={widgetConfig.avatars.botAsset.kind === "url" ? widgetConfig.avatars.botAsset.value : ""}
+                        onChange={(e) =>
+                          updateWidgetConfig({
+                            avatars: { botAsset: { kind: "url", value: e.target.value.trim() } },
+                          })
+                        }
+                        disabled={!canEdit}
+                        placeholder={t("widgetConfig.avatarUrl")}
+                        className="w-full px-3 py-2 border-2 border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-200 focus:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
+                      />
+                    )}
+                  </div>
+
+                  {/* Agent Avatars */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                      {t("widgetConfig.agentAvatars")}
+                    </label>
+                    {widgetConfig.avatars.agents.map((agent, i) => (
+                      <div key={agent.id} className="mt-1">
+                        <input
+                          type="url"
+                          value={agent.asset.kind === "url" ? agent.asset.value : ""}
+                          onChange={(e) => {
+                            const next = [...widgetConfig.avatars.agents];
+                            next[i] = { ...next[i], asset: { kind: "url", value: e.target.value.trim() } };
+                            updateWidgetConfig({ avatars: { agents: next } });
+                          }}
+                          disabled={!canEdit}
+                          placeholder={`${t("widgetConfig.agentAvatar")} ${i + 1}`}
+                          className="w-full px-3 py-2 border-2 border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-200 focus:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Avatar Shape */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                      {t("widgetConfig.avatarShape")}
+                    </label>
+                    <div className="flex gap-2">
+                      {(["circle", "rounded"] as const).map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => updateWidgetConfig({ avatars: { avatarShape: s } })}
+                          disabled={!canEdit}
+                          className={`px-3 py-2 text-xs font-medium rounded-lg border-2 transition-all ${
+                            widgetConfig.avatars.avatarShape === s
+                              ? "border-slate-900 bg-slate-100 text-slate-900"
+                              : "border-slate-200 text-slate-600 hover:border-slate-300"
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          {t(s === "circle" ? "widgetConfig.shapeCircle" : "widgetConfig.shapeRounded")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Launcher Style */}
+                  <div className="border-t border-slate-200 pt-4">
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                      {t("widgetConfig.launcherStyle")}
+                    </label>
+                    <div className="flex gap-2">
+                      {(["bubble", "button"] as LauncherStyle[]).map((style) => (
+                        <button
+                          key={style}
+                          onClick={() => updateWidgetConfig({ launcher: { launcherStyle: style } })}
+                          disabled={!canEdit}
+                          className={`px-3 py-2 text-xs font-medium rounded-lg border-2 transition-all ${
+                            widgetConfig.launcher.launcherStyle === style
+                              ? "border-slate-900 bg-slate-100 text-slate-900"
+                              : "border-slate-200 text-slate-600 hover:border-slate-300"
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          {t(style === "bubble" ? "widgetConfig.launcherStyleBubble" : "widgetConfig.launcherStyleButton")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Launcher Label */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      {t("widgetConfig.launcherLabel")}
+                    </label>
+                    <input
+                      type="text"
+                      value={widgetConfig.launcher.launcherLabel}
+                      onChange={(e) =>
+                        updateWidgetConfig({ launcher: { launcherLabel: e.target.value.slice(0, 24) } })
+                      }
+                      disabled={!canEdit}
+                      maxLength={24}
+                      placeholder={t("widgetConfig.launcherLabel")}
+                      className="w-full px-3 py-2 border-2 border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-200 focus:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
+                    />
+                  </div>
+
+                  {/* Unread Badge */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                      {t("widgetConfig.unreadBadge")}
+                    </label>
+                    <div className="flex gap-2">
+                      {(["off", "dot", "count"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => updateWidgetConfig({ launcher: { unreadBadge: mode } })}
+                          disabled={!canEdit}
+                          className={`px-3 py-2 text-xs font-medium rounded-lg border-2 transition-all ${
+                            widgetConfig.launcher.unreadBadge === mode
+                              ? "border-slate-900 bg-slate-100 text-slate-900"
+                              : "border-slate-200 text-slate-600 hover:border-slate-300"
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          {t(`widgetConfig.badge${mode.charAt(0).toUpperCase() + mode.slice(1)}`)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              {/* Brand Name */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  {t("widgetAppearance.brandName")}
-                </label>
-                <input
-                  type="text"
-                  value={settings.brandName || ""}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      brandName: e.target.value.slice(0, 40) || null,
-                    })
-                  }
-                  disabled={!canEdit}
-                  maxLength={40}
-                  className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-200 focus:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
-                />
-                <div className="text-xs text-slate-400 mt-1">
-                  {(settings.brandName || "").length}/40
-                </div>
-              </div>
-
-              {/* Save Button */}
-              {canEdit && (
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="w-full px-4 py-3.5 bg-[#1A1A2E] text-white text-sm font-semibold rounded-xl hover:bg-[#15152A] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
-                >
-                  {saving ? t("widgetTheme.saving") : t("widgetTheme.save")}
-                </button>
               )}
-            </Card>
+            </div>
+
+            {/* ── 3. Boyut (Genişlik + Yükseklik + Yoğunluk) — customize-btn-animated ── */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowSizeMenu(!showSizeMenu)}
+                className="w-full rounded-xl customize-btn-animated text-left"
+              >
+                <div className="customize-btn-inner">
+                  <div className="flex items-center gap-2">
+                    {showSizeMenu ? (
+                      <ChevronDown size={18} className="text-slate-600" />
+                    ) : (
+                      <ChevronRight size={18} className="text-slate-600" />
+                    )}
+                    <span className="text-sm font-semibold text-slate-800">
+                      {t("widgetConfig.sizeTitle")}
+                    </span>
+                    <span className="text-[11px] text-slate-500 ml-auto">
+                      {widgetConfig.size.customWidth} × {widgetConfig.size.customMaxHeight} px
+                    </span>
+                  </div>
+                </div>
+              </button>
+
+              {showSizeMenu && (
+                <div className="mt-3 bg-white rounded-xl border border-slate-200 px-5 pt-4 pb-5 space-y-5">
+                  {/* Genişlik (Width) */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-700 mb-2">
+                      {t("widgetConfig.widthPreset")}
+                    </h4>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      {(["compact", "default", "large"] as WidthPreset[]).map((preset) => {
+                        const presetPx = getWidthFromPreset(preset);
+                        const isActive = widgetConfig.size.customWidth === presetPx;
+                        return (
+                          <button
+                            key={preset}
+                            onClick={() =>
+                              updateWidgetConfig({
+                                size: { widthPreset: preset, customWidth: presetPx },
+                              })
+                            }
+                            disabled={!canEdit}
+                            className={`px-2.5 py-1.5 text-xs font-medium rounded-lg border-2 transition-all ${
+                              isActive
+                                ? "border-slate-900 bg-slate-100 text-slate-900"
+                                : "border-slate-200 text-slate-600 hover:border-slate-300"
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                          >
+                            {t(`widgetConfig.width${preset.charAt(0).toUpperCase() + preset.slice(1)}`)}
+                          </button>
+                        );
+                      })}
+                      <span className="text-[11px] text-slate-500">{widgetConfig.size.customWidth} px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={320}
+                      max={520}
+                      step={10}
+                      value={Math.min(520, Math.max(320, widgetConfig.size.customWidth))}
+                      onChange={(e) =>
+                        updateWidgetConfig({ size: { customWidth: Number(e.target.value) } })
+                      }
+                      disabled={!canEdit}
+                      className="w-full h-1.5 rounded-lg appearance-none bg-slate-200 accent-slate-700 disabled:opacity-50"
+                    />
+                  </div>
+                  {/* Yükseklik (Height) */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-700 mb-2">
+                      {t("widgetConfig.heightPreset")}
+                    </h4>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      {(["short", "auto", "default"] as HeightPreset[]).map((preset) => {
+                        const presetPx = getMaxHeightFromPreset(preset);
+                        const isActive = widgetConfig.size.customMaxHeight === presetPx;
+                        return (
+                          <button
+                            key={preset}
+                            onClick={() =>
+                              updateWidgetConfig({
+                                size: {
+                                  heightPreset: preset,
+                                  customMaxHeight: presetPx,
+                                },
+                              })
+                            }
+                            disabled={!canEdit}
+                            className={`px-2.5 py-1.5 text-xs font-medium rounded-lg border-2 transition-all ${
+                              isActive
+                                ? "border-slate-900 bg-slate-100 text-slate-900"
+                                : "border-slate-200 text-slate-600 hover:border-slate-300"
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                          >
+                            {t(`widgetConfig.height${preset.charAt(0).toUpperCase() + preset.slice(1)}`)}
+                          </button>
+                        );
+                      })}
+                      <span className="text-[11px] text-slate-500">{widgetConfig.size.customMaxHeight} px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={420}
+                      max={900}
+                      step={20}
+                      value={(() => {
+                        const v = Number(widgetConfig.size.customMaxHeight);
+                        return Number.isFinite(v) ? Math.min(900, Math.max(420, v)) : 560;
+                      })()}
+                      onChange={(e) => {
+                        const num = parseInt(e.target.value, 10);
+                        if (!Number.isFinite(num)) return;
+                        const clamped = Math.min(900, Math.max(420, num));
+                        updateWidgetConfig({ size: { ...widgetConfig.size, customMaxHeight: clamped } });
+                      }}
+                      disabled={!canEdit}
+                      className="w-full h-1.5 rounded-lg appearance-none bg-slate-200 accent-slate-700 disabled:opacity-50"
+                    />
+                  </div>
+                  {/* Yoğunluk (Density) */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                      {t("widgetConfig.density")}
+                    </label>
+                    <div className="flex gap-2">
+                      {(["compact", "comfortable"] as const).map((d) => (
+                        <button
+                          key={d}
+                          onClick={() =>
+                            updateWidgetConfig({ size: { density: d } })
+                          }
+                          disabled={!canEdit}
+                          className={`px-2.5 py-1.5 text-xs font-medium rounded-lg border-2 transition-all ${
+                            widgetConfig.size.density === d
+                              ? "border-slate-900 bg-slate-100 text-slate-900"
+                              : "border-slate-200 text-slate-600 hover:border-slate-300"
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          {t(d === "compact" ? "widgetConfig.densityCompact" : "widgetConfig.densityComfortable")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── 4. Ayarlar (Settings) — customize-btn-animated ── */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowSettings(!showSettings)}
+                className="w-full rounded-xl customize-btn-animated text-left"
+              >
+                <div className="customize-btn-inner">
+                  <div className="flex items-center gap-2">
+                    {showSettings ? (
+                      <ChevronDown size={18} className="text-slate-600" />
+                    ) : (
+                      <ChevronRight size={18} className="text-slate-600" />
+                    )}
+                    <span className="text-sm font-semibold text-slate-800">
+                      {t("portal.settings")}
+                    </span>
+                  </div>
+                </div>
+              </button>
+
+              {showSettings && (
+                <div className="mt-3 bg-white rounded-xl border border-slate-200 px-5 pt-4 pb-5 space-y-5">
+                  {/* Welcome Title */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      {t("widgetAppearance.welcomeTitle")}
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.welcomeTitle}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          welcomeTitle: e.target.value.slice(0, 60),
+                        })
+                      }
+                      disabled={!canEdit}
+                      maxLength={60}
+                      className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-200 focus:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
+                    />
+                    <div className="text-xs text-slate-400 mt-1">
+                      {settings.welcomeTitle.length}/60
+                    </div>
+                  </div>
+
+                  {/* Welcome Message */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      {t("widgetAppearance.welcomeMessage")}
+                    </label>
+                    <textarea
+                      value={settings.welcomeMessage}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          welcomeMessage: e.target.value.slice(0, 240),
+                        })
+                      }
+                      disabled={!canEdit}
+                      maxLength={240}
+                      rows={3}
+                      className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-200 focus:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
+                    />
+                    <div className="text-xs text-slate-400 mt-1">
+                      {settings.welcomeMessage.length}/240
+                    </div>
+                  </div>
+
+                  {/* Brand Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      {t("widgetAppearance.brandName")}
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.brandName || ""}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          brandName: e.target.value.slice(0, 40) || null,
+                        })
+                      }
+                      disabled={!canEdit}
+                      maxLength={40}
+                      className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-200 focus:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
+                    />
+                    <div className="text-xs text-slate-400 mt-1">
+                      {(settings.brandName || "").length}/40
+                    </div>
+                  </div>
+
+                  {/* Save Button */}
+                  {canEdit && (
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="w-full px-4 py-3.5 bg-[#1A1A2E] text-white text-sm font-semibold rounded-xl hover:bg-[#15152A] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
+                    >
+                      {saving ? t("widgetTheme.saving") : t("widgetTheme.save")}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* ─── RIGHT: Live Preview ─── */}
+          {/* ─── RIGHT: Live Preview (clean — no controls on top) ─── */}
           <div className="space-y-6">
             <Card variant="elevated" padding="lg" className="sticky top-6">
               <SectionTitle title={t("widgetAppearance.preview")} />

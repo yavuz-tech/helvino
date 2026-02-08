@@ -169,7 +169,101 @@
   cursor: not-allowed;
 }
 
-.chat-input button {
+/* Send button styles moved to :not(.chat-emoji-btn) selectors below */
+
+.chat-disabled-notice {
+  padding: 1rem;
+  border-top: 1px solid #e5e5e5;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #666;
+  background: #f9fafb;
+}
+
+/* ── Branding ── */
+.widget-powered-by {
+  flex-shrink: 0;
+  padding: 0.5rem 1rem 0.75rem;
+  border-top: 1px solid #e5e5e5;
+  text-align: center;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+/* Closed state: no border/padding */
+.widget-container > .widget-powered-by {
+  border-top: none;
+  padding-top: 0.25rem;
+}
+
+.widget-powered-by-brand {
+  font-weight: 700;
+  text-decoration: none;
+  background: linear-gradient(
+    90deg,
+    #0f766e 0%,
+    #0d9488 18%,
+    #2dd4bf 38%,
+    #5eead4 50%,
+    #2dd4bf 62%,
+    #0d9488 82%,
+    #0f766e 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: widget-helvino-shimmer 2.5s ease-in-out infinite;
+  backface-visibility: hidden;
+  transition: opacity 0.15s ease;
+}
+
+.widget-powered-by-brand:hover {
+  opacity: 0.9;
+}
+
+@supports not (background-clip: text) {
+  .widget-powered-by-brand {
+    color: #0d9488;
+    -webkit-text-fill-color: inherit;
+  }
+}
+
+@keyframes widget-helvino-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .widget-powered-by-brand {
+    animation: none;
+    background: #0f766e;
+    -webkit-text-fill-color: #0f766e;
+  }
+}
+
+/* ── Emoji picker ── */
+.chat-emoji-btn {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 1px solid #e5e5e5;
+  border-radius: 0.5rem;
+  background: #fff;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  transition: background 0.15s ease;
+}
+
+.chat-emoji-btn:hover {
+  background: #f1f5f9;
+}
+
+/* Send button — exclude emoji btn */
+.chat-input button:not(.chat-emoji-btn) {
   background: var(--primary-color, #000);
   color: #fff;
   padding: 0.5rem 1rem;
@@ -180,20 +274,46 @@
   min-width: 60px;
 }
 
-.chat-input button:hover:not(:disabled) {
+.chat-input button:not(.chat-emoji-btn):hover:not(:disabled) {
   background: #333;
 }
 
-.chat-input button:disabled {
+.chat-input button:not(.chat-emoji-btn):disabled {
   background: #ccc;
   cursor: not-allowed;
 }
 
-.chat-disabled-notice {
-  padding: 1rem;
-  border-top: 1px solid #e5e5e5;
+.chat-emoji-picker {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 4px;
+  background: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  max-height: 180px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  padding: 8px;
+  z-index: 10;
+}
+
+.chat-emoji-picker-item {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.12s;
+  line-height: 1;
   text-align: center;
-  font-size: 0.9rem;
-  color: #666;
-  background: #f9fafb;
+}
+
+.chat-emoji-picker-item:hover {
+  background: #e2e8f0;
 }

@@ -253,6 +253,8 @@ export interface BootloaderConfig {
     theme: {
       primaryColor: string;
     };
+    /** Server-enforced entitlement: true = branding must be shown */
+    brandingRequired?: boolean;
   };
   orgToken: string; // Short-lived signed token for write operations
   env: string;
