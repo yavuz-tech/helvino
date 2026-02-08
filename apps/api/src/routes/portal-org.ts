@@ -169,6 +169,9 @@ export async function portalOrgRoutes(fastify: FastifyInstance) {
           siteId: true,
           allowedDomains: true,
           allowLocalhost: true,
+          widgetDomainMismatchTotal: true,
+          lastMismatchHost: true,
+          lastMismatchAt: true,
         },
       });
 
@@ -186,7 +189,44 @@ export async function portalOrgRoutes(fastify: FastifyInstance) {
           siteId: org.siteId,
           allowedDomains: org.allowedDomains,
           allowLocalhost: org.allowLocalhost,
+          domainMismatchCount: org.widgetDomainMismatchTotal ?? 0,
+          lastMismatchHost: org.lastMismatchHost ?? null,
+          lastMismatchAt: org.lastMismatchAt?.toISOString() ?? null,
         },
+      };
+    }
+  );
+
+  /**
+   * GET /portal/org/me/security/domain-mismatches — last 20 domain mismatch events (Step 11.68)
+   */
+  fastify.get(
+    "/portal/org/me/security/domain-mismatches",
+    { preHandler: [requirePortalUser] },
+    async (request) => {
+      const user = request.portalUser!;
+      const events = await prisma.domainMismatchEvent.findMany({
+        where: { orgId: user.orgId },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true,
+          reportedHost: true,
+          allowedDomainsSnapshot: true,
+          userAgent: true,
+          referrerHost: true,
+          createdAt: true,
+        },
+      });
+      return {
+        events: events.map((e) => ({
+          id: e.id,
+          reportedHost: e.reportedHost,
+          allowedDomainsSnapshot: e.allowedDomainsSnapshot,
+          userAgent: e.userAgent,
+          referrerHost: e.referrerHost,
+          createdAt: e.createdAt.toISOString(),
+        })),
       };
     }
   );

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import ErrorBanner from "@/components/ErrorBanner";
+import LockedControl from "@/components/LockedControl";
 import PageHeader from "@/components/PageHeader";
 import Card from "@/components/Card";
 import SectionTitle from "@/components/SectionTitle";
@@ -753,20 +754,14 @@ export default function PortalWidgetAppearancePage() {
                         />
                       </div>
                     ))}
-                    {isFree && widgetConfig.avatars.agents.length > maxAgents && (
-                      <div className="mt-3 flex items-center gap-3 bg-gradient-to-r from-slate-50 to-indigo-50/60 border border-indigo-200/60 rounded-xl px-4 py-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 flex-shrink-0">
-                          <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-slate-700">{t("widgetConfig.maxAgentsReached")}</p>
-                          <a href="/portal/billing" className="inline-flex items-center gap-1 mt-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors">
-                            {t("widgetConfig.upgradeForMore")}
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
-                          </a>
-                        </div>
-                      </div>
-                    )}
+                    <LockedControl
+                      locked={isFree && widgetConfig.avatars.agents.length > maxAgents}
+                      reasonKey="widgetConfig.maxAgentsReached"
+                      ctaLabelKey="widgetConfig.upgradeForMore"
+                      ctaHref="/portal/billing"
+                      variant="indigo"
+                      icon="lock"
+                    />
                   </div>
 
                   {/* Avatar Shape */}
@@ -1124,20 +1119,14 @@ export default function PortalWidgetAppearancePage() {
                         {t("widgetConfig.brandingOff")}
                       </button>
                     </div>
-                    {isFree && (
-                      <div className="mt-3 flex items-center gap-3 bg-gradient-to-r from-slate-50 to-violet-50/60 border border-violet-200/60 rounded-xl px-4 py-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 flex-shrink-0">
-                          <svg className="w-4 h-4 text-violet-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" /></svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-slate-700">{t("widgetConfig.brandingFreeLocked")}</p>
-                          <a href="/portal/billing" className="inline-flex items-center gap-1 mt-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors">
-                            {t("widgetConfig.brandingUpgrade")}
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
-                          </a>
-                        </div>
-                      </div>
-                    )}
+                    <LockedControl
+                      locked={isFree}
+                      reasonKey="widgetConfig.brandingFreeLocked"
+                      ctaLabelKey="widgetConfig.brandingUpgrade"
+                      ctaHref="/portal/billing"
+                      variant="violet"
+                      icon="sparkle"
+                    />
                   </div>
 
                   {/* ── Domain mismatch alert ── */}

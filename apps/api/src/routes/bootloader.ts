@@ -174,13 +174,32 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
         }
       }
 
-      // Track domain mismatch (fire-and-forget)
+      // Track domain mismatch: counter + event log + last host/time (fire-and-forget) — Step 11.68
       if (unauthorizedDomain) {
         const reportedHost = parentHost || extractDomain(requestOrigin || "") || "unknown";
-        prisma.$executeRawUnsafe(
-          `UPDATE "organizations" SET "widgetDomainMismatchTotal" = "widgetDomainMismatchTotal" + 1 WHERE "id" = $1`,
-          org.id
-        ).catch(() => {});
+        const userAgent = request.headers["user-agent"] as string | undefined;
+        const referrerHost = referer ? extractDomain(referer) : undefined;
+        prisma.domainMismatchEvent
+          .create({
+            data: {
+              orgId: org.id,
+              reportedHost,
+              allowedDomainsSnapshot: org.allowedDomains,
+              userAgent: userAgent ?? null,
+              referrerHost: referrerHost ?? null,
+            },
+          })
+          .then(() =>
+            prisma.organization.update({
+              where: { id: org.id },
+              data: {
+                widgetDomainMismatchTotal: { increment: 1 },
+                lastMismatchHost: reportedHost,
+                lastMismatchAt: new Date(),
+              },
+            })
+          )
+          .catch(() => {});
         request.log.warn({ orgId: org.id, reportedHost, allowedDomains: org.allowedDomains }, "Domain mismatch detected (soft mode)");
       }
 

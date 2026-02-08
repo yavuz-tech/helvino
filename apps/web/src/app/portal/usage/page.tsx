@@ -22,6 +22,11 @@ interface Usage {
   monthKey: string;
   conversationsCreated: number;
   messagesSent: number;
+  m1Count?: number;
+  m2Count?: number;
+  m3Count?: number;
+  periodStart?: string;
+  periodEnd?: string;
   nextResetDate?: string;
 }
 
@@ -312,11 +317,38 @@ export default function PortalUsagePage() {
                   extra={limits.extraMessageQuota}
                 />
               </div>
-            ) : (
-              <p className="text-sm text-slate-500 text-center">
+            ) : null}
+            {/* M1/M2/M3 metering (Step 11.68) — display counts; limits TBD */}
+            <div className="mt-6 pt-6 border-t border-slate-100">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+                {t("usage.currentPeriod")} — Metering
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-lg bg-slate-50 px-4 py-3">
+                  <p className="text-xs text-slate-500 mb-0.5">{t("usage.m1Label")}</p>
+                  <p className="text-lg font-bold text-slate-900" suppressHydrationWarning>
+                    {(usage?.m1Count ?? 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-slate-50 px-4 py-3">
+                  <p className="text-xs text-slate-500 mb-0.5">{t("usage.m2Label")}</p>
+                  <p className="text-lg font-bold text-slate-900" suppressHydrationWarning>
+                    {(usage?.m2Count ?? 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-slate-50 px-4 py-3">
+                  <p className="text-xs text-slate-500 mb-0.5">{t("usage.m3Label")}</p>
+                  <p className="text-lg font-bold text-slate-900" suppressHydrationWarning>
+                    {(usage?.m3Count ?? 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+            {!limits ? (
+              <p className="text-sm text-slate-500 text-center mt-4">
                 {t("usage.noLimits")}
               </p>
-            )}
+            ) : null}
           </div>
 
           {/* Plan info card */}

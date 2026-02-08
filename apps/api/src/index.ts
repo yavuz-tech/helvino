@@ -51,6 +51,8 @@ import {
   checkMessageEntitlement,
   recordConversationUsage,
   recordMessageUsage,
+  recordM2Usage,
+  recordM3Usage,
 } from "./utils/entitlements";
 import type {
   CreateConversationResponse,
@@ -259,6 +261,9 @@ fastify.post<{
 
   const conversation = await store.createConversation(org.id, visitorId);
   await recordConversationUsage(org.id);
+  if (visitorKey) {
+    recordM3Usage(org.id, visitorKey).catch(() => {});
+  }
 
   reply.code(201);
   return {
@@ -378,6 +383,9 @@ fastify.post<{
   });
 
   await recordMessageUsage(org.id);
+  if (role === "assistant") {
+    recordM2Usage(org.id).catch(() => {});
+  }
 
   reply.code(201);
   return message;

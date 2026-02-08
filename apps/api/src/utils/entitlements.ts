@@ -354,12 +354,61 @@ export async function getUsageForMonth(orgId: string) {
     select: { currentPeriodEnd: true },
   });
 
+  const periodStart = new Date();
+  periodStart.setUTCDate(1);
+  periodStart.setUTCHours(0, 0, 0, 0);
+  const periodEnd = new Date(periodStart);
+  periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
+
   return {
     monthKey,
+    periodStart: periodStart.toISOString(),
+    periodEnd: periodEnd.toISOString(),
     conversationsCreated: usage?.conversationsCreated || 0,
     messagesSent: usage?.messagesSent || 0,
+    m1Count: usage?.m1Count ?? 0,
+    m2Count: usage?.m2Count ?? 0,
+    m3Count: usage?.m3Count ?? 0,
     nextResetDate: getNextResetDate(org?.currentPeriodEnd),
   };
+}
+
+/** M1: Human conversation (agent sent message). Call when portal/agent sends a message. */
+export async function recordM1Usage(orgId: string) {
+  const monthKey = getMonthKey();
+  await prisma.usage.upsert({
+    where: { orgId_monthKey: { orgId, monthKey } },
+    update: { m1Count: { increment: 1 } },
+    create: { orgId, monthKey, m1Count: 1 },
+  });
+}
+
+/** M2: AI assisted response. Call when widget/API produces an AI reply. */
+export async function recordM2Usage(orgId: string) {
+  const monthKey = getMonthKey();
+  await prisma.usage.upsert({
+    where: { orgId_monthKey: { orgId, monthKey } },
+    update: { m2Count: { increment: 1 } },
+    create: { orgId, monthKey, m2Count: 1 },
+  });
+}
+
+/** M3: Automations reached visitors (dedupe by orgId + periodKey + visitorKey). Call when automation touches a visitor. */
+export async function recordM3Usage(orgId: string, visitorKey: string) {
+  const periodKey = getMonthKey();
+  const created = await prisma.usageVisitor
+    .create({
+      data: { orgId, periodKey, visitorKey, source: "M3" },
+    })
+    .then(() => true)
+    .catch(() => false);
+  if (created) {
+    await prisma.usage.upsert({
+      where: { orgId_monthKey: { orgId, monthKey: periodKey } },
+      update: { m3Count: { increment: 1 } },
+      create: { orgId, monthKey: periodKey, m3Count: 1 },
+    });
+  }
 }
 
 /**

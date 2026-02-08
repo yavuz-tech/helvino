@@ -12,7 +12,7 @@ import { store } from "../store";
 import { requireOrgUser } from "../middleware/require-org-user";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { validateJsonContentType, validateMessageContent } from "../middleware/validation";
-import { checkMessageEntitlement, recordMessageUsage } from "../utils/entitlements";
+import { checkMessageEntitlement, recordMessageUsage, recordM1Usage } from "../utils/entitlements";
 import { isBillingWriteBlocked } from "../utils/billing-enforcement";
 import { buildHistogramUpdateSql } from "../utils/widget-histogram";
 import type {
@@ -158,6 +158,9 @@ export async function orgCustomerRoutes(fastify: FastifyInstance) {
       });
 
       await recordMessageUsage(orgUser.orgId);
+      if (role === "assistant") {
+        recordM1Usage(orgUser.orgId).catch(() => {});
+      }
 
       // Widget response-time histogram (fire-and-forget, best-effort)
       const msgDurationMs = Date.now() - msgStartMs;

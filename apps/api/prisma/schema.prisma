@@ -38,6 +38,8 @@ model Organization {
   widgetLoadsTotal         Int         @default(0)
   widgetLoadFailuresTotal  Int         @default(0)
   widgetDomainMismatchTotal Int        @default(0)
+  lastMismatchHost          String?    // Last reported host that triggered domain mismatch (Step 11.68)
+  lastMismatchAt            DateTime?  // When last domain mismatch occurred
   widgetRtBucketsJson      Json?       // Rolling histogram {buckets:[{max,count},...]}
   widgetRtTotalCount       Int         @default(0)
   lastWidgetSeenAt      DateTime?
@@ -95,12 +97,44 @@ model Usage {
   monthKey              String   // YYYY-MM
   conversationsCreated  Int      @default(0)
   messagesSent          Int      @default(0)
+  m1Count               Int      @default(0) // Human conversations (agent handoff/send) — Step 11.68
+  m2Count               Int      @default(0) // AI assisted/resolved responses
+  m3Count               Int      @default(0) // Automations reached visitors (unique per period)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
   @@unique([orgId, monthKey])
   @@index([orgId])
   @@map("usages")
+}
+
+// M3 dedupe: one row per visitor per period (Step 11.68)
+model UsageVisitor {
+  id         String   @id @default(cuid())
+  orgId      String
+  periodKey  String   // YYYY-MM
+  visitorKey String   // visitorId or anonId
+  source     String   @default("M3")
+  createdAt  DateTime @default(now())
+
+  @@unique([orgId, periodKey, visitorKey])
+  @@index([orgId, periodKey])
+  @@map("usage_visitors")
+}
+
+// Domain mismatch audit log (Step 11.68)
+model DomainMismatchEvent {
+  id                      String   @id @default(cuid())
+  orgId                   String
+  reportedHost            String
+  allowedDomainsSnapshot  Json     // string[] at time of event
+  userAgent               String?
+  referrerHost            String?
+  createdAt               DateTime @default(now())
+
+  @@index([orgId])
+  @@index([orgId, createdAt(sort: Desc)])
+  @@map("domain_mismatch_events")
 }
 
 model Visitor {

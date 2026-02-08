@@ -68,8 +68,13 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
           : null,
         usage: {
           monthKey: usage.monthKey,
+          periodStart: usage.periodStart,
+          periodEnd: usage.periodEnd,
           conversationsCreated: usage.conversationsCreated,
           messagesSent: usage.messagesSent,
+          m1Count: usage.m1Count,
+          m2Count: usage.m2Count,
+          m3Count: usage.m3Count,
           nextResetDate: usage.nextResetDate,
         },
         subscription: {

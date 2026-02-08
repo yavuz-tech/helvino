@@ -17,6 +17,18 @@ interface SecuritySettings {
   siteId: string;
   allowedDomains: string[];
   allowLocalhost: boolean;
+  domainMismatchCount?: number;
+  lastMismatchHost?: string | null;
+  lastMismatchAt?: string | null;
+}
+
+interface DomainMismatchEventItem {
+  id: string;
+  reportedHost: string;
+  allowedDomainsSnapshot: unknown;
+  userAgent: string | null;
+  referrerHost: string | null;
+  createdAt: string;
 }
 
 interface PortalSessionInfo {
@@ -55,6 +67,9 @@ export default function PortalSecurityPage() {
   // MFA state
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [mfaVerifiedAt, setMfaVerifiedAt] = useState<string | null>(null);
+
+  // Domain mismatch events (Step 11.68)
+  const [mismatchEvents, setMismatchEvents] = useState<DomainMismatchEventItem[]>([]);
 
   const { withStepUp } = useStepUp();
   const canEdit = user?.role === "owner" || user?.role === "admin";
@@ -101,7 +116,19 @@ export default function PortalSecurityPage() {
       setOriginal(data.security);
       setLoading(false);
     };
+    const loadMismatches = async () => {
+      try {
+        const mres = await portalApiFetch("/portal/org/me/security/domain-mismatches");
+        if (mres.ok) {
+          const mdata = await mres.json();
+          setMismatchEvents(mdata.events || []);
+        }
+      } catch {
+        // ignore
+      }
+    };
     load();
+    loadMismatches();
     loadSessions();
     loadMfaStatus();
   }, [authLoading, t, loadSessions, loadMfaStatus]);
@@ -559,6 +586,47 @@ export default function PortalSecurityPage() {
               <Plus size={16} />
               {t("security.addDomain")}
             </button>
+          )}
+        </div>
+
+        {/* Domain Mismatches (Step 11.68) */}
+        <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-2">
+            {t("security.domainMismatches")}
+          </h2>
+          <p className="text-sm text-slate-600 mb-4">
+            {t("security.domainMismatchesDesc")}
+          </p>
+          <div className="flex flex-wrap items-center gap-4 mb-4">
+            <span className="text-sm font-medium text-slate-700">
+              {t("security.domainMismatchCount")}:{" "}
+              <span className="font-bold text-slate-900">{security.domainMismatchCount ?? 0}</span>
+            </span>
+            {security.lastMismatchHost && security.lastMismatchAt && (
+              <span className="text-xs text-slate-500">
+                {t("security.lastMismatch")}: {security.lastMismatchHost} — {formatDate(security.lastMismatchAt)}
+              </span>
+            )}
+          </div>
+          {mismatchEvents.length > 0 && (
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-semibold text-slate-700">{t("security.reportedHost")}</th>
+                    <th className="px-4 py-2 text-left font-semibold text-slate-700">{t("security.date")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mismatchEvents.map((e) => (
+                    <tr key={e.id} className="border-t border-slate-100">
+                      <td className="px-4 py-2 font-mono text-slate-800">{e.reportedHost}</td>
+                      <td className="px-4 py-2 text-slate-600">{formatDate(e.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
