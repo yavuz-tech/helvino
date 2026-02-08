@@ -274,7 +274,7 @@ curl -X PATCH \
   -H "x-internal-key: YOUR_PROD_INTERNAL_KEY" \
   -H "Content-Type: application/json" \
   -d '{"writeEnabled":false}' \
-  https://api.helvino.io/api/org/CUSTOMER_ORG/settings
+  https://api.helvion.io/api/org/CUSTOMER_ORG/settings
 ```
 
 **Effect:** All POST operations blocked in < 1 second

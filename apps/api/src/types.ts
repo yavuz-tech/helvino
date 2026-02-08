@@ -1,5 +1,5 @@
 /**
- * Core types for Helvino API
+ * Core types for Helvion API
  */
 
 export interface Organization {
@@ -70,6 +70,7 @@ export interface CreateConversationRequest {
 export interface CreateConversationResponse {
   id: string;
   createdAt: string;
+  m3Limited?: boolean;
 }
 
 export interface CreateMessageRequest {

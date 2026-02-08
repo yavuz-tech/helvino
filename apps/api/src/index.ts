@@ -1,10 +1,14 @@
+import path from "path";
+import dotenv from "dotenv";
+
+dotenv.config({ path: path.join(__dirname, "..", ".env") });
+
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
 import session from "@fastify/session";
 import socketioServer from "fastify-socket.io";
 import type { Socket } from "socket.io";
-import dotenv from "dotenv";
 import { APP_NAME } from "@helvino/shared";
 import { store } from "./store";
 import { bootloaderRoutes } from "./routes/bootloader";
@@ -49,6 +53,8 @@ import { securityHeadersPlugin } from "./middleware/security-headers";
 import {
   checkConversationEntitlement,
   checkMessageEntitlement,
+  checkM2Entitlement,
+  checkM3Entitlement,
   recordConversationUsage,
   recordMessageUsage,
   recordM2Usage,
@@ -61,8 +67,6 @@ import type {
   Conversation,
   ConversationDetail,
 } from "./types";
-
-dotenv.config();
 
 const PORT = parseInt(process.env.PORT || "4000", 10);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -261,14 +265,21 @@ fastify.post<{
 
   const conversation = await store.createConversation(org.id, visitorId);
   await recordConversationUsage(org.id);
+  let m3Limited = false;
   if (visitorKey) {
-    recordM3Usage(org.id, visitorKey).catch(() => {});
+    const m3Entitlement = await checkM3Entitlement(org.id);
+    if (m3Entitlement.allowed) {
+      recordM3Usage(org.id, visitorKey).catch(() => {});
+    } else {
+      m3Limited = true;
+    }
   }
 
   reply.code(201);
   return {
     id: conversation.id,
     createdAt: conversation.createdAt,
+    m3Limited,
   };
 });
 
@@ -325,7 +336,18 @@ fastify.get<{
 fastify.post<{
   Params: { id: string };
   Body: CreateMessageRequest;
-  Reply: CreateMessageResponse | { error: string; code?: string };
+  Reply:
+    | CreateMessageResponse
+    | {
+        error:
+          | string
+          | {
+              code: string;
+              message: string;
+              resetAt?: string | null;
+            };
+        code?: string;
+      };
 }>("/conversations/:id/messages", {
   preHandler: [
     createRateLimitMiddleware({ limit: 120, windowMs: 60000 }), // 120 per minute
@@ -352,12 +374,6 @@ fastify.post<{
     return { error: "payment_required" };
   }
 
-  const entitlement = await checkMessageEntitlement(org.id);
-  if (!entitlement.allowed) {
-    reply.code(402);
-    return { error: entitlement.error || "Plan limit exceeded", code: entitlement.code };
-  }
-
   // Validate input
   if (!role || !content) {
     reply.code(400);
@@ -367,6 +383,26 @@ fastify.post<{
   if (role !== "user" && role !== "assistant") {
     reply.code(400);
     return { error: "Invalid role. Must be 'user' or 'assistant'" };
+  }
+
+  const entitlement = await checkMessageEntitlement(org.id);
+  if (!entitlement.allowed) {
+    reply.code(402);
+    return { error: entitlement.error || "Plan limit exceeded", code: entitlement.code };
+  }
+
+  if (role === "assistant") {
+    const m2Entitlement = await checkM2Entitlement(org.id);
+    if (!m2Entitlement.allowed) {
+      reply.code(402);
+      return {
+        error: {
+          code: "QUOTA_M2_EXCEEDED",
+          message: m2Entitlement.error || "M2 quota exceeded",
+          resetAt: m2Entitlement.resetAt || null,
+        },
+      };
+    }
   }
 
   const message = await store.addMessage(id, org.id, role, content);

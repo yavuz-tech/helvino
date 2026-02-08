@@ -67,6 +67,7 @@ export default function SignupPage() {
 
       const response = await fetch(`${API_URL}/portal/auth/signup`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orgName: trimmedWebsite, email: trimmedEmail, password, locale }),
       });
@@ -108,6 +109,7 @@ export default function SignupPage() {
     try {
       const res = await fetch(`${API_URL}/portal/auth/resend-verification`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, locale }),
       });

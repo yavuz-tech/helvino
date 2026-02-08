@@ -11,7 +11,6 @@ export RATE_LIMIT_DEV_MULTIPLIER=50
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 LOG_DIR="$ROOT/.verify-logs"
-rm -rf "$LOG_DIR"
 mkdir -p "$LOG_DIR"
 
 TOTAL=0
@@ -34,17 +33,21 @@ divider() {
 # ── Portable timeout function (macOS compatible) ──
 run_with_timeout() {
   local timeout_sec=$1; shift
+  set +e
   "$@" &
   local cmd_pid=$!
   (
     sleep "$timeout_sec"
     kill -9 "$cmd_pid" 2>/dev/null
-  ) &
+  ) >/dev/null 2>&1 &
   local killer_pid=$!
   wait "$cmd_pid" 2>/dev/null
   local rc=$?
-  kill "$killer_pid" 2>/dev/null
-  wait "$killer_pid" 2>/dev/null 2>&1 || true
+  if kill -0 "$killer_pid" 2>/dev/null; then
+    kill "$killer_pid" 2>/dev/null
+    wait "$killer_pid" 2>/dev/null
+  fi
+  set -e
   return $rc
 }
 

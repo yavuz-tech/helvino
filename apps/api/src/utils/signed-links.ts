@@ -15,8 +15,22 @@ import crypto from "crypto";
 
 // ── Config ──
 
+/** Canonical app URL; normalizes legacy helvino.io to helvion.io so invite/reset links always use the correct domain. */
 function getAppUrl(): string {
-  return process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+  const raw =
+    process.env.APP_PUBLIC_URL ||
+    process.env.NEXT_PUBLIC_WEB_URL ||
+    "http://localhost:3000";
+  try {
+    const url = new URL(raw);
+    if (url.hostname === "helvino.io") {
+      url.hostname = "helvion.io";
+      return url.toString();
+    }
+    return raw;
+  } catch {
+    return raw;
+  }
 }
 
 function getSigningSecret(): string {

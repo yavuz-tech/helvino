@@ -62,6 +62,9 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
               maxConversationsPerMonth: limits.maxConversationsPerMonth,
               maxMessagesPerMonth: limits.maxMessagesPerMonth,
               maxAgents: limits.maxAgents,
+              m1LimitPerMonth: limits.m1LimitPerMonth,
+              m2LimitPerMonth: limits.m2LimitPerMonth,
+              m3LimitVisitorsPerMonth: limits.m3LimitVisitorsPerMonth,
               extraConversationQuota: limits.extraConversationQuota || 0,
               extraMessageQuota: limits.extraMessageQuota || 0,
             }

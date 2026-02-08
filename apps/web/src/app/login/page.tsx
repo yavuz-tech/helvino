@@ -110,7 +110,7 @@ export default function LoginPage() {
           <div className="inline-flex w-12 h-12 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl items-center justify-center mb-4 shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
             <span className="text-white font-bold text-lg">H</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Helvino</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Helvion</h1>
           <p className="text-sm text-slate-500 mt-1">{t("auth.adminDashboard")}</p>
         </div>
 
@@ -176,7 +176,7 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoComplete="email"
-                    placeholder="admin@helvino.io"
+                    placeholder="admin@helvion.io"
                     disabled={loading}
                     className={designTokens.inputs.base}
                   />

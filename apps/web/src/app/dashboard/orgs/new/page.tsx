@@ -90,9 +90,9 @@ export default function NewOrgPage() {
   };
 
   const embedSnippet = createdOrg
-    ? `<!-- Helvino Chat Widget -->
+    ? `<!-- Helvion Chat Widget -->
 <script>window.HELVINO_SITE_ID="${createdOrg.siteId}";</script>
-<script src="https://cdn.helvino.io/embed.js"></script>`
+<script src="https://cdn.helvion.io/embed.js"></script>`
     : "";
 
   const copyToClipboard = () => {

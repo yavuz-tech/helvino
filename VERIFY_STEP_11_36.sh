@@ -24,7 +24,7 @@ section() { echo ""; echo "═══ $1 ═══"; }
 
 API_URL="${API_URL:-http://localhost:4000}"
 WEB_URL="${WEB_URL:-http://localhost:3000}"
-PORTAL_EMAIL="${PORTAL_EMAIL:-owner@demo.helvino.io}"
+PORTAL_EMAIL="${PORTAL_EMAIL:-owner@demo.helvion.io}"
 PORTAL_PASSWORD="${PORTAL_PASSWORD:-demo_owner_2026}"
 
 section "1. Builds"
@@ -99,7 +99,7 @@ else
 
   # 6b) Signup end-to-end with random email
   RANDOM_SUFFIX=$(openssl rand -hex 4 2>/dev/null || echo "abcd1234")
-  TEST_EMAIL="test-signup-${RANDOM_SUFFIX}@verify.helvino.test"
+  TEST_EMAIL="test-signup-${RANDOM_SUFFIX}@verify.helvion.test"
   TEST_PASSWORD="VerifyTest2026!"
   TEST_ORG="VerifyOrg-${RANDOM_SUFFIX}"
 

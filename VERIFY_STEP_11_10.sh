@@ -70,7 +70,7 @@ echo ""
 # ── 5. Negative tests (API must be running) ──
 echo "--- 5. Negative tests ---"
 API_URL="${API_URL:-http://localhost:4000}"
-ADMIN_EMAIL="${ADMIN_EMAIL:-admin@helvino.io}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@helvion.io}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-helvino_admin_2026}"
 COOKIE_JAR="/tmp/admin_cookies_step_11_10.txt"
 

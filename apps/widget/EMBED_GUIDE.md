@@ -12,7 +12,7 @@ Add these two lines before the closing `</body>` tag:
 <script>
   window.HELVINO_ORG_KEY = "your-org-key";
 </script>
-<script src="https://cdn.helvino.io/embed.js"></script>
+<script src="https://cdn.helvion.io/embed.js"></script>
 ```
 
 That's it! The widget will automatically load and appear on your page.
@@ -215,7 +215,7 @@ gtag('event', 'widget_open', {
 ### Recommended CDN Structure
 
 ```
-https://cdn.helvino.io/
+https://cdn.helvion.io/
 ├── embed.js              # Latest version
 ├── embed.v1.0.0.js      # Versioned (recommended)
 └── embed.v1.0.1.js      # New version
@@ -225,10 +225,10 @@ https://cdn.helvino.io/
 
 ```html
 <!-- Recommended: Use versioned URL -->
-<script src="https://cdn.helvino.io/embed.v1.0.0.js"></script>
+<script src="https://cdn.helvion.io/embed.v1.0.0.js"></script>
 
 <!-- Alternative: Always latest (may break) -->
-<script src="https://cdn.helvino.io/embed.js"></script>
+<script src="https://cdn.helvion.io/embed.js"></script>
 ```
 
 ## Security
@@ -239,8 +239,8 @@ If your site uses CSP, add:
 
 ```html
 <meta http-equiv="Content-Security-Policy" 
-      content="script-src 'self' https://cdn.helvino.io; 
-               connect-src 'self' https://api.helvino.io;">
+      content="script-src 'self' https://cdn.helvion.io; 
+               connect-src 'self' https://api.helvion.io;">
 ```
 
 ### CORS
@@ -297,7 +297,7 @@ function App() {
 
 ```html
 <script>window.HELVINO_ORG_KEY = "demo";</script>
-<script src="https://cdn.helvino.io/embed.js"></script>
+<script src="https://cdn.helvion.io/embed.js"></script>
 ```
 
 ## Next Steps
@@ -314,9 +314,9 @@ function App() {
 ## Support
 
 For issues or questions:
-- 📧 Email: support@helvino.io
-- 📚 Docs: https://docs.helvino.io
-- 💬 Chat: Open widget on helvino.io
+- 📧 Email: support@helvion.io
+- 📚 Docs: https://docs.helvion.io
+- 💬 Chat: Open widget on helvion.io
 
 ## License
 

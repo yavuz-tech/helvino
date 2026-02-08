@@ -15,7 +15,13 @@ type Locale = "en" | "tr" | "es";
 
 // ── Base HTML wrapper ──
 
-function wrapHtml(content: string, brandColor = "#0F5C5C"): string {
+const footerText: Record<Locale, string> = {
+  en: "Helvion &mdash; Secure customer communication",
+  tr: "Helvion &mdash; G\u00FCvenli m\u00FC\u015Fteri ileti\u015Fimi",
+  es: "Helvion &mdash; Comunicaci\u00F3n segura con clientes",
+};
+
+function wrapHtml(content: string, brandColor = "#0F5C5C", locale: Locale = "en"): string {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
@@ -24,13 +30,13 @@ function wrapHtml(content: string, brandColor = "#0F5C5C"): string {
 <tr><td align="center">
 <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;border:1px solid #e2e8f0;overflow:hidden;">
 <tr><td style="background:${brandColor};padding:24px 32px;">
-<span style="font-size:20px;font-weight:700;color:#fff;">Helvino</span>
+<span style="font-size:20px;font-weight:700;color:#fff;">Helvion</span>
 </td></tr>
 <tr><td style="padding:32px;">
 ${content}
 </td></tr>
 <tr><td style="padding:16px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;">
-<p style="margin:0;font-size:12px;color:#94a3b8;text-align:center;">Helvino &mdash; Secure customer communication</p>
+<p style="margin:0;font-size:12px;color:#94a3b8;text-align:center;">${footerText[locale]}</p>
 </td></tr>
 </table>
 </td></tr>
@@ -53,7 +59,7 @@ function buttonHtml(url: string, label: string, color = "#0F5C5C"): string {
 
 const inviteTemplates: Record<Locale, { subject: (orgName: string) => string; body: (orgName: string, role: string, link: string, expiresIn: string) => string }> = {
   en: {
-    subject: (orgName) => `You've been invited to ${orgName} on Helvino`,
+    subject: (orgName) => `You've been invited to ${orgName} on Helvion`,
     body: (orgName, role, link, expiresIn) => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">You're invited!</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -66,10 +72,10 @@ ${buttonHtml(link, "Accept Invitation")}
 <p style="color:#94a3b8;font-size:12px;">
   This link expires in ${expiresIn}. If you didn't expect this invitation, you can safely ignore this email.
 </p>
-`),
+`, "#0F5C5C", "en"),
   },
   tr: {
-    subject: (orgName) => `${orgName} sizi Helvino'ya davet etti`,
+    subject: (orgName) => `${orgName} sizi Helvion'a davet etti`,
     body: (orgName, role, link, expiresIn) => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Davetlisiniz!</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -82,10 +88,10 @@ ${buttonHtml(link, "Daveti Kabul Et")}
 <p style="color:#94a3b8;font-size:12px;">
   Bu bağlantı ${expiresIn} içinde geçerlidir. Bu daveti beklemiyorsanız bu e-postayı görmezden gelebilirsiniz.
 </p>
-`),
+`, "#0F5C5C", "tr"),
   },
   es: {
-    subject: (orgName) => `Has sido invitado a ${orgName} en Helvino`,
+    subject: (orgName) => `Has sido invitado a ${orgName} en Helvion`,
     body: (orgName, role, link, expiresIn) => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">¡Estás invitado!</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -98,7 +104,7 @@ ${buttonHtml(link, "Aceptar Invitación")}
 <p style="color:#94a3b8;font-size:12px;">
   Este enlace caduca en ${expiresIn}. Si no esperabas esta invitación, puedes ignorar este correo.
 </p>
-`),
+`, "#0F5C5C", "es"),
   },
 };
 
@@ -106,7 +112,7 @@ ${buttonHtml(link, "Aceptar Invitación")}
 
 const resetTemplates: Record<Locale, { subject: () => string; body: (link: string, expiresIn: string) => string }> = {
   en: {
-    subject: () => "Reset your Helvino password",
+    subject: () => "Reset your Helvion password",
     body: (link, expiresIn) => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Password Reset</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -117,10 +123,10 @@ ${buttonHtml(link, "Reset Password")}
   This link expires in ${expiresIn}. If you didn't request a password reset, you can safely ignore this email.
   Your password will remain unchanged.
 </p>
-`),
+`, "#0F5C5C", "en"),
   },
   tr: {
-    subject: () => "Helvino şifrenizi sıfırlayın",
+    subject: () => "Helvion şifrenizi sıfırlayın",
     body: (link, expiresIn) => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Şifre Sıfırlama</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -131,10 +137,10 @@ ${buttonHtml(link, "Şifreyi Sıfırla")}
   Bu bağlantı ${expiresIn} içinde geçerlidir. Şifre sıfırlama isteğinde bulunmadıysanız bu e-postayı görmezden gelebilirsiniz.
   Şifreniz değişmeden kalacaktır.
 </p>
-`),
+`, "#0F5C5C", "tr"),
   },
   es: {
-    subject: () => "Restablece tu contraseña de Helvino",
+    subject: () => "Restablece tu contraseña de Helvion",
     body: (link, expiresIn) => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Restablecer Contraseña</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -145,15 +151,32 @@ ${buttonHtml(link, "Restablecer Contraseña")}
   Este enlace caduca en ${expiresIn}. Si no solicitaste restablecer tu contraseña, puedes ignorar este correo.
   Tu contraseña permanecerá sin cambios.
 </p>
-`),
+`, "#0F5C5C", "es"),
   },
 };
 
 // ── 3. Recovery Approved ──
 
+export type RecoveryApprovedMessageKey = "mfa_reset" | "login_ok";
+
+const recoveryApprovedMessages: Record<Locale, Record<RecoveryApprovedMessageKey, string>> = {
+  en: {
+    mfa_reset: "Your authenticator app has been reset. You will need to set it up again on next login.",
+    login_ok: "You can now log in normally.",
+  },
+  tr: {
+    mfa_reset: "Doğrulayıcı uygulamanız sıfırlandı. Bir sonraki girişte yeniden kurmanız gerekecek.",
+    login_ok: "Artık normal şekilde giriş yapabilirsiniz.",
+  },
+  es: {
+    mfa_reset: "Tu aplicación de autenticación se ha restablecido. Deberás configurarla de nuevo en el próximo inicio de sesión.",
+    login_ok: "Ahora puedes iniciar sesión con normalidad.",
+  },
+};
+
 const recoveryApprovedTemplates: Record<Locale, { subject: () => string; body: (message: string) => string }> = {
   en: {
-    subject: () => "Your Helvino account recovery has been approved",
+    subject: () => "Your Helvion account recovery has been approved",
     body: (message) => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Recovery Approved</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -165,10 +188,10 @@ const recoveryApprovedTemplates: Record<Locale, { subject: () => string; body: (
 <p style="color:#94a3b8;font-size:12px;">
   If you did not request account recovery, please contact support immediately.
 </p>
-`),
+`, "#0F5C5C", "en"),
   },
   tr: {
-    subject: () => "Helvino hesap kurtarma isteğiniz onaylandı",
+    subject: () => "Helvion hesap kurtarma isteğiniz onaylandı",
     body: (message) => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Kurtarma Onaylandı</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -180,10 +203,10 @@ const recoveryApprovedTemplates: Record<Locale, { subject: () => string; body: (
 <p style="color:#94a3b8;font-size:12px;">
   Hesap kurtarma talebinde bulunmadıysanız derhal desteğe başvurun.
 </p>
-`),
+`, "#0F5C5C", "tr"),
   },
   es: {
-    subject: () => "Tu recuperación de cuenta Helvino ha sido aprobada",
+    subject: () => "Tu recuperación de cuenta Helvion ha sido aprobada",
     body: (message) => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Recuperación Aprobada</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -195,7 +218,7 @@ const recoveryApprovedTemplates: Record<Locale, { subject: () => string; body: (
 <p style="color:#94a3b8;font-size:12px;">
   Si no solicitaste la recuperación de cuenta, contacta al soporte de inmediato.
 </p>
-`),
+`, "#0F5C5C", "es"),
   },
 };
 
@@ -203,7 +226,7 @@ const recoveryApprovedTemplates: Record<Locale, { subject: () => string; body: (
 
 const recoveryRejectedTemplates: Record<Locale, { subject: () => string; body: (reason: string) => string }> = {
   en: {
-    subject: () => "Your Helvino account recovery request was denied",
+    subject: () => "Your Helvion account recovery request was denied",
     body: (reason) => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Recovery Denied</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -213,10 +236,10 @@ ${reason ? `<p style="color:#475569;font-size:14px;line-height:1.6;"><strong>Rea
 <p style="color:#475569;font-size:14px;line-height:1.6;">
   If you believe this is an error, please contact support with additional verification.
 </p>
-`),
+`, "#0F5C5C", "en"),
   },
   tr: {
-    subject: () => "Helvino hesap kurtarma isteğiniz reddedildi",
+    subject: () => "Helvion hesap kurtarma isteğiniz reddedildi",
     body: (reason) => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Kurtarma Reddedildi</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -226,10 +249,10 @@ ${reason ? `<p style="color:#475569;font-size:14px;line-height:1.6;"><strong>Ned
 <p style="color:#475569;font-size:14px;line-height:1.6;">
   Bunun bir hata olduğunu düşünüyorsanız ek doğrulama ile desteğe başvurun.
 </p>
-`),
+`, "#0F5C5C", "tr"),
   },
   es: {
-    subject: () => "Tu solicitud de recuperación de cuenta Helvino fue denegada",
+    subject: () => "Tu solicitud de recuperación de cuenta Helvion fue denegada",
     body: (reason) => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Recuperación Denegada</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -239,7 +262,7 @@ ${reason ? `<p style="color:#475569;font-size:14px;line-height:1.6;"><strong>Mot
 <p style="color:#475569;font-size:14px;line-height:1.6;">
   Si crees que esto es un error, contacta al soporte con verificación adicional.
 </p>
-`),
+`, "#0F5C5C", "es"),
   },
 };
 
@@ -247,7 +270,7 @@ ${reason ? `<p style="color:#475569;font-size:14px;line-height:1.6;"><strong>Mot
 
 const emergencyTokenTemplates: Record<Locale, { subject: () => string; body: () => string }> = {
   en: {
-    subject: () => "Emergency access token generated for your Helvino account",
+    subject: () => "Emergency access token generated for your Helvion account",
     body: () => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#dc2626;font-size:20px;">⚠️ Emergency Access</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -262,10 +285,10 @@ const emergencyTokenTemplates: Record<Locale, { subject: () => string; body: () 
   The token expires in 10 minutes and can only be used once.
   A new token cannot be generated for 30 days.
 </p>
-`),
+`, "#0F5C5C", "en"),
   },
   tr: {
-    subject: () => "Helvino hesabınız için acil erişim anahtarı oluşturuldu",
+    subject: () => "Helvion hesabınız için acil erişim anahtarı oluşturuldu",
     body: () => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#dc2626;font-size:20px;">⚠️ Acil Erişim</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -280,10 +303,10 @@ const emergencyTokenTemplates: Record<Locale, { subject: () => string; body: () 
   Anahtar 10 dakika içinde sona erer ve yalnızca bir kez kullanılabilir.
   Yeni bir anahtar 30 gün boyunca oluşturulamaz.
 </p>
-`),
+`, "#0F5C5C", "tr"),
   },
   es: {
-    subject: () => "Se generó un token de acceso de emergencia para tu cuenta Helvino",
+    subject: () => "Se generó un token de acceso de emergencia para tu cuenta Helvion",
     body: () => wrapHtml(`
 <h2 style="margin:0 0 16px;color:#dc2626;font-size:20px;">⚠️ Acceso de Emergencia</h2>
 <p style="color:#475569;font-size:14px;line-height:1.6;">
@@ -298,7 +321,7 @@ const emergencyTokenTemplates: Record<Locale, { subject: () => string; body: () 
   El token caduca en 10 minutos y solo puede usarse una vez.
   No se puede generar un nuevo token durante 30 días.
 </p>
-`),
+`, "#0F5C5C", "es"),
   },
 };
 
@@ -310,24 +333,86 @@ function resolveLocale(lang?: string): Locale {
   return "en";
 }
 
+/**
+ * Normalize request locale to email locale (en/tr/es).
+ * Priority chain (first truthy wins):
+ *   1. body.locale — frontend explicitly sends UI language
+ *   2. helvino_lang cookie — i18n system persists user's language choice (180d)
+ *   3. Accept-Language header — browser language
+ *   4. "en" fallback
+ */
+export function normalizeRequestLocale(locale?: string, cookieLocale?: string, acceptLanguage?: string): Locale {
+  // 1. Explicit body.locale from frontend
+  if (locale !== undefined && locale !== null && locale !== "") return resolveLocale(locale);
+  // 2. helvino_lang cookie (set by i18n context)
+  if (cookieLocale !== undefined && cookieLocale !== null && cookieLocale !== "") return resolveLocale(cookieLocale);
+  // 3. Accept-Language
+  if (acceptLanguage) {
+    const first = acceptLanguage.split(",")[0]?.toLowerCase().trim() || "";
+    if (first.startsWith("tr")) return "tr";
+    if (first.startsWith("es")) return "es";
+  }
+  return "en";
+}
+
+/** Extract helvino_lang cookie value from raw Cookie header string */
+export function extractLocaleCookie(cookieHeader?: string): string | undefined {
+  if (!cookieHeader) return undefined;
+  const match = cookieHeader.match(/(?:^|;\s*)helvino_lang=([^;]*)/);
+  return match ? match[1] : undefined;
+}
+
+const invitePlainTexts: Record<Locale, (orgName: string, role: string, link: string, expiresIn: string) => string> = {
+  en: (orgName, role, link, expiresIn) =>
+    `You're invited!\n\nYou've been invited to join ${orgName} as ${role}. Click the link below to accept and create your account:\n\n${link}\n\nThis link expires in ${expiresIn}. If you didn't expect this invitation, you can safely ignore this email.\n\n— Helvion`,
+  tr: (orgName, role, link, expiresIn) =>
+    `Davetlisiniz!\n\n${orgName} organizasyonuna ${role} olarak davet edildiniz. Daveti kabul etmek ve hesabınızı oluşturmak için aşağıdaki bağlantıya tıklayın:\n\n${link}\n\nBu bağlantı ${expiresIn} içinde geçerlidir. Bu daveti beklemiyorsanız bu e-postayı görmezden gelebilirsiniz.\n\n— Helvion`,
+  es: (orgName, role, link, expiresIn) =>
+    `¡Estás invitado!\n\nHas sido invitado a unirte a ${orgName} como ${role}. Haz clic en el enlace para aceptar y crear tu cuenta:\n\n${link}\n\nEste enlace caduca en ${expiresIn}. Si no esperabas esta invitación, puedes ignorar este correo.\n\n— Helvion`,
+};
+
+/** Translate role names (agent/admin/owner) for email templates */
+const roleNames: Record<Locale, Record<string, string>> = {
+  en: { agent: "Agent", admin: "Admin", owner: "Owner" },
+  tr: { agent: "Temsilci", admin: "Yönetici", owner: "Sahip" },
+  es: { agent: "Agente", admin: "Administrador", owner: "Propietario" },
+};
+
+function translateRole(role: string, locale: Locale): string {
+  return roleNames[locale][role.toLowerCase()] || role;
+}
+
 export function getInviteEmail(locale: string | undefined, orgName: string, role: string, link: string, expiresIn: string) {
   const l = resolveLocale(locale);
+  const localizedRole = translateRole(role, l);
   return {
     subject: inviteTemplates[l].subject(orgName),
-    html: inviteTemplates[l].body(orgName, role, link, expiresIn),
+    html: inviteTemplates[l].body(orgName, localizedRole, link, expiresIn),
+    text: invitePlainTexts[l](orgName, localizedRole, link, expiresIn),
   };
 }
+
+const resetPlainTexts: Record<Locale, (link: string, expiresIn: string) => string> = {
+  en: (link, expiresIn) =>
+    `Password Reset\n\nWe received a request to reset your password. Click the link below to choose a new password:\n\n${link}\n\nThis link expires in ${expiresIn}. If you didn't request a password reset, you can safely ignore this email.\n\n— Helvion`,
+  tr: (link, expiresIn) =>
+    `Şifre Sıfırlama\n\nŞifrenizi sıfırlama isteği aldık. Yeni bir şifre belirlemek için aşağıdaki bağlantıya tıklayın:\n\n${link}\n\nBu bağlantı ${expiresIn} içinde geçerlidir. Şifre sıfırlama isteğinde bulunmadıysanız bu e-postayı görmezden gelebilirsiniz.\n\n— Helvion`,
+  es: (link, expiresIn) =>
+    `Restablecer Contraseña\n\nRecibimos una solicitud para restablecer tu contraseña. Haz clic en el enlace para elegir una nueva:\n\n${link}\n\nEste enlace caduca en ${expiresIn}. Si no solicitaste restablecer tu contraseña, puedes ignorar este correo.\n\n— Helvion`,
+};
 
 export function getResetEmail(locale: string | undefined, link: string, expiresIn: string) {
   const l = resolveLocale(locale);
   return {
     subject: resetTemplates[l].subject(),
     html: resetTemplates[l].body(link, expiresIn),
+    text: resetPlainTexts[l](link, expiresIn),
   };
 }
 
-export function getRecoveryApprovedEmail(locale: string | undefined, message: string) {
+export function getRecoveryApprovedEmail(locale: string | undefined, messageKey: RecoveryApprovedMessageKey) {
   const l = resolveLocale(locale);
+  const message = recoveryApprovedMessages[l][messageKey];
   return {
     subject: recoveryApprovedTemplates[l].subject(),
     html: recoveryApprovedTemplates[l].body(message),
@@ -352,7 +437,13 @@ export function getEmergencyTokenEmail(locale: string | undefined) {
 
 // ── 6. Email Verification (warm + friendly, Gmail-safe div layout) ──
 
-function verifyHtml(content: string): string {
+const verifyFooterText: Record<Locale, string> = {
+  en: "Helvion \u2014 Customer communication platform",
+  tr: "Helvion \u2014 M\u00FC\u015Fteri ileti\u015Fim platformu",
+  es: "Helvion \u2014 Plataforma de comunicaci\u00F3n con clientes",
+};
+
+function verifyHtml(content: string, locale: Locale = "en"): string {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
@@ -360,13 +451,13 @@ function verifyHtml(content: string): string {
 <div style="max-width:540px;margin:0 auto;padding:40px 20px;">
 <div style="background:#ffffff;border-radius:12px;padding:36px 32px;border:1px solid #e5e7eb;">
 <div style="text-align:center;margin-bottom:24px;">
-  <span style="font-size:28px;font-weight:700;color:#0F5C5C;">Helvino</span>
+  <span style="font-size:28px;font-weight:700;color:#0F5C5C;">Helvion</span>
 </div>
 ${content}
 </div>
 <p style="text-align:center;margin-top:24px;font-size:12px;color:#9ca3af;">
-  Helvino \u2014 Customer communication platform<br>
-  <a href="https://helvino.io" style="color:#9ca3af;">helvino.io</a>
+  ${verifyFooterText[locale]}<br>
+  <a href="https://helvion.io" style="color:#9ca3af;">helvion.io</a>
 </p>
 </div>
 </body>
@@ -375,7 +466,7 @@ ${content}
 
 const verifyEmailTemplates: Record<Locale, { subject: () => string; body: (link: string) => string }> = {
   en: {
-    subject: () => "Helvino - Verify your email address",
+    subject: () => "Helvion - Verify your email address",
     body: (link) => verifyHtml(`
 <h2 style="margin:0 0 8px;color:#1e293b;font-size:20px;text-align:center;">\u{1F44B} Hey, welcome aboard!</h2>
 <p style="text-align:center;color:#6b7280;font-size:14px;margin:0 0 24px;">We\u2019re so glad you\u2019re here.</p>
@@ -397,16 +488,16 @@ const verifyEmailTemplates: Record<Locale, { subject: () => string; body: (link:
   </p>
 </div>
 <p style="font-size:12px;color:#9ca3af;margin-top:24px;line-height:1.5;">
-  This link is valid for 24 hours. If you didn\u2019t sign up for Helvino, just ignore this email \u2014 no worries!
+  This link is valid for 24 hours. If you didn\u2019t sign up for Helvion, just ignore this email \u2014 no worries!
 </p>
 <p style="font-size:13px;color:#6b7280;margin-top:16px;">
   Cheers \u{1F49A}<br>
-  <strong>The Helvino Team</strong>
+  <strong>The Helvion Team</strong>
 </p>
-`),
+`, "en"),
   },
   tr: {
-    subject: () => "Helvino - E-posta adresinizi do\u011Frulay\u0131n",
+    subject: () => "Helvion - E-posta adresinizi do\u011Frulay\u0131n",
     body: (link) => verifyHtml(`
 <h2 style="margin:0 0 8px;color:#1e293b;font-size:20px;text-align:center;">\u{1F44B} Merhaba, ho\u015F geldiniz!</h2>
 <p style="text-align:center;color:#6b7280;font-size:14px;margin:0 0 24px;">Sizi aram\u0131zda g\u00F6rmekten \u00E7ok mutluyuz.</p>
@@ -432,12 +523,12 @@ const verifyEmailTemplates: Record<Locale, { subject: () => string; body: (link:
 </p>
 <p style="font-size:13px;color:#6b7280;margin-top:16px;">
   Sevgilerle \u{1F49A}<br>
-  <strong>Helvino Ekibi</strong>
+  <strong>Helvion Ekibi</strong>
 </p>
-`),
+`, "tr"),
   },
   es: {
-    subject: () => "Helvino - Verifica tu direcci\u00F3n de email",
+    subject: () => "Helvion - Verifica tu direcci\u00F3n de email",
     body: (link) => verifyHtml(`
 <h2 style="margin:0 0 8px;color:#1e293b;font-size:20px;text-align:center;">\u{1F44B} \u00A1Hola, bienvenido!</h2>
 <p style="text-align:center;color:#6b7280;font-size:14px;margin:0 0 24px;">\u00A1Nos alegra mucho que est\u00E9s aqu\u00ED!</p>
@@ -463,9 +554,9 @@ const verifyEmailTemplates: Record<Locale, { subject: () => string; body: (link:
 </p>
 <p style="font-size:13px;color:#6b7280;margin-top:16px;">
   Con cari\u00F1o \u{1F49A}<br>
-  <strong>El equipo de Helvino</strong>
+  <strong>El equipo de Helvion</strong>
 </p>
-`),
+`, "es"),
   },
 };
 
@@ -485,10 +576,10 @@ ${link}
 \u2714\uFE0F Start real-time conversations with visitors
 \u2714\uFE0F Explore AI-powered tools for your team
 
-This link is valid for 24 hours. If you didn\u2019t sign up for Helvino, just ignore this email.
+This link is valid for 24 hours. If you didn\u2019t sign up for Helvion, just ignore this email.
 
 Cheers \u{1F49A}
-The Helvino Team`,
+The Helvion Team`,
   tr: (link) => `\u{1F44B} Merhaba, ho\u015F geldiniz!
 
 Sizi aram\u0131zda g\u00F6rmekten \u00E7ok mutluyuz.
@@ -506,7 +597,7 @@ ${link}
 Bu ba\u011Flant\u0131 24 saat ge\u00E7erlidir. E\u011Fer bu hesab\u0131 siz olu\u015Fturmad\u0131ysan\u0131z g\u00F6rmezden gelebilirsiniz.
 
 Sevgilerle \u{1F49A}
-Helvino Ekibi`,
+Helvion Ekibi`,
   es: (link) => `\u{1F44B} \u00A1Hola, bienvenido!
 
 \u00A1Nos alegra mucho que est\u00E9s aqu\u00ED!
@@ -524,7 +615,7 @@ ${link}
 Este enlace es v\u00E1lido por 24 horas. Si no creaste una cuenta, ignora este correo.
 
 Con cari\u00F1o \u{1F49A}
-El equipo de Helvino`,
+El equipo de Helvion`,
 };
 
 export function getVerifyEmailContent(locale: string | undefined, link: string) {

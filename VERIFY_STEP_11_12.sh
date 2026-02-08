@@ -17,7 +17,7 @@ echo "  VERIFY Step 11.12 — Usage Metering + Admin Overrides"
 echo "═══════════════════════════════════════════════"
 
 API_URL="${API_URL:-http://localhost:4000}"
-ADMIN_EMAIL="${ADMIN_EMAIL:-admin@helvino.io}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@helvion.io}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-helvino_admin_2026}"
 ORG_KEY="${ORG_KEY:-demo}"
 

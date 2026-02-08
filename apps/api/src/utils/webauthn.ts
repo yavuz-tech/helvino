@@ -15,7 +15,7 @@ import { prisma } from "../prisma";
 
 // ── Config ──
 
-const RP_NAME = process.env.WEBAUTHN_RP_NAME || "Helvino";
+const RP_NAME = process.env.WEBAUTHN_RP_NAME || "Helvion";
 const RP_ID = process.env.WEBAUTHN_RP_ID || "localhost";
 const RP_ORIGIN = process.env.WEBAUTHN_ORIGIN || "http://localhost:3000";
 

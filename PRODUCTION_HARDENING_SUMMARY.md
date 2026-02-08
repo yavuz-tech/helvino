@@ -108,8 +108,8 @@ allowedDomains: [
   "*.localhost",
   "localhost:3000",
   "localhost:5173",
-  "helvino.io",
-  "*.helvino.io",  // Matches app.helvino.io, widget.helvino.io, etc.
+  "helvion.io",
+  "*.helvion.io",  // Matches app.helvion.io, widget.helvion.io, etc.
 ]
 ```
 
@@ -254,10 +254,10 @@ curl -X POST \
 ```bash
 curl -X GET \
   -H "x-org-key: demo" \
-  -H "Origin: https://app.helvino.io" \
+  -H "Origin: https://app.helvion.io" \
   http://localhost:4000/api/bootloader
 
-# Expected: 200 OK (matches *.helvino.io)
+# Expected: 200 OK (matches *.helvion.io)
 ```
 
 #### 5. No Origin Header (curl/testing)

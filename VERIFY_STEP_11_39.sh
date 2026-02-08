@@ -189,7 +189,7 @@ echo ""
 echo "── Section 7: Smoke Tests ──"
 
 API_URL="${API_URL:-http://localhost:4000}"
-ADMIN_EMAIL="${ADMIN_EMAIL:-admin@helvino.io}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@helvion.io}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-helvino_admin_2026}"
 
 # Health gate: only run smoke tests if API is healthy

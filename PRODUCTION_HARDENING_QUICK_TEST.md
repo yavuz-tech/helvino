@@ -92,14 +92,14 @@ curl -X POST \
 # }
 ```
 
-#### Test: Wildcard subdomain (app.helvino.io) - GET /bootloader
+#### Test: Wildcard subdomain (app.helvion.io) - GET /bootloader
 ```bash
 curl -X GET \
   -H "x-org-key: demo" \
-  -H "Origin: https://app.helvino.io" \
+  -H "Origin: https://app.helvion.io" \
   http://localhost:4000/api/bootloader
 
-# Expected: 200 OK (matches *.helvino.io)
+# Expected: 200 OK (matches *.helvion.io)
 # {"ok":true,"org":{...},"config":{...}}
 ```
 
@@ -306,7 +306,7 @@ docker exec helvino-redis redis-cli ping
 - ✅ Redis-based rate limiting (30/min conversations, 120/min messages)
 - ✅ Rate limit headers present (`X-RateLimit-*`)
 - ✅ Domain allowlist enforced (valid domains allowed, invalid rejected)
-- ✅ Wildcard subdomains working (`*.helvino.io`)
+- ✅ Wildcard subdomains working (`*.helvion.io`)
 - ✅ No Origin header allowed for curl/testing (with warning)
 - ✅ trustProxy configuration prevents IP spoofing
 - ✅ Redis persistence verified

@@ -238,7 +238,7 @@ cron.schedule('0 2 * * *', async () => {
 # Add scheduled job in Heroku dashboard
 curl -X POST \
   -H "x-internal-key: $INTERNAL_API_KEY" \
-  https://api.helvino.io/internal/retention/run
+  https://api.helvion.io/internal/retention/run
 ```
 
 ---

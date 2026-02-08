@@ -8,7 +8,7 @@
  */
 
 // Re-export core mailer functionality
-export { sendEmail, getMailProviderName } from "../utils/mailer";
+export { sendEmail, sendEmailAsync, getMailProviderName } from "../utils/mailer";
 export type { EmailPayload, EmailResult, EmailProvider } from "../utils/mailer";
 
 // Template exports

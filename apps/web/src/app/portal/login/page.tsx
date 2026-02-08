@@ -13,7 +13,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export default function PortalLoginPage() {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -86,15 +86,19 @@ export default function PortalLoginPage() {
     try {
       const res = await fetch(`${API_URL}/portal/auth/resend-verification`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, locale }),
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 429) {
-        const data = await res.json().catch(() => ({}));
         const seconds = data?.error?.retryAfterSec || 30;
         setError(t("rateLimit.message").replace("{seconds}", String(seconds)));
-      } else {
+      } else if (res.ok) {
         setVerificationResent(true);
+      } else {
+        const msg = typeof data?.error === "object" ? data.error?.message : data?.error;
+        setError(msg || t("common.error"));
       }
     } catch {
       setError(t("common.error"));
@@ -177,6 +181,7 @@ export default function PortalLoginPage() {
               )}
 
               <button
+                type="button"
                 onClick={handleResendVerification}
                 disabled={resendLoading || verificationResent}
                 className={`w-full ${designTokens.buttons.primary} py-2.5`}
@@ -184,6 +189,7 @@ export default function PortalLoginPage() {
                 {resendLoading ? t("common.loading") : t("login.resendVerification")}
               </button>
               <button
+                type="button"
                 onClick={() => { setEmailVerificationRequired(false); setError(null); setVerificationResent(false); }}
                 className="mt-3 w-full text-center text-sm text-slate-500 hover:text-slate-900 transition-colors"
               >

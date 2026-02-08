@@ -10,8 +10,8 @@ import { FastifyInstance } from "fastify";
 import crypto from "crypto";
 import { prisma } from "../prisma";
 import { hashPassword } from "../utils/password";
-import { sendEmail } from "../utils/mailer";
-import { getVerifyEmailContent } from "../utils/email-templates";
+import { sendEmailAsync, getDefaultFromAddress } from "../utils/mailer";
+import { getVerifyEmailContent, normalizeRequestLocale, extractLocaleCookie } from "../utils/email-templates";
 import { generateVerifyEmailLink, verifyEmailSignature } from "../utils/signed-links";
 import { writeAuditLog } from "../utils/audit-log";
 import {
@@ -212,24 +212,19 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       const verifyLink = generateVerifyEmailLink(targetEmail, expiresAt);
 
-      // Send verification email — await so Postmark receives it before we respond
-      const emailContent = getVerifyEmailContent(locale, verifyLink);
-      try {
-        const emailResult = await sendEmail({
-          to: targetEmail,
-          subject: emailContent.subject,
-          html: emailContent.html,
-          text: emailContent.text,
-          tags: ["signup", "verify-email"],
-        });
-        if (!emailResult.success) {
-          console.error(`[signup] Verification email FAILED for ${targetEmail}: ${emailResult.error}`);
-        } else {
-          console.log(`[signup] Verification email sent to ${targetEmail} via ${emailResult.provider} (${emailResult.messageId})`);
-        }
-      } catch (err) {
-        console.error(`[signup] Verification email ERROR for ${targetEmail}:`, err);
-      }
+      const cookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const requestedLocale = normalizeRequestLocale(locale, cookieLang, request.headers["accept-language"] as string);
+      const emailContent = getVerifyEmailContent(requestedLocale, verifyLink);
+
+      // Fire-and-forget: don't block signup response
+      sendEmailAsync({
+        to: targetEmail,
+        from: getDefaultFromAddress(),
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text,
+        tags: ["signup", "verify-email"],
+      });
 
       return {
         ok: true,
@@ -276,23 +271,19 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
         const verifyLink = generateVerifyEmailLink(trimmedEmail, expiresAt);
 
-        const emailContent = getVerifyEmailContent(locale, verifyLink);
-        try {
-          const emailResult = await sendEmail({
-            to: trimmedEmail,
-            subject: emailContent.subject,
-            html: emailContent.html,
-            text: emailContent.text,
-            tags: ["resend-verification"],
-          });
-          if (!emailResult.success) {
-            console.error(`[resend] Verification email FAILED for ${trimmedEmail}: ${emailResult.error}`);
-          } else {
-            console.log(`[resend] Verification email sent to ${trimmedEmail} via ${emailResult.provider} (${emailResult.messageId})`);
-          }
-        } catch (err) {
-          console.error(`[resend] Verification email ERROR for ${trimmedEmail}:`, err);
-        }
+        const cookieLang = extractLocaleCookie(request.headers.cookie as string);
+        const requestedLocale = normalizeRequestLocale(locale, cookieLang, request.headers["accept-language"] as string);
+        const emailContent = getVerifyEmailContent(requestedLocale, verifyLink);
+
+        // Fire-and-forget: don't block resend response
+        sendEmailAsync({
+          to: trimmedEmail,
+          from: getDefaultFromAddress(),
+          subject: emailContent.subject,
+          html: emailContent.html,
+          text: emailContent.text,
+          tags: ["resend-verification"],
+        });
 
         writeAuditLog(
           user.orgId,

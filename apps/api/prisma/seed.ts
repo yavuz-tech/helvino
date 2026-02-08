@@ -19,8 +19,8 @@ async function main() {
         "localhost:3000",
         "localhost:3006",
         "localhost:5173",
-        "helvino.io",
-        "*.helvino.io",
+        "helvion.io",
+        "*.helvion.io",
       ],
       widgetEnabled: true,
       writeEnabled: true,
@@ -48,8 +48,8 @@ async function main() {
         "localhost:3000",
         "localhost:3006",
         "localhost:5173",
-        "helvino.io",
-        "*.helvino.io",
+        "helvion.io",
+        "*.helvion.io",
       ],
       allowLocalhost: true, // Allow localhost for development
       widgetEnabled: true,
@@ -127,7 +127,7 @@ async function main() {
   console.log("✅ Seeded plans: free, pro, business");
 
   // Create default admin user from environment variables
-  const adminEmail = process.env.ADMIN_EMAIL || "admin@helvino.io";
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@helvion.io";
   const adminPassword = process.env.ADMIN_PASSWORD || "helvino_admin_2026";
 
   if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) {
@@ -154,7 +154,7 @@ async function main() {
   console.log(`✅ Created/verified admin user: ${adminUser.email} (role: ${adminUser.role})`);
 
   // Create default org user (customer portal login) from environment variables
-  const orgOwnerEmail = process.env.ORG_OWNER_EMAIL || "owner@demo.helvino.io";
+  const orgOwnerEmail = process.env.ORG_OWNER_EMAIL || "owner@demo.helvion.io";
   const orgOwnerPassword = process.env.ORG_OWNER_PASSWORD || "demo_owner_2026";
 
   if (!process.env.ORG_OWNER_EMAIL || !process.env.ORG_OWNER_PASSWORD) {

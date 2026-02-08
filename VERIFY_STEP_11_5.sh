@@ -24,7 +24,7 @@ __API_HC=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 3 --max-time
 if [ "$__API_HC" = "200" ]; then
   LOGIN=$(curl -s -m 10 -w "\n%{http_code}" -c /tmp/portal_cookies_11_5.txt -X POST \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"${ORG_OWNER_EMAIL:-owner@demo.helvino.io}\",\"password\":\"${ORG_OWNER_PASSWORD:-demo_owner_2026}\"}" \
+    -d "{\"email\":\"${ORG_OWNER_EMAIL:-owner@demo.helvion.io}\",\"password\":\"${ORG_OWNER_PASSWORD:-demo_owner_2026}\"}" \
     $API_URL/portal/auth/login)
   CODE=$(echo "$LOGIN" | tail -n1)
   if [ "$CODE" = "429" ]; then

@@ -64,7 +64,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 API_DIR="$ROOT/apps/api"
 WEB_DIR="$ROOT/apps/web"
 API_URL="${API_URL:-http://localhost:4000}"
-PORTAL_EMAIL="${PORTAL_EMAIL:-owner@demo.helvino.io}"
+PORTAL_EMAIL="${PORTAL_EMAIL:-owner@demo.helvion.io}"
 PORTAL_PASSWORD="${PORTAL_PASSWORD:-demo_owner_2026}"
 
 echo "╔══════════════════════════════════════════════════╗"

@@ -30,7 +30,7 @@ echo "  VERIFY Step 11.18 — Portal Team Management"
 echo "═══════════════════════════════════════════════"
 
 API_URL="${API_URL:-http://localhost:4000}"
-PORTAL_EMAIL="${ORG_OWNER_EMAIL:-owner@demo.helvino.io}"
+PORTAL_EMAIL="${ORG_OWNER_EMAIL:-owner@demo.helvion.io}"
 PORTAL_PASSWORD="${ORG_OWNER_PASSWORD:-demo_owner_2026}"
 
 # ── 1) File checks ──

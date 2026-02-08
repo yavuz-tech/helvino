@@ -14,7 +14,7 @@ export function renderVerifyEmail(params: VerifyEmailTemplateParams) {
   const { verificationLink, recipientEmail, expiresInMinutes = 30 } = params;
 
   const body = `
-    <p style="margin: 0 0 16px 0;">Welcome to Helvino!</p>
+    <p style="margin: 0 0 16px 0;">Welcome to Helvion!</p>
     <p style="margin: 0 0 16px 0;">Please verify your email address (<strong>${recipientEmail}</strong>) to complete your registration.</p>
     <p style="margin: 0 0 24px 0;">Click the button below to verify your email:</p>
     
@@ -29,7 +29,7 @@ export function renderVerifyEmail(params: VerifyEmailTemplateParams) {
     </table>
     
     <p style="margin: 0 0 16px 0; font-size: 14px; color: #6b7280;">This link will expire in ${expiresInMinutes} minutes.</p>
-    <p style="margin: 0 0 16px 0; font-size: 14px; color: #6b7280;">If you didn't create a Helvino account, you can safely ignore this email.</p>
+    <p style="margin: 0 0 16px 0; font-size: 14px; color: #6b7280;">If you didn't create a Helvion account, you can safely ignore this email.</p>
     
     <p style="margin: 24px 0 0 0; padding-top: 24px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #6b7280;">
       If the button doesn't work, copy and paste this link into your browser:<br>
@@ -39,12 +39,12 @@ export function renderVerifyEmail(params: VerifyEmailTemplateParams) {
 
   const html = renderBaseTemplate({
     title: "Verify Your Email",
-    preheader: "Complete your Helvino registration",
+    preheader: "Complete your Helvion registration",
     body,
   });
 
   const text = renderPlainText(`
-    Welcome to Helvino!
+    Welcome to Helvion!
     
     Please verify your email address (${recipientEmail}) to complete your registration.
     
@@ -53,11 +53,11 @@ export function renderVerifyEmail(params: VerifyEmailTemplateParams) {
     
     This link will expire in ${expiresInMinutes} minutes.
     
-    If you didn't create a Helvino account, you can safely ignore this email.
+    If you didn't create a Helvion account, you can safely ignore this email.
   `);
 
   return {
-    subject: "Verify Your Helvino Email",
+    subject: "Verify Your Helvion Email",
     html,
     text,
   };

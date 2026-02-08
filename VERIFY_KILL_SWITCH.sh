@@ -5,7 +5,7 @@ set -euo pipefail
 STEP="KILL_SWITCH"
 API_URL="http://localhost:4000"
 ORG_KEY="demo"
-ADMIN_EMAIL="${ADMIN_EMAIL:-admin@helvino.io}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@helvion.io}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-helvino_admin_2026}"
 COOKIE_JAR="/tmp/admin_cookies_kill_switch_$$.txt"
 INTERNAL_KEY="${INTERNAL_API_KEY:-}"

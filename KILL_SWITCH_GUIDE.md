@@ -599,13 +599,13 @@ INTERNAL_OVERRIDE_WRITES=true
      -H "x-internal-key: PROD_KEY" \
      -H "Content-Type: application/json" \
      -d '{"writeEnabled":false}' \
-     https://api.helvino.io/api/org/CUSTOMER/settings
+     https://api.helvion.io/api/org/CUSTOMER/settings
    ```
 
 2. **Verify:**
    ```bash
    curl -H "x-internal-key: PROD_KEY" \
-     https://api.helvino.io/api/org/CUSTOMER/settings
+     https://api.helvion.io/api/org/CUSTOMER/settings
    ```
 
 3. **Monitor:**
@@ -623,7 +623,7 @@ INTERNAL_OVERRIDE_WRITES=true
      -H "x-internal-key: PROD_KEY" \
      -H "Content-Type: application/json" \
      -d '{"writeEnabled":true}' \
-     https://api.helvino.io/api/org/CUSTOMER/settings
+     https://api.helvion.io/api/org/CUSTOMER/settings
    ```
 
 6. **Verify Recovery:**

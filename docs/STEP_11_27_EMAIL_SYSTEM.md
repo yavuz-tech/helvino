@@ -68,7 +68,7 @@ All email sends are **best-effort** (`.catch()`) — they never block the API re
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `MAIL_PROVIDER` | No | `console` | Email provider: `console`, `smtp` |
-| `MAIL_FROM` | No | `noreply@helvino.com` | Default sender address |
+| `MAIL_FROM` | No | `noreply@helvion.io` | Default sender address |
 | `SMTP_HOST` | No (prod) | — | SMTP server host |
 | `SIGNED_LINK_SECRET` | No | `SESSION_SECRET` | HMAC signing key for links |
 | `APP_PUBLIC_URL` | No | `NEXT_PUBLIC_WEB_URL` / `http://localhost:3000` | Base URL for signed links |

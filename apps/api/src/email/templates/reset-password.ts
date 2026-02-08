@@ -15,7 +15,7 @@ export function renderResetPasswordEmail(params: ResetPasswordTemplateParams) {
 
   const body = `
     <p style="margin: 0 0 16px 0;">Hello,</p>
-    <p style="margin: 0 0 16px 0;">We received a request to reset the password for your Helvino account (<strong>${recipientEmail}</strong>).</p>
+    <p style="margin: 0 0 16px 0;">We received a request to reset the password for your Helvion account (<strong>${recipientEmail}</strong>).</p>
     <p style="margin: 0 0 24px 0;">Click the button below to reset your password:</p>
     
     <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto 24px auto;">
@@ -39,14 +39,14 @@ export function renderResetPasswordEmail(params: ResetPasswordTemplateParams) {
 
   const html = renderBaseTemplate({
     title: "Reset Your Password",
-    preheader: "Reset your Helvino password",
+    preheader: "Reset your Helvion password",
     body,
   });
 
   const text = renderPlainText(`
     Hello,
     
-    We received a request to reset the password for your Helvino account (${recipientEmail}).
+    We received a request to reset the password for your Helvion account (${recipientEmail}).
     
     Click the link below to reset your password:
     ${resetLink}
@@ -57,7 +57,7 @@ export function renderResetPasswordEmail(params: ResetPasswordTemplateParams) {
   `);
 
   return {
-    subject: "Reset Your Helvino Password",
+    subject: "Reset Your Helvion Password",
     html,
     text,
   };

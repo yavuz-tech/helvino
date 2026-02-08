@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_URL="http://localhost:4000"
 ORG_KEY="demo"
-ADMIN_EMAIL="${ADMIN_EMAIL:-admin@helvino.io}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@helvion.io}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-helvino_admin_2026}"
 COOKIE_JAR="/tmp/admin_cookies_step_10_8.txt"
 

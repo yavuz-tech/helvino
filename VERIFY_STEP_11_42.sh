@@ -383,7 +383,7 @@ if curl -s -o /dev/null --connect-timeout 3 "$API_URL/health" 2>/dev/null; then
   fi
 
   # 12.9 Admin login + audit summary
-  ADMIN_EMAIL="${ADMIN_EMAIL:-admin@helvino.io}"
+  ADMIN_EMAIL="${ADMIN_EMAIL:-admin@helvion.io}"
   ADMIN_PASSWORD="${ADMIN_PASSWORD:-helvino_admin_2026}"
   ADMIN_JAR="/tmp/verify_11_42_admin.jar"
 

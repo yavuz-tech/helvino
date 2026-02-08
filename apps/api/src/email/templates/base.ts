@@ -40,7 +40,7 @@ export function renderBaseTemplate(params: BaseTemplateParams): string {
           <!-- Header -->
           <tr>
             <td style="background-color: #ffffff; padding: 32px; text-align: center; border-bottom: 1px solid #e5e7eb;">
-              <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #111827;">Helvino</h1>
+              <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #111827;">Helvion</h1>
             </td>
           </tr>
           
@@ -55,7 +55,7 @@ export function renderBaseTemplate(params: BaseTemplateParams): string {
           <tr>
             <td style="background-color: #f9fafb; padding: 24px 32px; text-align: center; color: #6b7280; font-size: 14px; line-height: 20px; border-top: 1px solid #e5e7eb;">
               ${footer || `
-                <p style="margin: 0 0 8px 0;">This is an automated message from Helvino.</p>
+                <p style="margin: 0 0 8px 0;">This is an automated message from Helvion.</p>
                 <p style="margin: 0;">If you did not request this email, please ignore it.</p>
               `}
             </td>

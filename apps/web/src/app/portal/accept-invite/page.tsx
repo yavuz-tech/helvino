@@ -12,6 +12,8 @@ function AcceptInviteForm() {
   const { t } = useI18n();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const expires = searchParams.get("expires") || "";
+  const sig = searchParams.get("sig") || "";
 
   const [password, setPassword] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -34,7 +36,7 @@ function AcceptInviteForm() {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 8) {
+    if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
       setError(t("team.passwordHint"));
       return;
     }
@@ -49,7 +51,7 @@ function AcceptInviteForm() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify({ token, password, ...(expires && sig ? { expires, sig } : {}) }),
       });
 
       if (!res.ok) {

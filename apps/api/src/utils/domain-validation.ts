@@ -6,8 +6,8 @@
 
 /**
  * Check if a domain matches an allowed pattern
- * @param domain The domain to check (e.g., "app.helvino.io")
- * @param pattern The pattern to match against (supports wildcards, e.g., "*.helvino.io")
+ * @param domain The domain to check (e.g., "app.helvion.io")
+ * @param pattern The pattern to match against (supports wildcards, e.g., "*.helvion.io")
  * @returns True if domain matches pattern
  */
 export function matchesDomainPattern(domain: string, pattern: string): boolean {
@@ -20,12 +20,12 @@ export function matchesDomainPattern(domain: string, pattern: string): boolean {
   if (pattern.startsWith("*.")) {
     const baseDomain = pattern.slice(2); // Remove "*.
     
-    // Match exact subdomain: app.helvino.io matches *.helvino.io
+    // Match exact subdomain: app.helvion.io matches *.helvion.io
     if (domain.endsWith(`.${baseDomain}`)) {
       return true;
     }
     
-    // Also match the base domain itself: helvino.io matches *.helvino.io
+    // Also match the base domain itself: helvion.io matches *.helvion.io
     if (domain === baseDomain) {
       return true;
     }
@@ -68,7 +68,7 @@ export function isLocalhost(domain: string): boolean {
 export function extractDomain(url: string): string | null {
   try {
     const parsed = new URL(url);
-    // Return hostname + port (e.g., "localhost:3000" or "app.helvino.io")
+    // Return hostname + port (e.g., "localhost:3000" or "app.helvion.io")
     return parsed.port ? `${parsed.hostname}:${parsed.port}` : parsed.hostname;
   } catch {
     return null;

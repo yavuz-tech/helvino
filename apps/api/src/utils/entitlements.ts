@@ -10,14 +10,39 @@ export interface EntitlementResult {
     | "LIMIT_CONVERSATIONS"
     | "LIMIT_MESSAGES"
     | "BILLING_BLOCKED"
-    | "TRIAL_EXPIRED";
-  limit?: number;
+    | "TRIAL_EXPIRED"
+    | "QUOTA_M1_EXCEEDED"
+    | "QUOTA_M2_EXCEEDED"
+    | "QUOTA_M3_EXCEEDED";
+  limit?: number | null;
   used?: number;
+  resetAt?: string;
 }
 
 /* ── Trial lifecycle ── */
 
 const TRIAL_DAYS = 14;
+
+type MeteringLimit = number | null;
+
+export interface MeteringLimits {
+  m1LimitPerMonth: MeteringLimit;
+  m2LimitPerMonth: MeteringLimit;
+  m3LimitVisitorsPerMonth: MeteringLimit;
+}
+
+const PLAN_METERING_LIMITS: Record<string, MeteringLimits> = {
+  free: { m1LimitPerMonth: 50, m2LimitPerMonth: 50, m3LimitVisitorsPerMonth: 100 },
+  pro: { m1LimitPerMonth: 500, m2LimitPerMonth: 250, m3LimitVisitorsPerMonth: 2000 },
+  growth: { m1LimitPerMonth: 2000, m2LimitPerMonth: 1000, m3LimitVisitorsPerMonth: 10000 },
+  business: { m1LimitPerMonth: 2000, m2LimitPerMonth: 1000, m3LimitVisitorsPerMonth: 10000 },
+  enterprise: { m1LimitPerMonth: null, m2LimitPerMonth: null, m3LimitVisitorsPerMonth: null },
+};
+
+export function getMeteringLimitsForPlan(planKey: string): MeteringLimits {
+  return PLAN_METERING_LIMITS[planKey] || PLAN_METERING_LIMITS.free;
+}
+
 
 export interface TrialStatus {
   isTrialing: boolean;
@@ -411,6 +436,83 @@ export async function recordM3Usage(orgId: string, visitorKey: string) {
   }
 }
 
+async function getOrgMeteringContext(orgId: string) {
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: {
+      planKey: true,
+      currentPeriodEnd: true,
+    },
+  });
+  if (!org) return null;
+  const usage = await getUsageForMonth(orgId);
+  const limits = getMeteringLimitsForPlan(org.planKey);
+  return { org, usage, limits };
+}
+
+export async function checkM1Entitlement(orgId: string): Promise<EntitlementResult> {
+  const ctx = await getOrgMeteringContext(orgId);
+  if (!ctx) return { allowed: true };
+  const used = ctx.usage.m1Count ?? 0;
+  const limit = ctx.limits.m1LimitPerMonth;
+  if (limit === null || limit <= 0) {
+    return { allowed: true, limit: limit ?? undefined, used, resetAt: ctx.usage.nextResetDate };
+  }
+  if (used >= limit) {
+    return {
+      allowed: false,
+      error: `M1 quota exceeded (${used}/${limit}).`,
+      code: "QUOTA_M1_EXCEEDED",
+      limit,
+      used,
+      resetAt: ctx.usage.nextResetDate,
+    };
+  }
+  return { allowed: true, limit, used, resetAt: ctx.usage.nextResetDate };
+}
+
+export async function checkM2Entitlement(orgId: string): Promise<EntitlementResult> {
+  const ctx = await getOrgMeteringContext(orgId);
+  if (!ctx) return { allowed: true };
+  const used = ctx.usage.m2Count ?? 0;
+  const limit = ctx.limits.m2LimitPerMonth;
+  if (limit === null || limit <= 0) {
+    return { allowed: true, limit: limit ?? undefined, used, resetAt: ctx.usage.nextResetDate };
+  }
+  if (used >= limit) {
+    return {
+      allowed: false,
+      error: `M2 quota exceeded (${used}/${limit}).`,
+      code: "QUOTA_M2_EXCEEDED",
+      limit,
+      used,
+      resetAt: ctx.usage.nextResetDate,
+    };
+  }
+  return { allowed: true, limit, used, resetAt: ctx.usage.nextResetDate };
+}
+
+export async function checkM3Entitlement(orgId: string): Promise<EntitlementResult> {
+  const ctx = await getOrgMeteringContext(orgId);
+  if (!ctx) return { allowed: true };
+  const used = ctx.usage.m3Count ?? 0;
+  const limit = ctx.limits.m3LimitVisitorsPerMonth;
+  if (limit === null || limit <= 0) {
+    return { allowed: true, limit: limit ?? undefined, used, resetAt: ctx.usage.nextResetDate };
+  }
+  if (used >= limit) {
+    return {
+      allowed: false,
+      error: `M3 quota exceeded (${used}/${limit}).`,
+      code: "QUOTA_M3_EXCEEDED",
+      limit,
+      used,
+      resetAt: ctx.usage.nextResetDate,
+    };
+  }
+  return { allowed: true, limit, used, resetAt: ctx.usage.nextResetDate };
+}
+
 /**
  * Get the plan limits for an organization.
  */
@@ -432,6 +534,8 @@ export async function getPlanLimits(orgId: string) {
 
   if (!plan) return null;
 
+  const metering = getMeteringLimitsForPlan(plan.key);
+
   return {
     planKey: plan.key,
     planName: plan.name,
@@ -439,6 +543,9 @@ export async function getPlanLimits(orgId: string) {
     maxConversationsPerMonth: plan.maxConversationsPerMonth + (org.extraConversationQuota || 0),
     maxMessagesPerMonth: plan.maxMessagesPerMonth + (org.extraMessageQuota || 0),
     maxAgents: plan.maxAgents,
+    m1LimitPerMonth: metering.m1LimitPerMonth,
+    m2LimitPerMonth: metering.m2LimitPerMonth,
+    m3LimitVisitorsPerMonth: metering.m3LimitVisitorsPerMonth,
     extraConversationQuota: org.extraConversationQuota || 0,
     extraMessageQuota: org.extraMessageQuota || 0,
   };

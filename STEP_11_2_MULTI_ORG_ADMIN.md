@@ -136,7 +136,7 @@ apiFetch("/conversations", { orgKey: selectedOrg.key })
 - Displays **embeddable snippet** with copy button:
   ```html
   <script>window.HELVINO_SITE_ID="site_XXXX";</script>
-  <script src="https://cdn.helvino.io/embed.js"></script>
+  <script src="https://cdn.helvion.io/embed.js"></script>
   ```
 - Links to dashboard and settings
 

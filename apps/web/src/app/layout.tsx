@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Helvino | AI-Powered Chat Solutions",
+  title: "Helvion | AI-Powered Chat Solutions",
   description: "Enterprise-grade AI chat platform for modern businesses",
 };
 
@@ -42,6 +42,14 @@ const I18N_BLOCKING_SCRIPT = `
       document.documentElement.lang = lang;
       document.body.style.opacity = '0';
       document.documentElement.dataset.i18nReady = 'pending';
+      // Failsafe: if hydration never happens, avoid permanent white screen.
+      window.setTimeout(function () {
+        if (document.documentElement.dataset.i18nReady === 'pending') {
+          document.body.style.opacity = '1';
+          document.body.style.transition = 'opacity 0.02s ease-in';
+          delete document.documentElement.dataset.i18nReady;
+        }
+      }, 1200);
     }
   } catch(e) {}
 })();

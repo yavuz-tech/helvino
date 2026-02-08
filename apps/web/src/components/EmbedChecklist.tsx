@@ -147,7 +147,7 @@ export default function EmbedChecklist({
           {t("embed.snippetTitle")}
         </h4>
         <pre className="bg-slate-900 text-slate-100 px-4 py-3 rounded-lg text-xs overflow-x-auto leading-relaxed">
-          <code>{`<!-- Helvino Chat Widget -->\n<script>window.HELVINO_SITE_ID="${siteId}";</script>\n<script src="https://cdn.helvino.io/embed.js"></script>`}</code>
+          <code>{`<!-- Helvion Chat Widget -->\n<script>window.HELVINO_SITE_ID="${siteId}";</script>\n<script src="https://cdn.helvion.io/embed.js"></script>`}</code>
         </pre>
         <p className="text-xs text-slate-400 mt-1.5">{t("embed.snippetHint")}</p>
       </div>

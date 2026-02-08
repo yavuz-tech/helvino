@@ -25,8 +25,8 @@ export interface Message {
   timestamp: Date;
 }
 
-export const APP_NAME = "Helvino";
-export const APP_DOMAIN = "helvino.io";
+export const APP_NAME = "Helvion";
+export const APP_DOMAIN = "helvion.io";
 
 export { EMOJI_LIST } from "./emojis";
 

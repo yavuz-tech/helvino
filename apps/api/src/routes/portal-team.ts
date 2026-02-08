@@ -10,9 +10,10 @@ import crypto from "crypto";
 import { prisma } from "../prisma";
 import { hashPassword } from "../utils/password";
 import { writeAuditLog } from "../utils/audit-log";
-import { sendEmail } from "../utils/mailer";
-import { generateInviteLink } from "../utils/signed-links";
-import { getInviteEmail } from "../utils/email-templates";
+import { sendEmail, getDefaultFromAddress } from "../utils/mailer";
+import { generateInviteLink, verifySignedLink } from "../utils/signed-links";
+import { getInviteEmail, normalizeRequestLocale, extractLocaleCookie } from "../utils/email-templates";
+import { validatePasswordPolicy } from "../utils/password-policy";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import {
   requirePortalUser,
@@ -44,46 +45,44 @@ const DEFAULT_INVITE_EXPIRY_DAYS = 7;
 
 export async function portalTeamRoutes(fastify: FastifyInstance) {
   // ──────────────────────────────────────────────────────
-  // GET /portal/org/users — list org users
+  // GET /portal/org/users — list org users (and alias /portal/team/users for inbox etc.)
   // ──────────────────────────────────────────────────────
-  fastify.get(
-    "/portal/org/users",
-    { preHandler: [requirePortalUser] },
-    async (request) => {
-      const actor = request.portalUser!;
+  const listOrgUsers = async (
+    request: { portalUser?: { id: string; orgId: string; email: string; role: string } }
+  ) => {
+    const actor = request.portalUser!;
+    const users = await prisma.orgUser.findMany({
+      where: { orgId: actor.orgId },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        lastLoginAt: true,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+    const invites = await prisma.portalInvite.findMany({
+      where: {
+        orgId: actor.orgId,
+        acceptedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        expiresAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return { users, invites };
+  };
 
-      const users = await prisma.orgUser.findMany({
-        where: { orgId: actor.orgId },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          lastLoginAt: true,
-        },
-        orderBy: { createdAt: "asc" },
-      });
-
-      const invites = await prisma.portalInvite.findMany({
-        where: {
-          orgId: actor.orgId,
-          acceptedAt: null,
-          expiresAt: { gt: new Date() },
-        },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          expiresAt: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: "desc" },
-      });
-
-      return { users, invites };
-    }
-  );
+  fastify.get("/portal/org/users", { preHandler: [requirePortalUser] }, async (request) => listOrgUsers(request));
+  fastify.get("/portal/team/users", { preHandler: [requirePortalUser] }, async (request) => listOrgUsers(request));
 
   // ──────────────────────────────────────────────────────
   // POST /portal/org/users/invite — create invite
@@ -100,7 +99,10 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const actor = request.portalUser!;
-      const body = request.body as { email?: string; role?: string };
+      const body = request.body as { email?: string; role?: string; locale?: string };
+      const cookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const requestedLocale = normalizeRequestLocale(body.locale, cookieLang, request.headers["accept-language"] as string);
+      console.log(`[team:invite] body.locale=${JSON.stringify(body.locale)} cookie=${cookieLang} → resolved=${requestedLocale}`);
 
       // Validate email
       const email = body.email?.toLowerCase().trim();
@@ -208,24 +210,39 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
         select: { name: true, language: true },
       });
 
+      const expiresInText = requestedLocale === "tr" ? "7 gün" : requestedLocale === "es" ? "7 días" : "7 days";
       const emailContent = getInviteEmail(
-        org?.language,
+        requestedLocale,
         org?.name || "Organization",
         role,
         inviteLink,
-        `${DEFAULT_INVITE_EXPIRY_DAYS} days`
+        expiresInText
       );
 
-      // Send invite email (best-effort; don't block response on failure)
-      sendEmail({
+      const emailResult = await sendEmail({
         to: email,
+        from: getDefaultFromAddress(),
         subject: emailContent.subject,
         html: emailContent.html,
+        text: emailContent.text,
         tags: ["invite"],
-      }).catch(() => {/* email send is best-effort */});
+      }).catch((err) => {
+        console.error("[team] Invite email send error:", err instanceof Error ? err.message : err);
+        return { success: false, provider: "unknown", error: String(err) };
+      });
+      if (!emailResult?.success) {
+        console.error("[team] Invite email not delivered; use link (dev):", inviteLink);
+        console.error("[team] Postmark/email error:", emailResult?.error);
+      }
 
       reply.code(201);
-      return { ok: true, invite, inviteLink };
+      return {
+        ok: true,
+        invite,
+        inviteLink,
+        emailSent: emailResult?.success ?? false,
+        ...(emailResult?.success === false && emailResult?.error && { emailError: emailResult.error }),
+      };
     }
   );
 
@@ -244,12 +261,16 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const actor = request.portalUser!;
-      const body = request.body as { inviteId?: string };
+      const body = request.body as { inviteId?: string; locale?: string };
 
       if (!body.inviteId) {
         reply.code(400);
         return { error: "inviteId is required" };
       }
+
+      const cookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const resendLocale = normalizeRequestLocale(body.locale, cookieLang, request.headers["accept-language"] as string);
+      console.log(`[team:resend] body.locale=${JSON.stringify(body.locale)} cookie=${cookieLang} → resolved=${resendLocale}`);
 
       const invite = await prisma.portalInvite.findFirst({
         where: { id: body.inviteId, orgId: actor.orgId, acceptedAt: null },
@@ -289,20 +310,29 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
         select: { name: true, language: true },
       });
 
+      const resendExpiresIn = resendLocale === "tr" ? "7 gün" : resendLocale === "es" ? "7 días" : "7 days";
       const emailContent = getInviteEmail(
-        org?.language,
+        resendLocale,
         org?.name || "Organization",
         invite.role,
         inviteLink,
-        `${DEFAULT_INVITE_EXPIRY_DAYS} days`
+        resendExpiresIn
       );
 
-      sendEmail({
+      const emailResult = await sendEmail({
         to: invite.email,
+        from: getDefaultFromAddress(),
         subject: emailContent.subject,
         html: emailContent.html,
+        text: emailContent.text,
         tags: ["invite", "resend"],
-      }).catch(() => {/* best-effort */});
+      }).catch((err) => {
+        console.error("[team] Resend invite email error:", err instanceof Error ? err.message : err);
+        return { success: false, provider: "unknown", error: String(err) };
+      });
+      if (!emailResult?.success) {
+        console.error("[team] Resend email not delivered; use link (dev):", inviteLink);
+      }
 
       return { ok: true, inviteLink };
     }
@@ -503,6 +533,8 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
       const body = request.body as {
         token?: string;
         password?: string;
+        expires?: string;
+        sig?: string;
       };
 
       if (!body.token || !body.password) {
@@ -510,9 +542,21 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
         return { error: "Token and password are required" };
       }
 
-      if (body.password.length < 8) {
+      const pwCheck = validatePasswordPolicy(body.password);
+      if (!pwCheck.valid) {
         reply.code(400);
-        return { error: "Password must be at least 8 characters" };
+        return { error: pwCheck.message || "Password must be at least 8 characters and include a letter and a number" };
+      }
+
+      // When expires + sig are provided, verify signed link (prevents tampered URLs)
+      if (body.expires && body.sig) {
+        const appUrl = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+        const fullUrl = `${appUrl}/portal/accept-invite?token=${encodeURIComponent(body.token!)}&expires=${encodeURIComponent(body.expires)}&sig=${encodeURIComponent(body.sig)}`;
+        const linkCheck = verifySignedLink(fullUrl);
+        if (!linkCheck.valid || linkCheck.type !== "invite") {
+          reply.code(400);
+          return { error: linkCheck.expired ? "Invite link has expired" : "Invalid invite link" };
+        }
       }
 
       const tokenH = hashToken(body.token);

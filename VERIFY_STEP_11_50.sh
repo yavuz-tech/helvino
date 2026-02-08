@@ -265,7 +265,7 @@ else
 fi
 
 # 6.2 No hardcoded email addresses in templates
-HARDCODED_EMAILS=$(grep -rE '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' apps/api/src/email/templates/ 2>/dev/null | grep -v 'example.com' | grep -v 'helvino.com' || true)
+HARDCODED_EMAILS=$(grep -rE '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' apps/api/src/email/templates/ 2>/dev/null | grep -v 'example.com' | grep -v 'helvion.io' || true)
 if [ -z "$HARDCODED_EMAILS" ]; then
   log_pass "6.2 No hardcoded emails in templates"
 else

@@ -59,7 +59,7 @@ Helvino API includes production-grade observability endpoints for health monitor
 curl http://localhost:4000/health | jq
 
 # Production health check (for load balancer)
-curl -f http://api.helvino.io/health || echo "Health check failed"
+curl -f http://api.helvion.io/health || echo "Health check failed"
 
 # Monitor continuously
 watch -n 5 "curl -s http://localhost:4000/health | jq '.ok, .db, .redis'"
@@ -260,7 +260,7 @@ curl -s -H "x-internal-key: KEY" http://localhost:4000/metrics | \
 **Example (curl + cron):**
 ```bash
 # Add to crontab (every 5 minutes)
-*/5 * * * * curl -f http://api.helvino.io/health || mail -s "API Down" ops@helvino.io
+*/5 * * * * curl -f http://api.helvion.io/health || mail -s "API Down" ops@helvion.io
 ```
 
 ---

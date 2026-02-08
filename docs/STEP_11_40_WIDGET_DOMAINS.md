@@ -49,7 +49,7 @@ All without manual admin intervention.
   "allowLocalhost": true,
   "embedSnippet": {
     "html": "<!-- Helvino Chat Widget -->\n<script>window.HELVINO_SITE_ID=\"...\";",
-    "scriptSrc": "https://cdn.helvino.io/embed.js",
+    "scriptSrc": "https://cdn.helvion.io/embed.js",
     "siteId": "..."
   },
   "lastWidgetSeenAt": "2026-02-05T...",

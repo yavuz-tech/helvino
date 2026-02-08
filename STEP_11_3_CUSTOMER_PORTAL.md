@@ -63,7 +63,7 @@ model Organization {
 **Added**:
 - Creates default org user for demo org
 - Reads `ORG_OWNER_EMAIL` and `ORG_OWNER_PASSWORD` from env
-- Default: `owner@demo.helvino.io` / `demo_owner_2026`
+- Default: `owner@demo.helvion.io` / `demo_owner_2026`
 
 ### 3. New Middleware
 
@@ -304,7 +304,7 @@ request.session.set("orgRole", "...")
 # Org Owner Credentials (REQUIRED for seed)
 # Default org user (customer portal) created during database seed
 # ⚠️  CHANGE THESE IN PRODUCTION!
-ORG_OWNER_EMAIL="owner@demo.helvino.io"
+ORG_OWNER_EMAIL="owner@demo.helvion.io"
 ORG_OWNER_PASSWORD="demo_owner_2026"
 ```
 
@@ -312,7 +312,7 @@ ORG_OWNER_PASSWORD="demo_owner_2026"
 
 ```bash
 cd /Users/yavuz/Desktop/helvino/apps/api
-echo 'ORG_OWNER_EMAIL="owner@demo.helvino.io"' >> .env
+echo 'ORG_OWNER_EMAIL="owner@demo.helvion.io"' >> .env
 echo 'ORG_OWNER_PASSWORD="demo_owner_2026"' >> .env
 ```
 
@@ -340,8 +340,8 @@ npx prisma migrate dev
 ```bash
 # This will create:
 # - Demo org (if not exists)
-# - Admin user (admin@helvino.io)
-# - Org user (owner@demo.helvino.io) ← NEW
+# - Admin user (admin@helvion.io)
+# - Org user (owner@demo.helvion.io) ← NEW
 npx pnpm db:seed
 ```
 
@@ -381,7 +381,7 @@ npx pnpm db:seed
 ```bash
 # 1. Add env vars to API .env
 cd /Users/yavuz/Desktop/helvino/apps/api
-echo 'ORG_OWNER_EMAIL="owner@demo.helvino.io"' >> .env
+echo 'ORG_OWNER_EMAIL="owner@demo.helvion.io"' >> .env
 echo 'ORG_OWNER_PASSWORD="demo_owner_2026"' >> .env
 
 # 2. Start PostgreSQL
@@ -410,7 +410,7 @@ npm run dev
 
 ```
 1. Navigate to http://localhost:3000/login
-2. Login: admin@helvino.io / helvino_admin_2026
+2. Login: admin@helvion.io / helvino_admin_2026
 3. ✅ Redirects to /dashboard
 4. ✅ Org switcher visible in sidebar
 5. ✅ Can create orgs, switch between them
@@ -422,7 +422,7 @@ npm run dev
 
 ```
 1. Navigate to http://localhost:3000/app/login
-2. Login: owner@demo.helvino.io / demo_owner_2026
+2. Login: owner@demo.helvion.io / demo_owner_2026
 3. ✅ Redirects to /app
 4. ✅ Sidebar shows single org (Demo Org)
 5. ✅ No org switcher (fixed to user's org)
@@ -492,7 +492,7 @@ Customer portal (logged in as demo org user):
 #### Test 8: Role-Based Access
 
 ```
-As org owner (owner@demo.helvino.io):
+As org owner (owner@demo.helvion.io):
 1. ✅ Can update settings (PATCH /org/settings works)
 2. ✅ Can update security (PATCH /org/security works)
 
@@ -507,14 +507,14 @@ If you create an agent role user:
 # Org user login
 curl -c cookies.txt -X POST http://localhost:4000/org/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"owner@demo.helvino.io","password":"demo_owner_2026"}'
+  -d '{"email":"owner@demo.helvion.io","password":"demo_owner_2026"}'
 
 # Expected:
 # {
 #   "ok": true,
 #   "user": {
 #     "id": "...",
-#     "email": "owner@demo.helvino.io",
+#     "email": "owner@demo.helvion.io",
 #     "role": "owner",
 #     "orgId": "...",
 #     "orgKey": "demo",

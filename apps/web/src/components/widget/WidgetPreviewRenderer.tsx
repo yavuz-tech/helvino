@@ -230,8 +230,8 @@ export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetP
 
               <div className="text-center text-[0.7rem] tracking-wide leading-none py-1.5 select-none text-slate-500" role="contentinfo">
                 {t("widgetPreview.poweredByPrefix")}
-                <a href="https://helvino.io" target="_blank" rel="noopener noreferrer" className="helvino-brand-shimmer hover:opacity-85 transition-opacity">
-                  Helvino
+                <a href="https://helvion.io" target="_blank" rel="noopener noreferrer" className="helvino-brand-shimmer hover:opacity-85 transition-opacity">
+                  Helvion
                 </a>
                 {t("widgetPreview.poweredBySuffix")}
               </div>
@@ -366,8 +366,8 @@ export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetP
               {/* Branding – always visible in preview (server-enforced in production) */}
               <div className="text-center text-[0.7rem] tracking-wide leading-none pt-2.5 pb-0.5 select-none text-slate-500" role="contentinfo">
                 {t("widgetPreview.poweredByPrefix")}
-                <a href="https://helvino.io" target="_blank" rel="noopener noreferrer" className="helvino-brand-shimmer hover:opacity-85 transition-opacity">
-                  Helvino
+                <a href="https://helvion.io" target="_blank" rel="noopener noreferrer" className="helvino-brand-shimmer hover:opacity-85 transition-opacity">
+                  Helvion
                 </a>
                 {t("widgetPreview.poweredBySuffix")}
               </div>

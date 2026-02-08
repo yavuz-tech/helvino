@@ -15,6 +15,8 @@ function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
+  const expires = searchParams.get("expires") || "";
+  const sig = searchParams.get("sig") || "";
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -43,7 +45,7 @@ function ResetPasswordForm() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, newPassword }),
+        body: JSON.stringify({ token, newPassword, ...(expires && sig ? { expires, sig } : {}) }),
       });
 
       const data = await res.json();

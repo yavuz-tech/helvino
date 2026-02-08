@@ -9,9 +9,9 @@ import crypto from "crypto";
 import { prisma } from "../prisma";
 import { hashPassword, verifyPassword } from "../utils/password";
 import { writeAuditLog } from "../utils/audit-log";
-import { sendEmail } from "../utils/mailer";
-import { generateResetLink } from "../utils/signed-links";
-import { getResetEmail } from "../utils/email-templates";
+import { sendEmailAsync, getDefaultFromAddress } from "../utils/mailer";
+import { generateResetLink, verifySignedLink } from "../utils/signed-links";
+import { getResetEmail, normalizeRequestLocale, extractLocaleCookie } from "../utils/email-templates";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import {
   requirePortalUser,
@@ -45,8 +45,11 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
       ],
     },
     async (request, reply) => {
-      const body = request.body as { email?: string };
+      const body = request.body as { email?: string; locale?: string };
       const email = body.email?.toLowerCase().trim();
+      const cookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const requestedLocale = normalizeRequestLocale(body.locale, cookieLang, request.headers["accept-language"] as string);
+      console.log(`[security:forgot] body.locale=${JSON.stringify(body.locale)} cookie=${cookieLang} → resolved=${requestedLocale}`);
 
       // Generic response to avoid user enumeration
       const genericResponse = {
@@ -92,24 +95,22 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
         request.requestId
       );
 
-      // Generate signed reset link + send email
+      // Generate signed reset link + send email (use UI locale from request so mail matches page language)
       const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
       const resetLink = generateResetLink(rawToken, expiresAt);
 
-      // Fetch org language for locale
-      const org = await prisma.organization.findUnique({
-        where: { id: orgUser.orgId },
-        select: { language: true },
-      });
+      const expiresInText = requestedLocale === "tr" ? "30 dakika" : requestedLocale === "es" ? "30 minutos" : "30 minutes";
+      const emailContent = getResetEmail(requestedLocale, resetLink, expiresInText);
 
-      const emailContent = getResetEmail(org?.language, resetLink, "30 minutes");
-
-      sendEmail({
+      // Fire-and-forget: don't block API response for password reset email
+      sendEmailAsync({
         to: orgUser.email,
+        from: getDefaultFromAddress(),
         subject: emailContent.subject,
         html: emailContent.html,
+        text: emailContent.text,
         tags: ["password-reset"],
-      }).catch(() => {/* best-effort */});
+      });
 
       // Dev: include reset link in JSON response
       const isProduction = process.env.NODE_ENV === "production";
@@ -132,7 +133,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
       ],
     },
     async (request, reply) => {
-      const body = request.body as { token?: string; newPassword?: string };
+      const body = request.body as { token?: string; newPassword?: string; expires?: string; sig?: string };
 
       if (!body.token || !body.newPassword) {
         reply.code(400);
@@ -143,6 +144,17 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
       if (!pwCheck.valid) {
         reply.code(400);
         return { error: { code: pwCheck.code, message: pwCheck.message, requestId: request.requestId } };
+      }
+
+      // When expires + sig are provided, verify signed link (prevents tampered URLs)
+      if (body.expires && body.sig) {
+        const appUrl = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+        const fullUrl = `${appUrl}/portal/reset-password?token=${encodeURIComponent(body.token)}&expires=${encodeURIComponent(body.expires)}&sig=${encodeURIComponent(body.sig)}`;
+        const linkCheck = verifySignedLink(fullUrl);
+        if (!linkCheck.valid || linkCheck.type !== "reset") {
+          reply.code(400);
+          return { error: linkCheck.expired ? "Reset link has expired" : "Invalid reset link" };
+        }
       }
 
       const hashed = hashToken(body.token);

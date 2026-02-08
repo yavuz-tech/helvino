@@ -231,7 +231,7 @@ model AdminUser {
 # apps/api/.env
 
 # Admin User Credentials (REQUIRED for seed)
-ADMIN_EMAIL="admin@helvino.io"
+ADMIN_EMAIL="admin@helvion.io"
 ADMIN_PASSWORD="helvino_admin_2026"
 
 # Session Secret (REQUIRED for cookie-based auth)
@@ -268,7 +268,7 @@ npx pnpm db:seed
 
 **Expected:**
 ```
-✅ Created/verified admin user: admin@helvino.io (role: owner)
+✅ Created/verified admin user: admin@helvion.io (role: owner)
 ```
 
 ### 2. Start API Server
@@ -283,14 +283,14 @@ npx pnpm dev
 ```bash
 curl -X POST http://localhost:4000/internal/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@helvino.io","password":"helvino_admin_2026"}' \
+  -d '{"email":"admin@helvion.io","password":"helvino_admin_2026"}' \
   -c cookies.txt -v
 ```
 
 **Expected:**
 - HTTP 200
 - `Set-Cookie` header with `sessionId`
-- Response: `{"ok":true,"user":{"id":"...","email":"admin@helvino.io","role":"owner"},...}`
+- Response: `{"ok":true,"user":{"id":"...","email":"admin@helvion.io","role":"owner"},...}`
 
 ### 4. Test /me Endpoint (with cookie)
 
@@ -304,7 +304,7 @@ curl http://localhost:4000/internal/auth/me -b cookies.txt
   "ok": true,
   "user": {
     "id": "...",
-    "email": "admin@helvino.io",
+    "email": "admin@helvion.io",
     "role": "owner"
   },
   "timestamp": "..."
@@ -341,11 +341,11 @@ npm run dev
 **Steps:**
 1. Open `http://localhost:3000/dashboard`
 2. Should redirect to `http://localhost:3000/login`
-3. Enter email: `admin@helvino.io`
+3. Enter email: `admin@helvion.io`
 4. Enter password: `helvino_admin_2026`
 5. Click "Sign In"
 6. Should redirect to `/dashboard`
-7. Header should show: "Logged in as admin@helvino.io (owner)"
+7. Header should show: "Logged in as admin@helvion.io (owner)"
 8. "Logout" button should appear
 
 ### 8. Test Settings Page
@@ -367,7 +367,7 @@ npm run dev
 **Request:**
 ```json
 {
-  "email": "admin@helvino.io",
+  "email": "admin@helvion.io",
   "password": "helvino_admin_2026"
 }
 ```
@@ -378,7 +378,7 @@ npm run dev
   "ok": true,
   "user": {
     "id": "cml9...",
-    "email": "admin@helvino.io",
+    "email": "admin@helvion.io",
     "role": "owner"
   },
   "timestamp": "2026-02-05T19:30:00.000Z"
@@ -427,7 +427,7 @@ Set-Cookie: sessionId=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0
   "ok": true,
   "user": {
     "id": "cml9...",
-    "email": "admin@helvino.io",
+    "email": "admin@helvion.io",
     "role": "owner"
   },
   "timestamp": "2026-02-05T19:40:00.000Z"
@@ -461,7 +461,7 @@ curl -H "x-internal-key: r/b6LoI/2m6axryScc8YscXs3tEYWLHw" \
 # First login to get cookie
 curl -X POST http://localhost:4000/internal/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@helvino.io","password":"helvino_admin_2026"}' \
+  -d '{"email":"admin@helvion.io","password":"helvino_admin_2026"}' \
   -c cookies.txt
 
 # Then use cookie for authenticated requests
@@ -542,7 +542,7 @@ argon2.hash(password, {
 [
   "http://localhost:3000",
   "http://localhost:3006",
-  "https://helvino.io",
+  "https://helvion.io",
   process.env.NEXT_PUBLIC_WEB_URL,
 ]
 ```
@@ -674,5 +674,5 @@ Your Helvino admin dashboard now has **enterprise-grade authentication** with:
 - ✅ No exposed secrets
 
 **Access:** `http://localhost:3000/login`  
-**Default Credentials:** `admin@helvino.io` / `helvino_admin_2026`  
+**Default Credentials:** `admin@helvion.io` / `helvino_admin_2026`  
 **⚠️ Change these in production!**

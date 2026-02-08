@@ -9,7 +9,7 @@ import ErrorBanner from "@/components/ErrorBanner";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export default function ForgotPasswordPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -27,7 +27,7 @@ export default function ForgotPasswordPage() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, locale }),
       });
 
       const data = await res.json();

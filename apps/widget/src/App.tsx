@@ -4,8 +4,8 @@ import { createConversation, sendMessage, API_URL, getOrgKey, Message, loadBootl
 import { EMOJI_LIST } from "@helvino/shared";
 import "./App.css";
 
-const APP_NAME = "Helvino";
-const HELVINO_SITE_URL = "https://helvino.io";
+const APP_NAME = "Helvion";
+const HELVINO_SITE_URL = "https://helvion.io";
 
 const STORAGE_KEY = "helvino_conversation_id";
 const RECENT_EMOJI_KEY = "helvino_recent_emojis";
@@ -16,6 +16,21 @@ const POWERED_BY: Record<string, { before: string; after: string }> = {
   en: { before: "Powered by ", after: "" },
   tr: { before: "", after: " tarafından desteklenmektedir" },
   es: { before: "Desarrollado por ", after: "" },
+};
+
+const UNAUTHORIZED_COPY: Record<string, { title: string; body: string }> = {
+  en: {
+    title: "Unauthorized domain",
+    body: "This domain is not allowed. Please update the allowlist in the portal.",
+  },
+  tr: {
+    title: "Yetkisiz alan adı",
+    body: "Bu alan adı yetkili değil. Lütfen portalda allowlist’i güncelleyin.",
+  },
+  es: {
+    title: "Dominio no autorizado",
+    body: "Este dominio no está permitido. Actualiza la allowlist en el portal.",
+  },
 };
 
 interface AppProps {
@@ -222,21 +237,11 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     return null; // Widget disabled by config
   }
 
-  // Unauthorized domain: show safe disabled state
-  if (bootloaderConfig.config.unauthorizedDomain) {
-    return (
-      <div className="widget-container widget-unauthorized">
-        <div className="widget-unauthorized-msg">
-          Widget is not authorized on this domain.
-        </div>
-      </div>
-    );
-  }
-
   const primaryColor = bootloaderConfig.config.theme.primaryColor;
   const writeEnabled = bootloaderConfig.config.writeEnabled;
   const lang = bootloaderConfig.config.language || "en";
   const poweredBy = POWERED_BY[lang] || POWERED_BY.en;
+  const unauthorizedCopy = UNAUTHORIZED_COPY[lang] || UNAUTHORIZED_COPY.en;
 
   /** Reusable branding block */
   const poweredByBlock = brandingRequired ? (
@@ -248,6 +253,22 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
       {poweredBy.after}
     </div>
   ) : null;
+
+  // Unauthorized domain: show safe disabled state
+  if (bootloaderConfig.config.unauthorizedDomain) {
+    return (
+      <div
+        className="widget-container widget-unauthorized"
+        style={{ "--primary-color": primaryColor } as React.CSSProperties}
+      >
+        <div className="widget-unauthorized-card" role="status" aria-live="polite">
+          <div className="widget-unauthorized-title">{unauthorizedCopy.title}</div>
+          <div className="widget-unauthorized-body">{unauthorizedCopy.body}</div>
+        </div>
+        {poweredByBlock}
+      </div>
+    );
+  }
 
   return (
     <div className="widget-container" style={{ "--primary-color": primaryColor } as React.CSSProperties}>

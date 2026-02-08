@@ -93,7 +93,7 @@ All templates:
 import { sendEmail, renderResetPasswordEmail } from "../email";
 
 const { subject, html, text } = renderResetPasswordEmail({
-  resetLink: "https://app.helvino.com/reset?token=...",
+  resetLink: "https://app.helvion.io/reset?token=...",
   recipientEmail: "user@example.com",
   expiresInMinutes: 30,
 });

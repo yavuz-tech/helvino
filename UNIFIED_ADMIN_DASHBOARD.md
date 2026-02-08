@@ -247,7 +247,7 @@ Conversations will appear here when visitors use the widget
 **1. Login**
 ```
 Navigate to: http://localhost:3000/login
-Credentials: admin@helvino.io / admin123
+Credentials: admin@helvion.io / admin123
 Expected: Redirect to /dashboard
 ```
 
@@ -381,7 +381,7 @@ REDIS_URL=<redis-connection-string>
 SESSION_SECRET=<random-secret-for-sessions>
 INTERNAL_API_KEY=<matches-NEXT_PUBLIC_INTERNAL_KEY>
 ORG_TOKEN_SECRET=<random-secret-for-org-tokens>
-ADMIN_EMAIL=admin@helvino.io
+ADMIN_EMAIL=admin@helvion.io
 ADMIN_PASSWORD=admin123
 ```
 

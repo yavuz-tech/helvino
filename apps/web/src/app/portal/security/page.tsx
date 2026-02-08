@@ -40,6 +40,12 @@ interface PortalSessionInfo {
   isCurrent: boolean;
 }
 
+interface AlertsPayload {
+  domainMismatchCountPeriod: number;
+  lastMismatchHost: string | null;
+  lastMismatchAt: string | null;
+}
+
 export default function PortalSecurityPage() {
   const router = useRouter();
   const { t } = useI18n();
@@ -70,6 +76,7 @@ export default function PortalSecurityPage() {
 
   // Domain mismatch events (Step 11.68)
   const [mismatchEvents, setMismatchEvents] = useState<DomainMismatchEventItem[]>([]);
+  const [alerts, setAlerts] = useState<AlertsPayload | null>(null);
 
   const { withStepUp } = useStepUp();
   const canEdit = user?.role === "owner" || user?.role === "admin";
@@ -127,8 +134,19 @@ export default function PortalSecurityPage() {
         // ignore
       }
     };
+    const loadAlerts = async () => {
+      try {
+        const res = await portalApiFetch("/portal/org/me/alerts");
+        if (res.ok) {
+          setAlerts(await res.json());
+        }
+      } catch {
+        // ignore
+      }
+    };
     load();
     loadMismatches();
+    loadAlerts();
     loadSessions();
     loadMfaStatus();
   }, [authLoading, t, loadSessions, loadMfaStatus]);
@@ -353,6 +371,23 @@ export default function PortalSecurityPage() {
         </div>
       )}
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+
+      {alerts && (
+        <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-900 text-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-semibold">{t("security.alerts")}</span>
+            <span>
+              {t("security.domainMismatchCount")}:{" "}
+              <strong>{alerts.domainMismatchCountPeriod ?? 0}</strong>
+            </span>
+            {alerts.lastMismatchHost && alerts.lastMismatchAt && (
+              <span className="text-xs text-amber-800">
+                {t("security.lastMismatch")}: {alerts.lastMismatchHost} — {formatDate(alerts.lastMismatchAt)}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* Change Password */}

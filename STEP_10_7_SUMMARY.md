@@ -324,14 +324,14 @@ curl -s -H "x-internal-key: r/b6LoI/2m6axryScc8YscXs3tEYWLHw" \
 **Service:** Uptime Robot, Pingdom, StatusCake, etc.
 
 **Config:**
-- URL: `https://api.helvino.io/health`
+- URL: `https://api.helvion.io/health`
 - Interval: Every 1-5 minutes
 - Alert on: HTTP status != 200 or `ok: false`
 
 **Example (cron + curl):**
 ```bash
 # Add to crontab
-*/5 * * * * curl -f https://api.helvino.io/health || mail -s "API Down" ops@helvino.io
+*/5 * * * * curl -f https://api.helvion.io/health || mail -s "API Down" ops@helvion.io
 ```
 
 ---
@@ -350,7 +350,7 @@ curl -s -H "x-internal-key: r/b6LoI/2m6axryScc8YscXs3tEYWLHw" \
 ```bash
 #!/bin/bash
 while true; do
-  METRICS=$(curl -s -H "x-internal-key: $KEY" https://api.helvino.io/metrics)
+  METRICS=$(curl -s -H "x-internal-key: $KEY" https://api.helvion.io/metrics)
   ERROR_RATE=$(echo "$METRICS" | jq '.req_5xx / .req_total * 100')
   P95=$(echo "$METRICS" | jq '.p95_latency_ms')
   

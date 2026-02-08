@@ -21,7 +21,7 @@ Production hardening step that adds:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `TRUSTED_HOSTS` | No | — | Comma-separated list of trusted Host header values (e.g., `api.helvino.com,helvino.com`) |
+| `TRUSTED_HOSTS` | No | — | Comma-separated list of trusted Host header values (e.g., `api.helvion.io,helvion.io`) |
 | `APP_PUBLIC_URL` | No | `NEXT_PUBLIC_WEB_URL` / `http://localhost:3000` | Canonical public URL; its host is auto-trusted |
 
 ### Dev Defaults

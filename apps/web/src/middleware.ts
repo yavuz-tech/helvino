@@ -10,8 +10,21 @@ import type { NextRequest } from "next/server";
  * - Universal: Referrer-Policy, Permissions-Policy, X-Content-Type-Options, X-Frame-Options
  */
 
+/** Canonical domain; old invite/reset links may still point to helvino.io. */
+const CANONICAL_HOST = "helvion.io";
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const host = request.headers.get("host") || request.nextUrl.hostname || "";
+
+  // Redirect legacy helvino.io to helvion.io (same path + query) so old invite/reset links work
+  if (host.replace(/:.*/, "") === "helvino.io") {
+    const url = new URL(request.url);
+    url.host = CANONICAL_HOST;
+    url.protocol = "https:";
+    return NextResponse.redirect(url.toString(), 301);
+  }
+
   const response = NextResponse.next();
 
   // ── Universal security headers ──

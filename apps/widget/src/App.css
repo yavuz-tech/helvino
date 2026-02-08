@@ -3,6 +3,52 @@
   text-align: center;
 }
 
+.widget-unauthorized {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.widget-unauthorized-card {
+  width: 100%;
+  max-width: 360px;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  animation: widgetFadeIn 0.25s ease-out;
+}
+
+.widget-unauthorized-title {
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 0.35rem;
+}
+
+.widget-unauthorized-body {
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+@keyframes widgetFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .widget-unauthorized-card {
+    animation: none;
+  }
+}
+
 .widget-button {
   background: #000;
   color: #fff;

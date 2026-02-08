@@ -22,7 +22,7 @@ A secure, scalable widget embedding system using public site IDs with domain all
 - ✅ One-click site ID rotation with confirmation
 - ✅ Localhost toggle for development
 - ✅ Backward compatible (orgKey still works)
-- ✅ Wildcard domain support (`*.helvino.io`)
+- ✅ Wildcard domain support (`*.helvion.io`)
 
 ---
 
@@ -51,7 +51,7 @@ A secure, scalable widget embedding system using public site IDs with domain all
 - Query parameter support: `?siteId=...` or `?orgKey=...`
 
 **Enhanced Domain Validation:**
-- Wildcard support: `*.helvino.io` matches all subdomains
+- Wildcard support: `*.helvion.io` matches all subdomains
 - Port support: `localhost:3000` exact match
 - Localhost handling: Controlled by `allowLocalhost` flag
 - Origin/Referer checks with fallback logic
@@ -116,7 +116,7 @@ A secure, scalable widget embedding system using public site IDs with domain all
 <script>
   window.HELVINO_SITE_ID = "site_abc123xyz789...";
 </script>
-<script src="https://cdn.helvino.io/embed.js"></script>
+<script src="https://cdn.helvion.io/embed.js"></script>
 ```
 
 ---
@@ -174,8 +174,8 @@ A secure, scalable widget embedding system using public site IDs with domain all
 **Step 2:** Enter domain in new row:
 ```
 ┌────────────────────────────────┐
-│ [ helvino.io             ] [Remove] │
-│ [ *.helvino.io           ] [Remove] │
+│ [ helvion.io             ] [Remove] │
+│ [ *.helvion.io           ] [Remove] │
 │ [ localhost:3000         ] [Remove] │
 │ [                        ] [Remove] │ ← New row
 └────────────────────────────────┘
@@ -189,8 +189,8 @@ A secure, scalable widget embedding system using public site IDs with domain all
 
 | Pattern | Matches | Use Case |
 |---------|---------|----------|
-| `helvino.io` | Exact: helvino.io | Production main site |
-| `*.helvino.io` | app.helvino.io, docs.helvino.io | All subdomains |
+| `helvion.io` | Exact: helvion.io | Production main site |
+| `*.helvion.io` | app.helvion.io, docs.helvion.io | All subdomains |
 | `localhost:3000` | localhost:3000 only | Local dev (specific port) |
 | `localhost` | localhost (any port) | Local dev (all ports) |
 | `app.example.com` | Exact match only | Single subdomain |
@@ -270,13 +270,13 @@ A secure, scalable widget embedding system using public site IDs with domain all
 
 **Wildcard Matching:**
 
-`*.helvino.io` matches:
-- ✅ `app.helvino.io`
-- ✅ `docs.helvino.io`
-- ✅ `staging.helvino.io`
-- ✅ `helvino.io` (base domain)
+`*.helvion.io` matches:
+- ✅ `app.helvion.io`
+- ✅ `docs.helvion.io`
+- ✅ `staging.helvion.io`
+- ✅ `helvion.io` (base domain)
 - ❌ `evil.com`
-- ❌ `helvino.io.evil.com`
+- ❌ `helvion.io.evil.com`
 
 **Port Handling:**
 
@@ -337,8 +337,8 @@ A secure, scalable widget embedding system using public site IDs with domain all
 │ └──────────────────────────────────────────┘ │
 │ ┌──────────────────────────────────────────┐ │
 │ │ Allowed Domains                          │ │
-│ │ [ helvino.io        ] [Remove]          │ │
-│ │ [ *.helvino.io      ] [Remove]          │ │
+│ │ [ helvion.io        ] [Remove]          │ │
+│ │ [ *.helvion.io      ] [Remove]          │ │
 │ │ [ localhost:3000    ] [Remove]          │ │
 │ │ [+ Add Domain]                           │ │
 │ └──────────────────────────────────────────┘ │
@@ -366,7 +366,7 @@ A secure, scalable widget embedding system using public site IDs with domain all
 <script>
   window.HELVINO_SITE_ID = "site_x3kJ9mN2pQwE5rY8";
 </script>
-<script src="https://cdn.helvino.io/embed.js"></script>
+<script src="https://cdn.helvion.io/embed.js"></script>
 ```
 
 **Where to get Site ID:**
@@ -384,7 +384,7 @@ A secure, scalable widget embedding system using public site IDs with domain all
 <script>
   window.HELVINO_ORG_KEY = "demo";
 </script>
-<script src="https://cdn.helvino.io/embed.js"></script>
+<script src="https://cdn.helvion.io/embed.js"></script>
 ```
 
 **Note:** Will be deprecated in future releases. Migrate to Site ID.
@@ -492,7 +492,7 @@ A secure, scalable widget embedding system using public site IDs with domain all
    <script>
      window.HELVINO_SITE_ID = "site_x3kJ9mN2pQwE5rY8";
    </script>
-   <script src="https://cdn.helvino.io/embed.js"></script>
+   <script src="https://cdn.helvion.io/embed.js"></script>
    ```
 
 **Time:** ~2 minutes
@@ -704,7 +704,7 @@ A secure, scalable widget embedding system using public site IDs with domain all
 ### Test 5: Domain Block (Widget Test)
 
 **Steps:**
-1. Remove all domains except `helvino.io`
+1. Remove all domains except `helvion.io`
 2. Disable "Allow Localhost" toggle
 3. Save changes
 4. Try to load widget from `http://localhost:3000`
@@ -860,25 +860,25 @@ A secure, scalable widget embedding system using public site IDs with domain all
 
 **Scenario 1: Single Domain**
 ```
-helvino.io
+helvion.io
 ```
 
 **Scenario 2: Multi-Subdomain App**
 ```
-*.helvino.io
+*.helvion.io
 ```
 
 **Scenario 3: Multiple Top-Level Domains**
 ```
-helvino.io
-helvino.com
-app.helvino.io
+helvion.io
+helvion.io
+app.helvion.io
 ```
 
 **Scenario 4: Development + Production**
 ```
-helvino.io
-*.helvino.io
+helvion.io
+*.helvion.io
 localhost:3000  (with Allow Localhost ON)
 ```
 
@@ -922,8 +922,8 @@ localhost:3000  (with Allow Localhost ON)
   "security": {
     "siteId": "site_x3kJ9mN2pQwE5rY8",
     "allowedDomains": [
-      "helvino.io",
-      "*.helvino.io",
+      "helvion.io",
+      "*.helvion.io",
       "localhost:3000"
     ],
     "allowLocalhost": true
@@ -941,8 +941,8 @@ localhost:3000  (with Allow Localhost ON)
 ```json
 {
   "allowedDomains": [
-    "helvino.io",
-    "*.helvino.io",
+    "helvion.io",
+    "*.helvion.io",
     "app.example.com"
   ],
   "allowLocalhost": true
@@ -956,7 +956,7 @@ localhost:3000  (with Allow Localhost ON)
   "org": { "id": "...", "key": "demo", "name": "Demo Org" },
   "security": {
     "siteId": "site_x3kJ9mN2pQwE5rY8",
-    "allowedDomains": ["helvino.io", "*.helvino.io", "app.example.com"],
+    "allowedDomains": ["helvion.io", "*.helvion.io", "app.example.com"],
     "allowLocalhost": true
   }
 }
@@ -983,7 +983,7 @@ localhost:3000  (with Allow Localhost ON)
   "security": {
     "siteId": "site_NEW123abc456...",
     "oldSiteId": "site_OLD789xyz012...",
-    "allowedDomains": ["helvino.io"],
+    "allowedDomains": ["helvion.io"],
     "allowLocalhost": true
   },
   "warning": "The old site ID is now invalid. Update your widget embed code with the new site ID."

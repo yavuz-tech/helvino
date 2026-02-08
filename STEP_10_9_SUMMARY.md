@@ -398,7 +398,7 @@ npm start
 
 ```env
 # .env.production
-NEXT_PUBLIC_API_URL=https://api.helvino.io
+NEXT_PUBLIC_API_URL=https://api.helvion.io
 NEXT_PUBLIC_INTERNAL_KEY=your-production-internal-key
 NEXT_PUBLIC_ORG_KEY=default-org-key
 ```

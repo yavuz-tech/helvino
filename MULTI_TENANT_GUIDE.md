@@ -77,7 +77,7 @@ The widget reads `orgKey` from `window.HELVINO_ORG_KEY`:
 <script>
   window.HELVINO_ORG_KEY = "demo";
 </script>
-<script src="https://widget.helvino.io/embed.js"></script>
+<script src="https://widget.helvion.io/embed.js"></script>
 ```
 
 ### Local Testing

@@ -19,7 +19,7 @@ export class PostmarkEmailProvider implements EmailProvider {
 
   async send(payload: EmailPayload): Promise<EmailResult> {
     const postmarkPayload = {
-      From: payload.from || process.env.EMAIL_FROM || "noreply@helvino.com",
+      From: payload.from || process.env.EMAIL_FROM || "noreply@helvion.io",
       To: payload.to,
       Subject: payload.subject,
       HtmlBody: payload.html,
@@ -42,10 +42,10 @@ export class PostmarkEmailProvider implements EmailProvider {
         body: JSON.stringify(postmarkPayload),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as Record<string, unknown>;
 
       if (!response.ok) {
-        const errorMessage = (data as any).Message || `HTTP ${response.status}`;
+        const errorMessage = (data.Message as string) || `HTTP ${response.status}`;
         console.error(`[mailer:postmark] Send failed: ${errorMessage}`);
         return {
           success: false,
@@ -54,9 +54,43 @@ export class PostmarkEmailProvider implements EmailProvider {
         };
       }
 
+      const messageId = data.MessageID as string | undefined;
+
+      // Postmark may return 200/OK but silently drop the email when the
+      // monthly free-tier limit (100 emails) is exhausted. Verify by
+      // fetching the message details — if it doesn't exist, treat as failure.
+      if (messageId) {
+        try {
+          const verify = await fetch(
+            `https://api.postmarkapp.com/messages/outbound/${messageId}/details`,
+            {
+              headers: {
+                Accept: "application/json",
+                "X-Postmark-Server-Token": this.serverToken,
+              },
+            }
+          );
+          if (verify.status === 404 || verify.status === 422) {
+            const vData = (await verify.json().catch(() => ({}))) as Record<string, unknown>;
+            if ((vData.ErrorCode as number) === 701) {
+              console.error(
+                `[mailer:postmark] Email accepted (200 OK) but NOT found in outbound (ErrorCode 701). Monthly limit likely exceeded.`
+              );
+              return {
+                success: false,
+                provider: this.name,
+                error: "Postmark monthly email limit exceeded — email silently dropped. Upgrade plan or switch provider.",
+              };
+            }
+          }
+        } catch {
+          // Verification fetch failed — don't block, treat original response as truth
+        }
+      }
+
       return {
         success: true,
-        messageId: (data as any).MessageID,
+        messageId,
         provider: this.name,
       };
     } catch (err) {

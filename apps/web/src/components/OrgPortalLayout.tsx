@@ -70,7 +70,7 @@ export default function OrgPortalLayout({
             <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">H</span>
             </div>
-            <span className="font-bold text-lg text-slate-900">Helvino</span>
+            <span className="font-bold text-lg text-slate-900">Helvion</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}

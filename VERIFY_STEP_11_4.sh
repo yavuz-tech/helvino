@@ -31,7 +31,7 @@ fi
 echo "-> Checking portal auth endpoints (if API healthy)"
 __API_HC=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 3 --max-time 5 http://localhost:4000/health 2>/dev/null || echo "000")
 if [ "$__API_HC" = "200" ]; then
-  EMAIL="${ORG_OWNER_EMAIL:-owner@demo.helvino.io}"
+  EMAIL="${ORG_OWNER_EMAIL:-owner@demo.helvion.io}"
   PASSWD="${ORG_OWNER_PASSWORD:-demo_owner_2026}"
 
   echo "-> Login should succeed"

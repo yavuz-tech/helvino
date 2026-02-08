@@ -432,8 +432,8 @@ export default function SecurityPage() {
           <div className="mt-4 text-xs text-slate-500">
             <p className="font-semibold mb-1">{t("security.examplesTitle")}</p>
             <ul className="list-disc list-inside space-y-1">
-              <li><code>helvino.io</code> - {t("security.exampleExact")}</li>
-              <li><code>*.helvino.io</code> - {t("security.exampleWildcard")}</li>
+              <li><code>helvion.io</code> - {t("security.exampleExact")}</li>
+              <li><code>*.helvion.io</code> - {t("security.exampleWildcard")}</li>
               <li><code>localhost:3000</code> - {t("security.examplePort")}</li>
             </ul>
           </div>

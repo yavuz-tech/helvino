@@ -124,10 +124,10 @@ curl -X POST \
 ```bash
 curl -X GET \
   -H "x-org-key: demo" \
-  -H "Origin: https://app.helvino.io" \
+  -H "Origin: https://app.helvion.io" \
   http://localhost:4000/api/bootloader
 ```
-**Expected:** `200 OK` (matches `*.helvino.io`)
+**Expected:** `200 OK` (matches `*.helvion.io`)
 
 **Bootloader invalid domain:**
 ```bash
@@ -241,7 +241,7 @@ docker exec helvino-redis redis-cli ping
 - ✅ Rate limiting works (429 after 30 requests/min)
 - ✅ Valid domains allowed (localhost:3000 → 201)
 - ✅ Invalid domains rejected (evil.com → 403)
-- ✅ Wildcard subdomains work (app.helvino.io → 200)
+- ✅ Wildcard subdomains work (app.helvion.io → 200)
 - ✅ No Origin header allowed for curl/testing (with warning)
 - ✅ X-Forwarded-For not trusted from non-proxy sources
 - ✅ Rate limit keys persisted in Redis

@@ -14,7 +14,10 @@ import {
 } from "../middleware/require-portal-user";
 import { requireStepUp } from "../middleware/require-step-up";
 import { generateSiteId } from "../utils/site-id";
-import { getUsageForMonth } from "../utils/entitlements";
+import {
+  getUsageForMonth,
+  getMeteringLimitsForPlan,
+} from "../utils/entitlements";
 
 export async function portalOrgRoutes(fastify: FastifyInstance) {
   /**
@@ -192,6 +195,62 @@ export async function portalOrgRoutes(fastify: FastifyInstance) {
           domainMismatchCount: org.widgetDomainMismatchTotal ?? 0,
           lastMismatchHost: org.lastMismatchHost ?? null,
           lastMismatchAt: org.lastMismatchAt?.toISOString() ?? null,
+        },
+      };
+    }
+  );
+
+  /**
+   * GET /portal/org/me/alerts
+   */
+  fastify.get(
+    "/portal/org/me/alerts",
+    { preHandler: [requirePortalUser] },
+    async (request) => {
+      const user = request.portalUser!;
+      const org = await prisma.organization.findUnique({
+        where: { id: user.orgId },
+        select: {
+          id: true,
+          planKey: true,
+          writeEnabled: true,
+          widgetEnabled: true,
+          widgetDomainMismatchTotal: true,
+          lastMismatchHost: true,
+          lastMismatchAt: true,
+        },
+      });
+
+      if (!org) {
+        return { error: "Organization not found" };
+      }
+
+      const usage = await getUsageForMonth(org.id);
+      const limits = getMeteringLimitsForPlan(org.planKey);
+      const periodStart = usage.periodStart ? new Date(usage.periodStart) : new Date();
+
+      const domainMismatchCountPeriod = await prisma.domainMismatchEvent.count({
+        where: {
+          orgId: org.id,
+          createdAt: { gte: periodStart },
+        },
+      });
+
+      const isNear = (used: number, limit: number | null) => {
+        if (limit === null || limit <= 0) return false;
+        return used / limit >= 0.8;
+      };
+
+      return {
+        domainMismatchCountPeriod,
+        lastMismatchHost: org.lastMismatchHost ?? null,
+        lastMismatchAt: org.lastMismatchAt?.toISOString() ?? null,
+        writeEnabled: org.writeEnabled,
+        widgetEnabled: org.widgetEnabled,
+        usageNearLimit: {
+          m1: isNear(usage.m1Count ?? 0, limits.m1LimitPerMonth),
+          m2: isNear(usage.m2Count ?? 0, limits.m2LimitPerMonth),
+          m3: isNear(usage.m3Count ?? 0, limits.m3LimitVisitorsPerMonth),
         },
       };
     }

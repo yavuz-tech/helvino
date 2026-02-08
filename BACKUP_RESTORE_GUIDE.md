@@ -508,7 +508,7 @@ echo "✅ Backup health check passed"
 **Encrypt backups at rest:**
 ```bash
 # Using GPG
-pg_dump ... | gzip | gpg --encrypt --recipient ops@helvino.io > backup.sql.gz.gpg
+pg_dump ... | gzip | gpg --encrypt --recipient ops@helvion.io > backup.sql.gz.gpg
 
 # Decrypt when restoring
 gpg --decrypt backup.sql.gz.gpg | gunzip | psql ...

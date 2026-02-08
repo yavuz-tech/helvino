@@ -12,7 +12,12 @@ import { store } from "../store";
 import { requireOrgUser } from "../middleware/require-org-user";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { validateJsonContentType, validateMessageContent } from "../middleware/validation";
-import { checkMessageEntitlement, recordMessageUsage, recordM1Usage } from "../utils/entitlements";
+import {
+  checkMessageEntitlement,
+  checkM1Entitlement,
+  recordMessageUsage,
+  recordM1Usage,
+} from "../utils/entitlements";
 import { isBillingWriteBlocked } from "../utils/billing-enforcement";
 import { buildHistogramUpdateSql } from "../utils/widget-histogram";
 import type {
@@ -75,7 +80,18 @@ export async function orgCustomerRoutes(fastify: FastifyInstance) {
   fastify.post<{
     Params: { id: string };
     Body: CreateMessageRequest;
-    Reply: CreateMessageResponse | { error: string; code?: string };
+    Reply:
+      | CreateMessageResponse
+      | {
+          error:
+            | string
+            | {
+                code: string;
+                message: string;
+                resetAt?: string | null;
+              };
+          code?: string;
+        };
   }>(
     "/org/conversations/:id/messages",
     {
@@ -142,6 +158,20 @@ export async function orgCustomerRoutes(fastify: FastifyInstance) {
       if (!entitlement.allowed) {
         reply.code(402);
         return { error: entitlement.error || "Plan limit exceeded", code: entitlement.code };
+      }
+
+      if (role === "assistant") {
+        const m1Entitlement = await checkM1Entitlement(orgUser.orgId);
+        if (!m1Entitlement.allowed) {
+          reply.code(402);
+          return {
+            error: {
+              code: "QUOTA_M1_EXCEEDED",
+              message: m1Entitlement.error || "M1 quota exceeded",
+              resetAt: m1Entitlement.resetAt || null,
+            },
+          };
+        }
       }
 
       const message = await store.addMessage(id, orgUser.orgId, role, content);

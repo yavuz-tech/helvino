@@ -24,8 +24,8 @@ import { requirePortalUser } from "../middleware/require-portal-user";
 import { requireStepUp } from "../middleware/require-step-up";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { writeAuditLog } from "../utils/audit-log";
-import { sendEmail } from "../utils/mailer";
-import { getRecoveryApprovedEmail, getRecoveryRejectedEmail, getEmergencyTokenEmail } from "../utils/email-templates";
+import { sendEmailAsync, getDefaultFromAddress } from "../utils/mailer";
+import { getRecoveryApprovedEmail, getRecoveryRejectedEmail, getEmergencyTokenEmail, normalizeRequestLocale, extractLocaleCookie } from "../utils/email-templates";
 
 const RECOVERY_EXPIRY_HOURS = 48;
 const RECOVERY_RATE_LIMIT_PER_DAY = 3;
@@ -472,18 +472,27 @@ export async function recoveryRoutes(fastify: FastifyInstance) {
         await emitRecoveryApproved(orgId, req.userId, requestId);
       }
 
-      // Send notification email to the requester
-      const approvedMessage = lockedOut
-        ? "Your authenticator app has been reset. You will need to set it up again on next login."
-        : "You can now log in normally.";
+      // Requester's language: org language → Accept-Language → "en"
+      let orgLang: string | undefined;
+      if (req.userType === "portal") {
+        const orgUser = await prisma.orgUser.findUnique({ where: { id: req.userId }, select: { orgId: true } });
+        if (orgUser) {
+          const org = await prisma.organization.findUnique({ where: { id: orgUser.orgId }, select: { language: true } });
+          orgLang = org?.language ?? undefined;
+        }
+      }
+      const approveCookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const approveLocale = normalizeRequestLocale(orgLang, approveCookieLang, request.headers["accept-language"] as string);
 
-      const approvedEmail = getRecoveryApprovedEmail(undefined, approvedMessage);
-      sendEmail({
+      const approvedMessageKey = lockedOut ? "mfa_reset" : "login_ok";
+      const approvedEmail = getRecoveryApprovedEmail(approveLocale, approvedMessageKey);
+      sendEmailAsync({
         to: req.email,
+        from: getDefaultFromAddress(),
         subject: approvedEmail.subject,
         html: approvedEmail.html,
         tags: ["recovery", "approved"],
-      }).catch(() => {/* best-effort */});
+      });
 
       return {
         message: "Recovery request approved",
@@ -555,14 +564,26 @@ export async function recoveryRoutes(fastify: FastifyInstance) {
         await emitRecoveryRejected(orgId, req.userId, requestId);
       }
 
-      // Send rejection notification email to the requester
-      const rejectedEmail = getRecoveryRejectedEmail(undefined, reason || "");
-      sendEmail({
+      // Requester's language: org language → Accept-Language → "en"
+      let rejectOrgLang: string | undefined;
+      if (req.userType === "portal") {
+        const orgUser = await prisma.orgUser.findUnique({ where: { id: req.userId }, select: { orgId: true } });
+        if (orgUser) {
+          const org = await prisma.organization.findUnique({ where: { id: orgUser.orgId }, select: { language: true } });
+          rejectOrgLang = org?.language ?? undefined;
+        }
+      }
+      const rejectCookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const rejectLocale = normalizeRequestLocale(rejectOrgLang, rejectCookieLang, request.headers["accept-language"] as string);
+
+      const rejectedEmail = getRecoveryRejectedEmail(rejectLocale, reason || "");
+      sendEmailAsync({
         to: req.email,
+        from: getDefaultFromAddress(),
         subject: rejectedEmail.subject,
         html: rejectedEmail.html,
         tags: ["recovery", "rejected"],
-      }).catch(() => {/* best-effort */});
+      });
 
       return {
         message: "Recovery request rejected",
@@ -689,14 +710,19 @@ export async function recoveryRoutes(fastify: FastifyInstance) {
         requestId
       );
 
-      // Send security notification email
-      const emergencyEmail = getEmergencyTokenEmail(undefined);
-      sendEmail({
+      // User's org language → Accept-Language → "en"
+      const org = await prisma.organization.findUnique({ where: { id: actor.orgId }, select: { language: true } });
+      const emergencyCookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const emergencyLocale = normalizeRequestLocale(org?.language ?? undefined, emergencyCookieLang, request.headers["accept-language"] as string);
+
+      const emergencyEmail = getEmergencyTokenEmail(emergencyLocale);
+      sendEmailAsync({
         to: actor.email,
+        from: getDefaultFromAddress(),
         subject: emergencyEmail.subject,
         html: emergencyEmail.html,
         tags: ["emergency", "security"],
-      }).catch(() => {/* best-effort */});
+      });
 
       // Return the raw token only ONCE
       return {

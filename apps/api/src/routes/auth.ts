@@ -53,7 +53,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     const allowedOrigins = [
       "http://localhost:3000",
       "http://localhost:3006",
-      "https://helvino.io",
+      "https://helvion.io",
       process.env.NEXT_PUBLIC_WEB_URL,
     ].filter(Boolean);
 

@@ -8,6 +8,7 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import { redis } from "../redis";
 import { metricsTracker } from "../utils/metrics";
+import { getMailProviderName } from "../utils/mailer";
 import { requireAdmin } from "../middleware/require-admin";
 
 const startTime = Date.now();
@@ -16,6 +17,7 @@ interface HealthResponse {
   ok: boolean;
   db: "ok" | "down";
   redis: "ok" | "down";
+  mailProvider: string;
   uptimeSec: number;
   timestamp: string;
 }
@@ -64,11 +66,18 @@ export async function observabilityRoutes(fastify: FastifyInstance) {
 
     const ok = dbStatus === "ok" && redisStatus === "ok";
     const uptimeSec = Math.floor((Date.now() - startTime) / 1000);
+    let mailProvider = "unknown";
+    try {
+      mailProvider = getMailProviderName();
+    } catch {
+      // ignore
+    }
 
     const response: HealthResponse = {
       ok,
       db: dbStatus,
       redis: redisStatus,
+      mailProvider,
       uptimeSec,
       timestamp: new Date().toISOString(),
     };

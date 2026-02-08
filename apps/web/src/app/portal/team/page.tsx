@@ -28,12 +28,13 @@ interface PendingInvite {
 
 export default function PortalTeamPage() {
   const { user, loading: authLoading } = usePortalAuth();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { withStepUp } = useStepUp();
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   // Invite form
   const [invEmail, setInvEmail] = useState("");
@@ -42,7 +43,11 @@ export default function PortalTeamPage() {
   const [invSuccess, setInvSuccess] = useState<string | null>(null);
   const [invError, setInvError] = useState<string | null>(null);
   const [invLink, setInvLink] = useState<string | null>(null);
+  const [invEmailError, setInvEmailError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Resend invite loading (which invite id is being resent)
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
 
   // Role change
   const [roleUserId, setRoleUserId] = useState<string | null>(null);
@@ -54,8 +59,18 @@ export default function PortalTeamPage() {
 
   const fetchTeam = useCallback(async () => {
     try {
+      setError(null);
+      setSessionExpired(false);
       const res = await portalApiFetch("/portal/org/users");
-      if (!res.ok) { setError(t("team.failedLoad")); return; }
+      if (res.status === 401) {
+        setError(t("auth.sessionExpired"));
+        setSessionExpired(true);
+        return;
+      }
+      if (!res.ok) {
+        setError(t("team.failedLoad"));
+        return;
+      }
       const data = await res.json();
       setUsers(data.users || []);
       setInvites(data.invites || []);
@@ -74,10 +89,11 @@ export default function PortalTeamPage() {
     setInvError(null);
     setInvSuccess(null);
     setInvLink(null);
+    setInvEmailError(null);
     const result = await withStepUp(() =>
       portalApiFetch("/portal/org/users/invite", {
         method: "POST",
-        body: JSON.stringify({ email: invEmail, role: invRole }),
+        body: JSON.stringify({ email: invEmail, role: invRole, locale }),
       }),
       "portal"
     );
@@ -86,9 +102,17 @@ export default function PortalTeamPage() {
       const d = result.data as Record<string, string> | undefined;
       setInvError(d?.error || t("team.failedInvite"));
     } else {
-      const d = result.data as Record<string, string> | undefined;
-      setInvSuccess(t("team.inviteSent"));
-      if (d?.inviteLink) setInvLink(d.inviteLink);
+      const d = result.data as Record<string, unknown> | undefined;
+      const emailSent = d?.emailSent as boolean | undefined;
+      const emailError = d?.emailError as string | undefined;
+      if (emailSent === false) {
+        setInvSuccess(null);
+        setInvEmailError(emailError || t("team.inviteCreatedEmailFailed"));
+      } else {
+        setInvSuccess(t("team.inviteSent"));
+        setInvEmailError(null);
+      }
+      if (d?.inviteLink) setInvLink(d.inviteLink as string);
       setInvEmail("");
       fetchTeam();
     }
@@ -96,21 +120,28 @@ export default function PortalTeamPage() {
   };
 
   const handleResend = async (inviteId: string) => {
-    const result = await withStepUp(() =>
-      portalApiFetch("/portal/org/users/invite/resend", {
-        method: "POST",
-        body: JSON.stringify({ inviteId }),
-      }),
-      "portal"
-    );
-    if (result.cancelled) return;
-    if (result.ok) {
-      const d = result.data as Record<string, string> | undefined;
-      if (d?.inviteLink) {
-        setInvLink(d.inviteLink);
+    setResendingInviteId(inviteId);
+    setInvError(null);
+    setInvSuccess(null);
+    try {
+      const result = await withStepUp(() =>
+        portalApiFetch("/portal/org/users/invite/resend", {
+          method: "POST",
+          body: JSON.stringify({ inviteId, locale }),
+        }),
+        "portal"
+      );
+      if (result.cancelled) return;
+      if (result.ok) {
+        const d = result.data as Record<string, string> | undefined;
+        if (d?.inviteLink) setInvLink(d.inviteLink);
         setInvSuccess(t("team.inviteSent"));
+        fetchTeam();
+      } else {
+        setInvError(result.error || t("team.failedInvite"));
       }
-      fetchTeam();
+    } finally {
+      setResendingInviteId(null);
     }
   };
 
@@ -216,7 +247,12 @@ export default function PortalTeamPage() {
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
-            {error}
+            <p>{error}</p>
+            {sessionExpired && (
+              <Link href="/portal/login" className="mt-3 inline-block text-sm font-medium text-red-700 hover:text-red-900 underline">
+                {t("auth.signIn")}
+              </Link>
+            )}
           </div>
         )}
 
@@ -254,6 +290,12 @@ export default function PortalTeamPage() {
             )}
             {invSuccess && (
               <p className="mt-3 text-sm text-green-600">{invSuccess}</p>
+            )}
+            {invEmailError && (
+              <div className="mt-3 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
+                <p className="text-sm font-medium text-amber-800">{t("team.inviteCreatedEmailFailed")}</p>
+                <p className="mt-1 text-xs text-amber-700 font-mono break-all" title={invEmailError}>{invEmailError}</p>
+              </div>
             )}
             {invLink && (
               <div className="mt-3 flex items-center gap-2">
@@ -384,10 +426,19 @@ export default function PortalTeamPage() {
                       </td>
                       {isOwnerOrAdmin && (
                         <td className="px-6 py-3 flex gap-3">
-                          <button onClick={() => handleResend(inv.id)} className="text-xs text-blue-600 hover:text-blue-800 underline">
-                            {t("team.resend")}
+                          <button
+                            type="button"
+                            onClick={() => handleResend(inv.id)}
+                            disabled={resendingInviteId === inv.id}
+                            className="text-xs text-blue-600 hover:text-blue-800 underline disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {resendingInviteId === inv.id ? t("common.loading") : t("team.resend")}
                           </button>
-                          <button onClick={() => handleRevoke(inv.id)} className="text-xs text-red-600 hover:text-red-800 underline">
+                          <button
+                            type="button"
+                            onClick={() => handleRevoke(inv.id)}
+                            className="text-xs text-red-600 hover:text-red-800 underline"
+                          >
                             {t("team.revoke")}
                           </button>
                         </td>

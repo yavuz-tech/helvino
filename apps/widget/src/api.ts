@@ -279,7 +279,11 @@ export async function createConversation(): Promise<Conversation> {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: "Failed to create conversation" }));
-    throw new Error(error.error || "Failed to create conversation");
+    const message =
+      typeof error.error === "string"
+        ? error.error
+        : error.error?.message || "Failed to create conversation";
+    throw new Error(message);
   }
 
   return response.json();
@@ -309,7 +313,11 @@ export async function sendMessage(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: "Failed to send message" }));
-    throw new Error(error.error || "Failed to send message");
+    const message =
+      typeof error.error === "string"
+        ? error.error
+        : error.error?.message || "Failed to send message";
+    throw new Error(message);
   }
 
   return response.json();

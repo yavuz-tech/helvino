@@ -8,7 +8,7 @@
 import crypto from "crypto";
 import * as OTPAuth from "otpauth";
 
-const ISSUER = "Helvino";
+const ISSUER = "Helvion";
 const TOTP_PERIOD = 30; // seconds
 const TOTP_DIGITS = 6;
 const BACKUP_CODE_COUNT = 8;

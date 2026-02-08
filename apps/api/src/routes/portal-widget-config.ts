@@ -14,7 +14,7 @@ import { requireStepUp } from "../middleware/require-step-up";
 import { writeAuditLog } from "../utils/audit-log";
 import { genericRateLimit } from "../utils/rate-limit";
 
-const EMBED_CDN = process.env.EMBED_CDN_URL || "https://cdn.helvino.io";
+const EMBED_CDN = process.env.EMBED_CDN_URL || "https://cdn.helvion.io";
 
 // ── Domain validation ──────────────────────────────────
 
@@ -126,7 +126,7 @@ export async function portalWidgetConfigRoutes(fastify: FastifyInstance) {
         allowedDomains: org.allowedDomains,
         allowLocalhost: org.allowLocalhost,
         embedSnippet: {
-          html: `<!-- Helvino Chat Widget -->\n<script>window.HELVINO_SITE_ID="${org.siteId}";</script>\n<script src="${EMBED_CDN}/embed.js"></script>`,
+          html: `<!-- Helvion Chat Widget -->\n<script>window.HELVINO_SITE_ID="${org.siteId}";</script>\n<script src="${EMBED_CDN}/embed.js"></script>`,
           scriptSrc: `${EMBED_CDN}/embed.js`,
           siteId: org.siteId,
         },

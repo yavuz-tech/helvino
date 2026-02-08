@@ -14,6 +14,9 @@ interface Limits {
   maxConversationsPerMonth: number;
   maxMessagesPerMonth: number;
   maxAgents: number;
+  m1LimitPerMonth?: number | null;
+  m2LimitPerMonth?: number | null;
+  m3LimitVisitorsPerMonth?: number | null;
   extraConversationQuota?: number;
   extraMessageQuota?: number;
 }
@@ -49,6 +52,15 @@ interface LockStatus {
   graceEndsAt: string | null;
   billingLockedAt: string | null;
   reason: string;
+}
+
+interface AlertsPayload {
+  domainMismatchCountPeriod: number;
+  lastMismatchHost: string | null;
+  lastMismatchAt: string | null;
+  writeEnabled: boolean;
+  widgetEnabled: boolean;
+  usageNearLimit: { m1: boolean; m2: boolean; m3: boolean };
 }
 
 /* ────────── Components ────────── */
@@ -108,7 +120,7 @@ function UsageRing({
           >
             {pct.toFixed(0)}%
           </span>
-          <span className="text-xs text-slate-500">used</span>
+          <span className="text-xs text-slate-500">{t("usage.used")}</span>
         </div>
       </div>
       <p className="mt-3 text-sm font-medium text-slate-900">{label}</p>
@@ -149,6 +161,7 @@ export default function PortalUsagePage() {
   const { user, loading: authLoading } = usePortalAuth();
   const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [lockStatus, setLockStatus] = useState<LockStatus | null>(null);
+  const [alerts, setAlerts] = useState<AlertsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { t } = useI18n();
@@ -157,13 +170,15 @@ export default function PortalUsagePage() {
     if (authLoading) return;
     const load = async () => {
       try {
-        const [billingRes, lockRes] = await Promise.all([
+        const [billingRes, lockRes, alertsRes] = await Promise.all([
           portalApiFetch("/portal/billing/status"),
           portalApiFetch("/portal/billing/lock-status"),
+          portalApiFetch("/portal/org/me/alerts"),
         ]);
         if (billingRes.ok) setBilling(await billingRes.json());
         else setError(t("usage.failedLoad"));
         if (lockRes.ok) setLockStatus(await lockRes.json());
+        if (alertsRes.ok) setAlerts(await alertsRes.json());
       } catch {
         setError(t("common.networkError"));
       }
@@ -185,16 +200,17 @@ export default function PortalUsagePage() {
   const isLocked = lockStatus?.locked === true;
   const isGrace = lockStatus?.reason === "grace";
 
-  const convPct =
-    limits && limits.maxConversationsPerMonth > 0
-      ? ((usage?.conversationsCreated || 0) / limits.maxConversationsPerMonth) * 100
-      : 0;
-  const msgPct =
-    limits && limits.maxMessagesPerMonth > 0
-      ? ((usage?.messagesSent || 0) / limits.maxMessagesPerMonth) * 100
-      : 0;
-  const anyHigh = convPct >= 80 || msgPct >= 80;
-  const anyFull = convPct >= 100 || msgPct >= 100;
+  const pctForLimit = (used: number, limit?: number | null) => {
+    if (!limit || limit <= 0) return 0;
+    return (used / limit) * 100;
+  };
+  const convPct = limits ? pctForLimit(usage?.conversationsCreated || 0, limits.maxConversationsPerMonth) : 0;
+  const msgPct = limits ? pctForLimit(usage?.messagesSent || 0, limits.maxMessagesPerMonth) : 0;
+  const m1Pct = limits ? pctForLimit(usage?.m1Count || 0, limits.m1LimitPerMonth ?? null) : 0;
+  const m2Pct = limits ? pctForLimit(usage?.m2Count || 0, limits.m2LimitPerMonth ?? null) : 0;
+  const m3Pct = limits ? pctForLimit(usage?.m3Count || 0, limits.m3LimitVisitorsPerMonth ?? null) : 0;
+  const anyHigh = convPct >= 80 || msgPct >= 80 || m1Pct >= 80 || m2Pct >= 80 || m3Pct >= 80;
+  const anyFull = convPct >= 100 || msgPct >= 100 || m1Pct >= 100 || m2Pct >= 100 || m3Pct >= 100;
 
   return (
     <>
@@ -211,6 +227,16 @@ export default function PortalUsagePage() {
           {t("usage.subtitle")}
         </p>
       </div>
+
+      {alerts && alerts.domainMismatchCountPeriod > 0 && (
+        <div className="mb-4">
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+            {t("usage.securityNotice")}{" "}
+            {t("security.domainMismatchCount")}:{" "}
+            <strong>{alerts.domainMismatchCountPeriod}</strong>
+          </span>
+        </div>
+      )}
 
       {error && (
         <AlertBanner variant="danger">
@@ -321,7 +347,7 @@ export default function PortalUsagePage() {
             {/* M1/M2/M3 metering (Step 11.68) — display counts; limits TBD */}
             <div className="mt-6 pt-6 border-t border-slate-100">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
-                {t("usage.currentPeriod")} — Metering
+                {t("usage.meteringTitle")}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="rounded-lg bg-slate-50 px-4 py-3">
@@ -329,18 +355,66 @@ export default function PortalUsagePage() {
                   <p className="text-lg font-bold text-slate-900" suppressHydrationWarning>
                     {(usage?.m1Count ?? 0).toLocaleString()}
                   </p>
+                  <p className="text-xs text-slate-500 mt-1" suppressHydrationWarning>
+                    {t("usage.limit")}{" "}
+                    {limits?.m1LimitPerMonth == null
+                      ? t("usage.unlimited")
+                      : limits.m1LimitPerMonth.toLocaleString()}
+                  </p>
+                  {usage?.nextResetDate && (
+                    <p className="text-xs text-slate-400" suppressHydrationWarning>
+                      {t("usage.resetDate")} {new Date(usage.nextResetDate).toLocaleDateString()}
+                    </p>
+                  )}
+                  {m1Pct >= 100 && (
+                    <span className="mt-2 inline-flex text-[11px] px-2 py-0.5 bg-red-100 text-red-700 rounded-full">
+                      {t("usage.limitReached")}
+                    </span>
+                  )}
                 </div>
                 <div className="rounded-lg bg-slate-50 px-4 py-3">
                   <p className="text-xs text-slate-500 mb-0.5">{t("usage.m2Label")}</p>
                   <p className="text-lg font-bold text-slate-900" suppressHydrationWarning>
                     {(usage?.m2Count ?? 0).toLocaleString()}
                   </p>
+                  <p className="text-xs text-slate-500 mt-1" suppressHydrationWarning>
+                    {t("usage.limit")}{" "}
+                    {limits?.m2LimitPerMonth == null
+                      ? t("usage.unlimited")
+                      : limits.m2LimitPerMonth.toLocaleString()}
+                  </p>
+                  {usage?.nextResetDate && (
+                    <p className="text-xs text-slate-400" suppressHydrationWarning>
+                      {t("usage.resetDate")} {new Date(usage.nextResetDate).toLocaleDateString()}
+                    </p>
+                  )}
+                  {m2Pct >= 100 && (
+                    <span className="mt-2 inline-flex text-[11px] px-2 py-0.5 bg-red-100 text-red-700 rounded-full">
+                      {t("usage.limitReached")}
+                    </span>
+                  )}
                 </div>
                 <div className="rounded-lg bg-slate-50 px-4 py-3">
                   <p className="text-xs text-slate-500 mb-0.5">{t("usage.m3Label")}</p>
                   <p className="text-lg font-bold text-slate-900" suppressHydrationWarning>
                     {(usage?.m3Count ?? 0).toLocaleString()}
                   </p>
+                  <p className="text-xs text-slate-500 mt-1" suppressHydrationWarning>
+                    {t("usage.limit")}{" "}
+                    {limits?.m3LimitVisitorsPerMonth == null
+                      ? t("usage.unlimited")
+                      : limits.m3LimitVisitorsPerMonth.toLocaleString()}
+                  </p>
+                  {usage?.nextResetDate && (
+                    <p className="text-xs text-slate-400" suppressHydrationWarning>
+                      {t("usage.resetDate")} {new Date(usage.nextResetDate).toLocaleDateString()}
+                    </p>
+                  )}
+                  {m3Pct >= 100 && (
+                    <span className="mt-2 inline-flex text-[11px] px-2 py-0.5 bg-red-100 text-red-700 rounded-full">
+                      {t("usage.limitReached")}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

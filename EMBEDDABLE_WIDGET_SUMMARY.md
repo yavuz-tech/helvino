@@ -46,7 +46,7 @@ Created a Crisp/Tawk.to style embeddable widget loader that works with a simple 
 
 ```html
 <script>window.HELVINO_ORG_KEY = "demo";</script>
-<script src="https://cdn.helvino.io/embed.js"></script>
+<script src="https://cdn.helvion.io/embed.js"></script>
 ```
 
 ### Global API
@@ -172,7 +172,7 @@ pnpm build
 
 ```bash
 # Upload dist/embed.js to CDN
-aws s3 cp dist/embed.js s3://cdn.helvino.io/embed.js
+aws s3 cp dist/embed.js s3://cdn.helvion.io/embed.js
 ```
 
 ### 3. Distribute
@@ -180,7 +180,7 @@ aws s3 cp dist/embed.js s3://cdn.helvino.io/embed.js
 ```html
 <!-- Users add to their site -->
 <script>window.HELVINO_ORG_KEY = "their-key";</script>
-<script src="https://cdn.helvino.io/embed.js"></script>
+<script src="https://cdn.helvion.io/embed.js"></script>
 ```
 
 ## 📝 Usage Examples
@@ -194,7 +194,7 @@ aws s3 cp dist/embed.js s3://cdn.helvino.io/embed.js
   <h1>My Website</h1>
   
   <script>window.HELVINO_ORG_KEY = "demo";</script>
-  <script src="https://cdn.helvino.io/embed.js"></script>
+  <script src="https://cdn.helvion.io/embed.js"></script>
 </body>
 </html>
 ```
@@ -207,7 +207,7 @@ aws s3 cp dist/embed.js s3://cdn.helvino.io/embed.js
 </button>
 
 <script>window.HELVINO_ORG_KEY = "demo";</script>
-<script src="https://cdn.helvino.io/embed.js"></script>
+<script src="https://cdn.helvion.io/embed.js"></script>
 ```
 
 ### With Analytics
@@ -225,7 +225,7 @@ aws s3 cp dist/embed.js s3://cdn.helvino.io/embed.js
     };
   });
 </script>
-<script src="https://cdn.helvino.io/embed.js"></script>
+<script src="https://cdn.helvion.io/embed.js"></script>
 ```
 
 ## 🔒 Security
@@ -234,7 +234,7 @@ aws s3 cp dist/embed.js s3://cdn.helvino.io/embed.js
 
 ```html
 <meta http-equiv="Content-Security-Policy" 
-      content="script-src 'self' https://cdn.helvino.io;">
+      content="script-src 'self' https://cdn.helvion.io;">
 ```
 
 ### CORS

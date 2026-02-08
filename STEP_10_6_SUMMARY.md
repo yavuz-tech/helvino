@@ -287,18 +287,18 @@ Kill Switch Status: 🚨 OPERATIONAL
 # 1. Disable writes immediately
 curl -X PATCH -H "x-internal-key: KEY" -H "Content-Type: application/json" \
   -d '{"writeEnabled":false}' \
-  https://api.helvino.io/api/org/ABUSER/settings
+  https://api.helvion.io/api/org/ABUSER/settings
 
 # 2. Verify
 curl -H "x-internal-key: KEY" \
-  https://api.helvino.io/api/org/ABUSER/settings
+  https://api.helvion.io/api/org/ABUSER/settings
 
 # 3. Investigate logs, ban visitor IPs, etc.
 
 # 4. Re-enable when safe
 curl -X PATCH -H "x-internal-key: KEY" -H "Content-Type: application/json" \
   -d '{"writeEnabled":true}' \
-  https://api.helvino.io/api/org/ABUSER/settings
+  https://api.helvion.io/api/org/ABUSER/settings
 ```
 
 ### Scenario 2: Contract Violation
@@ -308,7 +308,7 @@ curl -X PATCH -H "x-internal-key: KEY" -H "Content-Type: application/json" \
 # Disable entire widget
 curl -X PATCH -H "x-internal-key: KEY" -H "Content-Type: application/json" \
   -d '{"widgetEnabled":false,"writeEnabled":false}' \
-  https://api.helvino.io/api/org/CUSTOMER/settings
+  https://api.helvion.io/api/org/CUSTOMER/settings
 ```
 
 ### Scenario 3: Database Issues
@@ -320,7 +320,7 @@ curl -X PATCH -H "x-internal-key: KEY" -H "Content-Type: application/json" \
 for org in org1 org2 org3; do
   curl -X PATCH -H "x-internal-key: KEY" -H "Content-Type: application/json" \
     -d '{"writeEnabled":false}' \
-    https://api.helvino.io/api/org/$org/settings
+    https://api.helvion.io/api/org/$org/settings
 done
 ```
 

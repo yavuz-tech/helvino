@@ -95,13 +95,13 @@ else
 fi
 echo ""
 
-# Test 4: Domain allowlist - Wildcard subdomain (*.helvino.io)
-echo "Test 4: Domain allowlist - Wildcard subdomain (app.helvino.io)"
+# Test 4: Domain allowlist - Wildcard subdomain (*.helvion.io)
+echo "Test 4: Domain allowlist - Wildcard subdomain (app.helvion.io)"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
   -H "x-org-key: demo" \
   -H "x-visitor-id: v_domain_wildcard" \
   -H "Content-Type: application/json" \
-  -H "Origin: https://app.helvino.io" \
+  -H "Origin: https://app.helvion.io" \
   -d '{}' \
   http://localhost:4000/conversations)
 

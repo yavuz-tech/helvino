@@ -294,7 +294,7 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 
 ### `.env.production` (production)
 ```env
-NEXT_PUBLIC_API_URL=https://api.helvino.io
+NEXT_PUBLIC_API_URL=https://api.helvion.io
 ```
 
 **Note:** Use `NEXT_PUBLIC_` prefix to expose vars to client-side code.

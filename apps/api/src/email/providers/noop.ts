@@ -17,6 +17,10 @@ export class NoopEmailProvider implements EmailProvider {
     console.log(`  To:      ${payload.to}`);
     console.log(`  Subject: ${payload.subject}`);
     console.log(`  ID:      ${messageId}`);
+    const linkMatch = payload.html?.match(/href=["']([^"']+)["']/i);
+    if (linkMatch && payload.tags?.length) {
+      console.log(`  📎 Link (copy for dev): ${linkMatch[1]}`);
+    }
 
     return {
       success: true,

@@ -78,7 +78,7 @@ export default function DashboardLayout({
             <div className="w-8 h-8 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center shadow-sm">
               <span className="text-white font-bold text-xs">H</span>
             </div>
-            <span className="font-semibold text-sm text-slate-900 tracking-tight">Helvino</span>
+            <span className="font-semibold text-sm text-slate-900 tracking-tight">Helvion</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}

@@ -203,16 +203,16 @@ http://localhost:3000/dashboard/settings/security
 │ │ Allowed Domains                         │  │
 │ │ Only these domains can load...          │  │
 │ │                                         │  │
-│ │ [ helvino.io            ] [Remove]     │  │
-│ │ [ *.helvino.io          ] [Remove]     │  │
+│ │ [ helvion.io            ] [Remove]     │  │
+│ │ [ *.helvion.io          ] [Remove]     │  │
 │ │ [ localhost:3000        ] [Remove]     │  │
 │ │ [ localhost:5173        ] [Remove]     │  │
 │ │                                         │  │
 │ │ [+ Add Domain]                          │  │
 │ │                                         │  │
 │ │ Examples:                               │  │
-│ │ • helvino.io - exact match             │  │
-│ │ • *.helvino.io - all subdomains        │  │
+│ │ • helvion.io - exact match             │  │
+│ │ • *.helvion.io - all subdomains        │  │
 │ │ • localhost:3000 - with port           │  │
 │ └─────────────────────────────────────────┘  │
 │                                               │
@@ -251,7 +251,7 @@ http://localhost:3000/dashboard/settings/security
 <script>
   window.HELVINO_SITE_ID = "site_NddnTUHFHgFjzG6s";
 </script>
-<script src="https://cdn.helvino.io/embed.js"></script>
+<script src="https://cdn.helvion.io/embed.js"></script>
 ```
 
 ---
@@ -259,8 +259,8 @@ http://localhost:3000/dashboard/settings/security
 ### 2. Domain Allowlist
 
 **Wildcard Support:**
-- `helvino.io` → Exact match only
-- `*.helvino.io` → All subdomains + base domain
+- `helvion.io` → Exact match only
+- `*.helvion.io` → All subdomains + base domain
 - `localhost:3000` → Specific port only
 - `localhost` → Any port on localhost
 
@@ -336,7 +336,7 @@ npm run dev
 
 **Steps:**
 1. Open: `http://localhost:3000/login`
-2. Login: `admin@helvino.io` / `helvino_admin_2026`
+2. Login: `admin@helvion.io` / `helvino_admin_2026`
 3. Go to: `http://localhost:3000/dashboard/settings`
 4. Click: **"🔒 Security"** tab
 5. Page loads with Site ID, domains, and controls
@@ -525,8 +525,8 @@ curl -H "x-site-id: site_NEW..." http://localhost:4000/api/bootloader
       "localhost:3000",
       "localhost:3006",
       "localhost:5173",
-      "helvino.io",
-      "*.helvino.io"
+      "helvion.io",
+      "*.helvion.io"
     ],
     "allowLocalhost": true
   }
@@ -543,8 +543,8 @@ curl -H "x-site-id: site_NEW..." http://localhost:4000/api/bootloader
 ```json
 {
   "allowedDomains": [
-    "helvino.io",
-    "*.helvino.io",
+    "helvion.io",
+    "*.helvion.io",
     "app.customer.com"
   ],
   "allowLocalhost": false
@@ -601,7 +601,7 @@ curl -H "x-site-id: site_NEW..." http://localhost:4000/api/bootloader
    <script>
      window.HELVINO_SITE_ID = "site_NddnTU...";
    </script>
-   <script src="https://cdn.helvino.io/embed.js"></script>
+   <script src="https://cdn.helvion.io/embed.js"></script>
    ```
 
 ---
@@ -809,7 +809,7 @@ curl -H "x-site-id: site_NEW..." http://localhost:4000/api/bootloader
 http://localhost:3000/dashboard/settings/security
 ```
 
-**Login:** `admin@helvino.io` / `helvino_admin_2026`
+**Login:** `admin@helvion.io` / `helvino_admin_2026`
 
 ---
 
@@ -841,7 +841,7 @@ http://localhost:3000/dashboard/settings/security
 <script>
   window.HELVINO_SITE_ID = "YOUR_SITE_ID_HERE";
 </script>
-<script src="https://cdn.helvino.io/embed.js"></script>
+<script src="https://cdn.helvion.io/embed.js"></script>
 ```
 
 ---
