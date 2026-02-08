@@ -309,19 +309,6 @@ export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetP
                 </div>
               </div>
 
-              {/* Quick Reply Buttons */}
-              <div className="flex flex-wrap gap-2 px-2">
-                <button className="px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 transition-colors">
-                  {t("widgetPreview.quickBrowsing")}
-                </button>
-                <button className="px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 transition-colors">
-                  {t("widgetPreview.needHelp")}
-                </button>
-                <button className="px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 transition-colors">
-                  {t("widgetPreview.pricingQuestion")}
-                </button>
-              </div>
-
               {/* User Message */}
               <div className="flex items-start gap-3 justify-end">
                 <div className="flex-1 flex flex-col items-end">
@@ -334,21 +321,6 @@ export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetP
                     </p>
                   </div>
                   <div className="text-xs text-slate-500 mt-1 px-1">{t("widgetPreview.timeAgo")}</div>
-                </div>
-              </div>
-
-              {/* Bot Response */}
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: `linear-gradient(135deg, ${accent}, ${settings.primaryColor})` }}>
-                  AI
-                </div>
-                <div className="flex-1">
-                  <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm border border-slate-200/80">
-                    <p className="text-sm text-slate-800 leading-relaxed">
-                      {t("widgetPreview.botReply")}
-                    </p>
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1 px-1">{t("widgetPreview.justNow")}</div>
                 </div>
               </div>
             </div>
