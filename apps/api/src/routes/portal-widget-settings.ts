@@ -8,6 +8,7 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { requirePortalUser } from "../middleware/require-portal-user";
 import { writeAuditLog } from "../utils/audit-log";
 
 interface WidgetSettingsUpdateBody {
@@ -45,6 +46,7 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
     {
       preHandler: [
         createRateLimitMiddleware({ limit: 100, windowMs: 60000 }),
+        requirePortalUser,
       ],
     },
     async (request, reply) => {
@@ -92,6 +94,7 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
     {
       preHandler: [
         createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
+        requirePortalUser,
       ],
     },
     async (request, reply) => {

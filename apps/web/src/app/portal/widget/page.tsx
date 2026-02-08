@@ -64,8 +64,8 @@ export default function PortalWidgetPage() {
   }, [t]);
 
   useEffect(() => {
-    if (!authLoading) fetchConfig();
-  }, [authLoading, fetchConfig]);
+    if (!authLoading && user) fetchConfig();
+  }, [authLoading, user, fetchConfig]);
 
   const copySnippet = async () => {
     if (!config) return;
@@ -142,7 +142,7 @@ export default function PortalWidgetPage() {
     }
   };
 
-  if (authLoading) {
+  if (authLoading || !user) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
