@@ -543,12 +543,18 @@ export default function PortalWidgetAppearancePage() {
                       </div>
                     ))}
                     {isFree && widgetConfig.avatars.agents.length > maxAgents && (
-                      <p className="mt-2 text-xs text-amber-600">
-                        {t("widgetConfig.maxAgentsReached")}{" "}
-                        <a href="/portal/billing" className="underline font-medium hover:text-amber-700">
-                          {t("widgetConfig.upgradeForMore")}
-                        </a>
-                      </p>
+                      <div className="mt-3 flex items-center gap-3 bg-gradient-to-r from-slate-50 to-indigo-50/60 border border-indigo-200/60 rounded-xl px-4 py-3">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 flex-shrink-0">
+                          <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-slate-700">{t("widgetConfig.maxAgentsReached")}</p>
+                          <a href="/portal/billing" className="inline-flex items-center gap-1 mt-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors">
+                            {t("widgetConfig.upgradeForMore")}
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+                          </a>
+                        </div>
+                      </div>
                     )}
                   </div>
 
@@ -908,29 +914,37 @@ export default function PortalWidgetAppearancePage() {
                       </button>
                     </div>
                     {isFree && (
-                      <p className="mt-2 text-xs text-amber-600">
-                        {t("widgetConfig.brandingFreeLocked")}{" "}
-                        <a href="/portal/billing" className="underline font-medium hover:text-amber-700">
-                          {t("widgetConfig.brandingUpgrade")}
-                        </a>
-                      </p>
+                      <div className="mt-3 flex items-center gap-3 bg-gradient-to-r from-slate-50 to-violet-50/60 border border-violet-200/60 rounded-xl px-4 py-3">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 flex-shrink-0">
+                          <svg className="w-4 h-4 text-violet-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" /></svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-slate-700">{t("widgetConfig.brandingFreeLocked")}</p>
+                          <a href="/portal/billing" className="inline-flex items-center gap-1 mt-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors">
+                            {t("widgetConfig.brandingUpgrade")}
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+                          </a>
+                        </div>
+                      </div>
                     )}
                   </div>
 
                   {/* ── Domain mismatch alert ── */}
                   {domainMismatchCount > 0 && (
                     <div className="border-t border-slate-200 pt-4">
-                      <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                        <span className="text-amber-500 text-lg flex-shrink-0">⚠</span>
-                        <div>
-                          <p className="text-sm font-medium text-amber-800">
-                            {t("widgetConfig.domainMismatch")}
-                          </p>
-                          <p className="text-xs text-amber-700 mt-0.5">
+                      <div className="flex items-center gap-3 bg-gradient-to-r from-slate-50 to-rose-50/60 border border-rose-200/60 rounded-xl px-4 py-3">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-100 flex-shrink-0">
+                          <svg className="w-4 h-4 text-rose-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-medium text-slate-700">{t("widgetConfig.domainMismatch")}</p>
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-700">
+                              {domainMismatchCount}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
                             {t("widgetConfig.domainMismatchDesc")}
-                          </p>
-                          <p className="text-xs font-semibold text-amber-800 mt-1">
-                            {t("widgetConfig.domainMismatchCount").replace("{count}", String(domainMismatchCount))}
                           </p>
                         </div>
                       </div>
