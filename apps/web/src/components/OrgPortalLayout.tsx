@@ -23,9 +23,9 @@ interface NavItemDef {
 }
 
 const navItemDefs: NavItemDef[] = [
-  { labelKey: "nav.conversations", href: "/app", icon: MessageSquare },
-  { labelKey: "nav.settings", href: "/app/settings", icon: Settings },
-  { labelKey: "nav.security", href: "/app/settings/security", icon: Shield },
+  { labelKey: "nav.conversations", href: "/org-app", icon: MessageSquare },
+  { labelKey: "nav.settings", href: "/org-app/settings", icon: Settings },
+  { labelKey: "nav.security", href: "/org-app/settings/security", icon: Shield },
 ];
 
 interface OrgPortalLayoutProps {

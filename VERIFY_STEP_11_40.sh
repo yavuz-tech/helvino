@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# i18n compat: use generated flat file instead of translations.ts
+_COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
+  _I18N_COMPAT="$I18N_COMPAT_FILE"
+elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+else
+  # Fallback: generate compat on the fly
+  [ -f "$_COMPAT_DIR/scripts/gen-i18n-compat.js" ] && node "$_COMPAT_DIR/scripts/gen-i18n-compat.js" >/dev/null 2>&1 || true
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+fi
+
+
 PASS=0; FAIL=0; TOTAL=0
 pass() { ((PASS++)); ((TOTAL++)); echo "  ✅ $1"; }
 fail() { ((FAIL++)); ((TOTAL++)); echo "  ❌ $1"; }
@@ -187,11 +200,11 @@ else
   fail "Web: nav.widgetSettings missing from PortalLayout"
 fi
 
-# 6.3 Portal widget page uses PortalLayout
-if grep -q 'PortalLayout' "$WEB_DIR/src/app/portal/widget/page.tsx" 2>/dev/null; then
-  pass "Web: Portal widget page uses PortalLayout"
+# 6.3 Portal layout wraps pages with PortalLayout
+if grep -q 'PortalLayout' "$WEB_DIR/src/app/portal/layout.tsx" 2>/dev/null; then
+  pass "Web: Portal layout uses PortalLayout"
 else
-  fail "Web: Portal widget page doesn't use PortalLayout"
+  fail "Web: Portal layout doesn't use PortalLayout"
 fi
 
 # 6.4 Copy snippet functionality
@@ -219,7 +232,7 @@ fi
 section "7. i18n parity checks"
 # ═══════════════════════════════════════════
 
-I18N_FILE="$WEB_DIR/src/i18n/translations.ts"
+I18N_FILE="$_I18N_COMPAT"
 
 for key in "nav.widgetSettings" "widgetSettings.title" "widgetSettings.subtitle" "widgetSettings.embedSnippet" "widgetSettings.copy" "domainAllowlist.title" "domainAllowlist.addDomain" "domainAllowlist.remove" "domainAllowlist.noDomains" "domainAllowlist.hint"; do
   COUNT=$(grep -c "\"$key\"" "$I18N_FILE" 2>/dev/null || echo 0)
@@ -301,7 +314,7 @@ else
 fi
 
 # 9.8 Web: passwordMinLength hint updated (includes letter + number)
-if grep -q 'letter.*number\|harf.*rakam\|letra.*número' "$WEB_DIR/src/i18n/translations.ts" 2>/dev/null; then
+if grep -q 'letter.*number\|harf.*rakam\|letra.*número' "$_I18N_COMPAT" 2>/dev/null; then
   pass "PasswordPolicy: i18n hint updated with letter+number requirement"
 else
   fail "PasswordPolicy: i18n hint missing letter+number requirement"

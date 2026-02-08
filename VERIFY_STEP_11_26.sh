@@ -5,6 +5,19 @@
 set -uo pipefail
 
 # Helper: curl with retry on 429
+
+# i18n compat: use generated flat file instead of translations.ts
+_COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
+  _I18N_COMPAT="$I18N_COMPAT_FILE"
+elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+else
+  [ -f "$_COMPAT_DIR/scripts/gen-i18n-compat.js" ] && node "$_COMPAT_DIR/scripts/gen-i18n-compat.js" >/dev/null 2>&1 || true
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+fi
+
+
 curl_with_retry() {
   local url="$1"
   local method="${2:-GET}"
@@ -205,7 +218,7 @@ echo ""
 # ════════════════════════════════════════════════
 echo "── 6. i18n (EN/TR/ES parity) ──"
 
-I18N="$ROOT/apps/web/src/i18n/translations.ts"
+I18N="$_I18N_COMPAT"
 
 # 45
 EN_REVOKE_ALL=$(grep -c '"passkeys.revokeAll"' "$I18N" 2>/dev/null || echo 0)

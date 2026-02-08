@@ -1,17 +1,13 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import PortalLayout from "@/components/PortalLayout";
-import {
-  checkPortalAuth,
-  portalLogout,
-  portalApiFetch,
-  type PortalUser,
-} from "@/lib/portal-auth";
+import Link from "next/link";
+import { portalApiFetch } from "@/lib/portal-auth";
+import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { useI18n } from "@/i18n/I18nContext";
 import { useStepUp } from "@/contexts/StepUpContext";
 import EmptyState from "@/components/EmptyState";
+import { ChevronLeft } from "lucide-react";
 
 interface TeamUser {
   id: string;
@@ -31,10 +27,9 @@ interface PendingInvite {
 }
 
 export default function PortalTeamPage() {
-  const router = useRouter();
+  const { user, loading: authLoading } = usePortalAuth();
   const { t } = useI18n();
   const { withStepUp } = useStepUp();
-  const [user, setUser] = useState<PortalUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [invites, setInvites] = useState<PendingInvite[]>([]);
@@ -54,14 +49,8 @@ export default function PortalTeamPage() {
   const [roleValue, setRoleValue] = useState("");
 
   useEffect(() => {
-    const init = async () => {
-      const u = await checkPortalAuth();
-      if (!u) { router.push("/portal/login"); return; }
-      setUser(u);
-      setLoading(false);
-    };
-    init();
-  }, [router]);
+    if (!authLoading) setLoading(false);
+  }, [authLoading]);
 
   const fetchTeam = useCallback(async () => {
     try {
@@ -78,11 +67,6 @@ export default function PortalTeamPage() {
   useEffect(() => {
     if (!loading && user) fetchTeam();
   }, [loading, user, fetchTeam]);
-
-  const handleLogout = async () => {
-    await portalLogout();
-    router.push("/portal/login");
-  };
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,16 +196,23 @@ export default function PortalTeamPage() {
 
   if (loading) {
     return (
-      <PortalLayout user={null} onLogout={handleLogout}>
-        <div className="text-slate-600">{t("common.loading")}</div>
-      </PortalLayout>
+      <div className="text-slate-600">{t("common.loading")}</div>
     );
   }
 
   return (
-    <PortalLayout user={user ? { email: user.email, role: user.role, orgName: user.orgName } : null} onLogout={handleLogout}>
+    <>
       <div className="max-w-4xl mx-auto space-y-8">
-        <h1 className="text-2xl font-bold text-slate-900">{t("team.title")}</h1>
+        <div>
+          <Link
+            href="/portal"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#1A1A2E] transition-colors mb-3 group"
+          >
+            <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+            {t("portalOnboarding.backToDashboard")}
+          </Link>
+          <h1 className="text-2xl font-bold text-slate-900">{t("team.title")}</h1>
+        </div>
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
@@ -409,6 +400,6 @@ export default function PortalTeamPage() {
           )}
         </div>
       </div>
-    </PortalLayout>
+    </>
   );
 }

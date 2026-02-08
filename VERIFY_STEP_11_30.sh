@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# i18n compat: use generated flat file instead of translations.ts
+_COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
+  _I18N_COMPAT="$I18N_COMPAT_FILE"
+elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+else
+  # Fallback: generate compat on the fly
+  [ -f "$_COMPAT_DIR/scripts/gen-i18n-compat.js" ] && node "$_COMPAT_DIR/scripts/gen-i18n-compat.js" >/dev/null 2>&1 || true
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+fi
+
+
 PASS=0; FAIL=0; TOTAL=0
 pass() { PASS=$((PASS+1)); TOTAL=$((TOTAL+1)); echo "  ✅ $1"; }
 fail() { FAIL=$((FAIL+1)); TOTAL=$((TOTAL+1)); echo "  ❌ $1"; }
@@ -75,7 +88,7 @@ check_grep "$WEB/app/portal/login/page.tsx" "ErrorBanner" "Portal login uses Err
 # ── Section 7: i18n key parity ──
 echo ""
 echo "▸ i18n key parity (EN/TR/ES)"
-TRANS="$WEB/i18n/translations.ts"
+TRANS="$_I18N_COMPAT"
 
 # Onboarding keys
 for KEY in "onboarding.next" "onboarding.getStarted" "onboarding.dontShowAgain" \

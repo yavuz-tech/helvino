@@ -5,6 +5,17 @@
 #
 set -euo pipefail
 
+# i18n compat: use generated flat file instead of translations.ts
+_COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
+  _I18N_COMPAT="$I18N_COMPAT_FILE"
+elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+else
+  [ -f "$_COMPAT_DIR/scripts/gen-i18n-compat.js" ] && node "$_COMPAT_DIR/scripts/gen-i18n-compat.js" >/dev/null 2>&1 || true
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
@@ -173,28 +184,28 @@ echo
 echo "6️⃣  i18n Key Parity"
 
 check "6.1) EN: notifications.filter.category exists" \
-  grep -q '"notifications.filter.category":' apps/web/src/i18n/translations.ts
+  grep -q '"notifications.filter.category":' "$_I18N_COMPAT"
 
 check "6.2) EN: notifications.category.security exists" \
-  grep -q '"notifications.category.security":' apps/web/src/i18n/translations.ts
+  grep -q '"notifications.category.security":' "$_I18N_COMPAT"
 
 check "6.3) EN: notif.security.mfaEnabled.title exists" \
-  grep -q '"notif.security.mfaEnabled.title":' apps/web/src/i18n/translations.ts
+  grep -q '"notif.security.mfaEnabled.title":' "$_I18N_COMPAT"
 
 check "6.4) EN: notif.billing.locked.title exists" \
-  grep -q '"notif.billing.locked.title":' apps/web/src/i18n/translations.ts
+  grep -q '"notif.billing.locked.title":' "$_I18N_COMPAT"
 
 check "6.5) TR: notifications.filter.category exists" \
-  sh -c 'grep -A2000 "const tr.*=" apps/web/src/i18n/translations.ts | grep -q "\"notifications.filter.category\":"'
+  grep -q '"notifications.filter.category":' apps/web/src/i18n/locales/tr.json
 
 check "6.6) TR: notif.security.mfaEnabled.title exists" \
-  sh -c 'grep -A2000 "const tr.*=" apps/web/src/i18n/translations.ts | grep -q "\"notif.security.mfaEnabled.title\":"'
+  grep -q '"notif.security.mfaEnabled.title":' apps/web/src/i18n/locales/tr.json
 
 check "6.7) ES: notifications.filter.category exists" \
-  sh -c 'grep -A2000 "const es.*=" apps/web/src/i18n/translations.ts | grep -q "\"notifications.filter.category\":"'
+  grep -q '"notifications.filter.category":' apps/web/src/i18n/locales/es.json
 
 check "6.8) ES: notif.security.mfaEnabled.title exists" \
-  sh -c 'grep -A2000 "const es.*=" apps/web/src/i18n/translations.ts | grep -q "\"notif.security.mfaEnabled.title\":"'
+  grep -q '"notif.security.mfaEnabled.title":' apps/web/src/i18n/locales/es.json
 
 # ────────────────────────────────────────────────────────────────
 # 7. Documentation

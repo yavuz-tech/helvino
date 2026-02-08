@@ -106,12 +106,12 @@ fi
 echo ""
 echo "── API smoke tests ──"
 
-# Check API is running
-HEALTH_RES=$(curl -s -m 5 "$API_URL/health" 2>/dev/null || echo "")
-if echo "$HEALTH_RES" | grep -q '"ok"'; then
-  pass "API is running"
+# Health gate: check API is healthy
+__API_HC=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 3 --max-time 5 "$API_URL/health" 2>/dev/null || echo "000")
+if [ "$__API_HC" = "200" ]; then
+  pass "API is running and healthy"
 else
-  skip "API not running — skipping smoke tests"
+  skip "API not healthy (HTTP $__API_HC) — skipping smoke tests"
   echo ""
   echo "═══════════════════════════════════════════════"
   echo -e "  Result: ${PASS}/${TOTAL} passed"

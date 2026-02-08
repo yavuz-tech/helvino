@@ -3,6 +3,19 @@
 # VERIFY_STEP_11_34.sh — Widget UX & Embed Onboarding
 # =============================================================
 set -uo pipefail
+
+# i18n compat: use generated flat file instead of translations.ts
+_COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
+  _I18N_COMPAT="$I18N_COMPAT_FILE"
+elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+else
+  [ -f "$_COMPAT_DIR/scripts/gen-i18n-compat.js" ] && node "$_COMPAT_DIR/scripts/gen-i18n-compat.js" >/dev/null 2>&1 || true
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+fi
+
+
 PASS=0; FAIL=0; WARN=0
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
@@ -94,7 +107,7 @@ grep -q "HELVINO_SITE_ID" "$CHECKLIST" && pass "EmbedChecklist shows embed snipp
 echo ""
 echo "── 10. i18n Key Checks ──"
 
-I18N="$ROOT/apps/web/src/i18n/translations.ts"
+I18N="$_I18N_COMPAT"
 
 # Check EN keys exist
 for key in "widget.connected" "widget.startConversation" "widget.loading" "widget.ready" "widget.error" "widget.errorRetry" "widget.notLoaded" "widget.notLoadedDesc" "widget.domainNotAuth" "widget.domainNotAuthDesc" "widget.testChat" "widget.testChatDesc" "widget.dismiss" "embed.checklistTitle" "embed.checklistSubtitle" "embed.step1Title" "embed.step2Title" "embed.step3Title" "embed.completed" "embed.pending" "embed.copySnippet" "embed.configureDomains" "embed.previewWidget" "embed.snippetTitle" "embed.snippetHint" "common.retry"; do

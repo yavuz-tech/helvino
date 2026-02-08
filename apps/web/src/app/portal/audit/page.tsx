@@ -1,15 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import PortalLayout from "@/components/PortalLayout";
-import {
-  checkPortalAuth,
-  portalLogout,
-  portalApiFetch,
-  type PortalUser,
-} from "@/lib/portal-auth";
-import { Download, Search, X as XIcon, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { portalApiFetch } from "@/lib/portal-auth";
+import { usePortalAuth } from "@/contexts/PortalAuthContext";
+import { Download, Search, X as XIcon, ChevronDown, ChevronLeft } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useHydrated } from "@/hooks/useHydrated";
@@ -60,12 +55,10 @@ function getActionColor(action: string): string {
 /* ────────── Main ────────── */
 
 export default function PortalAuditPage() {
-  const router = useRouter();
+  const { user, loading: authLoading } = usePortalAuth();
   const { t } = useI18n();
   const hydrated = useHydrated();
 
-  const [user, setUser] = useState<PortalUser | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,18 +70,6 @@ export default function PortalAuditPage() {
   const [filterActor, setFilterActor] = useState("");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
-
-  // Auth
-  useEffect(() => {
-    checkPortalAuth().then((u) => {
-      if (!u) {
-        router.push("/portal/login");
-        return;
-      }
-      setUser(u);
-      setAuthLoading(false);
-    });
-  }, [router]);
 
   // Fetch
   const fetchEntries = useCallback(
@@ -167,23 +148,29 @@ export default function PortalAuditPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
       </div>
     );
   }
 
   return (
-    <PortalLayout
-      user={user}
-      onLogout={() => portalLogout().then(() => router.push("/portal/login"))}
-    >
+    <>
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-bold text-slate-900">
-            {t("audit.title")}
-          </h1>
+          <div>
+            <Link
+              href="/portal"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#1A1A2E] transition-colors mb-3 group"
+            >
+              <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+              {t("portalOnboarding.backToDashboard")}
+            </Link>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {t("audit.title")}
+            </h1>
+          </div>
           <button
             onClick={handleExportCsv}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
@@ -351,6 +338,6 @@ export default function PortalAuditPage() {
           )}
         </div>
       </div>
-    </PortalLayout>
+    </>
   );
 }

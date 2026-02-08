@@ -2,14 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import PortalLayout from "@/components/PortalLayout";
-import {
-  checkPortalAuth,
-  portalLogout,
-  portalApiFetch,
-  type PortalUser,
-} from "@/lib/portal-auth";
-import { Copy, Check, Plus, X, Monitor, Smartphone } from "lucide-react";
+import Link from "next/link";
+import { portalApiFetch, type PortalUser } from "@/lib/portal-auth";
+import { usePortalAuth } from "@/contexts/PortalAuthContext";
+import { Copy, Check, Plus, X, Monitor, Smartphone, ChevronLeft } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 import ErrorBanner from "@/components/ErrorBanner";
 import MfaSetupSection from "@/components/MfaSetupSection";
@@ -35,8 +31,7 @@ interface PortalSessionInfo {
 export default function PortalSecurityPage() {
   const router = useRouter();
   const { t } = useI18n();
-  const [user, setUser] = useState<PortalUser | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const { user, loading: authLoading } = usePortalAuth();
   const [security, setSecurity] = useState<SecuritySettings | null>(null);
   const [original, setOriginal] = useState<SecuritySettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,19 +59,6 @@ export default function PortalSecurityPage() {
   const { withStepUp } = useStepUp();
   const canEdit = user?.role === "owner" || user?.role === "admin";
   const canRotate = user?.role === "owner";
-
-  useEffect(() => {
-    const verify = async () => {
-      const portalUser = await checkPortalAuth();
-      if (!portalUser) {
-        router.push("/portal/login");
-        return;
-      }
-      setUser(portalUser);
-      setAuthLoading(false);
-    };
-    verify();
-  }, [router]);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -123,11 +105,6 @@ export default function PortalSecurityPage() {
     loadSessions();
     loadMfaStatus();
   }, [authLoading, t, loadSessions, loadMfaStatus]);
-
-  const handleLogout = async () => {
-    await portalLogout();
-    router.push("/portal/login");
-  };
 
   const copySiteId = async () => {
     if (!security) return;
@@ -313,25 +290,30 @@ export default function PortalSecurityPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">{t("common.loading")}</div>
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
       </div>
     );
   }
 
   if (loading || !security) {
     return (
-      <PortalLayout user={user} onLogout={handleLogout}>
-        <div className="text-slate-600">{t("security.loadingSettings")}</div>
-      </PortalLayout>
+      <div className="text-slate-600">{t("security.loadingSettings")}</div>
     );
   }
 
   const otherSessions = sessions.filter((s) => !s.isCurrent);
 
   return (
-    <PortalLayout user={user} onLogout={handleLogout}>
+    <>
       <div className="mb-6">
+        <Link
+          href="/portal"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#1A1A2E] transition-colors mb-3 group"
+        >
+          <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+          {t("portalOnboarding.backToDashboard")}
+        </Link>
         <h1 className="text-2xl font-bold text-slate-900">{t("security.title")}</h1>
         <p className="text-sm text-slate-600 mt-1">
           {t("portal.securitySubtitle")}
@@ -646,7 +628,7 @@ export default function PortalSecurityPage() {
           <EmergencyTokenSection />
         )}
       </div>
-    </PortalLayout>
+    </>
   );
 }
 

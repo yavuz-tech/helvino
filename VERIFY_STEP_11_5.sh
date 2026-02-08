@@ -7,16 +7,21 @@ echo "== Step 11.5 Verification =="
 
 test -f "$ROOT_DIR/docs/STEP_11_5_STRIPE_BILLING.md"
 
-echo "-> Building API"
-(cd "$ROOT_DIR/apps/api" && pnpm build)
+if [ "${SKIP_BUILD:-}" != "1" ]; then
+  echo "-> Building API"
+  (cd "$ROOT_DIR/apps/api" && pnpm build)
 
-echo "-> Building Web (isolated dir)"
-(cd "$ROOT_DIR/apps/web" && NEXT_BUILD_DIR=.next-verify pnpm build && rm -rf .next-verify 2>/dev/null || true)
+  echo "-> Building Web (isolated dir)"
+  (cd "$ROOT_DIR/apps/web" && NEXT_BUILD_DIR=.next-verify pnpm build && rm -rf .next-verify 2>/dev/null || true)
+else
+  echo "-> Builds skipped (SKIP_BUILD=1)"
+fi
 
 API_URL="http://localhost:4000"
 
-echo "-> Smoke: portal billing GET (if API running)"
-if curl -s "$API_URL/health" >/dev/null 2>&1; then
+echo "-> Smoke: portal billing GET (if API healthy)"
+__API_HC=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 3 --max-time 5 "$API_URL/health" 2>/dev/null || echo "000")
+if [ "$__API_HC" = "200" ]; then
   LOGIN=$(curl -s -m 10 -w "\n%{http_code}" -c /tmp/portal_cookies_11_5.txt -X POST \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"${ORG_OWNER_EMAIL:-owner@demo.helvino.io}\",\"password\":\"${ORG_OWNER_PASSWORD:-demo_owner_2026}\"}" \

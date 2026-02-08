@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+
+# i18n compat: use generated flat file instead of translations.ts
+_COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
+  _I18N_COMPAT="$I18N_COMPAT_FILE"
+elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+else
+  [ -f "$_COMPAT_DIR/scripts/gen-i18n-compat.js" ] && node "$_COMPAT_DIR/scripts/gen-i18n-compat.js" >/dev/null 2>&1 || true
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+fi
+
+
 PASS=0
 FAIL=0
 WARN=0
@@ -163,7 +176,7 @@ fi
 
 # ── 11. i18n Parity (3 locales for each key group) ──
 echo "── 11. i18n Parity ──"
-TRANS="/Users/yavuz/Desktop/helvino/apps/web/src/i18n/translations.ts"
+TRANS="$_I18N_COMPAT"
 
 for key in "home.heroTitle" "home.ctaStartFree" "home.feature1Title" "pubSecurity.title" "pubSecurity.authTitle" "pubCompliance.title" "pubCompliance.gdprTitle" "pubStatus.title" "pubStatus.allOperational" "pubContact.title" "pubContact.formSend" "pricing.faqTitle" "pricing.faq1Q"; do
   COUNT=$(grep -c "\"$key\"" "$TRANS" 2>/dev/null || echo 0)

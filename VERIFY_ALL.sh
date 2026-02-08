@@ -49,6 +49,15 @@ run_with_timeout() {
 }
 
 # ──────────────────────────────────────────────────
+# 0. i18n COMPAT (generate flat file for legacy scripts)
+# ──────────────────────────────────────────────────
+COMPAT_FILE="$ROOT/apps/web/src/i18n/.translations-compat.ts"
+if [ -f "$ROOT/scripts/gen-i18n-compat.js" ]; then
+  node "$ROOT/scripts/gen-i18n-compat.js" "$COMPAT_FILE" >/dev/null 2>&1 || true
+fi
+export I18N_COMPAT_FILE="$COMPAT_FILE"
+
+# ──────────────────────────────────────────────────
 # 1. ENVIRONMENT
 # ──────────────────────────────────────────────────
 divider "ENVIRONMENT"
@@ -126,6 +135,9 @@ else
   echo -e "  ${YELLOW}WARNING${NC}: API not reachable — smoke tests may fail"
 fi
 echo ""
+
+# Tell individual scripts to skip redundant builds (VERIFY_ALL already built them above)
+export SKIP_BUILD=1
 
 # ──────────────────────────────────────────────────
 # 4. DISCOVER VERIFY SCRIPTS

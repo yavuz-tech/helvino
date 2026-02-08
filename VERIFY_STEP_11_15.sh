@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# i18n compat: use generated flat file instead of translations.ts
+_COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
+  _I18N_COMPAT="$I18N_COMPAT_FILE"
+elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+else
+  # Fallback: generate compat on the fly
+  [ -f "$_COMPAT_DIR/scripts/gen-i18n-compat.js" ] && node "$_COMPAT_DIR/scripts/gen-i18n-compat.js" >/dev/null 2>&1 || true
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+fi
+
+
 # VERIFY_STEP_11_15.sh — i18n Coverage + Consistency
 # Checks that all TSX files use t() for user-facing strings,
 # and that all three locale dictionaries (en/tr/es) have identical key sets.
@@ -23,7 +36,7 @@ echo ""
 # ── 1. Key files exist ──
 echo "── 1. Key files ──"
 
-[ -f "$ROOT/apps/web/src/i18n/translations.ts" ] && pass "translations.ts exists" || fail "translations.ts missing"
+[ -f "$_I18N_COMPAT" ] && pass "translations.ts exists" || fail "translations.ts missing"
 [ -f "$ROOT/apps/web/src/i18n/I18nContext.tsx" ] && pass "I18nContext.tsx exists" || fail "I18nContext.tsx missing"
 [ -f "$ROOT/apps/web/src/components/LanguageSwitcher.tsx" ] && pass "LanguageSwitcher.tsx exists" || fail "LanguageSwitcher.tsx missing"
 [ -f "$ROOT/docs/STEP_11_15_I18N_COVERAGE.md" ] && pass "docs/STEP_11_15_I18N_COVERAGE.md exists" || fail "docs missing"
@@ -33,7 +46,7 @@ echo ""
 # ── 2. Locale key parity ──
 echo "── 2. Locale key parity (en/tr/es must have identical keys) ──"
 
-TRANS_FILE="$ROOT/apps/web/src/i18n/translations.ts"
+TRANS_FILE="$_I18N_COMPAT"
 
 # Extract keys from each locale block
 # EN is "const en = { ... } as const;"  (first block)

@@ -314,17 +314,9 @@ export async function portalOrgRoutes(fastify: FastifyInstance) {
   );
 
   /**
-   * GET /portal/conversations
+   * GET /portal/conversations — MOVED to portal-conversations.ts (Step 11.48)
+   * The enhanced endpoint with filters/search/pagination is now in portal-conversations.ts
    */
-  fastify.get(
-    "/portal/conversations",
-    { preHandler: [requirePortalUser] },
-    async (request) => {
-      const user = request.portalUser!;
-      const conversations = await store.listConversations(user.orgId);
-      return conversations;
-    }
-  );
 
   /**
    * GET /portal/conversations/:id

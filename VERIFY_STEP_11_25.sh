@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+
+# i18n compat: use generated flat file instead of translations.ts
+_COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
+  _I18N_COMPAT="$I18N_COMPAT_FILE"
+elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+else
+  [ -f "$_COMPAT_DIR/scripts/gen-i18n-compat.js" ] && node "$_COMPAT_DIR/scripts/gen-i18n-compat.js" >/dev/null 2>&1 || true
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+fi
+
+
 PASS=0
 FAIL=0
 WARN=0
@@ -122,11 +135,11 @@ check_grep "Admin login has PasskeyLoginButton" "PasskeyLoginButton" "$WEB/src/a
 # ── 8. i18n Keys ──
 echo ""
 echo "── i18n Keys ──"
-check_grep "EN passkeys.title" '"passkeys.title"' "$WEB/src/i18n/translations.ts"
-check_grep "EN passkeys.loginButton" '"passkeys.loginButton"' "$WEB/src/i18n/translations.ts"
-check_grep "TR passkeys.title" '"passkeys.title":.*Geçiş' "$WEB/src/i18n/translations.ts"
-check_grep "ES passkeys.title" '"passkeys.title":.*Claves' "$WEB/src/i18n/translations.ts"
-check_grep "EN passkeys.add" '"passkeys.add"' "$WEB/src/i18n/translations.ts"
+check_grep "EN passkeys.title" '"passkeys.title"' "$_I18N_COMPAT"
+check_grep "EN passkeys.loginButton" '"passkeys.loginButton"' "$_I18N_COMPAT"
+check_grep "TR passkeys.title" '"passkeys.title":.*Geçiş' "$_I18N_COMPAT"
+check_grep "ES passkeys.title" '"passkeys.title":.*Claves' "$_I18N_COMPAT"
+check_grep "EN passkeys.add" '"passkeys.add"' "$_I18N_COMPAT"
 
 # ── 9. Documentation ──
 echo ""

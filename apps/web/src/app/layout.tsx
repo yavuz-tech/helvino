@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
+
+const inter = Inter({
+  subsets: ["latin", "latin-ext"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: "Helvino | AI-Powered Chat Solutions",
@@ -46,8 +53,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="antialiased" suppressHydrationWarning>
+    <html lang="en" className={inter.variable} suppressHydrationWarning={true}>
+      <head suppressHydrationWarning={true} />
+      <body className={`${inter.className} antialiased`} suppressHydrationWarning={true}>
         <script dangerouslySetInnerHTML={{ __html: I18N_BLOCKING_SCRIPT }} />
         <Providers>{children}</Providers>
       </body>

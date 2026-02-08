@@ -1,15 +1,7 @@
 "use client";
 
 /**
- * EmptyState — reusable empty state component for lists/sections.
- *
- * Props:
- *   icon: emoji or text icon
- *   title: what this section is
- *   description: why it's empty + what to do
- *   actionLabel: CTA button text (optional)
- *   actionHref: CTA link target (optional)
- *   onAction: CTA click handler (optional, takes priority over href)
+ * EmptyState — Premium empty state component for lists/sections.
  */
 
 interface EmptyStateProps {
@@ -32,24 +24,26 @@ export default function EmptyState({
   className = "",
 }: EmptyStateProps) {
   return (
-    <div className={`flex flex-col items-center justify-center py-12 px-6 ${className}`}>
-      <div className="text-4xl mb-4">{icon}</div>
-      <h3 className="text-base font-semibold text-slate-800 mb-1">{title}</h3>
-      <p className="text-sm text-slate-500 text-center max-w-sm mb-5 leading-relaxed">
+    <div className={`flex flex-col items-center justify-center py-16 px-6 ${className}`}>
+      <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
+        <span className="text-2xl">{icon}</span>
+      </div>
+      <h3 className="text-base font-semibold text-slate-900 mb-1.5">{title}</h3>
+      <p className="text-sm text-slate-500 text-center max-w-sm mb-6 leading-relaxed">
         {description}
       </p>
       {actionLabel && (onAction || actionHref) && (
         onAction ? (
           <button
             onClick={onAction}
-            className="px-5 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors"
+            className="inline-flex items-center justify-center px-5 py-2.5 bg-[#1A1A2E] text-white text-sm font-semibold rounded-xl hover:bg-[#15152A] transition-all duration-150 shadow-[0_1px_3px_rgba(26,26,46,0.2)]"
           >
             {actionLabel}
           </button>
         ) : (
           <a
             href={actionHref}
-            className="px-5 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors inline-block"
+            className="inline-flex items-center justify-center px-5 py-2.5 bg-[#1A1A2E] text-white text-sm font-semibold rounded-xl hover:bg-[#15152A] transition-all duration-150 shadow-[0_1px_3px_rgba(26,26,46,0.2)]"
           >
             {actionLabel}
           </a>

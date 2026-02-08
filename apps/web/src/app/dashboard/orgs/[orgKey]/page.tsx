@@ -63,7 +63,7 @@ interface OrgDetail {
 export default function OrgDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const orgKey = params.orgKey as string;
+  const orgKey = params?.orgKey as string;
   const { t } = useI18n();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);

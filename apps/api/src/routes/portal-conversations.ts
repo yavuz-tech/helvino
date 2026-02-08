@@ -1,18 +1,229 @@
 /**
- * Portal Conversation Management Routes — Step 11.47
+ * Portal Conversation Management Routes — Step 11.47 + 11.48
  *
- * PATCH /portal/conversations/:id           — update status/assignment
- * GET   /portal/conversations/:id/notes     — list notes
- * POST  /portal/conversations/:id/notes     — create note
+ * GET   /portal/conversations                  — list with filters/search/pagination
+ * POST  /portal/conversations/bulk             — bulk assign/unassign/open/close
+ * PATCH /portal/conversations/:id              — update status/assignment
+ * GET   /portal/conversations/:id/notes        — list notes
+ * POST  /portal/conversations/:id/notes        — create note
  */
 
 import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import { requirePortalUser, requirePortalRole } from "../middleware/require-portal-user";
+import { requireStepUp } from "../middleware/require-step-up";
 import { writeAuditLog } from "../utils/audit-log";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 
 export async function portalConversationRoutes(fastify: FastifyInstance) {
+  // ═══════════════════════════════════════════════════════════════
+  // GET /portal/conversations — Enhanced list with filters + search + pagination
+  // ═══════════════════════════════════════════════════════════════
+  fastify.get<{
+    Querystring: {
+      status?: string;
+      assigned?: string;
+      q?: string;
+      limit?: string;
+      cursor?: string;
+    };
+  }>(
+    "/portal/conversations",
+    {
+      preHandler: [
+        requirePortalUser,
+        requirePortalRole(["owner", "admin", "agent"]),
+        createRateLimitMiddleware({ limit: 60, windowMs: 60000 }),
+      ],
+    },
+    async (request) => {
+      const actor = request.portalUser!;
+      const requestId =
+        (request as any).requestId ||
+        (request.headers["x-request-id"] as string) ||
+        undefined;
+
+      // Parse query params
+      const statusFilter = (request.query.status || "OPEN").toUpperCase();
+      const assignedFilter = request.query.assigned || "any";
+      const searchQuery = request.query.q?.trim() || "";
+      const limit = Math.min(Math.max(parseInt(request.query.limit || "20", 10) || 20, 10), 50);
+      const cursor = request.query.cursor || undefined;
+
+      // Build where clause
+      const where: Record<string, unknown> = { orgId: actor.orgId };
+
+      // Status filter
+      if (statusFilter === "OPEN" || statusFilter === "CLOSED") {
+        where.status = statusFilter;
+      }
+      // "ALL" => no status filter
+
+      // Assignment filter
+      if (assignedFilter === "me") {
+        where.assignedToOrgUserId = actor.id;
+      } else if (assignedFilter === "unassigned") {
+        where.assignedToOrgUserId = null;
+      } else if (assignedFilter !== "any" && assignedFilter.length > 5) {
+        // Specific user ID
+        where.assignedToOrgUserId = assignedFilter;
+      }
+
+      // Search filter (search in conversation id)
+      if (searchQuery) {
+        where.id = { contains: searchQuery, mode: "insensitive" };
+      }
+
+      // Cursor-based pagination
+      const findArgs: Record<string, unknown> = {
+        where,
+        orderBy: { updatedAt: "desc" as const },
+        take: limit + 1,
+        include: {
+          assignedTo: { select: { id: true, email: true, role: true } },
+          messages: {
+            orderBy: { timestamp: "desc" as const },
+            take: 1,
+            select: { content: true, role: true, timestamp: true },
+          },
+          _count: { select: { notes: true } },
+        },
+      };
+
+      if (cursor) {
+        findArgs.cursor = { id: cursor };
+        findArgs.skip = 1;
+      }
+
+      const entries = await prisma.conversation.findMany(findArgs as any);
+
+      const hasMore = entries.length > limit;
+      const slice = hasMore ? entries.slice(0, limit) : entries;
+      const nextCursor = hasMore ? slice[slice.length - 1]?.id || null : null;
+
+      const items = slice.map((conv: any) => {
+        const lastMsg = conv.messages?.[0] || null;
+        return {
+          id: conv.id,
+          status: conv.status,
+          assignedToOrgUserId: conv.assignedToOrgUserId || null,
+          assignedTo: conv.assignedTo || null,
+          closedAt: conv.closedAt?.toISOString() || null,
+          createdAt: conv.createdAt.toISOString(),
+          updatedAt: conv.updatedAt.toISOString(),
+          messageCount: conv.messageCount,
+          lastMessageAt: lastMsg?.timestamp?.toISOString() || conv.updatedAt.toISOString(),
+          noteCount: conv._count?.notes || 0,
+          preview: lastMsg
+            ? {
+                text: lastMsg.content.length > 100 ? lastMsg.content.slice(0, 100) + "..." : lastMsg.content,
+                from: lastMsg.role,
+              }
+            : null,
+        };
+      });
+
+      return { items, nextCursor, requestId };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════
+  // POST /portal/conversations/bulk — Bulk actions
+  // ═══════════════════════════════════════════════════════════════
+  fastify.post<{
+    Body: {
+      ids: string[];
+      action: "ASSIGN" | "UNASSIGN" | "OPEN" | "CLOSE";
+      assignedToOrgUserId?: string;
+    };
+  }>(
+    "/portal/conversations/bulk",
+    {
+      preHandler: [
+        requirePortalUser,
+        requirePortalRole(["owner", "admin", "agent"]),
+        requireStepUp("portal"),
+        createRateLimitMiddleware({ limit: 10, windowMs: 60000 }),
+      ],
+    },
+    async (request, reply) => {
+      const { ids, action, assignedToOrgUserId } = request.body;
+      const actor = request.portalUser!;
+      const requestId =
+        (request as any).requestId ||
+        (request.headers["x-request-id"] as string) ||
+        undefined;
+
+      // Validate ids
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return reply.status(400).send({
+          error: { code: "INVALID_INPUT", message: "ids must be a non-empty array", requestId },
+        });
+      }
+      if (ids.length > 50) {
+        return reply.status(400).send({
+          error: { code: "INVALID_INPUT", message: "Maximum 50 conversations per bulk action", requestId },
+        });
+      }
+
+      // Validate action
+      const validActions = ["ASSIGN", "UNASSIGN", "OPEN", "CLOSE"];
+      if (!validActions.includes(action)) {
+        return reply.status(400).send({
+          error: { code: "INVALID_INPUT", message: "Invalid action", requestId },
+        });
+      }
+
+      // Validate assignee for ASSIGN
+      if (action === "ASSIGN") {
+        if (!assignedToOrgUserId) {
+          return reply.status(400).send({
+            error: { code: "INVALID_INPUT", message: "assignedToOrgUserId required for ASSIGN", requestId },
+          });
+        }
+        const assignee = await prisma.orgUser.findFirst({
+          where: { id: assignedToOrgUserId, orgId: actor.orgId, isActive: true },
+          select: { id: true },
+        });
+        if (!assignee) {
+          return reply.status(400).send({
+            error: { code: "INVALID_ASSIGNEE", message: "User not found or inactive", requestId },
+          });
+        }
+      }
+
+      // Build update data
+      const updateData: Record<string, unknown> = {};
+      if (action === "ASSIGN") {
+        updateData.assignedToOrgUserId = assignedToOrgUserId;
+      } else if (action === "UNASSIGN") {
+        updateData.assignedToOrgUserId = null;
+      } else if (action === "CLOSE") {
+        updateData.status = "CLOSED";
+        updateData.closedAt = new Date();
+      } else if (action === "OPEN") {
+        updateData.status = "OPEN";
+        updateData.closedAt = null;
+      }
+
+      // Execute bulk update (org-scoped)
+      const result = await prisma.conversation.updateMany({
+        where: { id: { in: ids }, orgId: actor.orgId },
+        data: updateData,
+      });
+
+      // Audit log (best-effort)
+      writeAuditLog(
+        actor.orgId,
+        actor.email,
+        "inbox.bulk",
+        { action, count: result.count, ids: ids.slice(0, 10), assignedToOrgUserId, requestId },
+        requestId
+      ).catch(() => {});
+
+      return { updated: result.count, action, requestId };
+    }
+  );
   // ═══════════════════════════════════════════════════════════════
   // PATCH /portal/conversations/:id
   // Update conversation status and/or assignment

@@ -2,6 +2,19 @@
 # VERIFY_STEP_11_47.sh — Inbox Workflow: Assignment + Open/Closed + Notes
 set -euo pipefail
 
+# i18n compat: use generated flat file instead of translations.ts
+_COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
+  _I18N_COMPAT="$I18N_COMPAT_FILE"
+elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+else
+  # Fallback: generate compat on the fly
+  [ -f "$_COMPAT_DIR/scripts/gen-i18n-compat.js" ] && node "$_COMPAT_DIR/scripts/gen-i18n-compat.js" >/dev/null 2>&1 || true
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+fi
+
+
 STEP="11.47"
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -153,63 +166,63 @@ echo
 echo "3️⃣  Web UI Components"
 
 # 3.1 Inbox page updated
-if [ -f "apps/web/src/app/portal/inbox/page.tsx" ]; then
+if [ -f "apps/web/src/app/portal/inbox/PortalInboxContent.tsx" ]; then
   log_pass "3.1 Portal inbox page exists"
 else
   log_fail "3.1 Portal inbox page missing"
 fi
 
 # 3.2 Status badge
-if grep -qE '(statusOpen|statusClosed|inbox\.status)' apps/web/src/app/portal/inbox/page.tsx; then
+if grep -qE '(statusOpen|statusClosed|inbox\.status)' apps/web/src/app/portal/inbox/PortalInboxContent.tsx; then
   log_pass "3.2 Status badge/controls present"
 else
   log_fail "3.2 Status controls missing"
 fi
 
 # 3.3 Assignment dropdown
-if grep -qE '(assignTo|assignedTo|select.*team)' apps/web/src/app/portal/inbox/page.tsx; then
+if grep -qE '(assignTo|assignedTo|select.*team)' apps/web/src/app/portal/inbox/PortalInboxContent.tsx; then
   log_pass "3.3 Assignment dropdown present"
 else
   log_fail "3.3 Assignment dropdown missing"
 fi
 
 # 3.4 Notes section
-if grep -qE '(notesTitle|conversationNote|notes\.)' apps/web/src/app/portal/inbox/page.tsx; then
+if grep -qE '(notesTitle|conversationNote|notes\.)' apps/web/src/app/portal/inbox/PortalInboxContent.tsx; then
   log_pass "3.4 Notes section present"
 else
   log_fail "3.4 Notes section missing"
 fi
 
 # 3.5 Add note textarea
-if grep -qE '(notePlaceholder|noteBody|textarea)' apps/web/src/app/portal/inbox/page.tsx; then
+if grep -qE '(notePlaceholder|noteBody|textarea)' apps/web/src/app/portal/inbox/PortalInboxContent.tsx; then
   log_pass "3.5 Add note textarea present"
 else
   log_fail "3.5 Add note textarea missing"
 fi
 
 # 3.6 PATCH fetch for status
-if grep -q 'PATCH' apps/web/src/app/portal/inbox/page.tsx && grep -q '/portal/conversations' apps/web/src/app/portal/inbox/page.tsx; then
+if grep -q 'PATCH' apps/web/src/app/portal/inbox/PortalInboxContent.tsx && grep -q '/portal/conversations' apps/web/src/app/portal/inbox/PortalInboxContent.tsx; then
   log_pass "3.6 PATCH request for status/assignment"
 else
   log_fail "3.6 PATCH request missing"
 fi
 
 # 3.7 POST fetch for notes
-if grep -q 'POST' apps/web/src/app/portal/inbox/page.tsx && grep -q '/notes' apps/web/src/app/portal/inbox/page.tsx; then
+if grep -q 'POST' apps/web/src/app/portal/inbox/PortalInboxContent.tsx && grep -q '/notes' apps/web/src/app/portal/inbox/PortalInboxContent.tsx; then
   log_pass "3.7 POST request for notes"
 else
   log_fail "3.7 POST notes request missing"
 fi
 
 # 3.8 ErrorBanner import
-if grep -q "ErrorBanner" apps/web/src/app/portal/inbox/page.tsx; then
+if grep -q "ErrorBanner" apps/web/src/app/portal/inbox/PortalInboxContent.tsx; then
   log_pass "3.8 ErrorBanner imported"
 else
   log_fail "3.8 ErrorBanner not imported"
 fi
 
 # 3.9 useHydrated for date formatting
-if grep -q "useHydrated" apps/web/src/app/portal/inbox/page.tsx; then
+if grep -q "useHydrated" apps/web/src/app/portal/inbox/PortalInboxContent.tsx; then
   log_pass "3.9 useHydrated hook used (hydration-safe)"
 else
   log_fail "3.9 useHydrated missing (possible hydration issue)"
@@ -221,7 +234,7 @@ fi
 echo
 echo "4️⃣  i18n Keys (EN/TR/ES Parity)"
 
-I18N_FILE="apps/web/src/i18n/translations.ts"
+I18N_FILE="$_I18N_COMPAT"
 
 # 4.1 EN keys
 if sh -c "grep -A 2000 'const en =' \"$I18N_FILE\" | grep -q '\"inbox.statusOpen\"'" 2>/dev/null; then

@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# i18n compat: use generated flat file instead of translations.ts
+_COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
+  _I18N_COMPAT="$I18N_COMPAT_FILE"
+elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+else
+  # Fallback: generate compat on the fly
+  [ -f "$_COMPAT_DIR/scripts/gen-i18n-compat.js" ] && node "$_COMPAT_DIR/scripts/gen-i18n-compat.js" >/dev/null 2>&1 || true
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+fi
+
+
 PASS=0; FAIL=0; TOTAL=0
 pass() { ((PASS++)); ((TOTAL++)); echo "  ✅ $1"; }
 fail() { ((FAIL++)); ((TOTAL++)); echo "  ❌ $1"; }
@@ -8,7 +21,7 @@ section() { echo ""; echo "── $1 ──"; }
 
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 WEB_DIR="$BASE_DIR/apps/web"
-I18N_FILE="$WEB_DIR/src/i18n/translations.ts"
+I18N_FILE="$_I18N_COMPAT"
 
 # ═══════════════════════════════════════════
 section "1. Component file checks"

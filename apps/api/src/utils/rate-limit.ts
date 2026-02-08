@@ -32,6 +32,13 @@ function ipEmailKey(request: FastifyRequest): string {
   return `ip_email:${request.ip}:${email}`;
 }
 
+/** Per-email only key (for resend verification — rate limit per customer) */
+function emailOnlyKey(request: FastifyRequest): string {
+  const body = request.body as Record<string, unknown> | null;
+  const email = body?.email ? String(body.email).toLowerCase().substring(0, 128) : "anon";
+  return `email:${email}`;
+}
+
 /** Per-IP + userId key (for MFA/session endpoints where user is known) */
 function ipUserKey(request: FastifyRequest): string {
   const portalUser = (request as any).portalUser;
@@ -170,12 +177,12 @@ export function verifyEmailRateLimit(routeName?: string) {
   });
 }
 
-/** Resend verification: 3/min per IP+email */
+/** Resend verification: 3 attempts per email per 2 hours, then locked out */
 export function resendVerificationRateLimit(routeName?: string) {
   return createRateLimitMiddleware({
     limit: 3,
-    windowMs: 60_000,
-    keyBuilder: ipEmailKey,
+    windowMs: 7_200_000, // 2 hours
+    keyBuilder: emailOnlyKey,
     routeName: routeName || "resend-verification",
   });
 }

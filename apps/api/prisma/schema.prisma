@@ -411,3 +411,19 @@ model EmergencyAccessToken {
   @@index([tokenHash])
   @@map("emergency_access_tokens")
 }
+
+model WidgetSettings {
+  id             String       @id @default(cuid())
+  orgId          String       @unique
+  primaryColor   String       @default("#0F5C5C")
+  position       String       @default("right") // "right" | "left"
+  launcher       String       @default("bubble") // "bubble" | "icon"
+  welcomeTitle   String       @default("Welcome") @db.VarChar(60)
+  welcomeMessage String       @default("How can we help you today?") @db.VarChar(240)
+  brandName      String?      @db.VarChar(40)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([orgId])
+  @@map("widget_settings")
+}

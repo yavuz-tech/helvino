@@ -35,6 +35,14 @@ interface BootloaderResponse {
       launcherText?: string | null;
       position?: string;
     };
+    widgetSettings?: {
+      primaryColor: string;
+      position: string;
+      launcher: string;
+      welcomeTitle: string;
+      welcomeMessage: string;
+      brandName: string | null;
+    };
   };
   orgToken: string; // Short-lived signed token for write operations
   env: string;
@@ -131,6 +139,19 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
 
       resolvedOrgId = org.id;
 
+      // Load widget appearance settings (Step 11.52)
+      const widgetSettings = await prisma.widgetSettings.findUnique({
+        where: { orgId: org.id },
+        select: {
+          primaryColor: true,
+          position: true,
+          launcher: true,
+          welcomeTitle: true,
+          welcomeMessage: true,
+          brandName: true,
+        },
+      });
+
       // Generate short-lived signed token for widget operations
       const orgToken = createOrgToken({
         orgId: org.id,
@@ -174,6 +195,15 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
             widgetSubtitle: org.widgetSubtitle, // From DB
             launcherText: org.launcherText, // From DB (nullable)
             position: org.position, // From DB
+          },
+          // Widget appearance settings (Step 11.52)
+          widgetSettings: widgetSettings || {
+            primaryColor: "#0F5C5C",
+            position: "right",
+            launcher: "bubble",
+            welcomeTitle: "Welcome",
+            welcomeMessage: "How can we help you today?",
+            brandName: null,
           },
         },
         orgToken, // Short-lived signed token (5 minutes)

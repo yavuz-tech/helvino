@@ -350,48 +350,181 @@ export function getEmergencyTokenEmail(locale: string | undefined) {
   };
 }
 
-// ── 6. Email Verification ──
+// ── 6. Email Verification (warm + friendly, Gmail-safe div layout) ──
+
+function verifyHtml(content: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;color:#333;background:#f9fafb;">
+<div style="max-width:540px;margin:0 auto;padding:40px 20px;">
+<div style="background:#ffffff;border-radius:12px;padding:36px 32px;border:1px solid #e5e7eb;">
+<div style="text-align:center;margin-bottom:24px;">
+  <span style="font-size:28px;font-weight:700;color:#0F5C5C;">Helvino</span>
+</div>
+${content}
+</div>
+<p style="text-align:center;margin-top:24px;font-size:12px;color:#9ca3af;">
+  Helvino \u2014 Customer communication platform<br>
+  <a href="https://helvino.io" style="color:#9ca3af;">helvino.io</a>
+</p>
+</div>
+</body>
+</html>`;
+}
 
 const verifyEmailTemplates: Record<Locale, { subject: () => string; body: (link: string) => string }> = {
   en: {
-    subject: () => "Verify your email — Helvino",
-    body: (link) => wrapHtml(`
-<h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Verify your email</h2>
-<p style="color:#475569;font-size:14px;line-height:1.6;">
-  Thanks for signing up! Click the button below to verify your email address and activate your account.
+    subject: () => "Helvino - Verify your email address",
+    body: (link) => verifyHtml(`
+<h2 style="margin:0 0 8px;color:#1e293b;font-size:20px;text-align:center;">\u{1F44B} Hey, welcome aboard!</h2>
+<p style="text-align:center;color:#6b7280;font-size:14px;margin:0 0 24px;">We\u2019re so glad you\u2019re here.</p>
+<p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 8px;">
+  You\u2019re just one step away from getting started \u{1F680}
 </p>
-${buttonHtml(link, "Verify Email")}
-<p style="color:#94a3b8;font-size:12px;">
-  This link expires in 24 hours. If you didn't create this account, you can safely ignore this email.
+<p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 24px;">
+  Click the button below to verify your email and activate your account:
+</p>
+<div style="text-align:center;margin:28px 0;">
+  <a href="${link}" style="display:inline-block;background:#0F5C5C;color:#ffffff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">\u2705 Verify My Email</a>
+</div>
+<div style="background:#f0fdf4;border-radius:8px;padding:16px 20px;margin:24px 0 0;">
+  <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#166534;">\u{1F4AC} What\u2019s next?</p>
+  <p style="margin:0;font-size:13px;color:#15803d;line-height:1.6;">
+    \u2714\uFE0F Set up your live chat widget in minutes<br>
+    \u2714\uFE0F Start real-time conversations with visitors<br>
+    \u2714\uFE0F Explore AI-powered tools for your team
+  </p>
+</div>
+<p style="font-size:12px;color:#9ca3af;margin-top:24px;line-height:1.5;">
+  This link is valid for 24 hours. If you didn\u2019t sign up for Helvino, just ignore this email \u2014 no worries!
+</p>
+<p style="font-size:13px;color:#6b7280;margin-top:16px;">
+  Cheers \u{1F49A}<br>
+  <strong>The Helvino Team</strong>
 </p>
 `),
   },
   tr: {
-    subject: () => "E-postanızı doğrulayın — Helvino",
-    body: (link) => wrapHtml(`
-<h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">E-postanızı doğrulayın</h2>
-<p style="color:#475569;font-size:14px;line-height:1.6;">
-  Kaydınız için teşekkürler! Hesabınızı etkinleştirmek için aşağıdaki düğmeye tıklayarak e-posta adresinizi doğrulayın.
+    subject: () => "Helvino - E-posta adresinizi do\u011Frulay\u0131n",
+    body: (link) => verifyHtml(`
+<h2 style="margin:0 0 8px;color:#1e293b;font-size:20px;text-align:center;">\u{1F44B} Merhaba, ho\u015F geldiniz!</h2>
+<p style="text-align:center;color:#6b7280;font-size:14px;margin:0 0 24px;">Sizi aram\u0131zda g\u00F6rmekten \u00E7ok mutluyuz.</p>
+<p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 8px;">
+  Ba\u015Flamak i\u00E7in sadece bir ad\u0131m kald\u0131 \u{1F680}
 </p>
-${buttonHtml(link, "E-postayı Doğrula")}
-<p style="color:#94a3b8;font-size:12px;">
-  Bu bağlantı 24 saat içinde geçerliliğini yitirir. Bu hesabı siz oluşturmadıysanız bu e-postayı görmezden gelebilirsiniz.
+<p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 24px;">
+  A\u015Fa\u011F\u0131daki butona t\u0131klayarak e-posta adresinizi do\u011Frulay\u0131n ve hesab\u0131n\u0131z\u0131 aktifle\u015Ftirin:
+</p>
+<div style="text-align:center;margin:28px 0;">
+  <a href="${link}" style="display:inline-block;background:#0F5C5C;color:#ffffff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">\u2705 E-postam\u0131 Do\u011Frula</a>
+</div>
+<div style="background:#f0fdf4;border-radius:8px;padding:16px 20px;margin:24px 0 0;">
+  <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#166534;">\u{1F4AC} S\u0131rada ne var?</p>
+  <p style="margin:0;font-size:13px;color:#15803d;line-height:1.6;">
+    \u2714\uFE0F Canl\u0131 sohbet widget\u2019\u0131n\u0131z\u0131 dakikalar i\u00E7inde kurun<br>
+    \u2714\uFE0F Ziyaret\u00E7ilerinizle ger\u00E7ek zamanl\u0131 sohbet ba\u015Flat\u0131n<br>
+    \u2714\uFE0F Yapay zeka destekli ara\u00E7lar\u0131 ke\u015Ffedin
+  </p>
+</div>
+<p style="font-size:12px;color:#9ca3af;margin-top:24px;line-height:1.5;">
+  Bu ba\u011Flant\u0131 24 saat ge\u00E7erlidir. E\u011Fer bu hesab\u0131 siz olu\u015Fturmad\u0131ysan\u0131z bu e-postay\u0131 g\u00F6rmezden gelebilirsiniz \u2014 sorun de\u011Fil!
+</p>
+<p style="font-size:13px;color:#6b7280;margin-top:16px;">
+  Sevgilerle \u{1F49A}<br>
+  <strong>Helvino Ekibi</strong>
 </p>
 `),
   },
   es: {
-    subject: () => "Verifica tu email — Helvino",
-    body: (link) => wrapHtml(`
-<h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Verifica tu email</h2>
-<p style="color:#475569;font-size:14px;line-height:1.6;">
-  ¡Gracias por registrarte! Haz clic en el botón de abajo para verificar tu dirección de correo electrónico y activar tu cuenta.
+    subject: () => "Helvino - Verifica tu direcci\u00F3n de email",
+    body: (link) => verifyHtml(`
+<h2 style="margin:0 0 8px;color:#1e293b;font-size:20px;text-align:center;">\u{1F44B} \u00A1Hola, bienvenido!</h2>
+<p style="text-align:center;color:#6b7280;font-size:14px;margin:0 0 24px;">\u00A1Nos alegra mucho que est\u00E9s aqu\u00ED!</p>
+<p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 8px;">
+  Est\u00E1s a un solo paso de comenzar \u{1F680}
 </p>
-${buttonHtml(link, "Verificar Email")}
-<p style="color:#94a3b8;font-size:12px;">
-  Este enlace caduca en 24 horas. Si no creaste esta cuenta, puedes ignorar este correo electrónico.
+<p style="font-size:14px;line-height:1.7;color:#374151;margin:0 0 24px;">
+  Haz clic en el bot\u00F3n de abajo para verificar tu email y activar tu cuenta:
+</p>
+<div style="text-align:center;margin:28px 0;">
+  <a href="${link}" style="display:inline-block;background:#0F5C5C;color:#ffffff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">\u2705 Verificar mi Email</a>
+</div>
+<div style="background:#f0fdf4;border-radius:8px;padding:16px 20px;margin:24px 0 0;">
+  <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#166534;">\u{1F4AC} \u00BFQu\u00E9 sigue?</p>
+  <p style="margin:0;font-size:13px;color:#15803d;line-height:1.6;">
+    \u2714\uFE0F Configura tu widget de chat en minutos<br>
+    \u2714\uFE0F Empieza conversaciones en tiempo real<br>
+    \u2714\uFE0F Explora herramientas de IA para tu equipo
+  </p>
+</div>
+<p style="font-size:12px;color:#9ca3af;margin-top:24px;line-height:1.5;">
+  Este enlace es v\u00E1lido por 24 horas. Si no creaste una cuenta, ignora este correo \u2014 \u00A1sin problema!
+</p>
+<p style="font-size:13px;color:#6b7280;margin-top:16px;">
+  Con cari\u00F1o \u{1F49A}<br>
+  <strong>El equipo de Helvino</strong>
 </p>
 `),
   },
+};
+
+// Plain text versions for better deliverability (Gmail prefers multipart)
+const verifyEmailPlainText: Record<Locale, (link: string) => string> = {
+  en: (link) => `\u{1F44B} Hey, welcome aboard!
+
+We\u2019re so glad you\u2019re here.
+
+You\u2019re just one step away from getting started \u{1F680}
+Click the link below to verify your email and activate your account:
+
+${link}
+
+\u{1F4AC} What\u2019s next?
+\u2714\uFE0F Set up your live chat widget in minutes
+\u2714\uFE0F Start real-time conversations with visitors
+\u2714\uFE0F Explore AI-powered tools for your team
+
+This link is valid for 24 hours. If you didn\u2019t sign up for Helvino, just ignore this email.
+
+Cheers \u{1F49A}
+The Helvino Team`,
+  tr: (link) => `\u{1F44B} Merhaba, ho\u015F geldiniz!
+
+Sizi aram\u0131zda g\u00F6rmekten \u00E7ok mutluyuz.
+
+Ba\u015Flamak i\u00E7in sadece bir ad\u0131m kald\u0131 \u{1F680}
+A\u015Fa\u011F\u0131daki ba\u011Flant\u0131ya t\u0131klayarak e-posta adresinizi do\u011Frulay\u0131n:
+
+${link}
+
+\u{1F4AC} S\u0131rada ne var?
+\u2714\uFE0F Canl\u0131 sohbet widget\u2019\u0131n\u0131z\u0131 dakikalar i\u00E7inde kurun
+\u2714\uFE0F Ziyaret\u00E7ilerinizle ger\u00E7ek zamanl\u0131 sohbet ba\u015Flat\u0131n
+\u2714\uFE0F Yapay zeka destekli ara\u00E7lar\u0131 ke\u015Ffedin
+
+Bu ba\u011Flant\u0131 24 saat ge\u00E7erlidir. E\u011Fer bu hesab\u0131 siz olu\u015Fturmad\u0131ysan\u0131z g\u00F6rmezden gelebilirsiniz.
+
+Sevgilerle \u{1F49A}
+Helvino Ekibi`,
+  es: (link) => `\u{1F44B} \u00A1Hola, bienvenido!
+
+\u00A1Nos alegra mucho que est\u00E9s aqu\u00ED!
+
+Est\u00E1s a un solo paso de comenzar \u{1F680}
+Haz clic en el enlace para verificar tu email:
+
+${link}
+
+\u{1F4AC} \u00BFQu\u00E9 sigue?
+\u2714\uFE0F Configura tu widget de chat en minutos
+\u2714\uFE0F Empieza conversaciones en tiempo real
+\u2714\uFE0F Explora herramientas de IA para tu equipo
+
+Este enlace es v\u00E1lido por 24 horas. Si no creaste una cuenta, ignora este correo.
+
+Con cari\u00F1o \u{1F49A}
+El equipo de Helvino`,
 };
 
 export function getVerifyEmailContent(locale: string | undefined, link: string) {
@@ -399,5 +532,6 @@ export function getVerifyEmailContent(locale: string | undefined, link: string) 
   return {
     subject: verifyEmailTemplates[l].subject(),
     html: verifyEmailTemplates[l].body(link),
+    text: verifyEmailPlainText[l](link),
   };
 }

@@ -6,6 +6,7 @@ import { useI18n } from "@/i18n/I18nContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ErrorBanner from "@/components/ErrorBanner";
 import PasskeyLoginButton from "@/components/PasskeyLoginButton";
+import { designTokens } from "@/lib/designTokens";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -104,19 +105,22 @@ export default function LoginPage() {
       <div className="absolute top-4 right-4">
         <LanguageSwitcher />
       </div>
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-[420px]">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Helvino</h1>
-          <p className="text-slate-600 mt-2">{t("auth.adminDashboard")}</p>
+          <div className="inline-flex w-12 h-12 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl items-center justify-center mb-4 shadow-[0_4px_12px_rgba(0,0,0,0.15)]">
+            <span className="text-white font-bold text-lg">H</span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Helvino</h1>
+          <p className="text-sm text-slate-500 mt-1">{t("auth.adminDashboard")}</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-lg border border-slate-200 p-8">
+        <div className={`bg-white rounded-2xl ${designTokens.shadows.card} border border-slate-200/80 p-7`}>
           {mfaRequired ? (
             <>
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">
+              <h2 className="text-lg font-semibold text-slate-900 mb-1.5">
                 {t("mfa.loginRequired")}
               </h2>
-              <p className="text-sm text-slate-600 mb-6">
+              <p className="text-sm text-slate-500 mb-5">
                 {t("mfa.loginDesc")}
               </p>
 
@@ -130,14 +134,14 @@ export default function LoginPage() {
                   value={mfaCode}
                   onChange={(e) => setMfaCode(e.target.value)}
                   placeholder={t("mfa.codeOrBackup")}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 font-mono text-center text-lg tracking-widest"
+                  className={`${designTokens.inputs.base} font-mono text-center text-lg tracking-widest`}
                   autoFocus
                   disabled={mfaLoading}
                   maxLength={20}
                 />
                 <button
                   type="submit"
-                  className="w-full py-3 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
+                  className={`w-full ${designTokens.buttons.primary} py-3`}
                   disabled={mfaLoading || !mfaCode.trim()}
                 >
                   {mfaLoading ? t("mfa.verifying") : t("mfa.loginVerify")}
@@ -152,7 +156,7 @@ export default function LoginPage() {
             </>
           ) : (
             <>
-              <h2 className="text-xl font-semibold text-slate-900 mb-6">
+              <h2 className="text-lg font-semibold text-slate-900 mb-5">
                 {t("auth.signIn")}
               </h2>
 
@@ -162,7 +166,7 @@ export default function LoginPage() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-slate-900 mb-2">
+                  <label htmlFor="email" className={designTokens.inputs.label}>
                     {t("auth.email")}
                   </label>
                   <input
@@ -174,12 +178,12 @@ export default function LoginPage() {
                     autoComplete="email"
                     placeholder="admin@helvino.io"
                     disabled={loading}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                    className={designTokens.inputs.base}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-slate-900 mb-2">
+                  <label htmlFor="password" className={designTokens.inputs.label}>
                     {t("auth.password")}
                   </label>
                   <input
@@ -191,23 +195,23 @@ export default function LoginPage() {
                     autoComplete="current-password"
                     placeholder="••••••••"
                     disabled={loading}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                    className={designTokens.inputs.base}
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed"
+                  className={`w-full ${designTokens.buttons.primary} py-3`}
                 >
                   {loading ? t("auth.signingIn") : t("auth.signIn")}
                 </button>
               </form>
 
               {/* Passkey divider + button */}
-              <div className="relative my-4">
+              <div className="relative my-5">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200" />
+                  <div className="w-full border-t border-slate-200/80" />
                 </div>
                 <div className="relative flex justify-center text-xs">
                   <span className="bg-white px-3 text-slate-400">{t("passkeys.orDivider")}</span>
@@ -221,11 +225,11 @@ export default function LoginPage() {
                 onError={(msg) => { setError(msg); setErrorRequestId(null); }}
               />
 
-              <div className="mt-6 pt-6 border-t border-slate-200">
-                <p className="text-xs text-slate-500 text-center">
+              <div className="mt-5 pt-5 border-t border-slate-200/60">
+                <p className="text-xs text-slate-400 text-center">
                   {t("auth.defaultCredentials")}
                 </p>
-                <p className="text-xs text-slate-500 text-center mt-2">
+                <p className="text-xs text-slate-400 text-center mt-1.5">
                   {t("auth.changeInProd")}
                 </p>
               </div>
@@ -233,8 +237,8 @@ export default function LoginPage() {
           )}
         </div>
 
-        <div className="mt-6 text-center">
-          <p className="text-sm text-slate-600">
+        <div className="mt-5 text-center">
+          <p className="text-xs text-slate-400">
             {t("auth.adminFooter")} &bull; {t("auth.cookieSession")}
           </p>
         </div>

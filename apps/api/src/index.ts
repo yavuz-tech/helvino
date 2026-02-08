@@ -30,6 +30,7 @@ import { stripeWebhookRoutes } from "./routes/stripe-webhook";
 import { widgetAnalyticsRoutes } from "./routes/widget-analytics";
 import { adminOrgDirectoryRoutes } from "./routes/admin-orgs";
 import { portalWidgetConfigRoutes } from "./routes/portal-widget-config";
+import { portalWidgetSettingsRoutes } from "./routes/portal-widget-settings";
 import { auditLogRoutes } from "./routes/audit-log-routes";
 import { portalNotificationRoutes } from "./routes/portal-notifications";
 import { portalConversationRoutes } from "./routes/portal-conversations";
@@ -175,6 +176,7 @@ fastify.register(orgAdminRoutes, { prefix: "/api" });
 fastify.register(securityRoutes, { prefix: "/api" }); // Security management
 fastify.register(internalAdminRoutes); // Internal admin (no prefix)
 fastify.register(orgCustomerRoutes); // Org customer routes (customer portal, no prefix)
+fastify.register(portalConversationRoutes); // Portal conversation management (Step 11.47/11.48) — MUST be before portalOrgRoutes
 fastify.register(portalOrgRoutes); // Portal org routes (no prefix)
 fastify.register(portalTeamRoutes); // Portal team management (no prefix)
 fastify.register(portalSecurityRoutes); // Portal security: password reset, sessions (no prefix)
@@ -187,9 +189,9 @@ fastify.register(stripeWebhookRoutes); // Stripe webhooks
 fastify.register(widgetAnalyticsRoutes); // Widget analytics + health (no prefix)
 fastify.register(adminOrgDirectoryRoutes); // Admin org directory (Step 11.39)
 fastify.register(portalWidgetConfigRoutes); // Portal widget config + domains (Step 11.40)
+fastify.register(portalWidgetSettingsRoutes); // Portal widget appearance settings (Step 11.52)
 fastify.register(auditLogRoutes); // Audit log routes: portal + admin (Step 11.42)
 fastify.register(portalNotificationRoutes); // Portal notifications (Step 11.43)
-fastify.register(portalConversationRoutes); // Portal conversation management (Step 11.47)
 
 // Root info
 fastify.get("/", async () => {

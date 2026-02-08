@@ -6,6 +6,7 @@ import Link from "next/link";
 import PublicLayout from "@/components/PublicLayout";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useI18n } from "@/i18n/I18nContext";
+import { designTokens } from "@/lib/designTokens";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -14,11 +15,11 @@ export default function VerifyEmailPage() {
     <Suspense fallback={
       <PublicLayout>
         <div className="flex min-h-[60vh] items-center justify-center px-4 py-16">
-          <div className="w-full max-w-md">
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 text-center animate-pulse">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100" />
-              <div className="h-6 bg-slate-100 rounded mx-auto w-48 mb-4" />
-              <div className="h-4 bg-slate-100 rounded mx-auto w-64" />
+          <div className="w-full max-w-[420px]">
+            <div className={`bg-white rounded-2xl ${designTokens.shadows.card} border border-slate-200/80 p-8 text-center animate-pulse`}>
+              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-slate-100" />
+              <div className="h-5 bg-slate-100 rounded-lg mx-auto w-48 mb-4" />
+              <div className="h-4 bg-slate-100 rounded-lg mx-auto w-64" />
             </div>
           </div>
         </div>
@@ -84,19 +85,17 @@ function VerifyEmailContent() {
   return (
     <PublicLayout>
       <div className="flex min-h-[60vh] items-center justify-center px-4 py-16">
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 text-center">
+        <div className="w-full max-w-[420px]">
+          <div className={`bg-white rounded-2xl ${designTokens.shadows.card} border border-slate-200/80 p-8 text-center`}>
             {status === "verifying" && (
               <>
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center animate-pulse">
-                  <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
+                <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-[#0F5C5C] animate-spin" />
                 </div>
-                <h2 className="text-xl font-bold text-slate-900 mb-2">
+                <h2 className="text-lg font-bold text-slate-900 mb-2">
                   {t("verifyEmail.title")}
                 </h2>
-                <p className="text-slate-500 text-sm">
+                <p className="text-sm text-slate-500">
                   {t("verifyEmail.verifying")}
                 </p>
               </>
@@ -104,21 +103,18 @@ function VerifyEmailContent() {
 
             {status === "success" && (
               <>
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                  <svg className="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h2 className="text-xl font-bold text-slate-900 mb-2">
+                <h2 className="text-lg font-bold text-slate-900 mb-2">
                   {t("verifyEmail.title")}
                 </h2>
-                <p className="text-slate-600 text-sm mb-6">
+                <p className="text-sm text-slate-500 mb-6 leading-relaxed">
                   {t("verifyEmail.success")}
                 </p>
-                <Link
-                  href="/portal/login"
-                  className="inline-flex px-6 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors"
-                >
+                <Link href="/portal/login" className={designTokens.buttons.primary}>
                   {t("verifyEmail.loginCta")}
                 </Link>
               </>
@@ -126,12 +122,12 @@ function VerifyEmailContent() {
 
             {(status === "error" || status === "expired") && (
               <>
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-red-50 flex items-center justify-center">
+                  <svg className="w-7 h-7 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </div>
-                <h2 className="text-xl font-bold text-slate-900 mb-2">
+                <h2 className="text-lg font-bold text-slate-900 mb-2">
                   {t("verifyEmail.title")}
                 </h2>
                 {errorMessage && (
@@ -142,10 +138,7 @@ function VerifyEmailContent() {
                   />
                 )}
                 <div className="flex flex-col gap-3 mt-4">
-                  <Link
-                    href="/portal/login"
-                    className="inline-flex justify-center px-6 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors"
-                  >
+                  <Link href="/portal/login" className={`${designTokens.buttons.primary} w-full`}>
                     {t("verifyEmail.loginCta")}
                   </Link>
                 </div>

@@ -73,7 +73,7 @@ echo ""
 echo "── API smoke checks ──"
 
 # Health check
-HEALTH_CODE=$(curl -s -w "%{http_code}" -o /dev/null "$API_URL/health" 2>/dev/null || echo "000")
+HEALTH_CODE=$(curl -s -m 10 -w "%{http_code}" -o /dev/null "$API_URL/health" 2>/dev/null || echo "000")
 
 if [ "$HEALTH_CODE" = "200" ] || [ "$HEALTH_CODE" = "503" ]; then
   pass "GET /health returns $HEALTH_CODE"
@@ -92,8 +92,8 @@ fi
 
 # Login page accessible (via web dev server if running)
 WEB_URL="${WEB_URL:-http://localhost:3000}"
-LOGIN_CODE=$(curl -s -w "%{http_code}" -o /dev/null "$WEB_URL/login" 2>/dev/null || echo "000")
-PORTAL_LOGIN_CODE=$(curl -s -w "%{http_code}" -o /dev/null "$WEB_URL/portal/login" 2>/dev/null || echo "000")
+LOGIN_CODE=$(curl -s -m 10 -w "%{http_code}" -o /dev/null "$WEB_URL/login" 2>/dev/null || echo "000")
+PORTAL_LOGIN_CODE=$(curl -s -m 10 -w "%{http_code}" -o /dev/null "$WEB_URL/portal/login" 2>/dev/null || echo "000")
 
 if [ "$LOGIN_CODE" = "200" ]; then
   pass "GET /login returns 200"
@@ -108,14 +108,14 @@ else
 fi
 
 # Billing endpoints require auth (401)
-BILLING_UNAUTH=$(curl -s -w "%{http_code}" -o /dev/null "$API_URL/portal/billing/status" 2>/dev/null || echo "000")
+BILLING_UNAUTH=$(curl -s -m 10 -w "%{http_code}" -o /dev/null "$API_URL/portal/billing/status" 2>/dev/null || echo "000")
 if [ "$BILLING_UNAUTH" = "401" ] || [ "$BILLING_UNAUTH" = "403" ]; then
   pass "GET /portal/billing/status without auth returns $BILLING_UNAUTH"
 else
   fail "GET /portal/billing/status without auth returned $BILLING_UNAUTH (expected 401/403)"
 fi
 
-CHECKOUT_UNAUTH=$(curl -s -w "%{http_code}" -o /dev/null -X POST "$API_URL/portal/billing/checkout" \
+CHECKOUT_UNAUTH=$(curl -s -m 10 -w "%{http_code}" -o /dev/null -X POST "$API_URL/portal/billing/checkout" \
   -H "Content-Type: application/json" -d '{}' 2>/dev/null || echo "000")
 if [ "$CHECKOUT_UNAUTH" = "401" ] || [ "$CHECKOUT_UNAUTH" = "403" ]; then
   pass "POST /portal/billing/checkout without auth returns $CHECKOUT_UNAUTH"
@@ -124,7 +124,7 @@ else
 fi
 
 # Webhook with bad/missing signature returns 400
-WH_BAD=$(curl -s -w "\n%{http_code}" -X POST "$API_URL/webhooks/stripe" \
+WH_BAD=$(curl -s -m 10 -w "\n%{http_code}" -X POST "$API_URL/webhooks/stripe" \
   -H "Content-Type: application/json" \
   -H "stripe-signature: bad_sig_v1=abc" \
   -d '{"type":"test"}' 2>/dev/null || echo -e "\n000")
@@ -147,7 +147,7 @@ if [ "$WH_CODE" = "501" ]; then
 fi
 
 # Webhook with no signature at all returns 400
-WH_NOSIG=$(curl -s -w "%{http_code}" -o /dev/null -X POST "$API_URL/webhooks/stripe" \
+WH_NOSIG=$(curl -s -m 10 -w "%{http_code}" -o /dev/null -X POST "$API_URL/webhooks/stripe" \
   -H "Content-Type: application/json" \
   -d '{"type":"test"}' 2>/dev/null || echo "000")
 if [ "$WH_NOSIG" = "400" ]; then
@@ -157,7 +157,7 @@ else
 fi
 
 # Admin auth protection
-ADMIN_UNAUTH=$(curl -s -w "%{http_code}" -o /dev/null "$API_URL/internal/orgs" 2>/dev/null || echo "000")
+ADMIN_UNAUTH=$(curl -s -m 10 -w "%{http_code}" -o /dev/null "$API_URL/internal/orgs" 2>/dev/null || echo "000")
 if [ "$ADMIN_UNAUTH" = "401" ] || [ "$ADMIN_UNAUTH" = "403" ]; then
   pass "GET /internal/orgs without auth returns $ADMIN_UNAUTH"
 else

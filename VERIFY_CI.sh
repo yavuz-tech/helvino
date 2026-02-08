@@ -29,6 +29,7 @@ echo ""
 # ── 3. Web build (isolated) ──
 echo "--- Web build ---"
 cd "$ROOT/apps/web"
+rm -rf .next-verify 2>/dev/null || true
 NEXT_BUILD_DIR=.next-verify pnpm build
 rm -rf .next-verify 2>/dev/null || true
 echo ""

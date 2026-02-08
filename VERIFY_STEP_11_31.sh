@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# i18n compat: use generated flat file instead of translations.ts
+_COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
+  _I18N_COMPAT="$I18N_COMPAT_FILE"
+elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+else
+  # Fallback: generate compat on the fly
+  [ -f "$_COMPAT_DIR/scripts/gen-i18n-compat.js" ] && node "$_COMPAT_DIR/scripts/gen-i18n-compat.js" >/dev/null 2>&1 || true
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+fi
+
+
 PASS=0; FAIL=0; TOTAL=0
 pass() { PASS=$((PASS+1)); TOTAL=$((TOTAL+1)); echo "  ✅ $1"; }
 fail() { FAIL=$((FAIL+1)); TOTAL=$((TOTAL+1)); echo "  ❌ $1"; }
@@ -9,7 +22,7 @@ check_grep() { grep -q "$2" "$1" 2>/dev/null && pass "$3" || fail "$3"; }
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 WEB="$ROOT/apps/web/src"
-TRANS="$WEB/i18n/translations.ts"
+TRANS="$_I18N_COMPAT"
 
 echo "═══════════════════════════════════════════"
 echo " STEP 11.31 — Pricing & Plan Comparison"
@@ -83,10 +96,10 @@ done
 # ── Section 7: Smoke test — pricing page accessible ──
 echo ""
 echo "▸ Smoke tests"
-if curl -s http://localhost:3000 >/dev/null 2>&1; then
+if curl -s -m 5 http://localhost:3000 >/dev/null 2>&1; then
   PRICING_HTTP=$(curl -s -m 10 -o /dev/null -w "%{http_code}" http://localhost:3000/pricing)
   [ "$PRICING_HTTP" = "200" ] && pass "GET /pricing → 200" || fail "GET /pricing → $PRICING_HTTP"
-  
+
   BILLING_HTTP=$(curl -s -m 10 -o /dev/null -w "%{http_code}" http://localhost:3000/portal/billing)
   [ "$BILLING_HTTP" = "200" ] && pass "GET /portal/billing → 200" || fail "GET /portal/billing → $BILLING_HTTP"
 else

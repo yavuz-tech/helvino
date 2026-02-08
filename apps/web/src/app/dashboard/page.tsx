@@ -15,7 +15,12 @@ import EmptyState from "@/components/EmptyState";
 import SecurityBadges from "@/components/SecurityBadges";
 import AdminWidgetHealthSummary from "@/components/AdminWidgetHealthSummary";
 import AdminAuditSummary from "@/components/AdminAuditSummary";
+import PageHeader from "@/components/PageHeader";
+import Card from "@/components/Card";
+import StatCard from "@/components/StatCard";
+import SectionTitle from "@/components/SectionTitle";
 import { useI18n } from "@/i18n/I18nContext";
+import { Activity, AlertTriangle, BarChart3, Users } from "lucide-react";
 
 interface Conversation {
   id: string;
@@ -74,6 +79,11 @@ export default function DashboardPage() {
   const [widgetSummary, setWidgetSummary] = useState<WidgetSummaryData | null>(null);
 
   const API_URL_POLICY = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+  const totalRequests = widgetSummary?.totals.loadsTotal ?? 0;
+  const totalFailures = widgetSummary?.totals.failuresTotal ?? 0;
+  const totalDomainMismatch = widgetSummary?.totals.domainMismatchTotal ?? 0;
+  const totalOrgs = widgetSummary?.totals.orgsTotal ?? 0;
 
   // Check authentication on mount
   useEffect(() => {
@@ -302,7 +312,7 @@ export default function DashboardPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">{t("common.loading")}</div>
+        <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-[#0F5C5C] animate-spin" />
       </div>
     );
   }
@@ -313,14 +323,16 @@ export default function DashboardPage() {
       <DashboardLayout user={user} onLogout={handleLogout}>
         <div className="flex items-center justify-center h-[60vh]">
           <div className="text-center">
-            <div className="text-6xl mb-4">🏢</div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">{t("dashboard.noOrgSelected")}</h2>
-            <p className="text-slate-600 mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-5">
+              <span className="text-2xl">🏢</span>
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 mb-2 tracking-tight">{t("dashboard.noOrgSelected")}</h2>
+            <p className="text-sm text-slate-500 mb-6 max-w-sm mx-auto">
               {t("dashboard.createFirstOrg")}
             </p>
             <Link
               href="/dashboard/orgs/new"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#0F5C5C] text-white text-sm font-semibold rounded-xl hover:bg-[#0D4F4F] transition-all duration-150 shadow-[0_1px_3px_rgba(15,92,92,0.2)]"
             >
               {t("nav.createOrg")}
             </Link>
@@ -336,42 +348,59 @@ export default function DashboardPage() {
       {adminMfaRequired && !adminMfaEnabled && (
         <MfaPolicyBanner blocking={true} securityUrl="/dashboard/settings" />
       )}
-      {/* System Status */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-slate-900">{t("nav.overview")}</h1>
-          <SecurityBadges mfaEnabled={adminMfaEnabled} auditActive={true} />
-        </div>
-        <SystemStatus />
+      <PageHeader
+        title={t("nav.overview")}
+        subtitle={t("dashboard.metricsLast60s")}
+        action={<SecurityBadges mfaEnabled={adminMfaEnabled} auditActive={true} />}
+      />
+
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4 mb-8">
+        <StatCard title={t("dashboard.totalRequests")} value={String(totalRequests)} icon={BarChart3} gradient="from-[#0F5C5C] to-[#1E88A8]" />
+        <StatCard title={t("dashboard.errors5xx")} value={String(totalFailures)} icon={AlertTriangle} gradient="from-[#0F5C5C] to-[#1E88A8]" />
+        <StatCard title={t("dashboard.rateLimited")} value={String(totalDomainMismatch)} icon={Activity} gradient="from-[#0F5C5C] to-[#1E88A8]" />
+        <StatCard title={t("orgDir.totalOrgs")} value={String(totalOrgs)} icon={Users} gradient="from-[#0F5C5C] to-[#1E88A8]" />
+      </div>
+
+      <div className="mb-8">
+        <Card variant="elevated" padding="lg">
+          <SectionTitle title={t("dashboard.systemStatus")} />
+          <SystemStatus />
+        </Card>
       </div>
 
       {/* Widget Health Summary */}
       {widgetSummary && (
-        <AdminWidgetHealthSummary data={widgetSummary} className="mb-6" />
+        <Card variant="elevated" padding="lg" className="mb-8">
+          <AdminWidgetHealthSummary data={widgetSummary} />
+        </Card>
       )}
 
       {/* Audit Summary (24h) */}
-      <AdminAuditSummary className="mb-6" />
+      <Card variant="outlined" padding="lg" className="mb-8">
+        <AdminAuditSummary />
+      </Card>
 
-      <div className="flex gap-6 h-[calc(100vh-16rem)]">
+      <div className="flex gap-5 h-[calc(100vh-16rem)]">
         {/* Left: Inbox List */}
-        <div className="w-96 bg-white border-r border-slate-200 flex flex-col">
-          <div className="px-6 py-4 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-900 mb-1">
-              {t("dashboard.inbox")} ({conversations.length})
-            </h2>
-            <button
-              onClick={fetchConversations}
-              disabled={isLoading}
-              className="text-xs text-slate-600 hover:text-slate-900 disabled:text-slate-400"
-            >
-              {isLoading ? t("common.loading") : t("common.refresh")}
-            </button>
+        <div className="w-96 flex flex-col bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(15,92,92,0.08)] overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-200/60 bg-white">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">
+                {t("dashboard.inbox")} ({conversations.length})
+              </h2>
+              <button
+                onClick={fetchConversations}
+                disabled={isLoading}
+                className="text-[11px] text-slate-400 hover:text-slate-900 disabled:text-slate-300 transition-colors duration-150 font-medium"
+              >
+                {isLoading ? t("common.loading") : `↻ ${t("common.refresh")}`}
+              </button>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-200">
+          <div className="flex-1 overflow-y-auto">
             {error && (
-              <div className="px-6 py-4 text-sm text-red-600">
+              <div className="px-5 py-3 text-sm text-red-600 bg-red-50 border-b border-red-100">
                 {error}
                 {errorRequestId && (
                   <span className="block text-xs text-red-400 font-mono mt-1">
@@ -382,8 +411,8 @@ export default function DashboardPage() {
             )}
 
             {isLoading && conversations.length === 0 ? (
-              <div className="px-6 py-8 text-center text-sm text-slate-500">
-                {t("dashboard.loadingConversations")}
+              <div className="flex items-center justify-center py-12">
+                <div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-[#0F5C5C] animate-spin" />
               </div>
             ) : conversations.length === 0 ? (
               <EmptyState
@@ -396,21 +425,21 @@ export default function DashboardPage() {
                 <div
                   key={conv.id}
                   onClick={() => selectConversation(conv.id)}
-                  className={`px-6 py-4 cursor-pointer transition-colors ${
+                  className={`px-5 py-3.5 cursor-pointer transition-all duration-150 border-l-[3px] border-b border-b-slate-100 ${
                     selectedConversationId === conv.id
-                      ? "bg-slate-100"
-                      : "hover:bg-slate-50"
+                      ? "bg-[#0F5C5C]/[0.04] border-l-[#0F5C5C]"
+                      : "border-l-transparent hover:bg-slate-50"
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <code className="text-xs font-mono text-slate-900">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <code className="text-[11px] font-mono text-slate-800 font-medium">
                       {shortId(conv.id)}
                     </code>
-                    <span className="px-1.5 py-0.5 bg-slate-200 rounded text-xs font-medium text-slate-700">
+                    <span className="px-1.5 py-0.5 bg-slate-100 rounded-md text-[10px] font-semibold text-slate-600">
                       {conv.messageCount}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-500" suppressHydrationWarning>
+                  <div className="text-[11px] text-slate-400" suppressHydrationWarning>
                     {formatDate(conv.updatedAt)}
                   </div>
                 </div>
@@ -420,25 +449,27 @@ export default function DashboardPage() {
         </div>
 
         {/* Right: Conversation Detail */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(15,92,92,0.08)] overflow-hidden">
           {!selectedConversationId ? (
-            <div className="flex-1 flex items-center justify-center text-slate-400">
+            <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <div className="text-4xl mb-2">💬</div>
-                <p>{t("dashboard.selectConversation")}</p>
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                  <span className="text-2xl">💬</span>
+                </div>
+                <p className="text-sm text-slate-400">{t("dashboard.selectConversation")}</p>
               </div>
             </div>
           ) : (
             <>
               {/* Messages Thread */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-5 space-y-3">
                 {isLoadingDetail ? (
-                  <div className="text-center text-slate-500 py-8">
-                    {t("dashboard.loadingMessages")}
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-[#0F5C5C] animate-spin" />
                   </div>
                 ) : conversationDetail ? (
                   conversationDetail.messages.length === 0 ? (
-                    <div className="text-center text-slate-400 py-8">
+                    <div className="text-center text-slate-400 py-8 text-sm">
                       {t("dashboard.noMessages")}
                     </div>
                   ) : (
@@ -448,14 +479,14 @@ export default function DashboardPage() {
                         className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                       >
                         <div
-                          className={`max-w-md px-4 py-2 rounded-lg ${
+                          className={`max-w-md px-4 py-2.5 rounded-2xl text-sm ${
                             msg.role === "user"
-                              ? "bg-slate-900 text-white"
-                              : "bg-slate-100 text-slate-900"
+                              ? "bg-[#0F5C5C] text-white"
+                              : "bg-slate-50 text-slate-800 border border-slate-200/60"
                           }`}
                         >
-                          <div className="text-sm mb-1">{msg.content}</div>
-                          <div className={`text-xs ${msg.role === "user" ? "text-slate-300" : "text-slate-500"}`} suppressHydrationWarning>
+                          <div className="mb-1 leading-relaxed">{msg.content}</div>
+                          <div className={`text-[10px] ${msg.role === "user" ? "text-white/60" : "text-slate-400"}`} suppressHydrationWarning>
                             {new Date(msg.timestamp).toLocaleTimeString()}
                           </div>
                         </div>
@@ -466,7 +497,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Agent Reply Box */}
-              <div className="border-t border-slate-200 p-4 bg-white">
+              <div className="border-t border-slate-200/60 p-4 bg-white">
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -480,17 +511,17 @@ export default function DashboardPage() {
                     }}
                     placeholder={t("dashboard.typeReply")}
                     disabled={isSending}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:bg-slate-100"
+                    className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm placeholder:text-slate-400 focus:outline-none focus:border-[#0F5C5C] focus:ring-2 focus:ring-[#0F5C5C]/10 disabled:bg-slate-50 transition-all duration-150"
                   />
                   <button
                     onClick={sendReply}
                     disabled={isSending || !replyContent.trim()}
-                    className="bg-slate-900 text-white px-6 py-2 rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
+                    className="bg-[#0F5C5C] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#0D4F4F] transition-all duration-150 disabled:opacity-50 shadow-[0_1px_2px_rgba(15,92,92,0.2)]"
                   >
                     {isSending ? t("common.sending") : t("common.send")}
                   </button>
                 </div>
-                <div className="mt-2 text-xs text-slate-500">
+                <div className="mt-1.5 text-[11px] text-slate-400">
                   {t("dashboard.pressEnter")}
                 </div>
               </div>

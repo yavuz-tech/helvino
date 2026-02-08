@@ -1,7 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useI18n } from "@/i18n/I18nContext";
 import PublicLayout from "@/components/PublicLayout";
+import PageHeader from "@/components/PageHeader";
+import SectionTitle from "@/components/SectionTitle";
+import Card from "@/components/Card";
+import { designTokens } from "@/lib/designTokens";
 
 export default function ContactPage() {
   const { t } = useI18n();
@@ -39,21 +44,40 @@ export default function ContactPage() {
     },
   ];
 
+  const steps = [
+    { titleKey: "pubContact.how.step1.title", descKey: "pubContact.how.step1.desc" },
+    { titleKey: "pubContact.how.step2.title", descKey: "pubContact.how.step2.desc" },
+    { titleKey: "pubContact.how.step3.title", descKey: "pubContact.how.step3.desc" },
+  ];
+
+  const faqs = [
+    { qKey: "pubContact.faq.q1", aKey: "pubContact.faq.a1" },
+    { qKey: "pubContact.faq.q2", aKey: "pubContact.faq.a2" },
+    { qKey: "pubContact.faq.q3", aKey: "pubContact.faq.a3" },
+  ];
+
   return (
     <PublicLayout>
-      <section className="max-w-4xl mx-auto px-6 pt-16 pb-8 text-center">
-        <h1 className="text-4xl font-bold text-slate-900 mb-4">{t("pubContact.title")}</h1>
-        <p className="text-lg text-slate-600">{t("pubContact.subtitle")}</p>
+      <section className="max-w-5xl mx-auto px-6 pt-16 pb-8">
+        <PageHeader
+          title={t("pubContact.title")}
+          subtitle={t("pubContact.subtitle")}
+          action={
+            <Link href="/signup" className={designTokens.buttons.primary}>
+              {t("home.ctaStartFree")}
+            </Link>
+          }
+        />
       </section>
 
-      {/* Contact channels */}
-      <section className="max-w-4xl mx-auto px-6 pb-12">
+      <section className="max-w-5xl mx-auto px-6 pb-12">
+        <SectionTitle
+          title={t("pubContact.channelsTitle")}
+          subtitle={t("pubContact.channelsSubtitle")}
+        />
         <div className="grid sm:grid-cols-3 gap-6">
           {channels.map((ch, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-xl border border-slate-200 p-6 text-center"
-            >
+            <Card key={i} padding="lg" className="text-center">
               <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-slate-700 mx-auto mb-4">
                 {ch.icon}
               </div>
@@ -63,21 +87,51 @@ export default function ContactPage() {
                 {t("pubContact.emailLabel")}:{" "}
                 <span className="text-blue-600">{ch.email}</span>
               </p>
-            </div>
+            </Card>
           ))}
         </div>
       </section>
 
-      {/* Contact form placeholder */}
-      <section className="max-w-2xl mx-auto px-6 pb-20">
-        <div className="bg-white rounded-xl border border-slate-200 p-8">
+      <section className="max-w-5xl mx-auto px-6 pb-12">
+        <SectionTitle title={t("pubContact.howTitle")} subtitle={t("pubContact.howSubtitle")} />
+        <div className="grid md:grid-cols-3 gap-6">
+          {steps.map((step) => (
+            <Card key={step.titleKey} padding="lg">
+              <h3 className="text-lg font-semibold text-slate-900">
+                {t(step.titleKey as Parameters<typeof t>[0])}
+              </h3>
+              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+                {t(step.descKey as Parameters<typeof t>[0])}
+              </p>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section className="max-w-5xl mx-auto px-6 pb-12">
+        <SectionTitle title={t("pubContact.faqTitle")} subtitle={t("pubContact.faqSubtitle")} />
+        <div className="space-y-4">
+          {faqs.map((faq) => (
+            <Card key={faq.qKey} padding="md" variant="muted">
+              <h3 className="text-sm font-semibold text-slate-900">
+                {t(faq.qKey as Parameters<typeof t>[0])}
+              </h3>
+              <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                {t(faq.aKey as Parameters<typeof t>[0])}
+              </p>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section className="max-w-4xl mx-auto px-6 pb-14">
+        <Card padding="lg" variant="outlined">
           <h2 className="text-xl font-semibold text-slate-900 mb-6 text-center">
             {t("pubContact.formSend")}
           </h2>
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              // Placeholder — no backend yet
             }}
             className="space-y-4"
           >
@@ -88,7 +142,6 @@ export default function ContactPage() {
               <input
                 type="text"
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                placeholder={t("pubContact.formName")}
               />
             </div>
             <div>
@@ -98,7 +151,6 @@ export default function ContactPage() {
               <input
                 type="email"
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                placeholder={t("pubContact.formEmail")}
               />
             </div>
             <div>
@@ -108,7 +160,6 @@ export default function ContactPage() {
               <input
                 type="text"
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                placeholder={t("pubContact.formSubject")}
               />
             </div>
             <div>
@@ -118,7 +169,6 @@ export default function ContactPage() {
               <textarea
                 rows={4}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 resize-none"
-                placeholder={t("pubContact.formMessage")}
               />
             </div>
             <button
@@ -129,7 +179,26 @@ export default function ContactPage() {
             </button>
             <p className="text-xs text-slate-400 text-center">{t("pubContact.formNote")}</p>
           </form>
-        </div>
+        </Card>
+      </section>
+
+      <section className="max-w-5xl mx-auto px-6 pb-20">
+        <Card padding="lg" variant="outlined" className="text-center">
+          <h2 className="text-2xl font-semibold text-slate-900">
+            {t("pubContact.ctaTitle")}
+          </h2>
+          <p className="text-sm text-slate-600 mt-2">
+            {t("pubContact.ctaSubtitle")}
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6">
+            <Link href="/pricing" className={designTokens.buttons.secondary}>
+              {t("nav.pricing")}
+            </Link>
+            <Link href="/signup" className={designTokens.buttons.primary}>
+              {t("home.ctaStartFree")}
+            </Link>
+          </div>
+        </Card>
       </section>
     </PublicLayout>
   );

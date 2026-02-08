@@ -1,14 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import PortalLayout from "@/components/PortalLayout";
 import DeviceList from "@/components/DeviceList";
-import {
-  checkPortalAuth,
-  portalApiFetch,
-  type PortalUser,
-} from "@/lib/portal-auth";
+import { portalApiFetch } from "@/lib/portal-auth";
+import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { useI18n } from "@/i18n/I18nContext";
 import { useStepUp } from "@/contexts/StepUpContext";
 
@@ -23,21 +18,11 @@ interface Device {
 }
 
 export default function PortalDevicesPage() {
-  const router = useRouter();
+  const { user, loading: authLoading } = usePortalAuth();
   const { t } = useI18n();
   const { withStepUp } = useStepUp();
-  const [user, setUser] = useState<PortalUser | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const verify = async () => {
-      const u = await checkPortalAuth();
-      if (!u) { router.push("/portal/login"); return; }
-      setUser(u);
-    };
-    verify();
-  }, [router]);
 
   const loadDevices = useCallback(async () => {
     try {
@@ -54,10 +39,10 @@ export default function PortalDevicesPage() {
     if (user) loadDevices();
   }, [user, loadDevices]);
 
-  if (!user) return null;
+  if (authLoading || !user) return null;
 
   return (
-    <PortalLayout user={user} onLogout={() => router.push("/portal/login")}>
+    <>
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{t("devices.title")}</h1>
@@ -99,6 +84,6 @@ export default function PortalDevicesPage() {
           />
         )}
       </div>
-    </PortalLayout>
+    </>
   );
 }

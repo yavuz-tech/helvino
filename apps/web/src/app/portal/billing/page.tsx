@@ -2,13 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import PortalLayout from "@/components/PortalLayout";
-import {
-  checkPortalAuth,
-  portalLogout,
-  portalApiFetch,
-  type PortalUser,
-} from "@/lib/portal-auth";
+import Link from "next/link";
+import { portalApiFetch } from "@/lib/portal-auth";
+import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { useI18n } from "@/i18n/I18nContext";
 import ErrorBanner from "@/components/ErrorBanner";
 import type { TranslationKey } from "@/i18n/translations";
@@ -16,6 +12,7 @@ import { useStepUp } from "@/contexts/StepUpContext";
 import PlanComparisonTable from "@/components/PlanComparisonTable";
 import TrialBanner from "@/components/TrialBanner";
 import UsageNudge from "@/components/UsageNudge";
+import { ChevronLeft } from "lucide-react";
 
 /* ────────── Types ────────── */
 
@@ -201,8 +198,7 @@ function formatAmount(cents: number, currency: string) {
 
 export default function PortalBillingPage() {
   const router = useRouter();
-  const [user, setUser] = useState<PortalUser | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const { user, loading: authLoading } = usePortalAuth();
   const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [lockStatus, setLockStatus] = useState<BillingLockStatus | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -215,20 +211,6 @@ export default function PortalBillingPage() {
   const [portalLoading, setPortalLoading] = useState(false);
   const { t } = useI18n();
   const { withStepUp } = useStepUp();
-
-  // Auth check
-  useEffect(() => {
-    const verify = async () => {
-      const portalUser = await checkPortalAuth();
-      if (!portalUser) {
-        router.push("/portal/login");
-        return;
-      }
-      setUser(portalUser);
-      setAuthLoading(false);
-    };
-    verify();
-  }, [router]);
 
   // Load billing status
   useEffect(() => {
@@ -297,11 +279,6 @@ export default function PortalBillingPage() {
     loadInvoices();
   }, [billing, t]);
 
-  const handleLogout = async () => {
-    await portalLogout();
-    router.push("/portal/login");
-  };
-
   const handleCheckout = async (planKey: string) => {
     setCheckoutLoading(planKey);
     const result = await withStepUp(() =>
@@ -349,8 +326,8 @@ export default function PortalBillingPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">{t("common.loading")}</div>
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
       </div>
     );
   }
@@ -391,7 +368,7 @@ export default function PortalBillingPage() {
   const usageFull = convPct >= 100 || msgPct >= 100;
 
   return (
-    <PortalLayout user={user} onLogout={handleLogout}>
+    <>
       {billing?.trial && (billing.trial.isTrialing || billing.trial.isExpired) && (
         <TrialBanner
           daysLeft={billing.trial.daysLeft}
@@ -413,6 +390,13 @@ export default function PortalBillingPage() {
       )}
 
       <div className="mb-6">
+        <Link
+          href="/portal"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#1A1A2E] transition-colors mb-3 group"
+        >
+          <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+          {t("portalOnboarding.backToDashboard")}
+        </Link>
         <h1 className="text-2xl font-bold text-slate-900">{t("billing.title")}</h1>
         <p className="text-sm text-slate-600 mt-1">
           {t("billing.subtitle")}
@@ -764,6 +748,6 @@ export default function PortalBillingPage() {
           )}
         </div>
       )}
-    </PortalLayout>
+    </>
   );
 }

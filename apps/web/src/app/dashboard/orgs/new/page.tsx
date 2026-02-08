@@ -22,6 +22,9 @@ export default function NewOrgPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const websitePattern = /^(https?:\/\/)?(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
+  const websitePatternText = "(https?:\\/\\/)?(www\\.)?[a-z0-9-]+(\\.[a-z0-9-]+)+";
+
   // Success state
   const [createdOrg, setCreatedOrg] = useState<{
     name: string;
@@ -53,8 +56,13 @@ export default function NewOrgPage() {
     e.preventDefault();
     setError(null);
 
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       setError(t("orgs.orgNameRequired"));
+      return;
+    }
+    if (!websitePattern.test(trimmedName)) {
+      setError(t("validation.website"));
       return;
     }
 
@@ -68,7 +76,7 @@ export default function NewOrgPage() {
         .filter((d) => d.length > 0);
 
       const org = await createOrg({
-        name: name.trim(),
+        name: trimmedName,
         allowedDomains: allowedDomains.length > 0 ? allowedDomains : undefined,
         allowLocalhost,
       });
@@ -211,7 +219,7 @@ export default function NewOrgPage() {
           )}
 
           <div className="space-y-6">
-            {/* Organization Name */}
+            {/* Website */}
             <div>
               <label
                 htmlFor="name"
@@ -224,11 +232,18 @@ export default function NewOrgPage() {
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="My Company"
+                onInvalid={(e) => e.currentTarget.setCustomValidity(t("validation.website"))}
+                onInput={(e) => e.currentTarget.setCustomValidity("")}
+                placeholder={t("orgs.orgNamePlaceholder")}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
                 required
+                pattern={websitePatternText}
+                inputMode="url"
+                autoCapitalize="none"
+                autoCorrect="off"
                 disabled={isSubmitting}
               />
+              <p className="mt-1 text-xs text-slate-500">{t("validation.websiteHint")}</p>
               <p className="mt-1 text-xs text-slate-500">
                 {t("orgs.autoKeyHint")}
               </p>

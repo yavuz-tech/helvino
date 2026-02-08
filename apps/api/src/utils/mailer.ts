@@ -93,13 +93,26 @@ class SmtpEmailProvider implements EmailProvider {
 function getProvider(): EmailProvider {
   const providerName = (process.env.MAIL_PROVIDER || "console").toLowerCase();
 
-  switch (providerName) {
-    case "smtp":
-      return new SmtpEmailProvider();
-    case "console":
-    default:
-      return new ConsoleEmailProvider();
+  // Postmark (if token present)
+  if (process.env.POSTMARK_SERVER_TOKEN) {
+    const { PostmarkEmailProvider } = require("../email/providers/postmark");
+    const messageStream = process.env.POSTMARK_MESSAGE_STREAM || "outbound";
+    return new PostmarkEmailProvider(process.env.POSTMARK_SERVER_TOKEN, messageStream);
   }
+
+  // SMTP (if explicitly requested and configured)
+  if (providerName === "smtp") {
+    return new SmtpEmailProvider();
+  }
+
+  // Console (dev default)
+  if (providerName === "console") {
+    return new ConsoleEmailProvider();
+  }
+
+  // NOOP (safe fallback when nothing configured)
+  const { NoopEmailProvider } = require("../email/providers/noop");
+  return new NoopEmailProvider();
 }
 
 function getDefaultFrom(): string {
@@ -113,18 +126,34 @@ function getDefaultFrom(): string {
  * Safe to call in dev (console output) and production (actual delivery).
  */
 export async function sendEmail(payload: EmailPayload): Promise<EmailResult> {
-  const provider = getProvider();
+  let provider: EmailProvider;
+
+  try {
+    provider = getProvider();
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown provider error";
+    console.error(`[mailer] Failed to initialize email provider: ${errorMessage}`);
+    return {
+      success: false,
+      provider: "unknown",
+      error: `Provider init failed: ${errorMessage}`,
+    };
+  }
 
   // Set default from
   if (!payload.from) {
     payload.from = getDefaultFrom();
   }
 
+  console.log(`[mailer] Sending email via ${provider.name} to=${payload.to} subject="${payload.subject}"`);
+
   try {
     const result = await provider.send(payload);
 
     if (!result.success) {
       console.error(`[mailer] Send failed via ${provider.name}: ${result.error}`);
+    } else {
+      console.log(`[mailer] Email sent successfully via ${provider.name} messageId=${result.messageId}`);
     }
 
     return result;

@@ -7,6 +7,7 @@ import { useI18n } from "@/i18n/I18nContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import PasskeyLoginButton from "@/components/PasskeyLoginButton";
 import ErrorBanner from "@/components/ErrorBanner";
+import { designTokens } from "@/lib/designTokens";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -133,24 +134,24 @@ export default function PortalLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-[#0F3D3D] flex items-center justify-center p-4">
       <div className="absolute top-4 right-4">
         <LanguageSwitcher />
       </div>
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8 text-white">
-          <div className="inline-block w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-4">
-            <span className="text-slate-900 font-bold text-2xl">H</span>
+      <div className="w-full max-w-[420px]">
+        <div className="text-center mb-8">
+          <div className="inline-flex w-14 h-14 bg-gradient-to-br from-[#0F5C5C] to-[#1E88A8] rounded-2xl items-center justify-center mb-4 shadow-[0_4px_16px_rgba(15,92,92,0.4)]">
+            <span className="text-white font-bold text-xl">H</span>
           </div>
-          <h1 className="text-3xl font-bold mb-2">{t("nav.customerPortal")}</h1>
-          <p className="text-slate-300">{t("auth.tenantAccess")}</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight mb-1">{t("nav.customerPortal")}</h1>
+          <p className="text-sm text-slate-400">{t("auth.tenantAccess")}</p>
         </div>
 
-        <div className="bg-white rounded-lg border border-slate-200 p-8 shadow-sm">
+        <div className={`bg-white rounded-2xl border border-slate-200/80 p-7 ${designTokens.shadows.elevated}`}>
           {emailVerificationRequired ? (
             /* ── Email Verification Required ── */
             <div className="text-center">
-              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-amber-50 flex items-center justify-center">
                 <svg className="w-7 h-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
@@ -166,7 +167,7 @@ export default function PortalLoginPage() {
               />
 
               {verificationResent ? (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700 mb-4">
+                <div className="bg-emerald-50 border border-emerald-200/80 rounded-xl p-3 text-sm text-emerald-700 mb-4">
                   {t("login.verificationResent")}
                 </div>
               ) : null}
@@ -178,7 +179,7 @@ export default function PortalLoginPage() {
               <button
                 onClick={handleResendVerification}
                 disabled={resendLoading || verificationResent}
-                className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400 text-sm"
+                className={`w-full ${designTokens.buttons.primary} py-2.5`}
               >
                 {resendLoading ? t("common.loading") : t("login.resendVerification")}
               </button>
@@ -191,10 +192,10 @@ export default function PortalLoginPage() {
             </div>
           ) : mfaRequired ? (
             <>
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">
+              <h2 className="text-lg font-semibold text-slate-900 mb-1.5">
                 {t("mfa.loginRequired")}
               </h2>
-              <p className="text-sm text-slate-600 mb-6">
+              <p className="text-sm text-slate-500 mb-5">
                 {t("mfa.loginDesc")}
               </p>
 
@@ -208,14 +209,14 @@ export default function PortalLoginPage() {
                   value={mfaCode}
                   onChange={(e) => setMfaCode(e.target.value)}
                   placeholder={t("mfa.codeOrBackup")}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 font-mono text-center text-lg tracking-widest"
+                  className={`${designTokens.inputs.base} font-mono text-center text-lg tracking-widest`}
                   autoFocus
                   disabled={mfaLoading}
                   maxLength={20}
                 />
                 <button
                   type="submit"
-                  className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
+                  className={`w-full ${designTokens.buttons.primary} py-3`}
                   disabled={mfaLoading || !mfaCode.trim()}
                 >
                   {mfaLoading ? t("mfa.verifying") : t("mfa.loginVerify")}
@@ -230,17 +231,17 @@ export default function PortalLoginPage() {
             </>
           ) : (
             <>
-              <h2 className="text-xl font-semibold text-slate-900 mb-6">
+              <h2 className="text-lg font-semibold text-slate-900 mb-5">
                 {t("auth.signIn")}
               </h2>
 
               {error && (
-                <ErrorBanner message={error} onDismiss={() => setError(null)} className="mb-6" />
+                <ErrorBanner message={error} onDismiss={() => setError(null)} className="mb-4" />
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+                  <label htmlFor="email" className={designTokens.inputs.label}>
                     {t("auth.email")}
                   </label>
                   <input
@@ -248,7 +249,7 @@ export default function PortalLoginPage() {
                     id="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className={designTokens.inputs.base}
                     placeholder="you@company.com"
                     required
                     disabled={isLoading}
@@ -256,7 +257,7 @@ export default function PortalLoginPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+                  <label htmlFor="password" className={designTokens.inputs.label}>
                     {t("auth.password")}
                   </label>
                   <input
@@ -264,7 +265,7 @@ export default function PortalLoginPage() {
                     id="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className={designTokens.inputs.base}
                     placeholder="••••••••"
                     required
                     disabled={isLoading}
@@ -273,7 +274,7 @@ export default function PortalLoginPage() {
 
                 <button
                   type="submit"
-                  className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
+                  className={`w-full ${designTokens.buttons.primary} py-3`}
                   disabled={isLoading}
                 >
                   {isLoading ? t("auth.signingIn") : t("auth.signIn")}
@@ -281,9 +282,9 @@ export default function PortalLoginPage() {
               </form>
 
               {/* Passkey divider + button */}
-              <div className="relative my-4">
+              <div className="relative my-5">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200" />
+                  <div className="w-full border-t border-slate-200/80" />
                 </div>
                 <div className="relative flex justify-center text-xs">
                   <span className="bg-white px-3 text-slate-400">{t("passkeys.orDivider")}</span>
@@ -297,7 +298,7 @@ export default function PortalLoginPage() {
                 onError={(msg) => setError(msg)}
               />
 
-              <div className="mt-4 text-center space-y-2">
+              <div className="mt-5 text-center space-y-2">
                 <a href="/portal/forgot-password" className="block text-sm text-slate-500 hover:text-slate-900 transition-colors">
                   {t("security.forgotPassword")}
                 </a>
@@ -309,7 +310,7 @@ export default function PortalLoginPage() {
           )}
         </div>
 
-        <div className="mt-6 text-center text-sm text-slate-400">
+        <div className="mt-5 text-center text-xs text-slate-500">
           {t("auth.internalAdmin")}{" "}
           <a href="/login" className="text-white font-medium hover:underline">
             {t("auth.loginHere")}

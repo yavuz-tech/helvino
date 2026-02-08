@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { useI18n } from "@/i18n/I18nContext";
 import PublicLayout from "@/components/PublicLayout";
 import PlanComparisonTable, { type PlanData } from "@/components/PlanComparisonTable";
+import { designTokens } from "@/lib/designTokens";
 import type { TranslationKey } from "@/i18n/translations";
 
 /**
@@ -55,17 +57,27 @@ export default function PricingPage() {
   return (
     <PublicLayout>
       {/* Hero */}
-      <section className="max-w-5xl mx-auto px-6 pt-16 pb-12 text-center">
-        <h1 className="text-4xl font-bold text-slate-900 mb-4">
-          {t("pricing.title")}
-        </h1>
-        <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-          {t("pricing.subtitle")}
-        </p>
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#F0F9F9] via-white to-white">
+        <Image
+          src="/marketing/gradient-hero-2.svg"
+          alt=""
+          aria-hidden="true"
+          fill
+          priority
+          className="object-cover opacity-50"
+        />
+        <div className={`${designTokens.layout.maxWidth} pt-20 sm:pt-24 pb-16 sm:pb-20 text-center relative`}>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-4 tracking-tight">
+            {t("pricing.title")}
+          </h1>
+          <p className={`${designTokens.typography.heroSubtitle} max-w-2xl mx-auto`}>
+            {t("pricing.subtitle")}
+          </p>
+        </div>
       </section>
 
       {/* Plan comparison */}
-      <section className="max-w-5xl mx-auto px-6 pb-16">
+      <section className={`${designTokens.layout.maxWidth} py-16 sm:py-20`}>
         <PlanComparisonTable
           plans={STATIC_PLANS}
           showBillingToggle={true}
@@ -74,51 +86,43 @@ export default function PricingPage() {
       </section>
 
       {/* Trust badges */}
-      <section className="max-w-4xl mx-auto px-6 pb-16">
-        <p className="text-center text-sm text-slate-500 mb-6">
-          {t("pricing.trustBadges")}
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-4">
-          {[
-            { icon: "shield", label: t("home.trustedSecurity") },
-            { icon: "zap", label: t("home.trustedUptime") },
-            { icon: "check", label: t("home.trustedCompliance") },
-          ].map((badge, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600"
-            >
-              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <span>{badge.label}</span>
-            </div>
-          ))}
+      <section className="bg-slate-50/50 border-t border-slate-200/40">
+        <div className="max-w-5xl mx-auto px-6 py-12">
+          <p className={`text-center ${designTokens.typography.caption} mb-6`}>
+            {t("pricing.trustBadges")}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {[
+              { label: t("home.trustedSecurity") },
+              { label: t("home.trustedUptime") },
+              { label: t("home.trustedCompliance") },
+            ].map((badge, i) => (
+              <div key={i} className={designTokens.chips.pill}>
+                <Image src="/marketing/icon-spark.svg" alt="" aria-hidden="true" width={16} height={16} className="w-4 h-4 mr-1.5 inline-block" />
+                <span>{badge.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* FAQ */}
-      <section className="max-w-3xl mx-auto px-6 pb-20">
-        <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">
+      <section className="max-w-3xl mx-auto px-6 py-16 sm:py-20">
+        <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 text-center mb-10 tracking-tight">
           {t("pricing.faqTitle")}
         </h2>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {FAQ_KEYS.map((faq, i) => (
             <details
               key={i}
-              className="bg-white rounded-xl border border-slate-200 group"
+              className="bg-white rounded-2xl border border-slate-200/80 group shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition-all duration-150"
             >
-              <summary className="flex items-center justify-between px-6 py-4 cursor-pointer list-none">
-                <span className="text-sm font-medium text-slate-900">
+              <summary className="flex items-center justify-between px-6 py-5 cursor-pointer list-none">
+                <span className="text-base font-semibold text-slate-900 pr-4">
                   {t(faq.q as TranslationKey)}
                 </span>
                 <svg
-                  className="w-5 h-5 text-slate-400 group-open:rotate-180 transition-transform flex-shrink-0 ml-3"
+                  className="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform duration-150 flex-shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -131,7 +135,7 @@ export default function PricingPage() {
                   />
                 </svg>
               </summary>
-              <div className="px-6 pb-4 text-sm text-slate-600 leading-relaxed">
+              <div className="px-6 pb-5 text-sm text-slate-500 leading-relaxed border-t border-slate-100 pt-4">
                 {t(faq.a as TranslationKey)}
               </div>
             </details>

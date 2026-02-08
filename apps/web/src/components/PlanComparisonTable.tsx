@@ -116,23 +116,23 @@ export default function PlanComparisonTable({
     <div>
       {/* Billing cycle toggle */}
       {showBillingToggle && (
-        <div className="flex items-center justify-center gap-3 mb-8">
+        <div className="flex items-center justify-center gap-3 mb-10">
           <button
             onClick={() => setBillingCycle("monthly")}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-5 py-2.5 text-sm font-semibold rounded-full transition-all duration-150 ${
               billingCycle === "monthly"
-                ? "bg-slate-900 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                ? "bg-[#1A1A2E] text-white shadow-lg"
+                : "bg-white text-slate-600 border-2 border-slate-200 hover:border-slate-300"
             }`}
           >
             {t("pricing.monthly")}
           </button>
           <button
             onClick={() => setBillingCycle("yearly")}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-5 py-2.5 text-sm font-semibold rounded-full transition-all duration-150 ${
               billingCycle === "yearly"
-                ? "bg-slate-900 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                ? "bg-[#1A1A2E] text-white shadow-lg"
+                : "bg-white text-slate-600 border-2 border-slate-200 hover:border-slate-300"
             }`}
           >
             {t("pricing.yearly")}
@@ -144,7 +144,7 @@ export default function PlanComparisonTable({
       )}
 
       {/* Plan cards grid */}
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-10 md:grid-cols-3 items-stretch">
         {plans.map((plan) => {
           const isCurrent = plan.key === currentPlanKey;
           const isRecommended = !isCurrent && plan.key === recommendedPlan;
@@ -163,20 +163,23 @@ export default function PlanComparisonTable({
           return (
             <div
               key={plan.key}
-              className={`relative rounded-xl border-2 p-6 flex flex-col ${
+              className={`relative rounded-3xl border-2 p-10 flex flex-col min-h-[560px] transition-all duration-150 ${
                 popular
-                  ? "border-slate-900 shadow-lg"
+                  ? "border-slate-900 shadow-2xl scale-[1.03] bg-white"
                   : isCurrent
-                    ? "border-emerald-300 bg-emerald-50/30"
+                    ? "border-emerald-400 bg-emerald-50/40 shadow-lg"
                     : isRecommended
-                      ? "border-blue-300 bg-blue-50/30 shadow-md"
-                      : "border-slate-200"
+                      ? "border-blue-400 bg-blue-50/40 shadow-lg"
+                      : "border-slate-200 hover:border-slate-300 hover:shadow-xl"
               }`}
             >
               {/* Popular badge */}
               {popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="px-3 py-1 bg-slate-900 text-white text-xs font-semibold rounded-full">
+              <div className="absolute -top-5 left-1/2 -translate-x-1/2">
+                  <span className="inline-flex items-center gap-1.5 px-5 py-2 bg-[#1A1A2E] text-white text-xs font-bold rounded-full shadow-xl">
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
                     {t("pricing.mostPopular")}
                   </span>
                 </div>
@@ -184,8 +187,11 @@ export default function PlanComparisonTable({
 
               {/* Current plan badge */}
               {isCurrent && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="px-3 py-1 bg-emerald-600 text-white text-xs font-semibold rounded-full">
+              <div className="absolute -top-5 left-1/2 -translate-x-1/2">
+                  <span className="inline-flex items-center gap-1.5 px-5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-full shadow-xl">
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
                     {t("pricing.currentPlan")}
                   </span>
                 </div>
@@ -193,41 +199,43 @@ export default function PlanComparisonTable({
 
               {/* Recommended plan badge */}
               {isRecommended && !popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-full">
+              <div className="absolute -top-5 left-1/2 -translate-x-1/2">
+                  <span className="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-full shadow-xl">
                     {t("pricing.recommended")}
                   </span>
                 </div>
               )}
 
               {/* Plan header */}
-              <div className="text-center mb-6 pt-2">
-                <h3 className="text-lg font-bold text-slate-900">
+              <div className="text-center mb-10 pt-2">
+                <h3 className="text-2xl font-semibold text-slate-900 mb-5">
                   {translatePlanName(plan.key, plan.name)}
                 </h3>
-                <div className="mt-3">
+                <div className="mt-2">
                   {displayPrice > 0 ? (
                     <div>
-                      <span className="text-4xl font-bold text-slate-900">
-                        ${displayPrice}
-                      </span>
-                      <span className="text-slate-500 text-sm">
-                        {billingCycle === "yearly"
-                          ? t("pricing.perMonth")
-                          : t("pricing.perMonth")}
-                      </span>
+                      <div className="flex items-baseline justify-center gap-1">
+                        <span className="text-6xl font-semibold text-slate-900">
+                          ${displayPrice}
+                        </span>
+                        <span className="text-slate-500 text-base font-semibold">
+                          {billingCycle === "yearly"
+                            ? t("pricing.perMonth")
+                            : t("pricing.perMonth")}
+                        </span>
+                      </div>
                       {billingCycle === "yearly" && (
-                        <p className="text-xs text-slate-400 mt-1">
-                          ${displayPrice * 12}{t("pricing.perYear")}
+                        <p className="text-sm text-slate-500 mt-2 font-medium">
+                          ${displayPrice * 12} {t("pricing.perYear")}
                         </p>
                       )}
                     </div>
                   ) : (
                     <div>
-                      <span className="text-4xl font-bold text-slate-900">
+                      <span className="text-6xl font-semibold text-slate-900">
                         {t("billing.free")}
                       </span>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-sm text-slate-500 mt-2 font-medium">
                         {t("billing.freeForever")}
                       </p>
                     </div>
@@ -236,15 +244,15 @@ export default function PlanComparisonTable({
               </div>
 
               {/* CTA button */}
-              <div className="mb-6">
+              <div className="mb-10">
                 {isCurrent ? (
-                  <div className="w-full px-4 py-2.5 text-center text-sm font-medium text-emerald-700 bg-emerald-100 rounded-lg">
+                  <div className="w-full px-6 py-3.5 text-center text-sm font-semibold text-emerald-700 bg-emerald-100 rounded-2xl">
                     {t("pricing.currentPlan")}
                   </div>
                 ) : mode === "public" && plan.key === "free" ? (
                   <Link
                     href="/portal/login"
-                    className="block w-full px-4 py-2.5 text-center text-sm font-medium bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+                    className="block w-full px-6 py-3.5 text-center text-base font-semibold bg-slate-100 text-slate-700 rounded-2xl hover:bg-slate-200 transition-all duration-150"
                   >
                     {t("pricing.startFree")}
                   </Link>
@@ -252,9 +260,9 @@ export default function PlanComparisonTable({
                   <button
                     onClick={() => onUpgrade(plan.key)}
                     disabled={upgradeLoading === plan.key}
-                    className={`w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 ${
+                    className={`w-full px-6 py-3.5 text-base font-semibold rounded-2xl transition-all duration-150 disabled:opacity-50 ${
                       popular
-                        ? "bg-slate-900 text-white hover:bg-slate-700"
+                        ? "bg-[#1A1A2E] text-white hover:bg-[#15152A] shadow-xl hover:shadow-2xl"
                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     }`}
                   >
@@ -265,9 +273,9 @@ export default function PlanComparisonTable({
                 ) : mode === "public" && plan.key !== "free" ? (
                   <Link
                     href="/portal/login"
-                    className={`block w-full px-4 py-2.5 text-center text-sm font-medium rounded-lg transition-colors ${
+                    className={`block w-full px-6 py-3.5 text-center text-base font-semibold rounded-2xl transition-all duration-150 ${
                       popular
-                        ? "bg-slate-900 text-white hover:bg-slate-700"
+                        ? "bg-[#1A1A2E] text-white hover:bg-[#15152A] shadow-xl hover:shadow-2xl"
                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     }`}
                   >
@@ -277,11 +285,11 @@ export default function PlanComparisonTable({
               </div>
 
               {/* Feature list */}
-              <div className="flex-1 border-t border-slate-100 pt-4">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+              <div className="flex-1 border-t border-slate-200 pt-6">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">
                   {t("pricing.features")}
                 </p>
-                <ul className="space-y-2.5">
+                <ul className="space-y-3">
                   {featureKeys.map((fKey) => {
                     let value: boolean | string;
 
@@ -299,10 +307,10 @@ export default function PlanComparisonTable({
                     const isIncluded = value === true || (typeof value === "string" && value !== "false");
 
                     return (
-                      <li key={fKey} className="flex items-start gap-2 text-sm">
+                      <li key={fKey} className="flex items-start gap-2.5 text-sm">
                         {isIncluded ? (
                           <svg
-                            className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0"
+                            className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -310,13 +318,13 @@ export default function PlanComparisonTable({
                             <path
                               strokeLinecap="round"
                               strokeLinejoin="round"
-                              strokeWidth={2}
+                              strokeWidth={2.5}
                               d="M5 13l4 4L19 7"
                             />
                           </svg>
                         ) : (
                           <svg
-                            className="w-4 h-4 text-slate-300 mt-0.5 shrink-0"
+                            className="w-5 h-5 text-slate-300 mt-0.5 shrink-0"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -331,7 +339,7 @@ export default function PlanComparisonTable({
                         )}
                         <span
                           className={
-                            isIncluded ? "text-slate-700" : "text-slate-400"
+                            isIncluded ? "text-slate-700 font-medium" : "text-slate-400"
                           }
                         >
                           {typeof value === "string" && value !== "true" && value !== "false"

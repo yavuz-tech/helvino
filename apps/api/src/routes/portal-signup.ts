@@ -112,14 +112,15 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         };
       }
 
-      // Check if email already exists (generic response to avoid enumeration)
+      // Check if email already exists
       const existing = await prisma.orgUser.findUnique({
         where: { email: trimmedEmail },
-        select: { id: true },
+        select: { id: true, emailVerifiedAt: true, orgId: true, isActive: true },
       });
 
-      if (existing) {
-        // Return generic success to avoid user enumeration
+      if (existing && existing.emailVerifiedAt) {
+        // Already verified — return generic success to avoid user enumeration
+        console.log(`[signup] Email already verified: ${trimmedEmail} — returning generic success`);
         return {
           ok: true,
           message: "If this email is available, a verification link has been sent.",
@@ -127,69 +128,108 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         };
       }
 
-      // Create org + user in a transaction
-      const passwordHash = await hashPassword(password);
-      const orgKey = generateOrgKey(trimmedOrgName);
-      const siteId = generateSiteId();
+      let targetOrgId: string;
+      let targetEmail = trimmedEmail;
 
-      const { org, orgUser } = await prisma.$transaction(async (tx) => {
-        // Create org first (without ownerUserId — will update after OrgUser creation)
-        const org = await tx.organization.create({
-          data: {
-            key: orgKey,
-            siteId,
-            name: trimmedOrgName,
-            createdVia: "self_serve",
-            isActive: true,
-            planKey: "free",
-            planStatus: "inactive",
-            billingStatus: "none",
-          },
+      if (existing && !existing.emailVerifiedAt) {
+        // ── Unverified account exists → update password & org name, resend verification ──
+        const passwordHash = await hashPassword(password);
+
+        await prisma.$transaction(async (tx) => {
+          // Update user password
+          await tx.orgUser.update({
+            where: { id: existing.id },
+            data: { passwordHash },
+          });
+          // Update org name
+          await tx.organization.update({
+            where: { id: existing.orgId },
+            data: { name: trimmedOrgName },
+          });
         });
 
-        const orgUser = await tx.orgUser.create({
-          data: {
-            orgId: org.id,
-            email: trimmedEmail,
-            passwordHash,
-            role: "owner",
-            isActive: true,
-            emailVerifiedAt: null, // requires verification
-          },
+        targetOrgId = existing.orgId;
+        console.log(`[signup] Unverified account updated for ${trimmedEmail} — resending verification`);
+
+        writeAuditLog(
+          existing.orgId,
+          "portal_signup",
+          "org.unverified_re_signup",
+          { ownerEmail: trimmedEmail, action: "password_updated_verification_resent" },
+          requestId
+        ).catch(() => {});
+      } else {
+        // ── New account → create org + user ──
+        const passwordHash = await hashPassword(password);
+        const orgKey = generateOrgKey(trimmedOrgName);
+        const siteId = generateSiteId();
+
+        const { org } = await prisma.$transaction(async (tx) => {
+          const org = await tx.organization.create({
+            data: {
+              key: orgKey,
+              siteId,
+              name: trimmedOrgName,
+              createdVia: "self_serve",
+              isActive: true,
+              planKey: "free",
+              planStatus: "inactive",
+              billingStatus: "none",
+            },
+          });
+
+          const orgUser = await tx.orgUser.create({
+            data: {
+              orgId: org.id,
+              email: trimmedEmail,
+              passwordHash,
+              role: "owner",
+              isActive: true,
+              emailVerifiedAt: null,
+            },
+          });
+
+          await tx.organization.update({
+            where: { id: org.id },
+            data: { ownerUserId: orgUser.id },
+          });
+
+          return { org, orgUser };
         });
 
-        // Link owner back to org (Step 11.39)
-        await tx.organization.update({
-          where: { id: org.id },
-          data: { ownerUserId: orgUser.id },
-        });
+        targetOrgId = org.id;
 
-        return { org, orgUser };
-      });
+        writeAuditLog(
+          org.id,
+          "portal_signup",
+          "org.self_serve_created",
+          { orgKey, siteId, createdVia: "self_serve", ownerEmail: trimmedEmail },
+          requestId
+        ).catch(() => {});
+      }
 
       // Generate verification link (24h expiry)
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      const verifyLink = generateVerifyEmailLink(trimmedEmail, expiresAt);
+      const verifyLink = generateVerifyEmailLink(targetEmail, expiresAt);
 
-      // Send verification email (best-effort)
+      // Send verification email — await so Postmark receives it before we respond
       const emailContent = getVerifyEmailContent(locale, verifyLink);
-      sendEmail({
-        to: trimmedEmail,
-        subject: emailContent.subject,
-        html: emailContent.html,
-        tags: ["signup", "verify-email"],
-      }).catch(() => {
-        /* best-effort */
-      });
-
-      // Audit log (best-effort)
-      writeAuditLog(
-        org.id,
-        "portal_signup",
-        "org.self_serve_created",
-        { orgKey, siteId, createdVia: "self_serve", ownerEmail: trimmedEmail },
-        requestId
-      ).catch(() => {});
+      try {
+        const emailResult = await sendEmail({
+          to: targetEmail,
+          subject: emailContent.subject,
+          html: emailContent.html,
+          text: emailContent.text,
+          tags: ["signup", "verify-email"],
+        });
+        if (!emailResult.success) {
+          console.error(`[signup] Verification email FAILED for ${targetEmail}: ${emailResult.error}`);
+        } else {
+          console.log(`[signup] Verification email sent to ${targetEmail} via ${emailResult.provider} (${emailResult.messageId})`);
+        }
+      } catch (err) {
+        console.error(`[signup] Verification email ERROR for ${targetEmail}:`, err);
+      }
 
       return {
         ok: true,
@@ -237,12 +277,22 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         const verifyLink = generateVerifyEmailLink(trimmedEmail, expiresAt);
 
         const emailContent = getVerifyEmailContent(locale, verifyLink);
-        sendEmail({
-          to: trimmedEmail,
-          subject: emailContent.subject,
-          html: emailContent.html,
-          tags: ["resend-verification"],
-        }).catch(() => {});
+        try {
+          const emailResult = await sendEmail({
+            to: trimmedEmail,
+            subject: emailContent.subject,
+            html: emailContent.html,
+            text: emailContent.text,
+            tags: ["resend-verification"],
+          });
+          if (!emailResult.success) {
+            console.error(`[resend] Verification email FAILED for ${trimmedEmail}: ${emailResult.error}`);
+          } else {
+            console.log(`[resend] Verification email sent to ${trimmedEmail} via ${emailResult.provider} (${emailResult.messageId})`);
+          }
+        } catch (err) {
+          console.error(`[resend] Verification email ERROR for ${trimmedEmail}:`, err);
+        }
 
         writeAuditLog(
           user.orgId,

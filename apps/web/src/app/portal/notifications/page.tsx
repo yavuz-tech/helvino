@@ -1,18 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import PortalLayout from "@/components/PortalLayout";
-import {
-  checkPortalAuth,
-  portalLogout,
-  portalApiFetch,
-  type PortalUser,
-} from "@/lib/portal-auth";
+import Link from "next/link";
+import { portalApiFetch } from "@/lib/portal-auth";
+import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import {
   Bell,
   CheckCircle,
   ChevronDown,
+  ChevronLeft,
   AlertTriangle,
   Info,
   AlertOctagon,
@@ -89,12 +85,10 @@ const typeIcons: Record<string, typeof Shield> = {
 /* ────────── Main ────────── */
 
 export default function NotificationsPage() {
-  const router = useRouter();
+  const { user, loading: authLoading } = usePortalAuth();
   const { t } = useI18n();
   const hydrated = useHydrated();
 
-  const [user, setUser] = useState<PortalUser | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [items, setItems] = useState<NotifItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -111,18 +105,6 @@ export default function NotificationsPage() {
     widgetEnabled: true,
   });
   const [prefsSaved, setPrefsSaved] = useState(false);
-
-  // Auth
-  useEffect(() => {
-    checkPortalAuth().then((u) => {
-      if (!u) {
-        router.push("/portal/login");
-        return;
-      }
-      setUser(u);
-      setAuthLoading(false);
-    });
-  }, [router]);
 
   // Fetch preferences
   useEffect(() => {
@@ -250,30 +232,36 @@ export default function NotificationsPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
       </div>
     );
   }
 
   return (
-    <PortalLayout
-      user={user}
-      onLogout={() => portalLogout().then(() => router.push("/portal/login"))}
-    >
+    <>
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Bell size={24} className="text-slate-600" />
-            <h1 className="text-2xl font-bold text-slate-900">
-              {t("notifications.title")}
-            </h1>
-            {unreadCount > 0 && (
-              <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full">
-                {unreadCount}
-              </span>
-            )}
+          <div>
+            <Link
+              href="/portal"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#1A1A2E] transition-colors mb-3 group"
+            >
+              <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+              {t("portalOnboarding.backToDashboard")}
+            </Link>
+            <div className="flex items-center gap-3">
+              <Bell size={24} className="text-slate-600" />
+              <h1 className="text-2xl font-bold text-slate-900">
+                {t("notifications.title")}
+              </h1>
+              {unreadCount > 0 && (
+                <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
           </div>
           {unreadCount > 0 && (
             <button
@@ -464,6 +452,6 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
-    </PortalLayout>
+    </>
   );
 }

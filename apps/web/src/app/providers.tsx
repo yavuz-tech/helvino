@@ -5,6 +5,15 @@ import { OrgProvider } from "@/contexts/OrgContext";
 import { StepUpProvider } from "@/contexts/StepUpContext";
 import { I18nProvider } from "@/i18n/I18nContext";
 import DebugBanner from "@/components/DebugBanner";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+
+function DebugGate() {
+  const searchParams = useSearchParams();
+  const showDebug = process.env.NODE_ENV !== "production" && searchParams.get("debug") === "1";
+  if (!showDebug) return null;
+  return <DebugBanner />;
+}
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -13,7 +22,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <OrgProvider>
           <DebugProvider>
             {children}
-            <DebugBanner />
+            <Suspense fallback={null}>
+              <DebugGate />
+            </Suspense>
           </DebugProvider>
         </OrgProvider>
       </StepUpProvider>

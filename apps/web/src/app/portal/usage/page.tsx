@@ -1,17 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import PortalLayout from "@/components/PortalLayout";
-import {
-  checkPortalAuth,
-  portalLogout,
-  portalApiFetch,
-  type PortalUser,
-} from "@/lib/portal-auth";
+import { portalApiFetch } from "@/lib/portal-auth";
+import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { useI18n } from "@/i18n/I18nContext";
 import type { TranslationKey } from "@/i18n/translations";
+import { ChevronLeft } from "lucide-react";
 
 /* ────────── Types ────────── */
 
@@ -146,27 +141,12 @@ function AlertBanner({
 /* ────────── Main ────────── */
 
 export default function PortalUsagePage() {
-  const router = useRouter();
-  const [user, setUser] = useState<PortalUser | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const { user, loading: authLoading } = usePortalAuth();
   const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [lockStatus, setLockStatus] = useState<LockStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { t } = useI18n();
-
-  useEffect(() => {
-    const verify = async () => {
-      const portalUser = await checkPortalAuth();
-      if (!portalUser) {
-        router.push("/portal/login");
-        return;
-      }
-      setUser(portalUser);
-      setAuthLoading(false);
-    };
-    verify();
-  }, [router]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -187,15 +167,10 @@ export default function PortalUsagePage() {
     load();
   }, [authLoading, t]);
 
-  const handleLogout = async () => {
-    await portalLogout();
-    router.push("/portal/login");
-  };
-
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">{t("common.loading")}</div>
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
       </div>
     );
   }
@@ -217,8 +192,15 @@ export default function PortalUsagePage() {
   const anyFull = convPct >= 100 || msgPct >= 100;
 
   return (
-    <PortalLayout user={user} onLogout={handleLogout}>
+    <>
       <div className="mb-6">
+        <Link
+          href="/portal"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#1A1A2E] transition-colors mb-3 group"
+        >
+          <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+          {t("portalOnboarding.backToDashboard")}
+        </Link>
         <h1 className="text-2xl font-bold text-slate-900">{t("usage.title")}</h1>
         <p className="text-sm text-slate-600 mt-1">
           {t("usage.subtitle")}
@@ -385,6 +367,6 @@ export default function PortalUsagePage() {
           </div>
         </div>
       )}
-    </PortalLayout>
+    </>
   );
 }

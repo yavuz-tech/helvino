@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+
+# i18n compat: use generated flat file instead of translations.ts
+_COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
+  _I18N_COMPAT="$I18N_COMPAT_FILE"
+elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+else
+  [ -f "$_COMPAT_DIR/scripts/gen-i18n-compat.js" ] && node "$_COMPAT_DIR/scripts/gen-i18n-compat.js" >/dev/null 2>&1 || true
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+fi
+
+
 PASS=0
 FAIL=0
 WARN=0
@@ -123,11 +136,11 @@ check_grep "Admin recovery nav link" "nav.recovery" "$WEB/src/components/Dashboa
 # ── 8. i18n Keys ──
 echo ""
 echo "── i18n Keys ──"
-check_grep "EN recovery.title" '"recovery.title"' "$WEB/src/i18n/translations.ts"
-check_grep "EN emergency.title" '"emergency.title"' "$WEB/src/i18n/translations.ts"
-check_grep "TR recovery.title" '"recovery.title":.*Hesap Kurtarma' "$WEB/src/i18n/translations.ts"
-check_grep "ES recovery.title" '"recovery.title":.*Recuperación' "$WEB/src/i18n/translations.ts"
-check_grep "EN nav.recovery" '"nav.recovery"' "$WEB/src/i18n/translations.ts"
+check_grep "EN recovery.title" '"recovery.title"' "$_I18N_COMPAT"
+check_grep "EN emergency.title" '"emergency.title"' "$_I18N_COMPAT"
+check_grep "TR recovery.title" '"recovery.title":.*Hesap Kurtarma' "$_I18N_COMPAT"
+check_grep "ES recovery.title" '"recovery.title":.*Recuperación' "$_I18N_COMPAT"
+check_grep "EN nav.recovery" '"nav.recovery"' "$_I18N_COMPAT"
 
 # ── 9. Documentation ──
 echo ""

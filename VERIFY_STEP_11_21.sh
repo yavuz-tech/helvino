@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# i18n compat: use generated flat file instead of translations.ts
+_COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
+  _I18N_COMPAT="$I18N_COMPAT_FILE"
+elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+else
+  # Fallback: generate compat on the fly
+  [ -f "$_COMPAT_DIR/scripts/gen-i18n-compat.js" ] && node "$_COMPAT_DIR/scripts/gen-i18n-compat.js" >/dev/null 2>&1 || true
+  _I18N_COMPAT="$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts"
+fi
+
+
 # ─────────────────────────────────────────────────────────────
 # VERIFY_STEP_11_21.sh — MFA Policy + Devices + Step-Up
 # ─────────────────────────────────────────────────────────────
@@ -100,7 +113,7 @@ done
 echo ""
 echo "── 6. i18n checks ──"
 
-I18N="$REPO_ROOT/apps/web/src/i18n/translations.ts"
+I18N="$_I18N_COMPAT"
 
 for key in "mfaPolicy.adminRequired" "mfaPolicy.portalRecommended" "devices.title" "devices.trust" "devices.remove"; do
   count=$(grep -c "\"$key\"" "$I18N" 2>/dev/null || true)
