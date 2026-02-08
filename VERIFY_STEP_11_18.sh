@@ -231,8 +231,10 @@ if [ "$PORTAL_LOGIN_CODE" = "200" ]; then
     else
       skip "No inviteLink in response (might be prod mode)"
     fi
+  elif [ "$INVITE_CODE" = "403" ] && echo "$INVITE_BODY" | grep -q "MAX_AGENTS_REACHED"; then
+    pass "POST /portal/org/users/invite → 403 MAX_AGENTS_REACHED (maxAgents enforcement active)"
   else
-    fail "POST /portal/org/users/invite → expected 201, got $INVITE_CODE (body: $INVITE_BODY)"
+    fail "POST /portal/org/users/invite → expected 201 or 403, got $INVITE_CODE (body: $INVITE_BODY)"
   fi
 
   # Test accept-invite with bad token

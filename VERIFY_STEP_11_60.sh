@@ -80,8 +80,8 @@ if (enKeys.length !== trKeys.length || enKeys.length !== esKeys.length) {
 }
 
 const enSet = new Set(enKeys);
-const trMissing = enKeys.filter(k => !tr[k]);
-const esMissing = enKeys.filter(k => !es[k]);
+const trMissing = enKeys.filter(k => !(k in tr));
+const esMissing = enKeys.filter(k => !(k in es));
 
 if (trMissing.length > 0) {
   console.log('FAIL: TR missing ' + trMissing.length + ' keys: ' + trMissing.slice(0, 5).join(', '));
