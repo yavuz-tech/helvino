@@ -1,5 +1,5 @@
 // AUTO-GENERATED compat file for legacy verify scripts — DO NOT EDIT
-// Generated from JSON locales at 2026-02-08T20:25:27.215Z
+// Generated from JSON locales at 2026-02-08T20:45:20.802Z
 const en = {
   "admin.auditSummary.last24h": "Total events (24h)",
   "admin.auditSummary.suspicious": "Suspicious Events",
