@@ -120,3 +120,83 @@ export function findPresetByColor(hex: string): WidgetTheme | undefined {
     (p) => p.primaryColor.toLowerCase() === hex.toLowerCase()
   );
 }
+
+/* ═══════════════════════════════════════════════════════════════
+ * Premium Curated Color Palettes — harmonized multi-color schemes
+ * ═══════════════════════════════════════════════════════════════ */
+
+export interface PremiumPalette {
+  id: string;
+  colors: [string, string, string, string, string]; // 5 harmonized colors
+  gradient: { from: string; to: string; angle: number };
+  primaryColor: string;
+  accentColor: string;
+  surfaceColor: string;
+}
+
+export const PREMIUM_PALETTES: PremiumPalette[] = [
+  {
+    id: "aurora",
+    colors: ["#0f172a", "#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd"],
+    gradient: { from: "#6366f1", to: "#8b5cf6", angle: 135 },
+    primaryColor: "#6366f1",
+    accentColor: "#a78bfa",
+    surfaceColor: "#f5f3ff",
+  },
+  {
+    id: "coral-reef",
+    colors: ["#881337", "#e11d48", "#f43f5e", "#fb7185", "#fda4af"],
+    gradient: { from: "#e11d48", to: "#f43f5e", angle: 140 },
+    primaryColor: "#e11d48",
+    accentColor: "#fb7185",
+    surfaceColor: "#fff1f2",
+  },
+  {
+    id: "northern-lights",
+    colors: ["#064e3b", "#059669", "#10b981", "#34d399", "#6ee7b7"],
+    gradient: { from: "#059669", to: "#10b981", angle: 150 },
+    primaryColor: "#059669",
+    accentColor: "#34d399",
+    surfaceColor: "#ecfdf5",
+  },
+  {
+    id: "sapphire",
+    colors: ["#1e3a5f", "#1d4ed8", "#3b82f6", "#60a5fa", "#93c5fd"],
+    gradient: { from: "#1d4ed8", to: "#3b82f6", angle: 135 },
+    primaryColor: "#1d4ed8",
+    accentColor: "#60a5fa",
+    surfaceColor: "#eff6ff",
+  },
+  {
+    id: "golden-hour",
+    colors: ["#78350f", "#b45309", "#d97706", "#f59e0b", "#fbbf24"],
+    gradient: { from: "#b45309", to: "#d97706", angle: 130 },
+    primaryColor: "#b45309",
+    accentColor: "#f59e0b",
+    surfaceColor: "#fffbeb",
+  },
+  {
+    id: "cyber-rose",
+    colors: ["#4a044e", "#a21caf", "#d946ef", "#e879f9", "#f0abfc"],
+    gradient: { from: "#a21caf", to: "#d946ef", angle: 145 },
+    primaryColor: "#a21caf",
+    accentColor: "#e879f9",
+    surfaceColor: "#fdf4ff",
+  },
+  {
+    id: "midnight-ember",
+    colors: ["#18181b", "#dc2626", "#ef4444", "#f87171", "#fca5a5"],
+    gradient: { from: "#18181b", to: "#dc2626", angle: 160 },
+    primaryColor: "#18181b",
+    accentColor: "#ef4444",
+    surfaceColor: "#fef2f2",
+  },
+  {
+    id: "ocean-breeze",
+    colors: ["#164e63", "#0891b2", "#06b6d4", "#22d3ee", "#67e8f9"],
+    gradient: { from: "#0891b2", to: "#06b6d4", angle: 135 },
+    primaryColor: "#0891b2",
+    accentColor: "#22d3ee",
+    surfaceColor: "#ecfeff",
+  },
+];

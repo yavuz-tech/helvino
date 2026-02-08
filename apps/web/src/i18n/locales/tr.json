@@ -1859,5 +1859,18 @@
   "widgetConfig.upgradeForMore": "Daha fazla temsilci için yükseltin",
   "widgetConfig.domainMismatch": "Alan Adı Uyuşmazlıkları",
   "widgetConfig.domainMismatchDesc": "Yetkisiz alan adı yükleme girişimi tespit edildi.",
-  "widgetConfig.domainMismatchCount": "{count} uyuşmazlık"
+  "widgetConfig.domainMismatchCount": "{count} uyuşmazlık",
+  "widgetConfig.premiumPalettes": "Premium Paletler",
+  "widgetConfig.premiumPalettesLocked": "Premium renk paletleri ücretli planlarda kullanılabilir.",
+  "widgetConfig.unlockPalettes": "Paletleri açmak için yükseltin",
+  "widgetConfig.palette.aurora": "Aurora",
+  "widgetConfig.palette.coral-reef": "Mercan Kayalığı",
+  "widgetConfig.palette.northern-lights": "Kuzey Işıkları",
+  "widgetConfig.palette.sapphire": "Safir",
+  "widgetConfig.palette.golden-hour": "Altın Saat",
+  "widgetConfig.palette.cyber-rose": "Siber Gül",
+  "widgetConfig.palette.midnight-ember": "Gece Korları",
+  "widgetConfig.palette.ocean-breeze": "Okyanus Esintisi",
+  "widgetConfig.premiumPreviewMode": "Sadece ön izleme — uygulamak için planınızı yükseltin",
+  "widgetConfig.premiumPreviewRevert": "Geri al"
 }

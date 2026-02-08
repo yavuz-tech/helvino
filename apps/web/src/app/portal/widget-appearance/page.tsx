@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import ErrorBanner from "@/components/ErrorBanner";
 import PageHeader from "@/components/PageHeader";
@@ -14,9 +14,11 @@ import WidgetGallery from "@/components/widget/WidgetGallery";
 import WidgetPreviewRenderer from "@/components/widget/WidgetPreviewRenderer";
 import {
   WIDGET_THEME_PRESETS,
+  PREMIUM_PALETTES,
   DEFAULT_PRESET,
   findPresetByColor,
   type WidgetTheme,
+  type PremiumPalette,
 } from "@/lib/widgetThemePresets";
 import {
   DEFAULT_WIDGET_CONFIG,
@@ -106,10 +108,75 @@ export default function PortalWidgetAppearancePage() {
   const [requestId, setRequestId] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [showCustomize, setShowCustomize] = useState(false);
+  const [showPremiumPalettes, setShowPremiumPalettes] = useState(false);
   const [showSizeMenu, setShowSizeMenu] = useState(false);
   const [showAvatarLauncher, setShowAvatarLauncher] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [premiumPreviewId, setPremiumPreviewId] = useState<string | null>(null);
+
+  // Accordion: only one panel open at a time
+  type Panel = "customize" | "premiumPalettes" | "avatarLauncher" | "size" | "settings";
+  const togglePanel = (panel: Panel) => {
+    setShowCustomize(panel === "customize" ? (p) => !p : false);
+    setShowPremiumPalettes(panel === "premiumPalettes" ? (p) => !p : false);
+    setShowAvatarLauncher(panel === "avatarLauncher" ? (p) => !p : false);
+    setShowSizeMenu(panel === "size" ? (p) => !p : false);
+    setShowSettings(panel === "settings" ? (p) => !p : false);
+    // If closing premium palettes and there's a preview active, revert it
+    if (panel !== "premiumPalettes" && premiumPreviewId) {
+      revertPremiumPreview();
+    }
+  };
+
+  // Store original colors before premium preview so we can revert
+  const premiumPreviewBackup = useRef<{
+    primaryColor: string;
+    accentColor: string;
+    surfaceColor: string;
+    gradientFrom: string;
+    gradientTo: string;
+    gradientAngle: number;
+  } | null>(null);
+
+  const applyPremiumPreview = (palette: PremiumPalette) => {
+    // Save backup on first preview
+    if (!premiumPreviewBackup.current) {
+      premiumPreviewBackup.current = {
+        primaryColor: settings.primaryColor,
+        accentColor: localTheme.accentColor,
+        surfaceColor: localTheme.surfaceColor,
+        gradientFrom: localTheme.gradientFrom,
+        gradientTo: localTheme.gradientTo,
+        gradientAngle: localTheme.gradientAngle,
+      };
+    }
+    setPremiumPreviewId(palette.id);
+    setSettings((s) => ({ ...s, primaryColor: palette.primaryColor }));
+    updateLocal({
+      accentColor: palette.accentColor,
+      surfaceColor: palette.surfaceColor,
+      gradientFrom: palette.gradient.from,
+      gradientTo: palette.gradient.to,
+      gradientAngle: palette.gradient.angle,
+    });
+  };
+
+  const revertPremiumPreview = () => {
+    if (premiumPreviewBackup.current) {
+      const b = premiumPreviewBackup.current;
+      setSettings((s) => ({ ...s, primaryColor: b.primaryColor }));
+      updateLocal({
+        accentColor: b.accentColor,
+        surfaceColor: b.surfaceColor,
+        gradientFrom: b.gradientFrom,
+        gradientTo: b.gradientTo,
+        gradientAngle: b.gradientAngle,
+      });
+      premiumPreviewBackup.current = null;
+    }
+    setPremiumPreviewId(null);
+  };
   const [widgetConfig, setWidgetConfig] = useState<WidgetConfig>(
     () => loadWidgetConfig() ?? DEFAULT_WIDGET_CONFIG
   );
@@ -208,6 +275,11 @@ export default function PortalWidgetAppearancePage() {
   /* ── Save to API ── */
   const handleSave = async () => {
     if (!canEdit) return;
+    // Block save while a premium preview is active on Free plan
+    if (isFree && premiumPreviewId) {
+      revertPremiumPreview();
+      return;
+    }
     setSaving(true);
     setSaveMessage(null);
     setError(null);
@@ -334,7 +406,7 @@ export default function PortalWidgetAppearancePage() {
             <div>
               <button
                 type="button"
-                onClick={() => setShowCustomize(!showCustomize)}
+                onClick={() => togglePanel("customize")}
                 className="w-full rounded-xl customize-btn-animated text-left"
               >
                 <div className="customize-btn-inner">
@@ -466,13 +538,152 @@ export default function PortalWidgetAppearancePage() {
                   </button>
                 </div>
               )}
+
+            </div>
+
+            {/* ── Premium Color Palettes — own accordion section ── */}
+            <div className="premium-palettes-section">
+              <button
+                type="button"
+                onClick={() => togglePanel("premiumPalettes")}
+                className="w-full rounded-xl customize-btn-animated text-left"
+              >
+                <div className="customize-btn-inner">
+                  <div className="flex items-center gap-2">
+                    {showPremiumPalettes ? (
+                      <ChevronDown size={18} className="text-slate-600" />
+                    ) : (
+                      <ChevronRight size={18} className="text-slate-600" />
+                    )}
+                    <span className="text-sm font-semibold text-slate-800">
+                      {t("widgetConfig.premiumPalettes")}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold tracking-wider uppercase bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 text-amber-900 shadow-sm">
+                      <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z" clipRule="evenodd" /></svg>
+                      PRO
+                    </span>
+                  </div>
+                </div>
+              </button>
+
+              {showPremiumPalettes && (
+                <div className="mt-3 relative">
+                  <div className="bg-white rounded-xl border border-slate-200 px-5 pt-4 pb-5">
+                    {/* Preview-mode banner for Free users */}
+                    {isFree && premiumPreviewId && (
+                      <div className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200/70 px-3 py-2">
+                        <svg className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                        <span className="text-[11px] font-medium text-amber-800">{t("widgetConfig.premiumPreviewMode")}</span>
+                        <button
+                          onClick={() => revertPremiumPreview()}
+                          className="ml-auto text-[10px] font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors"
+                        >
+                          {t("widgetConfig.premiumPreviewRevert")}
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-4 gap-3">
+                      {PREMIUM_PALETTES.map((palette) => {
+                        const isPreviewing = premiumPreviewId === palette.id;
+                        return (
+                          <button
+                            key={palette.id}
+                            onClick={() => {
+                              if (isFree) {
+                                // Free: toggle preview (show in preview, but can't save)
+                                if (isPreviewing) {
+                                  revertPremiumPreview();
+                                } else {
+                                  applyPremiumPreview(palette);
+                                }
+                              } else {
+                                // Paid: apply directly
+                                setSettings({ ...settings, primaryColor: palette.primaryColor });
+                                updateLocal({
+                                  accentColor: palette.accentColor,
+                                  surfaceColor: palette.surfaceColor,
+                                  gradientFrom: palette.gradient.from,
+                                  gradientTo: palette.gradient.to,
+                                  gradientAngle: palette.gradient.angle,
+                                });
+                              }
+                            }}
+                            disabled={!canEdit}
+                            className={`premium-palette-card group ${isPreviewing ? "ring-2 ring-amber-400 ring-offset-2" : ""}`}
+                            style={{
+                              ["--palette-glow" as string]: `${palette.gradient.from}60`,
+                            }}
+                            title={t(`widgetConfig.palette.${palette.id}`)}
+                          >
+                            <div className="premium-palette-inner">
+                              {/* Color strip — 5 harmonized colors as a single elegant bar */}
+                              <div className="w-full aspect-[3/2] rounded-lg overflow-hidden relative">
+                                <div
+                                  className="absolute inset-0"
+                                  style={{
+                                    background: `linear-gradient(${palette.gradient.angle}deg, ${palette.colors[0]}, ${palette.colors[1]}, ${palette.colors[2]}, ${palette.colors[3]}, ${palette.colors[4]})`,
+                                  }}
+                                />
+                                {/* Glass shine overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10" />
+                                {/* Preview eye badge */}
+                                {isPreviewing && (
+                                  <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center shadow-md">
+                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                                  </div>
+                                )}
+                              </div>
+                              {/* Swatch dots */}
+                              <div className="flex items-center justify-center gap-1 mt-1.5">
+                                {palette.colors.map((color, i) => (
+                                  <div
+                                    key={i}
+                                    className="w-2.5 h-2.5 rounded-full ring-1 ring-white shadow-sm"
+                                    style={{ backgroundColor: color }}
+                                  />
+                                ))}
+                              </div>
+                              {/* Name */}
+                              <span className="text-[10px] font-bold text-slate-700 text-center leading-tight truncate w-full mt-1">
+                                {t(`widgetConfig.palette.${palette.id}`)}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Premium upgrade CTA — only for Free users */}
+                    {isFree && (
+                      <div className="mt-4 relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-900 via-indigo-950 to-violet-950 p-4">
+                        {/* Decorative glow */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/20 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-500/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+                        <div className="relative flex items-center gap-3">
+                          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 flex-shrink-0">
+                            <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z" clipRule="evenodd" /></svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-semibold text-white">{t("widgetConfig.premiumPalettesLocked")}</p>
+                            <a href="/portal/billing" className="inline-flex items-center gap-1.5 mt-1 text-xs font-semibold text-amber-400 hover:text-amber-300 transition-colors">
+                              {t("widgetConfig.unlockPalettes")}
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ── 2. Avatar, Logo & Launcher — customize-btn-animated ── */}
             <div>
               <button
                 type="button"
-                onClick={() => setShowAvatarLauncher(!showAvatarLauncher)}
+                onClick={() => togglePanel("avatarLauncher")}
                 className="w-full rounded-xl customize-btn-animated text-left"
               >
                 <div className="customize-btn-inner">
@@ -652,7 +863,7 @@ export default function PortalWidgetAppearancePage() {
             <div>
               <button
                 type="button"
-                onClick={() => setShowSizeMenu(!showSizeMenu)}
+                onClick={() => togglePanel("size")}
                 className="w-full rounded-xl customize-btn-animated text-left"
               >
                 <div className="customize-btn-inner">
@@ -796,7 +1007,7 @@ export default function PortalWidgetAppearancePage() {
             <div>
               <button
                 type="button"
-                onClick={() => setShowSettings(!showSettings)}
+                onClick={() => togglePanel("settings")}
                 className="w-full rounded-xl customize-btn-animated text-left"
               >
                 <div className="customize-btn-inner">

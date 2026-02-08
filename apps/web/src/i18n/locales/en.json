@@ -1859,5 +1859,18 @@
   "widgetConfig.upgradeForMore": "Upgrade for more agents",
   "widgetConfig.domainMismatch": "Domain Mismatches",
   "widgetConfig.domainMismatchDesc": "Unauthorized domain load attempts detected.",
-  "widgetConfig.domainMismatchCount": "{count} mismatches"
+  "widgetConfig.domainMismatchCount": "{count} mismatches",
+  "widgetConfig.premiumPalettes": "Premium Palettes",
+  "widgetConfig.premiumPalettesLocked": "Premium color palettes are available on paid plans.",
+  "widgetConfig.unlockPalettes": "Upgrade to unlock palettes",
+  "widgetConfig.palette.aurora": "Aurora",
+  "widgetConfig.palette.coral-reef": "Coral Reef",
+  "widgetConfig.palette.northern-lights": "Northern Lights",
+  "widgetConfig.palette.sapphire": "Sapphire",
+  "widgetConfig.palette.golden-hour": "Golden Hour",
+  "widgetConfig.palette.cyber-rose": "Cyber Rose",
+  "widgetConfig.palette.midnight-ember": "Midnight Ember",
+  "widgetConfig.palette.ocean-breeze": "Ocean Breeze",
+  "widgetConfig.premiumPreviewMode": "Preview only — upgrade to apply this palette",
+  "widgetConfig.premiumPreviewRevert": "Revert"
 }

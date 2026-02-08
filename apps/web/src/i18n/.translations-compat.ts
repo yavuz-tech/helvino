@@ -1,5 +1,5 @@
 // AUTO-GENERATED compat file for legacy verify scripts — DO NOT EDIT
-// Generated from JSON locales at 2026-02-08T19:08:33.868Z
+// Generated from JSON locales at 2026-02-08T19:27:28.558Z
 const en = {
   "admin.auditSummary.last24h": "Total events (24h)",
   "admin.auditSummary.suspicious": "Suspicious Events",
@@ -1861,7 +1861,20 @@ const en = {
   "widgetConfig.upgradeForMore": "Upgrade for more agents",
   "widgetConfig.domainMismatch": "Domain Mismatches",
   "widgetConfig.domainMismatchDesc": "Unauthorized domain load attempts detected.",
-  "widgetConfig.domainMismatchCount": "{count} mismatches"
+  "widgetConfig.domainMismatchCount": "{count} mismatches",
+  "widgetConfig.premiumPalettes": "Premium Palettes",
+  "widgetConfig.premiumPalettesLocked": "Premium color palettes are available on paid plans.",
+  "widgetConfig.unlockPalettes": "Upgrade to unlock palettes",
+  "widgetConfig.palette.aurora": "Aurora",
+  "widgetConfig.palette.coral-reef": "Coral Reef",
+  "widgetConfig.palette.northern-lights": "Northern Lights",
+  "widgetConfig.palette.sapphire": "Sapphire",
+  "widgetConfig.palette.golden-hour": "Golden Hour",
+  "widgetConfig.palette.cyber-rose": "Cyber Rose",
+  "widgetConfig.palette.midnight-ember": "Midnight Ember",
+  "widgetConfig.palette.ocean-breeze": "Ocean Breeze",
+  "widgetConfig.premiumPreviewMode": "Preview only — upgrade to apply this palette",
+  "widgetConfig.premiumPreviewRevert": "Revert"
 } as const;
 
 type TranslationKey = keyof typeof en;
@@ -3727,7 +3740,20 @@ const tr: Record<TranslationKey, string> = {
   "widgetConfig.upgradeForMore": "Daha fazla temsilci için yükseltin",
   "widgetConfig.domainMismatch": "Alan Adı Uyuşmazlıkları",
   "widgetConfig.domainMismatchDesc": "Yetkisiz alan adı yükleme girişimi tespit edildi.",
-  "widgetConfig.domainMismatchCount": "{count} uyuşmazlık"
+  "widgetConfig.domainMismatchCount": "{count} uyuşmazlık",
+  "widgetConfig.premiumPalettes": "Premium Paletler",
+  "widgetConfig.premiumPalettesLocked": "Premium renk paletleri ücretli planlarda kullanılabilir.",
+  "widgetConfig.unlockPalettes": "Paletleri açmak için yükseltin",
+  "widgetConfig.palette.aurora": "Aurora",
+  "widgetConfig.palette.coral-reef": "Mercan Kayalığı",
+  "widgetConfig.palette.northern-lights": "Kuzey Işıkları",
+  "widgetConfig.palette.sapphire": "Safir",
+  "widgetConfig.palette.golden-hour": "Altın Saat",
+  "widgetConfig.palette.cyber-rose": "Siber Gül",
+  "widgetConfig.palette.midnight-ember": "Gece Korları",
+  "widgetConfig.palette.ocean-breeze": "Okyanus Esintisi",
+  "widgetConfig.premiumPreviewMode": "Sadece ön izleme — uygulamak için planınızı yükseltin",
+  "widgetConfig.premiumPreviewRevert": "Geri al"
 };
 
 const es: Record<TranslationKey, string> = {
@@ -5591,7 +5617,20 @@ const es: Record<TranslationKey, string> = {
   "widgetConfig.upgradeForMore": "Actualice para más agentes",
   "widgetConfig.domainMismatch": "Incompatibilidades de Dominio",
   "widgetConfig.domainMismatchDesc": "Se detectaron intentos de carga desde dominios no autorizados.",
-  "widgetConfig.domainMismatchCount": "{count} incompatibilidades"
+  "widgetConfig.domainMismatchCount": "{count} incompatibilidades",
+  "widgetConfig.premiumPalettes": "Paletas Premium",
+  "widgetConfig.premiumPalettesLocked": "Las paletas de colores premium están disponibles en planes de pago.",
+  "widgetConfig.unlockPalettes": "Actualice para desbloquear paletas",
+  "widgetConfig.palette.aurora": "Aurora",
+  "widgetConfig.palette.coral-reef": "Arrecife de Coral",
+  "widgetConfig.palette.northern-lights": "Luces del Norte",
+  "widgetConfig.palette.sapphire": "Zafiro",
+  "widgetConfig.palette.golden-hour": "Hora Dorada",
+  "widgetConfig.palette.cyber-rose": "Rosa Cibernético",
+  "widgetConfig.palette.midnight-ember": "Brasas de Medianoche",
+  "widgetConfig.palette.ocean-breeze": "Brisa Oceánica",
+  "widgetConfig.premiumPreviewMode": "Solo vista previa — actualice para aplicar esta paleta",
+  "widgetConfig.premiumPreviewRevert": "Revertir"
 };
 
 export const translations = { en, tr, es };
