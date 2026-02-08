@@ -114,7 +114,14 @@ export default function PortalWidgetAppearancePage() {
     () => loadWidgetConfig() ?? DEFAULT_WIDGET_CONFIG
   );
 
+  // Plan entitlements from API
+  const [planKey, setPlanKey] = useState<string>("free");
+  const [brandingRequired, setBrandingRequired] = useState(true);
+  const [maxAgents, setMaxAgents] = useState(1);
+  const [domainMismatchCount, setDomainMismatchCount] = useState(0);
+
   const canEdit = user?.role === "owner" || user?.role === "admin";
+  const isFree = planKey === "free";
 
   const updateWidgetConfig = (patch: WidgetConfigPatch) => {
     const updated: WidgetConfig = {
@@ -142,6 +149,12 @@ export default function PortalWidgetAppearancePage() {
       const s: WidgetSettings = data.settings;
       setSettings(s);
       setRequestId(data.requestId || null);
+
+      // Plan entitlements
+      if (data.planKey) setPlanKey(data.planKey);
+      if (data.brandingRequired !== undefined) setBrandingRequired(data.brandingRequired);
+      if (data.maxAgents !== undefined) setMaxAgents(data.maxAgents);
+      if (data.domainMismatchCount !== undefined) setDomainMismatchCount(data.domainMismatchCount);
 
       /* Restore local theme overrides */
       const saved = loadLocalTheme();
@@ -508,12 +521,12 @@ export default function PortalWidgetAppearancePage() {
                     )}
                   </div>
 
-                  {/* Agent Avatars */}
+                  {/* Agent Avatars (limited by maxAgents) */}
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">
                       {t("widgetConfig.agentAvatars")}
                     </label>
-                    {widgetConfig.avatars.agents.map((agent, i) => (
+                    {widgetConfig.avatars.agents.slice(0, maxAgents).map((agent, i) => (
                       <div key={agent.id} className="mt-1">
                         <input
                           type="url"
@@ -529,6 +542,14 @@ export default function PortalWidgetAppearancePage() {
                         />
                       </div>
                     ))}
+                    {isFree && widgetConfig.avatars.agents.length > maxAgents && (
+                      <p className="mt-2 text-xs text-amber-600">
+                        {t("widgetConfig.maxAgentsReached")}{" "}
+                        <a href="/portal/billing" className="underline font-medium hover:text-amber-700">
+                          {t("widgetConfig.upgradeForMore")}
+                        </a>
+                      </p>
+                    )}
                   </div>
 
                   {/* Avatar Shape */}
@@ -856,6 +877,65 @@ export default function PortalWidgetAppearancePage() {
                       {(settings.brandName || "").length}/40
                     </div>
                   </div>
+
+                  {/* ── Branding toggle (plan-gated) ── */}
+                  <div className="border-t border-slate-200 pt-4">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      {t("widgetConfig.brandingToggle")}
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {/* branding always on for free */}}
+                        disabled={brandingRequired}
+                        className={`px-3 py-2 text-xs font-medium rounded-lg border-2 transition-all ${
+                          brandingRequired
+                            ? "border-slate-900 bg-slate-100 text-slate-900"
+                            : "border-slate-200 text-slate-600 hover:border-slate-300"
+                        } disabled:opacity-60 disabled:cursor-not-allowed`}
+                      >
+                        {t("widgetConfig.brandingOn")}
+                      </button>
+                      <button
+                        onClick={() => {/* only available on paid plans */}}
+                        disabled={brandingRequired}
+                        className={`px-3 py-2 text-xs font-medium rounded-lg border-2 transition-all ${
+                          !brandingRequired
+                            ? "border-slate-900 bg-slate-100 text-slate-900"
+                            : "border-slate-200 text-slate-600 hover:border-slate-300"
+                        } disabled:opacity-60 disabled:cursor-not-allowed`}
+                      >
+                        {t("widgetConfig.brandingOff")}
+                      </button>
+                    </div>
+                    {isFree && (
+                      <p className="mt-2 text-xs text-amber-600">
+                        {t("widgetConfig.brandingFreeLocked")}{" "}
+                        <a href="/portal/billing" className="underline font-medium hover:text-amber-700">
+                          {t("widgetConfig.brandingUpgrade")}
+                        </a>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* ── Domain mismatch alert ── */}
+                  {domainMismatchCount > 0 && (
+                    <div className="border-t border-slate-200 pt-4">
+                      <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                        <span className="text-amber-500 text-lg flex-shrink-0">⚠</span>
+                        <div>
+                          <p className="text-sm font-medium text-amber-800">
+                            {t("widgetConfig.domainMismatch")}
+                          </p>
+                          <p className="text-xs text-amber-700 mt-0.5">
+                            {t("widgetConfig.domainMismatchDesc")}
+                          </p>
+                          <p className="text-xs font-semibold text-amber-800 mt-1">
+                            {t("widgetConfig.domainMismatchCount").replace("{count}", String(domainMismatchCount))}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Save Button */}
                   {canEdit && (

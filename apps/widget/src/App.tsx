@@ -222,6 +222,17 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     return null; // Widget disabled by config
   }
 
+  // Unauthorized domain: show safe disabled state
+  if (bootloaderConfig.config.unauthorizedDomain) {
+    return (
+      <div className="widget-container widget-unauthorized">
+        <div className="widget-unauthorized-msg">
+          Widget is not authorized on this domain.
+        </div>
+      </div>
+    );
+  }
+
   const primaryColor = bootloaderConfig.config.theme.primaryColor;
   const writeEnabled = bootloaderConfig.config.writeEnabled;
   const lang = bootloaderConfig.config.language || "en";

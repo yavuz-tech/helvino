@@ -332,3 +332,12 @@
 .chat-emoji-picker-item:hover {
   background: #e2e8f0;
 }
+
+/* ── Unauthorized domain state ── */
+.widget-unauthorized {
+  display: none; /* Hidden — widget doesn't render on unauthorized domains */
+}
+
+.widget-unauthorized-msg {
+  display: none;
+}

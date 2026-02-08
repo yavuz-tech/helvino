@@ -78,8 +78,24 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
 
       const settings = existingSettings || getDefaultSettings();
 
+      // Fetch plan info for branding entitlement + maxAgents
+      const orgInfo = await prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { planKey: true, widgetDomainMismatchTotal: true },
+      });
+      const plan = orgInfo
+        ? await prisma.plan.findUnique({
+            where: { key: orgInfo.planKey },
+            select: { maxAgents: true },
+          })
+        : null;
+
       return {
         settings,
+        planKey: orgInfo?.planKey ?? "free",
+        brandingRequired: orgInfo?.planKey === "free",
+        maxAgents: plan?.maxAgents ?? 1,
+        domainMismatchCount: orgInfo?.widgetDomainMismatchTotal ?? 0,
         requestId,
       };
     }

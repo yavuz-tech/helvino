@@ -1849,5 +1849,15 @@
   "widgetConfig.unreadBadge": "Okunmamış Rozet",
   "widgetConfig.badgeOff": "Kapalı",
   "widgetConfig.badgeDot": "Nokta",
-  "widgetConfig.badgeCount": "Sayı"
+  "widgetConfig.badgeCount": "Sayı",
+  "widgetConfig.brandingToggle": "\"Helvino tarafından desteklenmektedir\" Markası",
+  "widgetConfig.brandingOn": "Görünür",
+  "widgetConfig.brandingOff": "Gizli",
+  "widgetConfig.brandingFreeLocked": "Ücretsiz planda marka her zaman görünürdür.",
+  "widgetConfig.brandingUpgrade": "Markayı kaldırmak için yükseltin",
+  "widgetConfig.maxAgentsReached": "Planınıza göre temsilci limiti doldu.",
+  "widgetConfig.upgradeForMore": "Daha fazla temsilci için yükseltin",
+  "widgetConfig.domainMismatch": "Alan Adı Uyuşmazlıkları",
+  "widgetConfig.domainMismatchDesc": "Yetkisiz alan adı yükleme girişimi tespit edildi.",
+  "widgetConfig.domainMismatchCount": "{count} uyuşmazlık"
 }

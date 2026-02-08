@@ -116,6 +116,39 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
         return { error: `Role must be one of: ${INVITE_ROLES.join(", ")}` };
       }
 
+      // ── maxAgents enforcement (plan limit) ──
+      const orgForPlan = await prisma.organization.findUnique({
+        where: { id: actor.orgId },
+        select: { planKey: true },
+      });
+      const planForLimit = orgForPlan
+        ? await prisma.plan.findUnique({
+            where: { key: orgForPlan.planKey },
+            select: { maxAgents: true },
+          })
+        : null;
+      const maxAgents = planForLimit?.maxAgents ?? 1;
+
+      // Count active agents (non-owner users) + pending invites
+      const [activeAgentCount, pendingInviteCount] = await Promise.all([
+        prisma.orgUser.count({
+          where: { orgId: actor.orgId, isActive: true, role: { not: "owner" } },
+        }),
+        prisma.portalInvite.count({
+          where: { orgId: actor.orgId, acceptedAt: null, expiresAt: { gt: new Date() } },
+        }),
+      ]);
+
+      if (activeAgentCount + pendingInviteCount >= maxAgents) {
+        reply.code(403);
+        return {
+          error: "Agent limit reached",
+          code: "MAX_AGENTS_REACHED",
+          maxAgents,
+          current: activeAgentCount + pendingInviteCount,
+        };
+      }
+
       // Check if user already exists in this org
       const existingUser = await prisma.orgUser.findFirst({
         where: { orgId: actor.orgId, email },

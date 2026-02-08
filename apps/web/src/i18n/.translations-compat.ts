@@ -1,5 +1,5 @@
 // AUTO-GENERATED compat file for legacy verify scripts — DO NOT EDIT
-// Generated from JSON locales at 2026-02-08T17:53:33.802Z
+// Generated from JSON locales at 2026-02-08T19:08:33.868Z
 const en = {
   "admin.auditSummary.last24h": "Total events (24h)",
   "admin.auditSummary.suspicious": "Suspicious Events",
@@ -1851,7 +1851,17 @@ const en = {
   "widgetConfig.unreadBadge": "Unread Badge",
   "widgetConfig.badgeOff": "Off",
   "widgetConfig.badgeDot": "Dot",
-  "widgetConfig.badgeCount": "Count"
+  "widgetConfig.badgeCount": "Count",
+  "widgetConfig.brandingToggle": "\"Powered by Helvino\" Branding",
+  "widgetConfig.brandingOn": "Visible",
+  "widgetConfig.brandingOff": "Hidden",
+  "widgetConfig.brandingFreeLocked": "Branding is always visible on the Free plan.",
+  "widgetConfig.brandingUpgrade": "Upgrade to remove branding",
+  "widgetConfig.maxAgentsReached": "Agent limit reached for your plan.",
+  "widgetConfig.upgradeForMore": "Upgrade for more agents",
+  "widgetConfig.domainMismatch": "Domain Mismatches",
+  "widgetConfig.domainMismatchDesc": "Unauthorized domain load attempts detected.",
+  "widgetConfig.domainMismatchCount": "{count} mismatches"
 } as const;
 
 type TranslationKey = keyof typeof en;
@@ -3707,7 +3717,17 @@ const tr: Record<TranslationKey, string> = {
   "widgetConfig.unreadBadge": "Okunmamış Rozet",
   "widgetConfig.badgeOff": "Kapalı",
   "widgetConfig.badgeDot": "Nokta",
-  "widgetConfig.badgeCount": "Sayı"
+  "widgetConfig.badgeCount": "Sayı",
+  "widgetConfig.brandingToggle": "\"Helvino tarafından desteklenmektedir\" Markası",
+  "widgetConfig.brandingOn": "Görünür",
+  "widgetConfig.brandingOff": "Gizli",
+  "widgetConfig.brandingFreeLocked": "Ücretsiz planda marka her zaman görünürdür.",
+  "widgetConfig.brandingUpgrade": "Markayı kaldırmak için yükseltin",
+  "widgetConfig.maxAgentsReached": "Planınıza göre temsilci limiti doldu.",
+  "widgetConfig.upgradeForMore": "Daha fazla temsilci için yükseltin",
+  "widgetConfig.domainMismatch": "Alan Adı Uyuşmazlıkları",
+  "widgetConfig.domainMismatchDesc": "Yetkisiz alan adı yükleme girişimi tespit edildi.",
+  "widgetConfig.domainMismatchCount": "{count} uyuşmazlık"
 };
 
 const es: Record<TranslationKey, string> = {
@@ -5561,7 +5581,17 @@ const es: Record<TranslationKey, string> = {
   "widgetConfig.unreadBadge": "Insignia No Leída",
   "widgetConfig.badgeOff": "Apagado",
   "widgetConfig.badgeDot": "Punto",
-  "widgetConfig.badgeCount": "Cantidad"
+  "widgetConfig.badgeCount": "Cantidad",
+  "widgetConfig.brandingToggle": "Marca \"Desarrollado por Helvino\"",
+  "widgetConfig.brandingOn": "Visible",
+  "widgetConfig.brandingOff": "Oculto",
+  "widgetConfig.brandingFreeLocked": "La marca siempre es visible en el plan gratuito.",
+  "widgetConfig.brandingUpgrade": "Actualice para eliminar la marca",
+  "widgetConfig.maxAgentsReached": "Límite de agentes alcanzado para su plan.",
+  "widgetConfig.upgradeForMore": "Actualice para más agentes",
+  "widgetConfig.domainMismatch": "Incompatibilidades de Dominio",
+  "widgetConfig.domainMismatchDesc": "Se detectaron intentos de carga desde dominios no autorizados.",
+  "widgetConfig.domainMismatchCount": "{count} incompatibilidades"
 };
 
 export const translations = { en, tr, es };

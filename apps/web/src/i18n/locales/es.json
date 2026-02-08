@@ -1849,5 +1849,15 @@
   "widgetConfig.unreadBadge": "Insignia No Leída",
   "widgetConfig.badgeOff": "Apagado",
   "widgetConfig.badgeDot": "Punto",
-  "widgetConfig.badgeCount": "Cantidad"
+  "widgetConfig.badgeCount": "Cantidad",
+  "widgetConfig.brandingToggle": "Marca \"Desarrollado por Helvino\"",
+  "widgetConfig.brandingOn": "Visible",
+  "widgetConfig.brandingOff": "Oculto",
+  "widgetConfig.brandingFreeLocked": "La marca siempre es visible en el plan gratuito.",
+  "widgetConfig.brandingUpgrade": "Actualice para eliminar la marca",
+  "widgetConfig.maxAgentsReached": "Límite de agentes alcanzado para su plan.",
+  "widgetConfig.upgradeForMore": "Actualice para más agentes",
+  "widgetConfig.domainMismatch": "Incompatibilidades de Dominio",
+  "widgetConfig.domainMismatchDesc": "Se detectaron intentos de carga desde dominios no autorizados.",
+  "widgetConfig.domainMismatchCount": "{count} incompatibilidades"
 }

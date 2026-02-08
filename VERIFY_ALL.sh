@@ -97,12 +97,10 @@ echo ""
 # ──────────────────────────────────────────────────
 divider "WEB BUILD"
 cd "$ROOT/apps/web"
-if NEXT_BUILD_DIR=.next-verify pnpm build 2>&1 | tee "$LOG_DIR/web-build.log" | tail -5; then
+if pnpm build 2>&1 | tee "$LOG_DIR/web-build.log" | tail -5; then
   echo -e "  ${GREEN}PASS${NC}: Web build"
-  rm -rf .next-verify 2>/dev/null || true
 else
   echo -e "  ${RED}STOP${NC}: Web build broken"
-  rm -rf .next-verify 2>/dev/null || true
   exit 1
 fi
 echo ""

@@ -255,6 +255,10 @@ export interface BootloaderConfig {
     };
     /** Server-enforced entitlement: true = branding must be shown */
     brandingRequired?: boolean;
+    /** Max agents allowed by plan (server-authoritative) */
+    maxAgents?: number;
+    /** true if widget is loaded from an unauthorized domain */
+    unauthorizedDomain?: boolean;
   };
   orgToken: string; // Short-lived signed token for write operations
   env: string;
@@ -315,7 +319,14 @@ export async function sendMessage(
  * Load bootloader configuration
  */
 export async function loadBootloader(): Promise<BootloaderConfig> {
-  const response = await fetch(`${API_URL}/api/bootloader`, {
+  // Build bootloader URL with parentHost for domain validation
+  let bootloaderUrl = `${API_URL}/api/bootloader`;
+  const parentHost = (window as any).HELVINO_PARENT_HOST;
+  if (parentHost) {
+    bootloaderUrl += `?parentHost=${encodeURIComponent(parentHost)}`;
+  }
+
+  const response = await fetch(bootloaderUrl, {
     method: "GET",
     headers: getHeaders(),
   });

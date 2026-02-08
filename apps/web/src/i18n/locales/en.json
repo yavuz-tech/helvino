@@ -1849,5 +1849,15 @@
   "widgetConfig.unreadBadge": "Unread Badge",
   "widgetConfig.badgeOff": "Off",
   "widgetConfig.badgeDot": "Dot",
-  "widgetConfig.badgeCount": "Count"
+  "widgetConfig.badgeCount": "Count",
+  "widgetConfig.brandingToggle": "\"Powered by Helvino\" Branding",
+  "widgetConfig.brandingOn": "Visible",
+  "widgetConfig.brandingOff": "Hidden",
+  "widgetConfig.brandingFreeLocked": "Branding is always visible on the Free plan.",
+  "widgetConfig.brandingUpgrade": "Upgrade to remove branding",
+  "widgetConfig.maxAgentsReached": "Agent limit reached for your plan.",
+  "widgetConfig.upgradeForMore": "Upgrade for more agents",
+  "widgetConfig.domainMismatch": "Domain Mismatches",
+  "widgetConfig.domainMismatchDesc": "Unauthorized domain load attempts detected.",
+  "widgetConfig.domainMismatchCount": "{count} mismatches"
 }

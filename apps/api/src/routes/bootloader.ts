@@ -10,7 +10,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "../prisma";
-import { validateDomainAllowlist } from "../middleware/domain-allowlist";
+import { isOriginAllowed, extractDomain, isLocalhost } from "../utils/domain-validation";
 import { createOrgToken } from "../utils/org-token";
 import { buildHistogramUpdateSql } from "../utils/widget-histogram";
 
@@ -35,8 +35,12 @@ interface BootloaderResponse {
       launcherText?: string | null;
       position?: string;
     };
-    /** Server-enforced entitlement: true = branding must be shown (free plan) */
+    /** Server-enforced entitlement: true = branding must be shown */
     brandingRequired: boolean;
+    /** Max team agents allowed by plan (server-authoritative) */
+    maxAgents: number;
+    /** true if request Origin/Referer doesn't match org's allowedDomains */
+    unauthorizedDomain: boolean;
     widgetSettings?: {
       primaryColor: string;
       position: string;
@@ -86,13 +90,9 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
    *   - 403: Domain not allowed
    */
   fastify.get<{
-    Querystring: { siteId?: string; orgKey?: string };
+    Querystring: { siteId?: string; orgKey?: string; parentHost?: string };
     Reply: BootloaderResponse | ErrorResponse;
-  }>("/bootloader", {
-    preHandler: [
-      validateDomainAllowlist(), // Widget endpoint: enforce domain allowlist
-    ],
-  }, async (request: FastifyRequest<{ Querystring: { siteId?: string; orgKey?: string } }>, reply: FastifyReply) => {
+  }>("/bootloader", async (request: FastifyRequest<{ Querystring: { siteId?: string; orgKey?: string; parentHost?: string } }>, reply: FastifyReply) => {
     const bootloaderStartMs = Date.now();
     let resolvedOrgId: string | null = null;
 
@@ -121,6 +121,7 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
           key: true,
           siteId: true,
           name: true,
+          planKey: true,
           widgetEnabled: true,
           writeEnabled: true,
           aiEnabled: true,
@@ -131,6 +132,8 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
           launcherText: true,
           position: true,
           firstWidgetEmbedAt: true,
+          allowedDomains: true,
+          allowLocalhost: true,
         },
       });
 
@@ -140,6 +143,56 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
       }
 
       resolvedOrgId = org.id;
+
+      // ── Domain allowlist check (soft mode: flag, don't block) ──
+      const origin = request.headers.origin as string | undefined;
+      const referer = request.headers.referer as string | undefined;
+      const parentHost = request.query.parentHost;
+      const requestOrigin = origin || referer;
+      let unauthorizedDomain = false;
+
+      // Check Origin/Referer against allowlist
+      if (requestOrigin) {
+        if (!isOriginAllowed(requestOrigin, org.allowedDomains, org.allowLocalhost)) {
+          unauthorizedDomain = true;
+        }
+      }
+      // If no Origin/Referer, check parentHost (iframe embed scenario)
+      if (!unauthorizedDomain && parentHost && org.allowedDomains.length > 0) {
+        const isLocalhostHost = isLocalhost(parentHost);
+        if (!isLocalhostHost || !org.allowLocalhost) {
+          const domainMatch = org.allowedDomains.some((pattern) => {
+            if (pattern.startsWith("*.")) {
+              const base = pattern.slice(2);
+              return parentHost === base || parentHost.endsWith(`.${base}`);
+            }
+            return parentHost === pattern;
+          });
+          if (!domainMatch && !isLocalhostHost) {
+            unauthorizedDomain = true;
+          }
+        }
+      }
+
+      // Track domain mismatch (fire-and-forget)
+      if (unauthorizedDomain) {
+        const reportedHost = parentHost || extractDomain(requestOrigin || "") || "unknown";
+        prisma.$executeRawUnsafe(
+          `UPDATE "organizations" SET "widgetDomainMismatchTotal" = "widgetDomainMismatchTotal" + 1 WHERE "id" = $1`,
+          org.id
+        ).catch(() => {});
+        request.log.warn({ orgId: org.id, reportedHost, allowedDomains: org.allowedDomains }, "Domain mismatch detected (soft mode)");
+      }
+
+      // ── Plan lookup for entitlements ──
+      const plan = await prisma.plan.findUnique({
+        where: { key: org.planKey },
+        select: { maxAgents: true },
+      });
+      const maxAgents = plan?.maxAgents ?? 1; // Default to 1 for safety
+
+      // Branding entitlement: Free plan = branding required (cannot be removed)
+      const brandingRequired = org.planKey === "free";
 
       // Load widget appearance settings (Step 11.52)
       const widgetSettings = await prisma.widgetSettings.findUnique({
@@ -198,9 +251,9 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
             launcherText: org.launcherText, // From DB (nullable)
             position: org.position, // From DB
           },
-          // Server-enforced: Free plan always requires branding.
-          // TODO: once plan model exists, derive from org.planKey !== 'free'
-          brandingRequired: true,
+          brandingRequired,
+          maxAgents,
+          unauthorizedDomain,
           // Widget appearance settings (Step 11.52)
           widgetSettings: widgetSettings || {
             primaryColor: "#0F5C5C",

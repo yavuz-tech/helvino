@@ -41,14 +41,21 @@ const renderWidget = () => {
 
 // Initialize widget
 const initWidget = () => {
-  // Check if orgKey is set
-  if (!(window as any).HELVINO_ORG_KEY) {
+  // Check if orgKey or siteId is set
+  if (!(window as any).HELVINO_ORG_KEY && !(window as any).HELVINO_SITE_ID) {
     console.error(
-      "❌ Helvino Widget: HELVINO_ORG_KEY not found on window object.\n" +
+      "❌ Helvino Widget: HELVINO_SITE_ID or HELVINO_ORG_KEY not found on window object.\n" +
       "Please set it before loading the widget:\n" +
-      '<script>window.HELVINO_ORG_KEY = "your-org-key";</script>'
+      '<script>window.HELVINO_SITE_ID = "your-site-id";</script>'
     );
     return;
+  }
+
+  // Set parent host for domain allowlist verification (iframe embed scenario)
+  try {
+    (window as any).HELVINO_PARENT_HOST = window.location.hostname;
+  } catch {
+    // cross-origin frame — best-effort
   }
 
   // Ensure visitor ID exists before initialization
