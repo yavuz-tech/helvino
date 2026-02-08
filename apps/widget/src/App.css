@@ -187,7 +187,7 @@
   border-top: 1px solid #e5e5e5;
   text-align: center;
   font-size: 0.7rem;
-  color: #94a3b8;
+  color: #64748b;
   background: #f8fafc;
 }
 
@@ -214,8 +214,12 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: widget-helvino-shimmer 2.5s ease-in-out infinite;
+  animation: widget-helvino-shimmer 3s ease-in-out infinite alternate;
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: background-position;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
   transition: opacity 0.15s ease;
 }
 

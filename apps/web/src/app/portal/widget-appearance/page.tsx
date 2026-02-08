@@ -638,9 +638,6 @@ export default function PortalWidgetAppearancePage() {
                     <span className="text-sm font-semibold text-slate-800">
                       {t("widgetConfig.sizeTitle")}
                     </span>
-                    <span className="text-[11px] text-slate-500 ml-auto">
-                      {widgetConfig.size.customWidth} × {widgetConfig.size.customMaxHeight} px
-                    </span>
                   </div>
                 </div>
               </button>
@@ -675,7 +672,6 @@ export default function PortalWidgetAppearancePage() {
                           </button>
                         );
                       })}
-                      <span className="text-[11px] text-slate-500">{widgetConfig.size.customWidth} px</span>
                     </div>
                     <input
                       type="range"
@@ -721,7 +717,6 @@ export default function PortalWidgetAppearancePage() {
                           </button>
                         );
                       })}
-                      <span className="text-[11px] text-slate-500">{widgetConfig.size.customMaxHeight} px</span>
                     </div>
                     <input
                       type="range"
@@ -892,6 +887,10 @@ export default function PortalWidgetAppearancePage() {
                     to: localTheme.gradientTo,
                     angle: localTheme.gradientAngle,
                   },
+                }}
+                size={{
+                  customWidth: widgetConfig.size.customWidth,
+                  customMaxHeight: widgetConfig.size.customMaxHeight,
                 }}
               />
             </Card>

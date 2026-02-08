@@ -20,14 +20,20 @@ interface ThemeOverrides {
   gradient?: { from: string; to: string; angle: number };
 }
 
+interface SizeConfig {
+  customWidth: number;
+  customMaxHeight: number;
+}
+
 interface WidgetPreviewRendererProps {
   settings: WidgetSettings;
   theme?: ThemeOverrides;
+  size?: SizeConfig;
 }
 
 type WidgetState = "closed" | "open" | "welcome";
 
-export default function WidgetPreviewRenderer({ settings, theme }: WidgetPreviewRendererProps) {
+export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetPreviewRendererProps) {
   const { t } = useI18n();
   const [widgetState, setWidgetState] = useState<WidgetState>("closed");
   const [messageInput, setMessageInput] = useState("");
@@ -132,7 +138,7 @@ export default function WidgetPreviewRenderer({ settings, theme }: WidgetPreview
                 2
               </span>
             </button>
-            <div className="text-[10px] text-center leading-tight text-slate-400" role="contentinfo">
+            <div className="text-[10px] text-center leading-tight text-slate-500" role="contentinfo">
               {t("widgetPreview.poweredByPrefix")}
               <a href="https://helvino.io" target="_blank" rel="noopener noreferrer" className="helvino-brand-shimmer hover:opacity-90 transition-opacity">
                 Helvino
@@ -147,7 +153,8 @@ export default function WidgetPreviewRenderer({ settings, theme }: WidgetPreview
           <div
             className={`absolute bottom-6 ${
               settings.position === "right" ? "right-6" : "left-6"
-            } w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-200/80 overflow-hidden`}
+            } bg-white rounded-2xl shadow-2xl border border-slate-200/80 overflow-hidden`}
+            style={{ width: size ? `${Math.min(size.customWidth, 420)}px` : "360px" }}
           >
             {/* Header with gradient */}
             <div
@@ -221,7 +228,7 @@ export default function WidgetPreviewRenderer({ settings, theme }: WidgetPreview
                 </button>
               </div>
 
-              <div className="text-center text-[0.65rem] tracking-wide leading-none py-1.5 select-none text-slate-400" role="contentinfo">
+              <div className="text-center text-[0.65rem] tracking-wide leading-none py-1.5 select-none text-slate-500" role="contentinfo">
                 {t("widgetPreview.poweredByPrefix")}
                 <a href="https://helvino.io" target="_blank" rel="noopener noreferrer" className="helvino-brand-shimmer hover:opacity-90 transition-opacity">
                   Helvino
@@ -237,7 +244,11 @@ export default function WidgetPreviewRenderer({ settings, theme }: WidgetPreview
           <div
             className={`absolute bottom-6 ${
               settings.position === "right" ? "right-6" : "left-6"
-            } w-[380px] h-[520px] bg-white rounded-2xl shadow-2xl border border-slate-200/80 overflow-hidden flex flex-col`}
+            } bg-white rounded-2xl shadow-2xl border border-slate-200/80 overflow-hidden flex flex-col`}
+            style={{
+              width: size ? `${Math.min(size.customWidth, 420)}px` : "380px",
+              height: size ? `${Math.min(size.customMaxHeight, 560)}px` : "520px",
+            }}
           >
             {/* Header with gradient */}
             <div
@@ -381,7 +392,7 @@ export default function WidgetPreviewRenderer({ settings, theme }: WidgetPreview
                 </button>
               </div>
               {/* Branding – always visible in preview (server-enforced in production) */}
-              <div className="text-center text-[0.65rem] tracking-wide leading-none pt-2.5 pb-0.5 select-none text-slate-400" role="contentinfo">
+              <div className="text-center text-[0.65rem] tracking-wide leading-none pt-2.5 pb-0.5 select-none text-slate-500" role="contentinfo">
                 {t("widgetPreview.poweredByPrefix")}
                 <a href="https://helvino.io" target="_blank" rel="noopener noreferrer" className="helvino-brand-shimmer hover:opacity-90 transition-opacity">
                   Helvino

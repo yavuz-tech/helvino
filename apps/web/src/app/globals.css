@@ -24,8 +24,12 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: helvino-brand-shimmer 2.5s ease-in-out infinite;
+  animation: helvino-brand-shimmer 3s ease-in-out infinite alternate;
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: background-position;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
