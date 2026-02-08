@@ -69,6 +69,13 @@ export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetP
   const grad = theme?.gradient || { from: settings.primaryColor, to: settings.primaryColor, angle: 135 };
   const headerBg = `linear-gradient(${grad.angle}deg, ${grad.from}, ${grad.to})`;
 
+  /* ── Proportional scaling: map config values into preview-safe range ── */
+  const mapRange = (v: number, inMin: number, inMax: number, outMin: number, outMax: number) =>
+    Math.round(outMin + ((Math.min(Math.max(v, inMin), inMax) - inMin) / (inMax - inMin)) * (outMax - outMin));
+  // Width  320-520 → 300-440   |   Height 420-900 → 320-560
+  const previewWidth = size ? mapRange(size.customWidth, 320, 520, 300, 440) : 360;
+  const previewHeight = size ? mapRange(size.customMaxHeight, 420, 900, 320, 560) : 520;
+
   const toggleWidget = () => {
     if (widgetState === "closed") {
       setWidgetState("welcome");
@@ -138,13 +145,6 @@ export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetP
                 2
               </span>
             </button>
-            <div className="text-[10px] text-center leading-tight text-slate-500" role="contentinfo">
-              {t("widgetPreview.poweredByPrefix")}
-              <a href="https://helvino.io" target="_blank" rel="noopener noreferrer" className="helvino-brand-shimmer hover:opacity-90 transition-opacity">
-                Helvino
-              </a>
-              {t("widgetPreview.poweredBySuffix")}
-            </div>
           </div>
         )}
 
@@ -154,7 +154,7 @@ export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetP
             className={`absolute bottom-6 ${
               settings.position === "right" ? "right-6" : "left-6"
             } bg-white rounded-2xl shadow-2xl border border-slate-200/80 overflow-hidden`}
-            style={{ width: size ? `${Math.min(size.customWidth, 420)}px` : "360px" }}
+            style={{ width: `${previewWidth}px` }}
           >
             {/* Header with gradient */}
             <div
@@ -246,8 +246,8 @@ export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetP
               settings.position === "right" ? "right-6" : "left-6"
             } bg-white rounded-2xl shadow-2xl border border-slate-200/80 overflow-hidden flex flex-col`}
             style={{
-              width: size ? `${Math.min(size.customWidth, 420)}px` : "380px",
-              height: size ? `${Math.min(size.customMaxHeight, 560)}px` : "520px",
+              width: `${previewWidth}px`,
+              height: `${previewHeight}px`,
             }}
           >
             {/* Header with gradient */}
