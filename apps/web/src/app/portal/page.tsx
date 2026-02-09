@@ -13,12 +13,13 @@ import OnboardingOverlay from "@/components/OnboardingOverlay";
 import TrialBanner from "@/components/TrialBanner";
 import UsageNudge from "@/components/UsageNudge";
 import UpgradeModal from "@/components/UpgradeModal";
+import Badge from "@/components/Badge";
 import {
   MessageSquare, Bot, Sparkles, Globe, Zap, TrendingUp,
   ArrowRight, CheckCircle2, Users, BarChart3, Eye,
   Shield, CreditCard, Activity, ExternalLink,
   Monitor, Smartphone, Chrome, X, Lock, Crown,
-  Code, Palette, Bell, Settings, ChevronRight, Send,
+  Code, Palette, Settings, ChevronRight, Send,
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 
@@ -275,10 +276,10 @@ export default function PortalOverviewPage() {
                 { label: t("dashboard.performance.aiConversations"), value: stats?.ai.totalResponses ?? 0, dot: "bg-emerald-500" },
               ].map((item, i) => (
                 <div key={i} className="px-5 py-4 flex items-center gap-3">
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.dot}`} />
+                  <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${item.dot}`} />
                   <div className="min-w-0">
-                    <p className="text-[10px] text-slate-400 truncate">{item.label}</p>
-                    <p className="text-sm font-semibold text-slate-800 tabular-nums mt-0.5">{item.value}</p>
+                    <p className="text-[13px] font-medium text-slate-600 truncate">{item.label}</p>
+                    <p className="text-base font-semibold text-slate-800 tabular-nums mt-0.5">{item.value}</p>
                   </div>
                 </div>
               ))}
@@ -308,14 +309,13 @@ export default function PortalOverviewPage() {
                 </div>
               </div>
               <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg tabular-nums">
-                {[widgetConnected, domainsConfigured, !!conversionSignals?.firstConversationAt].filter(Boolean).length}/5
+                {[widgetConnected, domainsConfigured, false, false].filter(Boolean).length}/4
               </span>
             </div>
             <div className="p-2">
               {[
                 { href: "/portal/widget", icon: Code, label: t("portalOnboarding.task.widget.title"), desc: t("portalOnboarding.task.widget.desc"), done: widgetConnected, gradient: "from-blue-500 to-blue-600" },
                 { href: "/portal/widget-appearance", icon: Palette, label: t("portalOnboarding.task.appearance.title"), desc: t("portalOnboarding.task.appearance.desc"), done: false, gradient: "from-pink-500 to-rose-600" },
-                { href: "/portal/inbox", icon: Bell, label: t("portalOnboarding.task.inbox.title"), desc: t("portalOnboarding.task.inbox.desc"), done: !!conversionSignals?.firstConversationAt, gradient: "from-amber-500 to-orange-600" },
                 { href: "/portal/security", icon: Shield, label: t("portalOnboarding.task.security.title"), desc: t("portalOnboarding.task.security.desc"), done: domainsConfigured, gradient: "from-emerald-500 to-teal-600" },
                 { href: "/portal/billing", icon: CreditCard, label: t("portalOnboarding.task.billing.title"), desc: t("portalOnboarding.task.billing.desc"), done: false, gradient: "from-violet-500 to-purple-600" },
               ].map(task => {
@@ -526,105 +526,110 @@ function LiveVisitorsPanel({ visitors, isPro, onStartChat, chatLoading, onUpgrad
             <VRow key={v.id} v={v} isLive onStartChat={onStartChat} chatLoading={chatLoading} t={t} />
           ))}
 
-          {/* ── Blurred rows (Free plan, 4th+ visitor) ── */}
+          {/* ── Blurred rows (Free plan, 4th+ visitor) — tek ortada CTA ── */}
           {!isPro && allLive.length > FREE_LIMIT && (
-            <>
+            <div className="relative min-h-[120px]">
               {allLive.slice(FREE_LIMIT).map((v, idx) => (
-                <div key={v.id} className="relative group cursor-pointer" onClick={onUpgrade}>
-                  {/* Real row rendered with minimal blur — content fully visible shape-wise */}
-                  <div className="px-6 py-3.5 grid grid-cols-12 gap-3 items-center" style={{ filter: `blur(${1.8 + idx * 0.35}px)` }}>
-                    {/* Visitor */}
-                    <div className="col-span-4 flex items-center gap-3 min-w-0">
-                      <div className="relative flex-shrink-0">
-                        <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-[18px]">
-                          {countryToFlag(v.country)}
-                        </div>
-                        <span className="absolute -bottom-px -right-px w-3 h-3 bg-emerald-500 rounded-full border-[1.5px] border-white" />
+                <div key={v.id} className="px-6 py-3.5 grid grid-cols-12 gap-3 items-center pointer-events-none" style={{ filter: `blur(${1.8 + idx * 0.35}px)` }}>
+                  <div className="col-span-4 flex items-center gap-3 min-w-0">
+                    <div className="relative flex-shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-[18px]">
+                        {countryToFlag(v.country)}
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-semibold text-slate-800 truncate">{v.city || v.country || "Unknown"}</p>
-                        <p className="text-[10px] text-slate-400 truncate">{v.conversationCount > 0 ? t("dashboard.liveVisitors.returningVisitor") : t("dashboard.liveVisitors.newVisitor")}</p>
-                      </div>
+                      <span className="absolute -bottom-px -right-px w-3 h-3 bg-emerald-500 rounded-full border-[1.5px] border-white" />
                     </div>
-                    {/* IP */}
-                    <div className="col-span-2">
-                      <span className="text-[11px] font-mono text-slate-500">{v.ip || "—"}</span>
-                    </div>
-                    {/* Page */}
-                    <div className="col-span-2">
-                      <span className="text-[11px] text-slate-500 truncate block">{v.currentPage || "/"}</span>
-                    </div>
-                    {/* Device */}
-                    <div className="col-span-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-                      {v.device === "mobile" ? <Smartphone size={11} className="text-slate-400" /> : <Monitor size={11} className="text-slate-400" />}
-                      <span className="truncate">{v.browser}</span>
-                    </div>
-                    {/* Time */}
-                    <div className="col-span-2 text-right">
-                      <span className="text-[10px] text-slate-400 tabular-nums">{timeAgo(v.lastSeenAt)}</span>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-slate-800 truncate">{v.city || v.country || "Unknown"}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{v.conversationCount > 0 ? t("dashboard.liveVisitors.returningVisitor") : t("dashboard.liveVisitors.newVisitor")}</p>
                     </div>
                   </div>
-
-                  {/* Hover tooltip */}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-900/85 backdrop-blur-sm text-white text-[11px] font-semibold rounded-xl shadow-xl">
-                      <Crown size={12} className="text-amber-400" /> {t("dashboard.liveVisitors.upgradePro")}
-                    </div>
+                  <div className="col-span-2"><span className="text-[11px] font-mono text-slate-500">{v.ip || "—"}</span></div>
+                  <div className="col-span-2"><span className="text-[11px] text-slate-500 truncate block">{v.currentPage || "/"}</span></div>
+                  <div className="col-span-2 flex items-center gap-1.5 text-[11px] text-slate-500">
+                    {v.device === "mobile" ? <Smartphone size={11} className="text-slate-400" /> : <Monitor size={11} className="text-slate-400" />}
+                    <span className="truncate">{v.browser}</span>
                   </div>
+                  <div className="col-span-2 text-right"><span className="text-[10px] text-slate-400 tabular-nums">{timeAgo(v.lastSeenAt)}</span></div>
                 </div>
               ))}
-
-              {/* ── Upgrade banner ── */}
-              <div className="mx-4 mb-4 mt-2 rounded-xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-4 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+              {/* Ortada sabit tek CTA — flu alanın üzerinde */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <button
+                  type="button"
+                  onClick={onUpgrade}
+                  className="pointer-events-auto inline-flex flex-col items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 text-white text-[13px] font-bold shadow-lg shadow-slate-900/25 border border-slate-700/50 hover:from-slate-700 hover:to-slate-800 transition-all duration-200"
+                >
+                  <span className="inline-flex items-center gap-2">
                     <Crown size={16} className="text-amber-400" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-bold text-white">{t("dashboard.liveVisitors.upgradeHint")}</p>
-                  </div>
-                </div>
-                <button onClick={onUpgrade} className="flex-shrink-0 px-5 py-2 bg-white text-slate-900 text-[12px] font-bold rounded-lg hover:bg-slate-100 transition-colors shadow-sm">
-                  {t("dashboard.liveVisitors.upgradePro")}
+                    {t("dashboard.liveVisitors.upgradePro")}
+                  </span>
+                  <span className="text-[11px] font-medium text-slate-300">{t("dashboard.liveVisitors.upgradeHint")}</span>
                 </button>
               </div>
-            </>
+            </div>
           )}
 
           {/* ── Recent visitors ── */}
           {allRecent.length > 0 && (
             <>
-              <div className="px-6 py-2 bg-slate-50/70 border-t border-b border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t("dashboard.liveVisitors.recentVisitors")} — {t("dashboard.liveVisitors.recentDesc")}</span>
+              <div className="px-6 py-2 bg-slate-50/70 border-t border-b border-slate-100 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-700">
+                  {t("dashboard.liveVisitors.recentVisitors")} — {t("dashboard.liveVisitors.recentDesc")}
+                </h3>
+                {/* PRO badge sadece canlı ziyaretçi ≤3 iken; >3 olduğunda üstteki canlı alan CTA’sı aktif */}
+                {!isPro && liveCount <= FREE_LIMIT && (
+                  <button
+                    type="button"
+                    onClick={onUpgrade}
+                    className="focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1 rounded-full"
+                  >
+                    <Badge variant="premium" size="sm" className="cursor-pointer inline-flex items-center gap-1">
+                      <Lock size={12} className="shrink-0" />
+                      PRO
+                    </Badge>
+                  </button>
+                )}
               </div>
-              {allRecent.slice(0, isPro ? 10 : 3).map((v, idx) => isPro ? (
-                <VRow key={v.id} v={v} isLive={false} onStartChat={onStartChat} chatLoading={chatLoading} t={t} />
+              {isPro ? (
+                allRecent.slice(0, 10).map((v) => (
+                  <VRow key={v.id} v={v} isLive={false} onStartChat={onStartChat} chatLoading={chatLoading} t={t} />
+                ))
               ) : (
-                <div key={v.id} className="relative group cursor-pointer" onClick={onUpgrade}>
-                  <div className="px-6 py-3.5 grid grid-cols-12 gap-3 items-center" style={{ filter: `blur(${1.7 + idx * 0.3}px)` }}>
-                    <div className="col-span-4 flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-[18px] flex-shrink-0">
-                        {countryToFlag(v.country)}
+                <div className="relative min-h-[140px]">
+                  {/* Blurred rows */}
+                  {allRecent.slice(0, 3).map((v, idx) => (
+                    <div key={v.id} className="px-6 py-3.5 grid grid-cols-12 gap-3 items-center" style={{ filter: `blur(${1.7 + idx * 0.3}px)` }}>
+                      <div className="col-span-4 flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-[18px] flex-shrink-0">
+                          {countryToFlag(v.country)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-semibold text-slate-800 truncate">{v.city || v.country || "Unknown"}</p>
+                          <p className="text-[10px] text-slate-400">{t("dashboard.liveVisitors.browsingNow")}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-semibold text-slate-800 truncate">{v.city || v.country || "Unknown"}</p>
-                        <p className="text-[10px] text-slate-400">{t("dashboard.liveVisitors.browsingNow")}</p>
+                      <div className="col-span-2"><span className="text-[11px] font-mono text-slate-500">{v.ip || "—"}</span></div>
+                      <div className="col-span-2"><span className="text-[11px] text-slate-500">{v.currentPage || "/"}</span></div>
+                      <div className="col-span-2 flex items-center gap-1.5 text-[11px] text-slate-500">
+                        {v.device === "mobile" ? <Smartphone size={11} /> : <Monitor size={11} />} {v.browser}
                       </div>
+                      <div className="col-span-2 text-right"><span className="text-[10px] text-slate-400 tabular-nums">{timeAgo(v.lastSeenAt)}</span></div>
                     </div>
-                    <div className="col-span-2"><span className="text-[11px] font-mono text-slate-500">{v.ip || "—"}</span></div>
-                    <div className="col-span-2"><span className="text-[11px] text-slate-500">{v.currentPage || "/"}</span></div>
-                    <div className="col-span-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-                      {v.device === "mobile" ? <Smartphone size={11} /> : <Monitor size={11} />} {v.browser}
+                  ))}
+                  {/* Alttaki CTA sadece canlı ≤3 iken; >3 iken sadece üstteki canlı alan CTA’sı açık (ikisi aynı anda görünmez) */}
+                  {liveCount <= FREE_LIMIT && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <button
+                        onClick={onUpgrade}
+                        className="pointer-events-auto inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 text-white text-[13px] font-bold shadow-lg shadow-slate-900/25 border border-slate-700/50 hover:from-slate-700 hover:to-slate-800 transition-all duration-200"
+                      >
+                        <Crown size={14} className="text-amber-400" />
+                        {t("dashboard.liveVisitors.upgradePro")}
+                      </button>
                     </div>
-                    <div className="col-span-2 text-right"><span className="text-[10px] text-slate-400 tabular-nums">{timeAgo(v.lastSeenAt)}</span></div>
-                  </div>
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-900/85 backdrop-blur-sm text-white text-[11px] font-semibold rounded-xl shadow-xl">
-                      <Crown size={12} className="text-amber-400" /> {t("dashboard.liveVisitors.upgradePro")}
-                    </div>
-                  </div>
+                  )}
                 </div>
-              ))}
+              )}
             </>
           )}
         </div>

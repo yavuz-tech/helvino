@@ -65,7 +65,7 @@ export async function portalLogin(
 
     return { ok: true, user: data.user };
   } catch {
-    return { ok: false, error: "Network error" };
+    return { ok: false, error: "Network error", errorCode: "NETWORK_ERROR" };
   }
 }
 

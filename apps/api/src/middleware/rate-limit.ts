@@ -22,11 +22,36 @@ interface RateLimitResult {
   resetAt: number;
 }
 
+const memoryBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function checkMemoryRateLimit(key: string, limit: number, windowMs: number): RateLimitResult {
+  const now = Date.now();
+  const windowStart = Math.floor(now / windowMs);
+  const bucketKey = `${key}:${windowStart}`;
+  const resetAt = (windowStart + 1) * windowMs;
+  const existing = memoryBuckets.get(bucketKey);
+  const count = (existing?.count || 0) + 1;
+  memoryBuckets.set(bucketKey, { count, resetAt });
+
+  // Best-effort cleanup of old buckets
+  if (memoryBuckets.size > 5000) {
+    for (const [k, v] of memoryBuckets) {
+      if (v.resetAt <= now) memoryBuckets.delete(k);
+    }
+  }
+
+  return {
+    allowed: count <= limit,
+    remaining: Math.max(0, limit - count),
+    resetAt,
+  };
+}
+
 async function checkRateLimit(key: string, limit: number, windowMs: number): Promise<RateLimitResult> {
   // If Redis is not connected, allow the request (fail open)
   if (redis.status !== "ready") {
-    console.warn(`⚠️  Redis not ready, allowing request for key: ${key}`);
-    return { allowed: true, remaining: limit - 1, resetAt: Date.now() + windowMs };
+    console.warn(`⚠️  Redis not ready, using in-memory rate limit for key: ${key}`);
+    return checkMemoryRateLimit(key, limit, windowMs);
   }
 
   try {
@@ -50,8 +75,8 @@ async function checkRateLimit(key: string, limit: number, windowMs: number): Pro
     return { allowed, remaining, resetAt };
   } catch (error) {
     console.error("❌ Rate limit check failed:", error);
-    // Fail open: allow the request if Redis fails
-    return { allowed: true, remaining: limit - 1, resetAt: Date.now() + windowMs };
+    // Fallback to in-memory rate limit if Redis fails
+    return checkMemoryRateLimit(key, limit, windowMs);
   }
 }
 
@@ -85,6 +110,23 @@ export function createRateLimitMiddleware(config: RateLimitConfig) {
     const internalKey = request.headers["x-internal-key"] as string | undefined;
     const adminUserId = request.session?.adminUserId;
     if (internalKey || adminUserId) {
+      if (shouldAudit) {
+        const route = config.routeName || request.routeOptions?.url || request.url;
+        const orgId = (request as any).portalUser?.orgId
+          || request.session?.orgId
+          || "unknown";
+        const actor = (request as any).portalUser?.email
+          || request.session?.adminEmail
+          || request.ip
+          || "anonymous";
+        writeAuditLog(
+          orgId,
+          actor,
+          "security.rate_limit_bypass",
+          { route, reason: internalKey ? "internal_key" : "admin_session", ip: request.ip },
+          request.requestId
+        ).catch(() => { /* best-effort */ });
+      }
       return;
     }
 

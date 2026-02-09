@@ -452,7 +452,7 @@ export async function portalOrgRoutes(fastify: FastifyInstance) {
         status: conv.status,
         assignedTo: conv.assignedTo ?? null,
         closedAt: conv.closedAt?.toISOString() ?? null,
-        hasUnreadFromUser: false,
+        hasUnreadMessages: false,
         messages: conv.messages.map((m) => ({
           id: m.id,
           conversationId: m.conversationId,

@@ -13,7 +13,9 @@
     "db:reset": "prisma migrate reset --force",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:smoke-test": "tsx scripts/db_smoke_test.mjs"
+    "db:smoke-test": "tsx scripts/db_smoke_test.mjs",
+    "seed:live-visitors": "tsx scripts/seed-live-visitors.ts",
+    "verify:live-visitors": "tsx scripts/verify-live-visitors.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

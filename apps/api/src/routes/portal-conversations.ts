@@ -2,6 +2,8 @@
  * Portal Conversation Management Routes — Step 11.47 + 11.48
  *
  * GET   /portal/conversations                  — list with filters/search/pagination
+ * GET   /portal/conversations/unread-count     — inbox unread count (bell badge)
+ * POST  /portal/conversations/:id/read         — mark conversation as read (clear badge)
  * POST  /portal/conversations/bulk             — bulk assign/unassign/open/close
  * PATCH /portal/conversations/:id              — update status/assignment
  * POST  /portal/conversations/:id/messages      — send agent reply (assistant message)
@@ -17,6 +19,7 @@ import { requireStepUp } from "../middleware/require-step-up";
 import { writeAuditLog } from "../utils/audit-log";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { checkMessageEntitlement, checkM2Entitlement, recordMessageUsage, recordM2Usage } from "../utils/entitlements";
+import { validateJsonContentType } from "../middleware/validation";
 
 export async function portalConversationRoutes(fastify: FastifyInstance) {
   // ═══════════════════════════════════════════════════════════════
@@ -29,6 +32,7 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
       q?: string;
       limit?: string;
       cursor?: string;
+      unreadOnly?: string;
     };
   }>(
     "/portal/conversations",
@@ -50,11 +54,16 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
       const statusFilter = (request.query.status || "OPEN").toUpperCase();
       const assignedFilter = request.query.assigned || "any";
       const searchQuery = request.query.q?.trim() || "";
+      const unreadOnly = request.query.unreadOnly === "1" || request.query.unreadOnly === "true";
       const limit = Math.min(Math.max(parseInt(request.query.limit || "20", 10) || 20, 10), 50);
       const cursor = request.query.cursor || undefined;
 
       // Build where clause
       const where: Record<string, unknown> = { orgId: actor.orgId };
+
+      if (unreadOnly) {
+        where.hasUnreadFromUser = true;
+      }
 
       // Status filter
       if (statusFilter === "OPEN" || statusFilter === "CLOSED") {
@@ -120,7 +129,7 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
           messageCount: conv.messageCount,
           lastMessageAt: lastMsg?.timestamp?.toISOString() || conv.updatedAt.toISOString(),
           noteCount: conv._count?.notes || 0,
-          hasUnreadFromUser: !!conv.hasUnreadFromUser,
+          hasUnreadMessages: !!conv.hasUnreadFromUser,
           preview: lastMsg
             ? {
                 text: lastMsg.content.length > 100 ? lastMsg.content.slice(0, 100) + "..." : lastMsg.content,
@@ -152,6 +161,64 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
         where: { orgId: actor.orgId, hasUnreadFromUser: true },
       });
       return { unreadCount: count };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════
+  // POST /portal/conversations/:id/read — Mark conversation as read (clear badge)
+  // ═══════════════════════════════════════════════════════════════
+  fastify.post<{ Params: { id: string } }>(
+    "/portal/conversations/:id/read",
+    {
+      preHandler: [
+        requirePortalUser,
+        requirePortalRole(["owner", "admin", "agent"]),
+        createRateLimitMiddleware({ limit: 120, windowMs: 60000 }),
+        validateJsonContentType,
+      ],
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      const actor = request.portalUser!;
+
+      const conv = await prisma.conversation.findFirst({
+        where: { id, orgId: actor.orgId },
+        select: { id: true, hasUnreadFromUser: true },
+      });
+      if (!conv) {
+        return reply.status(404).send({ error: "Conversation not found" });
+      }
+
+      if (conv.hasUnreadFromUser) {
+        await prisma.conversation.update({
+          where: { id },
+          data: { hasUnreadFromUser: false },
+        });
+      }
+      return { ok: true };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════
+  // POST /portal/conversations/read-all — Mark all conversations as read (badge takılı kalırsa)
+  // ═══════════════════════════════════════════════════════════════
+  fastify.post(
+    "/portal/conversations/read-all",
+    {
+      preHandler: [
+        requirePortalUser,
+        requirePortalRole(["owner", "admin", "agent"]),
+        createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
+        validateJsonContentType,
+      ],
+    },
+    async (request) => {
+      const actor = request.portalUser!;
+      const result = await prisma.conversation.updateMany({
+        where: { orgId: actor.orgId, hasUnreadFromUser: true },
+        data: { hasUnreadFromUser: false },
+      });
+      return { ok: true, marked: result.count };
     }
   );
 

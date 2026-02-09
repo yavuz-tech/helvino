@@ -49,7 +49,7 @@ type WidgetState = "closed" | "open" | "welcome";
 
 export default function WidgetPreviewRenderer({ settings, theme, size, avatars, launcher }: WidgetPreviewRendererProps) {
   const { t } = useI18n();
-  const [widgetState, setWidgetState] = useState<WidgetState>("closed");
+  const [widgetState, setWidgetState] = useState<WidgetState>("welcome");
   const [messageInput, setMessageInput] = useState("");
   const [emojiOpen, setEmojiOpen] = useState(false);
   const previewInputRef = useRef<HTMLInputElement>(null);

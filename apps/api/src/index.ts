@@ -37,6 +37,7 @@ import { portalWidgetConfigRoutes } from "./routes/portal-widget-config";
 import { portalAiConfigRoutes } from "./routes/portal-ai-config";
 import { portalWidgetSettingsRoutes } from "./routes/portal-widget-settings";
 import { portalDashboardRoutes } from "./routes/portal-dashboard";
+import { portalAiInboxRoutes } from "./routes/portal-ai-inbox";
 import { auditLogRoutes } from "./routes/audit-log-routes";
 import { portalNotificationRoutes } from "./routes/portal-notifications";
 import { portalConversationRoutes } from "./routes/portal-conversations";
@@ -107,8 +108,38 @@ const fastify = Fastify({
 });
 
 // Register plugins
+const isProduction = process.env.NODE_ENV === "production";
+const corsAllowedOrigins = new Set(
+  [
+    process.env.APP_PUBLIC_URL,
+    process.env.NEXT_PUBLIC_WEB_URL,
+    process.env.ALLOWED_ORIGINS,
+  ]
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(",").map((entry) => entry.trim()))
+    .filter(Boolean)
+);
+const hasCorsAllowlist = corsAllowedOrigins.size > 0;
+let corsWarned = false;
+
 fastify.register(cors, {
-  origin: true, // Allow all origins in development
+  origin: (origin, cb) => {
+    if (!isProduction) return cb(null, true);
+    if (!hasCorsAllowlist) {
+      if (!corsWarned) {
+        corsWarned = true;
+        fastify.log.warn("CORS allowlist is empty in production. Allowing all origins until configured.");
+      }
+      return cb(null, true);
+    }
+    if (!origin) return cb(null, true);
+    try {
+      const url = new URL(origin);
+      return cb(null, corsAllowedOrigins.has(url.origin));
+    } catch {
+      return cb(null, false);
+    }
+  },
   credentials: true, // Allow cookies in CORS requests
 });
 
@@ -134,7 +165,6 @@ fastify.addContentTypeParser(
 );
 
 // Register session support with secure settings
-const isProduction = process.env.NODE_ENV === "production";
 const sessionSecret = process.env.SESSION_SECRET;
 
 if (!sessionSecret) {
@@ -162,9 +192,20 @@ fastify.register(requestContextPlugin);
 fastify.register(hostTrustPlugin);
 fastify.register(securityHeadersPlugin);
 const socketCorsOrigin = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL;
+let socketCorsWarned = false;
 fastify.register(socketioServer, {
   cors: {
-    origin: isProduction ? (socketCorsOrigin || true) : true,
+    origin: isProduction
+      ? (socketCorsOrigin
+          ? [socketCorsOrigin]
+          : (function allowAllWithWarning() {
+              if (!socketCorsWarned) {
+                socketCorsWarned = true;
+                fastify.log.warn("Socket.IO CORS origin not configured in production. Allowing all origins until configured.");
+              }
+              return true;
+            })())
+      : true,
     credentials: true,
   },
 });
@@ -211,6 +252,7 @@ fastify.register(portalWidgetConfigRoutes); // Portal widget config + domains (S
 fastify.register(portalAiConfigRoutes);    // Portal AI configuration
 fastify.register(portalWidgetSettingsRoutes); // Portal widget appearance settings (Step 11.52)
 fastify.register(portalDashboardRoutes);   // Portal dashboard (visitors, stats)
+fastify.register(portalAiInboxRoutes);     // Portal AI inbox (suggest, summarize, translate)
 fastify.register(auditLogRoutes); // Audit log routes: portal + admin (Step 11.42)
 fastify.register(portalNotificationRoutes); // Portal notifications (Step 11.43)
 
@@ -308,8 +350,20 @@ fastify.post<{
 // List conversations
 fastify.get<{
   Reply: Conversation[] | { error: string };
-}>("/conversations", async (request, reply) => {
+  Querystring: { limit?: string };
+}>("/conversations", {
+  preHandler: [
+    createRateLimitMiddleware({ limit: 120, windowMs: 60000 }), // 120 per minute
+    validateOrgKey,
+    validateDomainAllowlist(), // Widget endpoint: enforce domain allowlist
+  ],
+}, async (request, reply) => {
   const orgKey = request.headers["x-org-key"] as string;
+  const rawLimit = request.query?.limit;
+  const parsedLimit = rawLimit ? parseInt(rawLimit, 10) : 50;
+  const limit = Number.isFinite(parsedLimit)
+    ? Math.min(Math.max(parsedLimit, 10), 100)
+    : 50;
 
   if (!orgKey) {
     reply.code(401);
@@ -322,14 +376,20 @@ fastify.get<{
     return { error: "Invalid organization key" };
   }
 
-  return await store.listConversations(org.id);
+  return await store.listConversations(org.id, limit);
 });
 
 // Get conversation detail with messages
 fastify.get<{
   Params: { id: string };
   Reply: ConversationDetail | { error: string };
-}>("/conversations/:id", async (request, reply) => {
+}>("/conversations/:id", {
+  preHandler: [
+    createRateLimitMiddleware({ limit: 120, windowMs: 60000 }), // 120 per minute
+    validateOrgKey,
+    validateDomainAllowlist(), // Widget endpoint: enforce domain allowlist
+  ],
+}, async (request, reply) => {
   const { id } = request.params;
   const orgKey = request.headers["x-org-key"] as string;
 
@@ -534,7 +594,11 @@ fastify.post<{
 fastify.post<{ Params: { conversationId: string } }>(
   "/conversations/:conversationId/ai-help",
   {
-    preHandler: [requireOrgToken],
+    preHandler: [
+      createRateLimitMiddleware({ limit: 10, windowMs: 60000 }), // 10 per minute
+      requireOrgToken,
+      validateDomainAllowlist(), // Widget endpoint: enforce domain allowlist
+    ],
   },
   async (request, reply) => {
     const org = request.org!;

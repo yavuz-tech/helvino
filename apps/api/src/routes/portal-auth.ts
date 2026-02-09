@@ -9,6 +9,7 @@ import crypto from "crypto";
 import { prisma } from "../prisma";
 import { verifyPassword } from "../utils/password";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { validateJsonContentType } from "../middleware/validation";
 import {
   PORTAL_SESSION_COOKIE,
   createPortalSessionToken,
@@ -35,6 +36,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
     {
       preHandler: [
         createRateLimitMiddleware({ limit: 10, windowMs: 60000 }), // 10/min
+        validateJsonContentType,
       ],
     },
     async (request, reply) => {

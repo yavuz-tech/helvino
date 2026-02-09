@@ -124,7 +124,7 @@ class PrismaStore {
     };
   }
 
-  async listConversations(orgId: string): Promise<Conversation[]> {
+  async listConversations(orgId: string, limit = 50): Promise<Conversation[]> {
     const conversations = await prisma.conversation.findMany({
       where: {
         orgId,
@@ -132,6 +132,7 @@ class PrismaStore {
       orderBy: {
         updatedAt: "desc",
       },
+      take: limit,
     });
 
     return conversations.map((conv) => ({

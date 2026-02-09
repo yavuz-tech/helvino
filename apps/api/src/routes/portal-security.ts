@@ -13,6 +13,7 @@ import { sendEmailAsync, getDefaultFromAddress } from "../utils/mailer";
 import { generateResetLink, verifySignedLink } from "../utils/signed-links";
 import { getResetEmail, normalizeRequestLocale, extractLocaleCookie } from "../utils/email-templates";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { validateJsonContentType } from "../middleware/validation";
 import {
   requirePortalUser,
 } from "../middleware/require-portal-user";
@@ -42,6 +43,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
     {
       preHandler: [
         createRateLimitMiddleware({ limit: 5, windowMs: 60000 }),
+        validateJsonContentType,
       ],
     },
     async (request, reply) => {
@@ -130,6 +132,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
     {
       preHandler: [
         createRateLimitMiddleware({ limit: 5, windowMs: 60000 }),
+        validateJsonContentType,
       ],
     },
     async (request, reply) => {
@@ -272,6 +275,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
         requirePortalUser,
         requireStepUp("portal"),
         createRateLimitMiddleware({ limit: 5, windowMs: 60000 }),
+        validateJsonContentType,
       ],
     },
     async (request, reply) => {

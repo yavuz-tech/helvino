@@ -289,6 +289,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
             // Tell bell badge to refresh
             try {
               window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
+              window.dispatchEvent(new CustomEvent("portal-inbox-badge-pulse"));
             } catch { /* */ }
 
             // Notify inbox screen so it can mark active conversation as read

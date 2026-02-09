@@ -17,6 +17,7 @@ export default function PortalLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showNetworkHint, setShowNetworkHint] = useState(false);
   const [requestId, setRequestId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -75,6 +76,14 @@ export default function PortalLoginPage() {
       return;
     }
 
+    if (result.errorCode === "NETWORK_ERROR") {
+      setError(t("auth.networkError"));
+      setShowNetworkHint(true);
+      setRequestId(null);
+      setIsLoading(false);
+      return;
+    }
+    setShowNetworkHint(false);
     setError(result.error || t("auth.loginFailed"));
     setRequestId(result.requestId || null);
     setIsLoading(false);
@@ -242,7 +251,14 @@ export default function PortalLoginPage() {
               </h2>
 
               {error && (
-                <ErrorBanner message={error} onDismiss={() => setError(null)} className="mb-4" />
+                <>
+                  <ErrorBanner message={error} onDismiss={() => { setError(null); setShowNetworkHint(false); }} className="mb-4" />
+                  {showNetworkHint && (
+                    <p className="text-xs text-slate-500 mb-4 px-1 font-mono bg-slate-50 rounded-lg py-2 border border-slate-200/80">
+                      {t("auth.networkErrorHint")}
+                    </p>
+                  )}
+                </>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">

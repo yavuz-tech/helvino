@@ -14,7 +14,11 @@ import {
   MessageSquare, Paperclip, Smile,
   ArrowLeft, PanelRightOpen, PanelRightClose,
   Copy, CheckCircle, Bot, Sparkles,
+  Lock, Wand2, FileText, CheckSquare, Square, X,
+  AlertCircle, Star, Tag,
 } from "lucide-react";
+import UpgradeModal from "@/components/UpgradeModal";
+import { premiumToast } from "@/components/PremiumToast";
 
 /* ─── types ─── */
 interface ConversationListItem {
@@ -28,7 +32,7 @@ interface ConversationListItem {
   messageCount: number;
   lastMessageAt: string;
   noteCount: number;
-  hasUnreadFromUser?: boolean;
+  hasUnreadMessages?: boolean;
   preview: { text: string; from: string } | null;
 }
 
@@ -112,6 +116,18 @@ function displayName(conv: ConversationListItem): string {
   return `Visitor #${conv.id.substring(0, 6)}`;
 }
 
+/** Sort conversations: unread first, then by updatedAt descending */
+function sortConversations(list: ConversationListItem[]): ConversationListItem[] {
+  return [...list].sort((a, b) => {
+    // Unread first
+    const ua = a.hasUnreadMessages ? 1 : 0;
+    const ub = b.hasUnreadMessages ? 1 : 0;
+    if (ub !== ua) return ub - ua;
+    // Then by updatedAt descending
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  });
+}
+
 function formatRelativeTime(dateStr: string): string {
   try {
     const now = Date.now();
@@ -145,6 +161,7 @@ export default function PortalInboxContent() {
   // Filters — default Unassigned so new messages (OPEN + unassigned) show there, not under Solved
   const [statusFilter, setStatusFilter] = useState<"OPEN" | "CLOSED" | "ALL">("OPEN");
   const [assignedFilter, setAssignedFilter] = useState<"any" | "me" | "unassigned">("unassigned");
+  const [unreadOnly, setUnreadOnly] = useState(() => searchParams.get("unread") === "1");
   const [searchQuery, setSearchQuery] = useState("");
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -175,9 +192,28 @@ export default function PortalInboxContent() {
   // LIVE CONVERSATIONS counts (Unassigned / My open / Solved) — from API
   const [viewCounts, setViewCounts] = useState({ unassigned: 0, myOpen: 0, solved: 0 });
 
-  // Bulk select
+  // Plan info
+  const [planKey, setPlanKey] = useState<string>("free");
+  const isPro = planKey === "pro" || planKey === "enterprise" || planKey === "PRO" || planKey === "ENTERPRISE";
+  const isStarter = isPro || planKey === "starter" || planKey === "STARTER";
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<"quota" | "plan">("plan");
+  const [upgradeRequiredPlan, setUpgradeRequiredPlan] = useState<string>("starter");
 
-  // Toast
+  // Bulk select
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [isBulkActing, setIsBulkActing] = useState(false);
+
+  // AI Actions
+  const [aiSuggestions, setAiSuggestions] = useState<string[] | null>(null);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState<"suggest" | "summarize" | "translate" | null>(null);
+
+  // Smart filters (PRO+)
+  const [smartFilter, setSmartFilter] = useState<string | null>(null);
+
+  // Toast (now uses premium toast, keep showToast for compatibility)
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const showToast = useCallback((msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 2500); }, []);
 
@@ -195,6 +231,11 @@ export default function PortalInboxContent() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Sync unread filter from URL (?unread=1 → okunmamış mesajlara tek tık)
+  useEffect(() => {
+    setUnreadOnly(searchParams.get("unread") === "1");
+  }, [searchParams]);
+
   // Debounce
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -207,6 +248,118 @@ export default function PortalInboxContent() {
     try { const res = await portalApiFetch("/portal/team/users"); if (res.ok) { const d = await res.json(); setTeamMembers(d.users || []); } } catch { /* */ }
   }, []);
   useEffect(() => { if (!authLoading && user) fetchTeamMembers(); }, [authLoading, user, fetchTeamMembers]);
+
+  // Fetch plan info (safe: do not throw on 404 or invalid JSON)
+  useEffect(() => {
+    if (authLoading || !user) return;
+    portalApiFetch("/portal/billing/status")
+      .then(async (res) => {
+        if (!res.ok) return;
+        try {
+          const d = await res.json();
+          setPlanKey(d.plan?.key ?? d.planKey ?? "free");
+        } catch {
+          // ignore invalid JSON
+        }
+      })
+      .catch(() => {});
+  }, [authLoading, user]);
+
+  // ── AI Actions ──
+  // Sentiment result state
+  const [aiSentiment, setAiSentiment] = useState<{ sentiment: string; summary: string; detectedLanguage: string; topics: string[] } | null>(null);
+
+  // Helper: handle 402 quota exceeded from any AI endpoint
+  const handleAiQuotaError = useCallback(() => {
+    setUpgradeReason("quota");
+    setUpgradeRequiredPlan("starter");
+    setShowUpgradeModal(true);
+  }, []);
+
+  const handleAiSuggest = useCallback(async () => {
+    if (!selectedConversationId || aiLoading || isLoadingDetail) return;
+    if (!isStarter) { setUpgradeReason("plan"); setUpgradeRequiredPlan("starter"); setShowUpgradeModal(true); return; }
+    if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet" as any) }); return; }
+    setAiLoading("suggest");
+    setAiSuggestions(null);
+    try {
+      const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/ai-suggest`, { method: "POST" });
+      const d = await res.json();
+      if (res.status === 402) { handleAiQuotaError(); return; }
+      if (res.ok && d.ok) {
+        setAiSuggestions(d.suggestions);
+      } else {
+        premiumToast.error({ title: d.error || t("common.error") });
+      }
+    } catch { premiumToast.error({ title: t("common.error") }); }
+    finally { setAiLoading(null); }
+  }, [selectedConversationId, aiLoading, isLoadingDetail, isStarter, conversationDetail, handleAiQuotaError, t]);
+
+  const handleAiSummarize = useCallback(async () => {
+    if (!selectedConversationId || aiLoading || isLoadingDetail) return;
+    if (!isStarter) { setUpgradeReason("plan"); setUpgradeRequiredPlan("starter"); setShowUpgradeModal(true); return; }
+    if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet" as any) }); return; }
+    setAiLoading("summarize");
+    setAiSummary(null);
+    try {
+      const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/ai-summarize`, { method: "POST" });
+      const d = await res.json();
+      if (res.status === 402) { handleAiQuotaError(); return; }
+      if (res.ok && d.ok) {
+        setAiSummary(d.summary);
+      } else {
+        premiumToast.error({ title: d.error || t("common.error") });
+      }
+    } catch { premiumToast.error({ title: t("common.error") }); }
+    finally { setAiLoading(null); }
+  }, [selectedConversationId, aiLoading, isLoadingDetail, isStarter, conversationDetail, handleAiQuotaError, t]);
+
+  // FREE: AI Sentiment Analysis
+  const handleAiSentiment = useCallback(async () => {
+    if (!selectedConversationId || aiLoading || isLoadingDetail) return;
+    if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet" as any) }); return; }
+    setAiLoading("suggest"); // reuse loading state
+    setAiSentiment(null);
+    try {
+      const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/ai-sentiment`, { method: "POST" });
+      const d = await res.json();
+      if (res.status === 402) { handleAiQuotaError(); return; }
+      if (res.ok && d.ok) {
+        setAiSentiment({ sentiment: d.sentiment, summary: d.summary, detectedLanguage: d.detectedLanguage, topics: d.topics });
+      } else {
+        premiumToast.error({ title: d.error || t("common.error") });
+      }
+    } catch { premiumToast.error({ title: t("common.error") }); }
+    finally { setAiLoading(null); }
+  }, [selectedConversationId, aiLoading, isLoadingDetail, conversationDetail, handleAiQuotaError, t]);
+
+  // FREE: AI Quick Reply (single contextual reply)
+  const handleAiQuickReply = useCallback(async () => {
+    if (!selectedConversationId || aiLoading || isLoadingDetail) return;
+    if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet" as any) }); return; }
+    setAiLoading("suggest");
+    try {
+      const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/ai-quick-reply`, { method: "POST" });
+      const d = await res.json();
+      if (res.status === 402) { handleAiQuotaError(); return; }
+      if (res.ok && d.ok) {
+        setReplyBody(d.reply);
+        premiumToast.success({ title: t("inbox.ai.quickReplyGenerated") });
+      } else {
+        premiumToast.error({ title: d.error || t("common.error") });
+      }
+    } catch { premiumToast.error({ title: t("common.error") }); }
+    finally { setAiLoading(null); }
+  }, [selectedConversationId, aiLoading, isLoadingDetail, conversationDetail, t, handleAiQuotaError]);
+
+  // ── Bulk Actions ──
+  const toggleBulkSelect = useCallback((id: string) => {
+    setBulkSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
 
   // Fetch LIVE CONVERSATIONS counts (Unassigned / My open / Solved)
   const fetchViewCounts = useCallback(async () => {
@@ -227,19 +380,38 @@ export default function PortalInboxContent() {
       const p = new URLSearchParams();
       p.set("status", statusFilter);
       p.set("assigned", assignedFilter);
+      if (unreadOnly) p.set("unreadOnly", "1");
       if (debouncedSearch) p.set("q", debouncedSearch);
       p.set("limit", "50");
       if (cursorVal) p.set("cursor", cursorVal);
       const res = await portalApiFetch(`/portal/conversations?${p.toString()}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
-      if (append) setConversations(prev => [...prev, ...(data.items || [])]);
-      else setConversations(data.items || []);
+      if (append) setConversations(prev => sortConversations([...prev, ...(data.items || [])]));
+      else setConversations(sortConversations(data.items || []));
       setNextCursor(data.nextCursor || null);
       fetchViewCounts();
     } catch { setError(t("dashboard.failedLoadConversations")); }
     finally { setIsLoading(false); }
-  }, [statusFilter, assignedFilter, debouncedSearch, t, fetchViewCounts]);
+  }, [statusFilter, assignedFilter, unreadOnly, debouncedSearch, t, fetchViewCounts]);
+
+  const handleBulkAction = useCallback(async (action: "CLOSE" | "OPEN" | "ASSIGN" | "UNASSIGN") => {
+    if (bulkSelected.size === 0 || isBulkActing) return;
+    setIsBulkActing(true);
+    try {
+      const res = await portalApiFetch("/portal/conversations/bulk", {
+        method: "POST",
+        body: JSON.stringify({ conversationIds: Array.from(bulkSelected), action }),
+      });
+      if (res.ok) {
+        premiumToast.success({ title: t("inbox.bulk.actionComplete"), description: `${bulkSelected.size} conversations updated` });
+        setBulkSelected(new Set());
+        setBulkMode(false);
+        fetchConversations();
+      }
+    } catch { premiumToast.error({ title: "Bulk action failed" }); }
+    finally { setIsBulkActing(false); }
+  }, [bulkSelected, isBulkActing, t, fetchConversations]);
 
   useEffect(() => { if (!authLoading) fetchConversations(); }, [authLoading, fetchConversations]);
 
@@ -263,30 +435,56 @@ export default function PortalInboxContent() {
     try { const res = await portalApiFetch(`/portal/conversations/${id}/notes`); if (res.ok) { const d = await res.json(); setNotes(d.notes || []); } } catch { /* */ }
   }, []);
 
-  const selectConversation = useCallback(async (id: string) => {
+  const refreshUnreadBadge = useCallback(() => {
+    try {
+      window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
+    } catch { /* */ }
+  }, []);
+
+  const markConversationAsRead = useCallback(async (conversationId: string) => {
+    try {
+      const res = await portalApiFetch(`/portal/conversations/${conversationId}/read`, { method: "POST" });
+      if (res.ok) return true;
+    } catch { /* */ }
+    return false;
+  }, []);
+
+  const markAllConversationsAsRead = useCallback(async () => {
+    try {
+      const res = await portalApiFetch("/portal/conversations/read-all", { method: "POST" });
+      if (res.ok) {
+        setConversations(prev => sortConversations(prev.map(c => ({ ...c, hasUnreadMessages: false }))));
+        refreshUnreadBadge();
+        [0, 200, 600].forEach((ms) => setTimeout(refreshUnreadBadge, ms));
+        await fetchConversations();
+        refreshUnreadBadge();
+        showToast(t("inbox.markAllRead"));
+      }
+    } catch { /* */ }
+  }, [refreshUnreadBadge, fetchConversations, showToast, t]);
+
+  const selectConversation = useCallback((id: string) => {
+    // Immediate UI update — no await, respond to click instantly
     setSelectedConversationId(id);
-    setConversations(prev => prev.map(c => c.id === id ? { ...c, hasUnreadFromUser: false } : c));
+    setConversations(prev => sortConversations(prev.map(c => c.id === id ? { ...c, hasUnreadMessages: false } : c)));
     setMobileView("chat");
+    setIsLoadingDetail(true);
+
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       params.set("c", id);
       router.replace(`/portal/inbox?${params.toString()}`, { scroll: false });
     }
-    await fetchConversationDetail(id);
-    // Header bell: refetch unread count immediately (API already marked conversation read in GET detail)
-    requestAnimationFrame(() => {
-      try {
-        window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
-      } catch { /* */ }
-    });
+
+    // Fire all API calls in parallel — don't block UI
+    fetchConversationDetail(id);
     fetchNotes(id);
-    await fetchConversations();
-    requestAnimationFrame(() => {
-      try {
-        window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
-      } catch { /* */ }
+    markConversationAsRead(id).then(() => {
+      refreshUnreadBadge();
+      fetchConversations();
+      [200, 600, 1200].forEach((ms) => setTimeout(refreshUnreadBadge, ms));
     });
-  }, [router, fetchConversationDetail, fetchNotes, fetchConversations]);
+  }, [router, fetchConversationDetail, fetchNotes, fetchConversations, refreshUnreadBadge, markConversationAsRead]);
 
   const closePanel = useCallback(() => {
     setSelectedConversationId(null); setConversationDetail(null); setNotes([]); setMobileView("list");
@@ -295,13 +493,20 @@ export default function PortalInboxContent() {
       params.delete("c");
       router.replace(params.toString() ? `/portal/inbox?${params.toString()}` : "/portal/inbox", { scroll: false });
     }
-  }, [router]);
+    refreshUnreadBadge();
+    [200, 600, 1000].forEach((ms) => setTimeout(refreshUnreadBadge, ms));
+  }, [router, refreshUnreadBadge]);
 
   const copyLink = useCallback(() => {
     if (!selectedConversationId) return;
     const url = `${window.location.origin}/portal/inbox?c=${selectedConversationId}`;
     navigator.clipboard.writeText(url).then(() => showToast(t("inbox.detail.linkCopied")));
   }, [selectedConversationId, showToast, t]);
+
+  // Badge: Inbox sayfası açıldığında unread count’u hemen güncelle (bell tıklayınca doğru sayı)
+  useEffect(() => {
+    refreshUnreadBadge();
+  }, [refreshUnreadBadge]);
 
   // Auto-select from URL
   useEffect(() => {
@@ -338,10 +543,10 @@ export default function PortalInboxContent() {
       const previewText = (detail?.content || "").slice(0, 80);
 
       if (conversationId === selectedConversationId) {
-        setConversations(prev => prev.map(c => c.id === conversationId
-          ? { ...c, hasUnreadFromUser: false, messageCount: c.messageCount + 1, updatedAt: nowIso, preview: c.preview ? { ...c.preview, text: previewText } : { text: previewText, from: "user" } }
+        setConversations(prev => sortConversations(prev.map(c => c.id === conversationId
+          ? { ...c, hasUnreadMessages: false, messageCount: c.messageCount + 1, updatedAt: nowIso, preview: c.preview ? { ...c.preview, text: previewText } : { text: previewText, from: "user" } }
           : c
-        ));
+        )));
         fetchConversationDetail(conversationId).then(() => {
           try {
             window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
@@ -350,10 +555,10 @@ export default function PortalInboxContent() {
         return;
       }
 
-      setConversations(prev => prev.map(c => c.id === conversationId
-        ? { ...c, hasUnreadFromUser: true, messageCount: c.messageCount + 1, updatedAt: nowIso, preview: c.preview ? { ...c.preview, text: previewText } : { text: previewText, from: "user" } }
+      setConversations(prev => sortConversations(prev.map(c => c.id === conversationId
+        ? { ...c, hasUnreadMessages: true, messageCount: c.messageCount + 1, updatedAt: nowIso, preview: c.preview ? { ...c.preview, text: previewText } : { text: previewText, from: "user" } }
         : c
-      ));
+      )));
       fetchConversations();
     };
     window.addEventListener("portal-inbox-message-new", onMessageNew as EventListener);
@@ -502,6 +707,22 @@ export default function PortalInboxContent() {
           </div>
         </div>
 
+        {/* Okunmamış filtre aktif — zilden tek tıkla buraya gelindiğinde görünür */}
+        {unreadOnly && (
+          <div className="px-4 pb-2 flex-shrink-0">
+            <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-blue-50 border border-blue-100">
+              <span className="text-[12px] font-semibold text-blue-800">{t("inbox.filterUnreadOnly")}</span>
+              <Link
+                href="/portal/inbox"
+                onClick={() => setUnreadOnly(false)}
+                className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                {t("inbox.showAllConversations")}
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Filter tabs */}
         <div className="px-4 pb-3 flex-shrink-0">
           <div className="flex rounded-xl bg-slate-100/70 p-1 gap-0.5">
@@ -541,14 +762,105 @@ export default function PortalInboxContent() {
           </div>
         </div>
 
+        {/* Smart Filters (PRO+ with lock) */}
+        <div className="px-4 pb-2.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {[
+              { key: "needsReply", icon: AlertCircle, color: "text-amber-600 bg-amber-50 border-amber-200", proOnly: true },
+              { key: "urgent", icon: AlertCircle, color: "text-red-600 bg-red-50 border-red-200", proOnly: true },
+              { key: "vip", icon: Star, color: "text-purple-600 bg-purple-50 border-purple-200", proOnly: true },
+              { key: "autoCategorized", icon: Tag, color: "text-blue-600 bg-blue-50 border-blue-200", proOnly: true },
+            ].map((f) => {
+              const locked = f.proOnly && !isPro;
+              const active = smartFilter === f.key;
+              const Icon = f.icon;
+              const tooltipKey = locked
+                ? `inbox.smartFilter.${f.key}LockedTooltip`
+                : `inbox.smartFilter.${f.key}Tooltip`;
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => {
+                    if (locked) { setUpgradeReason("plan"); setUpgradeRequiredPlan("pro"); setShowUpgradeModal(true); return; }
+                    setSmartFilter(active ? null : f.key);
+                  }}
+                  title={t(tooltipKey as any)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold border rounded-lg transition-all ${
+                    active
+                      ? f.color + " ring-1 ring-current/20"
+                      : locked
+                        ? "text-slate-400 bg-slate-50 border-slate-200 cursor-not-allowed"
+                        : "text-slate-500 bg-white border-slate-200 hover:border-slate-300 hover:text-slate-700"
+                  }`}
+                >
+                  <Icon size={11} />
+                  {t(`inbox.smartFilter.${f.key}` as any)}
+                  {locked && <Lock size={9} className="text-slate-300" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* List header */}
         <div className="px-4 py-2 border-t border-b border-slate-100 flex items-center justify-between flex-shrink-0">
           <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{currentViewLabel}</span>
-          <button onClick={() => fetchConversations()} disabled={isLoading}
-            className="p-1 text-slate-400 hover:text-slate-600 rounded transition-colors disabled:opacity-50" title={t("common.refresh")}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" /></svg>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {/* Bulk select toggle */}
+            {isPro ? (
+              <button
+                onClick={() => { setBulkMode(!bulkMode); setBulkSelected(new Set()); }}
+                className={`p-1 rounded transition-colors ${bulkMode ? "text-blue-600 bg-blue-50" : "text-slate-400 hover:text-slate-600"}`}
+                title={t("inbox.bulk.selectMode")}
+              >
+                <CheckSquare size={14} />
+              </button>
+            ) : (
+              <button
+                onClick={() => { setUpgradeReason("plan"); setUpgradeRequiredPlan("pro"); setShowUpgradeModal(true); }}
+                className="p-1 text-slate-300 hover:text-slate-400 rounded transition-colors"
+                title={t("inbox.ai.proFeature")}
+              >
+                <CheckSquare size={14} />
+              </button>
+            )}
+            {conversations.length > 0 && (
+              <button onClick={() => markAllConversationsAsRead()}
+                className="p-1.5 text-[10px] font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                title={t("inbox.markAllRead")}>
+                {t("inbox.markAllRead")}
+              </button>
+            )}
+            <button onClick={() => fetchConversations()} disabled={isLoading}
+              className="p-1 text-slate-400 hover:text-slate-600 rounded transition-colors disabled:opacity-50" title={t("common.refresh")}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" /></svg>
+            </button>
+          </div>
         </div>
+
+        {/* Bulk action bar */}
+        {bulkMode && bulkSelected.size > 0 && (
+          <div className="px-3 py-2 bg-blue-50 border-b border-blue-100 flex items-center gap-2 flex-shrink-0 animate-in slide-in-from-top-2">
+            <span className="text-[11px] font-bold text-blue-700">{t("inbox.bulk.selected").replace("{count}", String(bulkSelected.size))}</span>
+            <div className="flex-1" />
+            <button onClick={() => handleBulkAction("CLOSE")} disabled={isBulkActing}
+              className="px-2.5 py-1 text-[10px] font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+              {t("inbox.bulk.closeAll")}
+            </button>
+            <button onClick={() => handleBulkAction("OPEN")} disabled={isBulkActing}
+              className="px-2.5 py-1 text-[10px] font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
+              {t("inbox.bulk.openAll")}
+            </button>
+            <button onClick={() => handleBulkAction("UNASSIGN")} disabled={isBulkActing}
+              className="px-2.5 py-1 text-[10px] font-semibold bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors">
+              {t("inbox.bulk.unassign")}
+            </button>
+            <button onClick={() => { setBulkMode(false); setBulkSelected(new Set()); }}
+              className="p-1 text-slate-400 hover:text-slate-600 rounded transition-colors">
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         {/* Conversation List */}
         <div className="flex-1 overflow-y-auto">
@@ -571,7 +883,7 @@ export default function PortalInboxContent() {
           ) : conversations.map(conv => {
             const name = displayName(conv);
             const active = conv.id === selectedConversationId;
-            const hasUnread = !!conv.hasUnreadFromUser;
+            const hasUnread = !!conv.hasUnreadMessages;
             return (
               <div key={conv.id} onClick={() => selectConversation(conv.id)} role="button" tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectConversation(conv.id); } }}
@@ -579,22 +891,29 @@ export default function PortalInboxContent() {
                   active
                     ? "bg-blue-50/80 ring-1 ring-blue-200/60 shadow-sm"
                     : hasUnread
-                      ? "bg-white hover:bg-slate-50/80 ring-1 ring-blue-100/50"
+                      ? "bg-white hover:bg-emerald-50/40 animate-pulse-green"
                       : "hover:bg-slate-50/60"
                 }`}>
                 {/* Active indicator bar */}
                 {active && <div className="absolute left-0 top-3 bottom-3 w-[3px] bg-blue-500 rounded-r-full" />}
 
                 <div className="flex items-start gap-3">
+                  {/* Bulk checkbox */}
+                  {bulkMode && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleBulkSelect(conv.id); }}
+                      className="flex-shrink-0 mt-2 text-slate-400 hover:text-blue-500 transition-colors"
+                    >
+                      {bulkSelected.has(conv.id) ? <CheckSquare size={18} className="text-blue-500" /> : <Square size={18} />}
+                    </button>
+                  )}
                   {/* Avatar */}
                   <div className="relative flex-shrink-0 mt-0.5">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-[11px] font-bold text-white shadow-sm ${getAvatarColor(conv.id)}`}>
                       {getInitials(name)}
                     </div>
                     {hasUnread && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white shadow-sm shadow-blue-500/30">
-                        <span className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-40" />
-                      </span>
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white shadow-sm shadow-emerald-500/40 bell-dot" />
                     )}
                   </div>
 
@@ -622,7 +941,7 @@ export default function PortalInboxContent() {
 
                   {/* Unread badge */}
                   {hasUnread && conv.messageCount > 0 && (
-                    <span className="mt-1 min-w-[22px] h-[22px] px-1.5 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-500/25">
+                    <span className="mt-1 min-w-[22px] h-[22px] px-1.5 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 shadow-sm shadow-emerald-500/30 bell-dot">
                       {conv.messageCount > 99 ? "99+" : conv.messageCount}
                     </span>
                   )}
@@ -749,6 +1068,58 @@ export default function PortalInboxContent() {
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
+                {/* FREE AI: Quick Reply */}
+                <button
+                  onClick={handleAiQuickReply}
+                  disabled={!!aiLoading || isLoadingDetail}
+                  title={t("inbox.ai.quickReplyTooltip" as any)}
+                  className="relative p-2 rounded-lg transition-all text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {aiLoading ? <span className="w-4 h-4 rounded-full border-2 border-indigo-200 border-t-indigo-500 animate-spin block" /> : <Sparkles size={15} />}
+                </button>
+                {/* FREE AI: Sentiment */}
+                <button
+                  onClick={handleAiSentiment}
+                  disabled={!!aiLoading || isLoadingDetail}
+                  title={t("inbox.ai.sentimentTooltip" as any)}
+                  className="relative p-2 rounded-lg transition-all text-violet-500 hover:text-violet-700 hover:bg-violet-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Smile size={15} />
+                </button>
+
+                <div className="w-px h-5 bg-slate-200 mx-0.5" />
+
+                {/* PRO AI: Suggest 3 Replies */}
+                <button
+                  onClick={handleAiSuggest}
+                  disabled={!!aiLoading || isLoadingDetail}
+                  title={isStarter ? t("inbox.ai.suggestReplyTooltip" as any) : t("inbox.ai.suggestReplyLockedTooltip" as any)}
+                  className={`relative p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                    isStarter
+                      ? "text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                      : "text-slate-300 hover:text-slate-400 cursor-not-allowed"
+                  }`}
+                >
+                  {aiLoading === "suggest" ? <span className="w-4 h-4 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin block" /> : <Wand2 size={15} />}
+                  {!isStarter && <Lock size={7} className="absolute -top-0.5 -right-0.5 text-slate-400" />}
+                </button>
+                {/* PRO AI: Summarize */}
+                <button
+                  onClick={handleAiSummarize}
+                  disabled={!!aiLoading || isLoadingDetail}
+                  title={isStarter ? t("inbox.ai.summarizeTooltip" as any) : t("inbox.ai.summarizeLockedTooltip" as any)}
+                  className={`relative p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                    isStarter
+                      ? "text-purple-600 hover:text-purple-800 hover:bg-purple-50"
+                      : "text-slate-300 hover:text-slate-400 cursor-not-allowed"
+                  }`}
+                >
+                  {aiLoading === "summarize" ? <span className="w-4 h-4 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin block" /> : <FileText size={15} />}
+                  {!isStarter && <Lock size={7} className="absolute -top-0.5 -right-0.5 text-slate-400" />}
+                </button>
+
+                <div className="w-px h-5 bg-slate-200 mx-0.5" />
+
                 <button onClick={copyLink} title={t("inbox.detail.copyLink")}
                   className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"><Copy size={15} /></button>
                 {isOpen ? (
@@ -774,6 +1145,94 @@ export default function PortalInboxContent() {
                 <button onClick={() => setMobileView("details")} className="lg:hidden p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"><User size={15} /></button>
               </div>
             </div>
+
+            {/* ── AI Sentiment Panel (FREE) ── */}
+            {aiSentiment && (
+              <div className="mx-5 mt-3 p-4 rounded-2xl bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-200/60 animate-in slide-in-from-top-2">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
+                      aiSentiment.sentiment === "positive" ? "bg-gradient-to-br from-emerald-500 to-green-500"
+                      : aiSentiment.sentiment === "negative" || aiSentiment.sentiment === "frustrated" ? "bg-gradient-to-br from-red-500 to-rose-500"
+                      : "bg-gradient-to-br from-violet-500 to-indigo-500"
+                    }`}>
+                      <Smile size={12} className="text-white" />
+                    </div>
+                    <span className="text-[12px] font-bold text-violet-800">{t("inbox.ai.sentimentTitle")}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      aiSentiment.sentiment === "positive" ? "bg-emerald-100 text-emerald-700"
+                      : aiSentiment.sentiment === "negative" || aiSentiment.sentiment === "frustrated" ? "bg-red-100 text-red-700"
+                      : "bg-violet-100 text-violet-700"
+                    }`}>{aiSentiment.sentiment}</span>
+                    {aiSentiment.detectedLanguage && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-500 uppercase">{aiSentiment.detectedLanguage}</span>
+                    )}
+                  </div>
+                  <button onClick={() => setAiSentiment(null)} className="p-1 text-violet-400 hover:text-violet-600 rounded transition-colors"><X size={14} /></button>
+                </div>
+                <p className="text-[12px] text-slate-600 leading-relaxed">{aiSentiment.summary}</p>
+                {aiSentiment.topics.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {aiSentiment.topics.map((topic, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-white border border-violet-100 text-violet-700">{topic}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── AI Summary Panel ── */}
+            {aiSummary && (
+              <div className="mx-5 mt-3 p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-fuchsia-50 border border-purple-200/60 animate-in slide-in-from-top-2">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-fuchsia-500 flex items-center justify-center">
+                      <FileText size={12} className="text-white" />
+                    </div>
+                    <span className="text-[12px] font-bold text-purple-800">{t("inbox.ai.summaryTitle")}</span>
+                  </div>
+                  <button onClick={() => setAiSummary(null)} className="p-1 text-purple-400 hover:text-purple-600 rounded transition-colors"><X size={14} /></button>
+                </div>
+                <p className="text-[13px] text-slate-700 leading-relaxed">{aiSummary}</p>
+              </div>
+            )}
+
+            {/* ── AI Suggestions Panel ── */}
+            {aiSuggestions && (
+              <div className="mx-5 mt-3 p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 animate-in slide-in-from-top-2">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                      <Wand2 size={12} className="text-white" />
+                    </div>
+                    <span className="text-[12px] font-bold text-blue-800">{t("inbox.ai.suggestionsTitle")}</span>
+                  </div>
+                  <button onClick={() => setAiSuggestions(null)} className="p-1 text-blue-400 hover:text-blue-600 rounded transition-colors"><X size={14} /></button>
+                </div>
+                <div className="space-y-2">
+                  {aiSuggestions.map((suggestion, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setReplyBody(suggestion); setAiSuggestions(null); premiumToast.info({ title: t("inbox.ai.useSuggestion") }); }}
+                      className="w-full text-left p-3 rounded-xl bg-white/80 border border-blue-100 hover:border-blue-300 hover:bg-white hover:shadow-sm transition-all group"
+                    >
+                      <p className="text-[12px] text-slate-700 leading-relaxed">{suggestion}</p>
+                      <span className="text-[10px] text-blue-600 font-semibold mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                        <Send size={9} /> {t("inbox.ai.useSuggestion")}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── AI Loading indicator ── */}
+            {aiLoading && (
+              <div className="mx-5 mt-3 p-4 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200/60 flex items-center gap-3 animate-in fade-in">
+                <div className="w-6 h-6 rounded-full border-2 border-indigo-200 border-t-indigo-500 animate-spin" />
+                <span className="text-[12px] font-semibold text-indigo-700">{t("inbox.ai.generating")}</span>
+              </div>
+            )}
 
             {/* ── Messages ── */}
             <div className="flex-1 overflow-y-auto px-5 py-5 space-y-3 bg-[#f8f9fb]">
@@ -1005,6 +1464,9 @@ export default function PortalInboxContent() {
           {toastMsg}
         </div>
       )}
+
+      {/* Upgrade Modal */}
+      <UpgradeModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} currentPlan={planKey} reason={upgradeReason} requiredPlan={upgradeRequiredPlan} />
     </div>
   );
 }

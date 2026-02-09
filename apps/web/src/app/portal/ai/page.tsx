@@ -10,6 +10,7 @@ import UpgradeModal from "@/components/UpgradeModal";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { useI18n } from "@/i18n/I18nContext";
+import { premiumToast } from "@/components/PremiumToast";
 
 interface AiConfig {
   systemPrompt: string;
@@ -42,7 +43,6 @@ export default function PortalAiPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   // Test
   const [testInput, setTestInput] = useState("");
@@ -88,8 +88,11 @@ export default function PortalAiPage() {
         body: JSON.stringify({ ...config, aiEnabled }),
       });
       if (res.ok) {
-        setSaveMsg(t("ai.saved"));
-        setTimeout(() => setSaveMsg(null), 3000);
+        premiumToast.success({
+          title: t("toast.aiConfigSaved"),
+          description: t("toast.aiConfigSavedDesc"),
+          duration: 3000,
+        });
       } else {
         const d = await res.json().catch(() => ({}));
         setError(d.error || t("common.error"));
@@ -141,11 +144,6 @@ export default function PortalAiPage() {
       />
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} className="mb-4" />}
-      {saveMsg && (
-        <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-sm text-emerald-700 font-medium flex items-center gap-2">
-          <Check size={16} className="text-emerald-500" /> {saveMsg}
-        </div>
-      )}
 
       <div className="space-y-6">
         {/* ═══ AI Usage Quota ═══ */}

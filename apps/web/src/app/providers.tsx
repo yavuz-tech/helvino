@@ -5,6 +5,7 @@ import { OrgProvider } from "@/contexts/OrgContext";
 import { StepUpProvider } from "@/contexts/StepUpContext";
 import { I18nProvider } from "@/i18n/I18nContext";
 import DebugBanner from "@/components/DebugBanner";
+import PremiumToastProvider from "@/components/PremiumToast";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
@@ -22,6 +23,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <OrgProvider>
           <DebugProvider>
             {children}
+            <PremiumToastProvider />
             <Suspense fallback={null}>
               <DebugGate />
             </Suspense>

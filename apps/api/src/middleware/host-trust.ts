@@ -67,9 +67,10 @@ function buildTrustedHosts(): Set<string> {
  */
 export function isHostTrusted(host: string | undefined): boolean {
   if (!host) return false;
+  const isProduction = process.env.NODE_ENV === "production";
   const trusted = buildTrustedHosts();
-  // Empty trusted set in dev = allow all
-  if (trusted.size === 0) return true;
+  // Empty trusted set: allow all in dev, reject in production
+  if (trusted.size === 0) return !isProduction;
   return trusted.has(host.toLowerCase());
 }
 

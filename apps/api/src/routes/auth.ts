@@ -11,6 +11,7 @@ import { prisma } from "../prisma";
 import { verifyPassword } from "../utils/password";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { upsertDevice } from "../utils/device";
+import { validateJsonContentType } from "../middleware/validation";
 
 interface LoginBody {
   email: string;
@@ -44,6 +45,7 @@ export async function authRoutes(fastify: FastifyInstance) {
   }>("/internal/auth/login", {
     preHandler: [
       createRateLimitMiddleware({ limit: 10, windowMs: 60000 }), // 10 attempts per minute per IP
+      validateJsonContentType,
     ],
   }, async (request, reply) => {
     const { email, password } = request.body;

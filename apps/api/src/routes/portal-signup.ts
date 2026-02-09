@@ -20,6 +20,7 @@ import {
   resendVerificationRateLimit,
 } from "../utils/rate-limit";
 import { validatePasswordPolicy } from "../utils/password-policy";
+import { validateJsonContentType } from "../middleware/validation";
 
 function generateOrgKey(orgName: string): string {
   // Create a URL-safe slug from org name + random suffix
@@ -53,7 +54,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: SignupBody }>(
     "/portal/auth/signup",
     {
-      preHandler: [signupRateLimit()],
+      preHandler: [signupRateLimit(), validateJsonContentType],
     },
     async (request, reply) => {
       const { orgName, email, password, locale } = request.body;
@@ -238,7 +239,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: ResendBody }>(
     "/portal/auth/resend-verification",
     {
-      preHandler: [resendVerificationRateLimit()],
+      preHandler: [resendVerificationRateLimit(), validateJsonContentType],
     },
     async (request, reply) => {
       const { email, locale } = request.body;

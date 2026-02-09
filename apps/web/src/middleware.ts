@@ -16,6 +16,7 @@ const CANONICAL_HOST = "helvion.io";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") || request.nextUrl.hostname || "";
+  const isProduction = process.env.NODE_ENV === "production";
 
   // Redirect legacy helvino.io to helvion.io (same path + query) so old invite/reset links work
   if (host.replace(/:.*/, "") === "helvino.io") {
@@ -44,22 +45,28 @@ export function middleware(request: NextRequest) {
   if (isDashboardOrPortal) {
     // Admin/Portal: deny framing entirely
     response.headers.set("X-Frame-Options", "DENY");
+    const scriptSrc = isProduction
+      ? "script-src 'self' 'unsafe-inline'"
+      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
     response.headers.set(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:* https:; frame-ancestors 'none'"
+      `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:* https:; frame-ancestors 'none'`
     );
   } else {
     // Public / widget-embeddable pages: allow framing from any origin
     // (the widget bootloader needs to be embeddable)
     response.headers.set("X-Frame-Options", "SAMEORIGIN");
+    const scriptSrc = isProduction
+      ? "script-src 'self' 'unsafe-inline'"
+      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
     response.headers.set(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:* https:; frame-ancestors *"
+      `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:* https:; frame-ancestors *`
     );
   }
 
   // ── Production-only: HSTS ──
-  if (process.env.NODE_ENV === "production") {
+  if (isProduction) {
     response.headers.set(
       "Strict-Transport-Security",
       "max-age=31536000; includeSubDomains"

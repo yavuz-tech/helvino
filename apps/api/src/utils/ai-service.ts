@@ -82,6 +82,36 @@ const TONE_INSTRUCTIONS: Record<AiConfig["tone"], string> = {
   casual: "Be casual and relaxed. Use simple language and feel free to use light humor.",
 };
 
+/* ── Language Helpers ── */
+
+const LANG_NAMES: Record<string, string> = {
+  en: "English", tr: "Turkish", es: "Spanish", de: "German", fr: "French",
+  ar: "Arabic", zh: "Chinese", ja: "Japanese", ko: "Korean", pt: "Portuguese",
+  ru: "Russian", it: "Italian", nl: "Dutch", pl: "Polish", sv: "Swedish",
+  da: "Danish", fi: "Finnish", no: "Norwegian", cs: "Czech", hu: "Hungarian",
+  ro: "Romanian", bg: "Bulgarian", uk: "Ukrainian", hi: "Hindi", th: "Thai",
+  vi: "Vietnamese", id: "Indonesian", ms: "Malay", he: "Hebrew", el: "Greek",
+};
+
+function getLangName(code: string): string {
+  return LANG_NAMES[code.toLowerCase().split("-")[0]] || code;
+}
+
+/** Build a smart language instruction for the system prompt */
+function buildLanguageInstruction(langCode: string): string {
+  const langName = getLangName(langCode);
+  return [
+    `LANGUAGE RULES (CRITICAL — follow these exactly):`,
+    `• Your DEFAULT language is ${langName} (${langCode}).`,
+    `• ALWAYS detect the language the customer is writing in.`,
+    `• ALWAYS reply in the SAME language the customer used in their last message.`,
+    `• If the customer writes in Turkish, respond in Turkish. If they write in Spanish, respond in Spanish. And so on.`,
+    `• If you cannot detect the language, fall back to ${langName}.`,
+    `• Never mix languages in a single response.`,
+    `• Greetings, apologies, closing lines — all must be in the customer's language.`,
+  ].join("\n");
+}
+
 /* ── Cost Pricing (USD per 1M tokens) ── */
 
 const PRICING: Record<string, { input: number; output: number }> = {
@@ -272,11 +302,17 @@ export async function generateAiResponse(
     }
   }
 
-  // Build system prompt
+  // Build system prompt with smart language awareness
   const systemPrompt = [
     cfg.systemPrompt,
     TONE_INSTRUCTIONS[cfg.tone],
-    cfg.language !== "en" ? `Respond in the same language as the customer. If the customer writes in ${cfg.language}, respond in ${cfg.language}.` : "",
+    buildLanguageInstruction(cfg.language || "en"),
+    `RESPONSE GUIDELINES:`,
+    `• Keep responses concise (2-4 sentences for simple questions, more for complex ones).`,
+    `• If the customer seems frustrated, acknowledge their feelings first before offering solutions.`,
+    `• If you truly cannot help, say so clearly and let them know a human agent will follow up.`,
+    `• Never fabricate information. If unsure, be honest about it.`,
+    `• Use the customer's name if available in the conversation.`,
   ].filter(Boolean).join("\n\n");
 
   // Build fallback chain: primary → others (deduped)

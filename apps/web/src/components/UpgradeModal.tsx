@@ -9,12 +9,18 @@ interface UpgradeModalProps {
   onClose: () => void;
   currentLimit?: number;
   currentPlan?: string;
+  /** "quota" = AI messages used up, "plan" = feature requires higher plan */
+  reason?: "quota" | "plan";
+  /** Minimum plan needed (shown when reason="plan") */
+  requiredPlan?: string;
 }
 
-export default function UpgradeModal({ isOpen, onClose, currentLimit = 100, currentPlan = "free" }: UpgradeModalProps) {
+export default function UpgradeModal({ isOpen, onClose, currentLimit = 100, currentPlan = "free", reason = "plan", requiredPlan = "starter" }: UpgradeModalProps) {
   const { t } = useI18n();
 
   if (!isOpen) return null;
+
+  const isQuotaReason = reason === "quota";
 
   const plans = [
     {
@@ -25,7 +31,7 @@ export default function UpgradeModal({ isOpen, onClose, currentLimit = 100, curr
       color: "from-blue-500 to-indigo-600",
       bgHover: "hover:bg-blue-50",
       border: "border-blue-200",
-      highlight: currentPlan === "free",
+      highlight: isQuotaReason ? currentPlan === "free" : requiredPlan === "starter",
     },
     {
       key: "pro",
@@ -35,7 +41,7 @@ export default function UpgradeModal({ isOpen, onClose, currentLimit = 100, curr
       color: "from-purple-500 to-indigo-600",
       bgHover: "hover:bg-purple-50",
       border: "border-purple-200",
-      highlight: currentPlan === "starter",
+      highlight: isQuotaReason ? currentPlan === "starter" : requiredPlan === "pro",
     },
     {
       key: "enterprise",
@@ -67,15 +73,25 @@ export default function UpgradeModal({ isOpen, onClose, currentLimit = 100, curr
         {/* Content */}
         <div className="p-8">
           {/* Icon */}
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-red-500/20">
-            <Bot size={28} className="text-white" />
+          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg ${
+            isQuotaReason
+              ? "bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/20"
+              : "bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20"
+          }`}>
+            {isQuotaReason ? <Bot size={28} className="text-white" /> : <Zap size={28} className="text-white" />}
           </div>
 
-          <h2 className="text-xl font-extrabold text-slate-900 text-center mb-2">{t("upgrade.title")}</h2>
+          <h2 className="text-xl font-extrabold text-slate-900 text-center mb-2">
+            {isQuotaReason ? t("upgrade.title") : t("upgrade.planRequired" as any)}
+          </h2>
           <p className="text-sm text-slate-500 text-center mb-1">
-            {t("upgrade.description").replace("{limit}", String(currentLimit))}
+            {isQuotaReason
+              ? t("upgrade.description").replace("{limit}", String(currentLimit))
+              : t("upgrade.planRequiredDesc" as any).replace("{plan}", requiredPlan === "pro" ? "Pro" : "Starter+")}
           </p>
-          <p className="text-sm text-slate-600 text-center font-medium mb-6">{t("upgrade.continue")}</p>
+          <p className="text-sm text-slate-600 text-center font-medium mb-6">
+            {isQuotaReason ? t("upgrade.continue") : t("upgrade.unlockFeatures" as any)}
+          </p>
 
           {/* Plan cards */}
           <div className="space-y-3">
