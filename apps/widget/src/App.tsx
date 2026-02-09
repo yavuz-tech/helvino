@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
-import { createConversation, sendMessage, API_URL, getOrgKey, Message, loadBootloader, BootloaderConfig, setOrgToken } from "./api";
+import { createConversation, sendMessage, API_URL, getOrgKey, getOrgToken, Message, loadBootloader, BootloaderConfig, setOrgToken } from "./api";
 import { EMOJI_LIST } from "@helvino/shared";
 import "./App.css";
 
@@ -60,9 +60,15 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   });
   const inputRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
 
   /** Whether branding must be shown (server-enforced, defaults true) */
   const brandingRequired = bootloaderConfig?.config?.brandingRequired !== false;
+
+  // Keep ref in sync so socket listener always sees current conversationId
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
 
   /** Detect embed-config mismatch: config tries to hide branding but server says required */
   useEffect(() => {
@@ -128,16 +134,19 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
       const storedId = localStorage.getItem(STORAGE_KEY);
       
       if (storedId) {
+        console.log("[Widget] using stored conversationId", storedId);
         setConversationId(storedId);
       } else {
         try {
           setConnectionStatus("refreshing");
+          console.log("[Widget] creating new conversation...", { API_URL });
           const conv = await createConversation();
+          console.log("[Widget] conversation created", conv.id);
           setConversationId(conv.id);
           localStorage.setItem(STORAGE_KEY, conv.id);
           setConnectionStatus(null);
         } catch (error) {
-          console.error("Failed to create conversation:", error);
+          console.error("[Widget] create conversation failed", error);
           setConnectionStatus("error");
           setTimeout(() => setConnectionStatus(null), 3000);
         }
@@ -166,8 +175,8 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
       }
 
       socketRef.current.on("message:new", (data: { conversationId: string; message: Message }) => {
-        // Only append if it's for our conversation
-        if (data.conversationId === conversationId) {
+        // Use ref so we always compare against current conversation (avoids stale closure)
+        if (data.conversationId === conversationIdRef.current) {
           setMessages((prev) => [...prev, data.message]);
         }
       });
@@ -189,6 +198,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     if (!inputValue.trim() || !conversationId || isLoading) return;
 
     const userMessage = inputValue.trim();
+    console.log("[Widget] handleSend", { conversationId, API_URL, hasToken: !!getOrgToken() });
     setInputValue("");
     setIsLoading(true);
 
@@ -205,7 +215,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
       // Add user message to UI (Socket.IO will also emit it, but this is instant)
       setMessages((prev) => [...prev, message]);
     } catch (error) {
-      console.error("Failed to send message:", error);
+      console.error("[Widget] send failed", error);
       setConnectionStatus("error");
       
       // Auto-clear error status after 3 seconds

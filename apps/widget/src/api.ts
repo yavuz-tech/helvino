@@ -269,16 +269,20 @@ export interface BootloaderConfig {
  * Create a new conversation
  */
 export async function createConversation(): Promise<Conversation> {
+  const url = `${API_URL}/conversations`;
+  console.log("[Widget API] createConversation called", { url, hasToken: !!getOrgToken() });
+
   // Ensure we have a valid token (auto-refresh if needed)
   await ensureValidToken();
 
-  const response = await fetch(`${API_URL}/conversations`, {
+  const response = await fetch(url, {
     method: "POST",
     headers: getHeaders({ useOrgToken: true }), // Use org token for write operation
   });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: "Failed to create conversation" }));
+    console.error("[Widget API] createConversation failed", { status: response.status, url, error });
     const message =
       typeof error.error === "string"
         ? error.error
@@ -286,7 +290,9 @@ export async function createConversation(): Promise<Conversation> {
     throw new Error(message);
   }
 
-  return response.json();
+  const data = await response.json();
+  console.log("[Widget API] createConversation success", { conversationId: data?.id });
+  return data;
 }
 
 /**
@@ -296,23 +302,24 @@ export async function sendMessage(
   conversationId: string,
   content: string
 ): Promise<Message> {
+  const url = `${API_URL}/conversations/${conversationId}/messages`;
+  console.log("[Widget API] sendMessage called", { url, conversationId, hasToken: !!getOrgToken() });
+
   // Ensure we have a valid token (auto-refresh if needed)
   await ensureValidToken();
 
-  const response = await fetch(
-    `${API_URL}/conversations/${conversationId}/messages`,
-    {
-      method: "POST",
-      headers: getHeaders({ useOrgToken: true }), // Use org token for write operation
-      body: JSON.stringify({
-        role: "user",
-        content,
-      }),
-    }
-  );
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getHeaders({ useOrgToken: true }), // Use org token for write operation
+    body: JSON.stringify({
+      role: "user",
+      content,
+    }),
+  });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: "Failed to send message" }));
+    console.error("[Widget API] sendMessage failed", { status: response.status, url, error });
     const message =
       typeof error.error === "string"
         ? error.error
@@ -320,7 +327,9 @@ export async function sendMessage(
     throw new Error(message);
   }
 
-  return response.json();
+  const data = await response.json();
+  console.log("[Widget API] sendMessage success", { messageId: data?.id });
+  return data;
 }
 
 /**
