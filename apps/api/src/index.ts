@@ -41,6 +41,14 @@ import { portalAiInboxRoutes } from "./routes/portal-ai-inbox";
 import { auditLogRoutes } from "./routes/audit-log-routes";
 import { portalNotificationRoutes } from "./routes/portal-notifications";
 import { portalConversationRoutes } from "./routes/portal-conversations";
+import { portalOperatingHoursRoutes } from "./routes/portal-operating-hours";
+import { portalChannelRoutes } from "./routes/portal-channels";
+import { portalMacroRoutes } from "./routes/portal-macros";
+import { portalWorkflowRoutes } from "./routes/portal-workflows";
+import { portalSlaRoutes } from "./routes/portal-sla";
+import { portalChatPageRoutes } from "./routes/portal-chat-page";
+import { portalTranslationRoutes } from "./routes/portal-translations";
+import { portalSettingsConsistencyRoutes } from "./routes/portal-settings-consistency";
 import { upsertVisitor } from "./utils/visitor";
 import { requestContextPlugin } from "./plugins/request-context";
 import { metricsTracker } from "./utils/metrics";
@@ -72,6 +80,8 @@ import {
   type ConversationMessage,
 } from "./utils/ai-service";
 import { prisma } from "./prisma";
+import { getOperatingHoursStatus } from "./utils/operating-hours";
+import { runWorkflowsForTrigger } from "./utils/workflow-engine";
 import type {
   CreateConversationResponse,
   CreateMessageRequest,
@@ -255,6 +265,14 @@ fastify.register(portalDashboardRoutes);   // Portal dashboard (visitors, stats)
 fastify.register(portalAiInboxRoutes);     // Portal AI inbox (suggest, summarize, translate)
 fastify.register(auditLogRoutes); // Audit log routes: portal + admin (Step 11.42)
 fastify.register(portalNotificationRoutes); // Portal notifications (Step 11.43)
+fastify.register(portalOperatingHoursRoutes); // Portal settings: operating hours
+fastify.register(portalChannelRoutes); // Portal settings: channels
+fastify.register(portalMacroRoutes); // Portal settings: macros
+fastify.register(portalWorkflowRoutes); // Portal settings: workflows
+fastify.register(portalSlaRoutes); // Portal settings: SLA
+fastify.register(portalChatPageRoutes); // Portal settings: chat page
+fastify.register(portalTranslationRoutes); // Portal settings: translation overrides
+fastify.register(portalSettingsConsistencyRoutes); // Portal settings: consistency guards
 
 // Root info
 fastify.get("/", async () => {
@@ -329,6 +347,10 @@ fastify.post<{
 
   const conversation = await store.createConversation(org.id, visitorId);
   await recordConversationUsage(org.id);
+  runWorkflowsForTrigger("conversation_created", {
+    orgId: org.id,
+    conversationId: conversation.id,
+  }).catch(() => {});
   let m3Limited = false;
   if (visitorKey) {
     const m3Entitlement = await checkM3Entitlement(org.id);
@@ -504,6 +526,13 @@ fastify.post<{
   if (role === "assistant") {
     recordM2Usage(org.id).catch(() => {});
   }
+  if (role === "user") {
+    runWorkflowsForTrigger("message_created", {
+      orgId: org.id,
+      conversationId: id,
+      actorRole: "user",
+    }).catch(() => {});
+  }
 
   // ── AI Auto-Reply: generate AI response when user sends a message ──
   if (role === "user" && org.aiEnabled && isAiAvailable()) {
@@ -584,6 +613,25 @@ fastify.post<{
         fastify.io.to(`org:${org.id}`).emit("agent:typing:stop", { conversationId: id });
       }
     })();
+  }
+
+  // Off-hours fallback auto-reply (if enabled in settings)
+  if (role === "user") {
+    const hoursStatus = await getOperatingHoursStatus(org.id);
+    if (!hoursStatus.withinHours && hoursStatus.offHoursAutoReply && hoursStatus.offHoursReplyText) {
+      const offHoursMessage = await store.addMessage(
+        id,
+        org.id,
+        "assistant",
+        hoursStatus.offHoursReplyText
+      );
+      if (offHoursMessage) {
+        fastify.io.to(`org:${org.id}`).emit("message:new", {
+          conversationId: id,
+          message: offHoursMessage,
+        });
+      }
+    }
   }
 
   reply.code(201);

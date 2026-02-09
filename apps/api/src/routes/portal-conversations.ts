@@ -20,6 +20,7 @@ import { writeAuditLog } from "../utils/audit-log";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { checkMessageEntitlement, checkM2Entitlement, recordMessageUsage, recordM2Usage } from "../utils/entitlements";
 import { validateJsonContentType } from "../middleware/validation";
+import { runWorkflowsForTrigger } from "../utils/workflow-engine";
 
 export async function portalConversationRoutes(fastify: FastifyInstance) {
   // ═══════════════════════════════════════════════════════════════
@@ -111,6 +112,10 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
       }
 
       const entries = await prisma.conversation.findMany(findArgs as any);
+      const slaPolicy = await prisma.slaPolicy.findFirst({
+        where: { orgId: actor.orgId, enabled: true },
+        orderBy: { createdAt: "asc" },
+      });
 
       const hasMore = entries.length > limit;
       const slice = hasMore ? entries.slice(0, limit) : entries;
@@ -118,6 +123,18 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
 
       const items = slice.map((conv: any) => {
         const lastMsg = conv.messages?.[0] || null;
+        let slaStatus: "ok" | "warning" | "breached" | null = null;
+        let slaDueAt: string | null = null;
+        if (slaPolicy && conv.status === "OPEN") {
+          const base = new Date(conv.updatedAt).getTime();
+          const due = base + slaPolicy.firstResponseMinutes * 60 * 1000;
+          const warnAt = base + Math.floor((slaPolicy.firstResponseMinutes * slaPolicy.warnThresholdPercent) / 100) * 60 * 1000;
+          const nowTs = Date.now();
+          slaDueAt = new Date(due).toISOString();
+          if (nowTs >= due) slaStatus = "breached";
+          else if (nowTs >= warnAt) slaStatus = "warning";
+          else slaStatus = "ok";
+        }
         return {
           id: conv.id,
           status: conv.status,
@@ -136,6 +153,8 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
                 from: lastMsg.role,
               }
             : null,
+          slaStatus,
+          slaDueAt,
         };
       });
 
@@ -436,6 +455,13 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
         writeAuditLog(actor.orgId, actor.email, action, { conversationId: id }, requestId).catch(
           () => {}
         );
+        if (status === "CLOSED") {
+          runWorkflowsForTrigger("conversation_closed", {
+            orgId: actor.orgId,
+            conversationId: id,
+            actorRole: "assistant",
+          }).catch(() => {});
+        }
       }
 
       if (assignedToUserId !== undefined && assignedToUserId !== conversation.assignedToOrgUserId) {

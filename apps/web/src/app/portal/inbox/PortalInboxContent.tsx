@@ -34,6 +34,8 @@ interface ConversationListItem {
   noteCount: number;
   hasUnreadMessages?: boolean;
   preview: { text: string; from: string } | null;
+  slaStatus?: "ok" | "warning" | "breached" | null;
+  slaDueAt?: string | null;
 }
 
 interface Message {
@@ -925,6 +927,23 @@ export default function PortalInboxContent() {
                     </div>
                     {conv.preview && <p className={`text-[12px] leading-snug truncate mb-1.5 ${hasUnread ? "text-slate-700 font-medium" : "text-slate-500"}`}>{conv.preview.text}</p>}
                     <div className="flex items-center gap-1.5">
+                      {conv.slaStatus && (
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-semibold ${
+                            conv.slaStatus === "breached"
+                              ? "text-red-700 bg-red-50"
+                              : conv.slaStatus === "warning"
+                              ? "text-amber-700 bg-amber-50"
+                              : "text-emerald-700 bg-emerald-50"
+                          }`}
+                        >
+                          {conv.slaStatus === "breached"
+                            ? t("usage.critical")
+                            : conv.slaStatus === "warning"
+                            ? t("usage.warning")
+                            : t("usage.healthy")}
+                        </span>
+                      )}
                       {conv.assignedTo && (
                         <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100/80 px-2 py-0.5 rounded-md font-medium">
                           <User size={9} className="text-slate-400" />{conv.assignedTo.email.split("@")[0]}

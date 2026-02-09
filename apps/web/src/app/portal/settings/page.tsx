@@ -1,304 +1,123 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { portalApiFetch } from "@/lib/portal-auth";
-import { usePortalAuth } from "@/contexts/PortalAuthContext";
-import { usePortalInboxNotification } from "@/contexts/PortalInboxNotificationContext";
+import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n/I18nContext";
-import { ChevronLeft } from "lucide-react";
+import { portalApiFetch } from "@/lib/portal-auth";
+import type { TranslationKey } from "@/i18n/translations";
+import {
+  ArrowRight,
+  ShieldCheck,
+  AlertTriangle,
+  Sparkles,
+  Bell,
+  Clock3,
+  Workflow,
+  Paintbrush,
+} from "lucide-react";
 
-interface Settings {
-  widgetEnabled: boolean;
-  writeEnabled: boolean;
-  aiEnabled: boolean;
-  messageRetentionDays: number;
-  hardDeleteOnRetention: boolean;
-  lastRetentionRunAt: string | null;
-}
+const CARDS: Array<{
+  href: string;
+  key: TranslationKey;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+}> = [
+  { href: "/portal/settings/general", key: "settingsPortal.general", icon: Sparkles },
+  { href: "/portal/settings/appearance", key: "settingsPortal.appearance", icon: Paintbrush },
+  { href: "/portal/settings/installation", key: "settingsPortal.installation", icon: ArrowRight },
+  { href: "/portal/settings/chat-page", key: "settingsPortal.chatPage", icon: Bell },
+  { href: "/portal/settings/translations", key: "settingsPortal.translations", icon: ArrowRight },
+  { href: "/portal/settings/channels", key: "settingsPortal.channels", icon: ArrowRight },
+  { href: "/portal/settings/notifications", key: "settingsPortal.notifications", icon: Bell },
+  { href: "/portal/settings/operating-hours", key: "settingsPortal.operatingHours", icon: Clock3 },
+  { href: "/portal/settings/macros", key: "settingsPortal.macros", icon: ArrowRight },
+  { href: "/portal/settings/workflows", key: "settingsPortal.workflows", icon: Workflow },
+  { href: "/portal/settings/sla", key: "settingsPortal.sla", icon: ShieldCheck },
+];
 
 export default function PortalSettingsPage() {
-  const { user, loading: authLoading } = usePortalAuth();
   const { t } = useI18n();
-  const {
-    soundEnabled,
-    setSoundEnabled,
-    notificationPermission,
-    requestNotificationPermission,
-    testSound,
-  } = usePortalInboxNotification();
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [original, setOriginal] = useState<Settings | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  const canEdit = user?.role === "owner" || user?.role === "admin";
+  const [issues, setIssues] = useState<Array<{ code: string; severity: "warning" | "error"; message: string }>>([]);
+  const warningCount = issues.filter((i) => i.severity === "warning").length;
+  const errorCount = issues.filter((i) => i.severity === "error").length;
 
   useEffect(() => {
-    if (authLoading) return;
-    const load = async () => {
-      const res = await portalApiFetch("/portal/org/me");
-      if (!res.ok) {
-        setMessage(t("portal.failedLoadSettings"));
-        setLoading(false);
-        return;
-      }
-      const data = await res.json();
-      const next: Settings = {
-        widgetEnabled: data.org.widgetEnabled,
-        writeEnabled: data.org.writeEnabled,
-        aiEnabled: data.org.aiEnabled,
-        messageRetentionDays: data.org.messageRetentionDays,
-        hardDeleteOnRetention: data.org.hardDeleteOnRetention,
-        lastRetentionRunAt: data.org.lastRetentionRunAt,
-      };
-      setSettings(next);
-      setOriginal(next);
-      setLoading(false);
-    };
-    load();
-  }, [authLoading, t]);
-
-  const handleSave = async () => {
-    if (!settings || !canEdit) return;
-    setSaving(true);
-    setMessage(null);
-
-    const res = await portalApiFetch("/portal/org/me/settings", {
-      method: "PATCH",
-      body: JSON.stringify({
-        widgetEnabled: settings.widgetEnabled,
-        writeEnabled: settings.writeEnabled,
-        aiEnabled: settings.aiEnabled,
-        messageRetentionDays: settings.messageRetentionDays,
-        hardDeleteOnRetention: settings.hardDeleteOnRetention,
-      }),
-    });
-
-    if (!res.ok) {
-      setMessage(t("portal.failedSaveSettings"));
-      setSaving(false);
-      return;
-    }
-
-    const data = await res.json();
-    const next: Settings = {
-      widgetEnabled: data.settings.widgetEnabled,
-      writeEnabled: data.settings.writeEnabled,
-      aiEnabled: data.settings.aiEnabled,
-      messageRetentionDays: data.settings.messageRetentionDays,
-      hardDeleteOnRetention: data.settings.hardDeleteOnRetention,
-      lastRetentionRunAt: data.settings.lastRetentionRunAt,
-    };
-    setSettings(next);
-    setOriginal(next);
-    setMessage(t("portal.settingsSaved"));
-    setSaving(false);
-  };
-
-  const hasChanges =
-    settings &&
-    original &&
-    JSON.stringify(settings) !== JSON.stringify(original);
-
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
-      </div>
-    );
-  }
-
-  if (loading || !settings) {
-    return (
-      <div className="text-slate-600">{t("portal.loadingSettings")}</div>
-    );
-  }
+    portalApiFetch("/portal/settings/consistency")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setIssues(data?.issues || []))
+      .catch(() => {});
+  }, []);
 
   return (
-    <>
-      <div className="mb-6">
-        <Link
-          href="/portal"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#1A1A2E] transition-colors mb-3 group"
-        >
-          <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
-          {t("portalOnboarding.backToDashboard")}
-        </Link>
-        <h1 className="text-2xl font-bold text-slate-900">{t("portal.settings")}</h1>
-        <p className="text-sm text-slate-600 mt-1">
-          {t("portal.settingsSubtitle")}
-        </p>
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-blue-50/40 p-6 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3 mb-2">
+          <h1 className="text-2xl font-bold text-slate-900">{t("settingsPortal.title")}</h1>
+          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+            <Sparkles size={12} />
+            {t("settingsPortal.manageSection")}
+          </span>
+        </div>
+        <p className="text-sm text-slate-600 mt-1">{t("settingsPortal.subtitle")}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+          <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+            <p className="text-xs text-slate-500">{t("settingsPortal.consistencyChecks")}</p>
+            <p className="text-xl font-bold text-slate-900 mt-1">{issues.length}</p>
+          </div>
+          <div className="rounded-xl bg-white border border-amber-200 px-4 py-3">
+            <p className="text-xs text-amber-600">{t("usage.warning")}</p>
+            <p className="text-xl font-bold text-amber-700 mt-1">{warningCount}</p>
+          </div>
+          <div className="rounded-xl bg-white border border-red-200 px-4 py-3">
+            <p className="text-xs text-red-600">{t("usage.critical")}</p>
+            <p className="text-xl font-bold text-red-700 mt-1">{errorCount}</p>
+          </div>
+        </div>
       </div>
 
-      {message && (
-        <div className="mb-6 bg-slate-100 border border-slate-200 rounded-lg p-4 text-slate-800">
-          {message}
-        </div>
-      )}
-
-      <div className="bg-white rounded-lg border border-slate-200 p-6 space-y-6">
-        <div className="grid gap-4 md:grid-cols-3">
-          <label className="flex items-center justify-between border rounded-lg p-4">
-            <div>
-              <div className="font-medium">{t("portal.widgetEnabled")}</div>
-              <div className="text-xs text-slate-500">
-                {t("portal.widgetEnabledDesc")}
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={settings.widgetEnabled}
-              disabled={!canEdit}
-              onChange={(e) =>
-                setSettings({ ...settings, widgetEnabled: e.target.checked })
-              }
-            />
-          </label>
-          <label className="flex items-center justify-between border rounded-lg p-4">
-            <div>
-              <div className="font-medium">{t("portal.writeEnabled")}</div>
-              <div className="text-xs text-slate-500">
-                {t("portal.writeEnabledDesc")}
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={settings.writeEnabled}
-              disabled={!canEdit}
-              onChange={(e) =>
-                setSettings({ ...settings, writeEnabled: e.target.checked })
-              }
-            />
-          </label>
-          <label className="flex items-center justify-between border rounded-lg p-4">
-            <div>
-              <div className="font-medium">{t("portal.aiEnabled")}</div>
-              <div className="text-xs text-slate-500">
-                {t("portal.aiEnabledDesc")}
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={settings.aiEnabled}
-              disabled={!canEdit}
-              onChange={(e) =>
-                setSettings({ ...settings, aiEnabled: e.target.checked })
-              }
-            />
-          </label>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              {t("portal.messageRetentionDays")}
-            </label>
-            <input
-              type="number"
-              min={1}
-              value={settings.messageRetentionDays}
-              disabled={!canEdit}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  messageRetentionDays: Number(e.target.value),
-                })
-              }
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-            />
-          </div>
-          <label className="flex items-center justify-between border rounded-lg p-4">
-            <div>
-              <div className="font-medium">{t("portal.hardDelete")}</div>
-              <div className="text-xs text-slate-500">
-                {t("portal.hardDeleteDesc")}
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={settings.hardDeleteOnRetention}
-              disabled={!canEdit}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  hardDeleteOnRetention: e.target.checked,
-                })
-              }
-            />
-          </label>
-        </div>
-
-        {settings.lastRetentionRunAt && (
-          <div className="text-xs text-slate-500">
-            <span suppressHydrationWarning>{t("portal.lastRetentionRun")}:{" "}
-            {new Date(settings.lastRetentionRunAt).toLocaleString()}</span>
-          </div>
-        )}
-
-        {canEdit && (
-            <button
-            onClick={handleSave}
-            disabled={!hasChanges || saving}
-            className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
-          >
-            {saving ? t("common.saving") : t("portal.saveSettings")}
-          </button>
-        )}
-      </div>
-
-      <div className="mt-8 bg-white rounded-lg border border-slate-200 p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">{t("inbox.notification.title")}</h2>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between border rounded-lg p-4">
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={soundEnabled}
-                onChange={(e) => setSoundEnabled(e.target.checked)}
-                aria-label={t("inbox.notification.soundEnabled")}
-              />
-              <span className="font-medium">{t("inbox.notification.soundEnabled")}</span>
-            </label>
-            <button
-              type="button"
-              onClick={testSound}
-              className="px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {CARDS.map((card) => {
+          const Icon = card.icon;
+          return (
+            <Link
+              key={card.href}
+              href={card.href}
+              className="group rounded-xl border border-slate-200 bg-white p-5 hover:border-slate-300 hover:shadow-md transition-all"
             >
-              {t("inbox.notification.testSound")}
-            </button>
-          </div>
-          <div className="flex items-center justify-between border rounded-lg p-4">
-            <div>
-              <span className="font-medium block">{t("inbox.notification.enableDesktop")}</span>
-              <span className="text-xs text-slate-500">
-                {notificationPermission === "granted" && t("inbox.notification.desktopEnabled")}
-                {notificationPermission === "denied" && t("inbox.notification.desktopDenied")}
-                {notificationPermission === "default" && (
-                  <button
-                    type="button"
-                    onClick={() => requestNotificationPermission()}
-                    className="text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    {t("inbox.notification.enableDesktop")}
-                  </button>
-                )}
-              </span>
-            </div>
-            {notificationPermission === "default" && (
-              <button
-                type="button"
-                onClick={() => requestNotificationPermission()}
-                className="px-3 py-1.5 text-sm font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-700"
-              >
-                {t("inbox.notification.enableDesktop")}
-              </button>
-            )}
-          </div>
-        </div>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-slate-900">{t(card.key)}</h3>
+                <Icon size={15} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
+              </div>
+              <p className="text-xs text-slate-500 mt-1">{t("settingsPortal.manageSection")}</p>
+              <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700">
+                {t("common.details")}
+                <ArrowRight size={13} />
+              </div>
+            </Link>
+          );
+        })}
       </div>
-    </>
+
+      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-slate-900 mb-2">{t("settingsPortal.consistencyChecks")}</h2>
+        {issues.length === 0 ? (
+          <p className="text-sm text-emerald-700 inline-flex items-center gap-2">
+            <ShieldCheck size={15} />
+            {t("settingsPortal.consistencyHealthy")}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {issues.map((issue) => (
+              <p
+                key={issue.code}
+                className={`text-sm inline-flex items-center gap-2 ${issue.severity === "error" ? "text-red-700" : "text-amber-700"}`}
+              >
+                <AlertTriangle size={14} />
+                {issue.message}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

@@ -49,6 +49,13 @@ interface BootloaderResponse {
       welcomeMessage: string;
       brandName: string | null;
     };
+    chatPageConfig?: {
+      title: string;
+      subtitle: string;
+      placeholder: string;
+      showAgentAvatars: boolean;
+      showOperatingHours: boolean;
+    };
   };
   orgToken: string; // Short-lived signed token for write operations
   env: string;
@@ -225,6 +232,16 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
           brandName: true,
         },
       });
+      const chatPageConfig = await prisma.chatPageConfig.findUnique({
+        where: { orgId: org.id },
+        select: {
+          title: true,
+          subtitle: true,
+          placeholder: true,
+          showAgentAvatars: true,
+          showOperatingHours: true,
+        },
+      });
 
       // Generate short-lived signed token for widget operations
       const orgToken = createOrgToken({
@@ -281,6 +298,13 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
             welcomeTitle: "Welcome",
             welcomeMessage: "How can we help you today?",
             brandName: null,
+          },
+          chatPageConfig: chatPageConfig || {
+            title: "Chat with us",
+            subtitle: "We reply as soon as possible",
+            placeholder: "Write your message...",
+            showAgentAvatars: true,
+            showOperatingHours: true,
           },
         },
         orgToken, // Short-lived signed token (5 minutes)

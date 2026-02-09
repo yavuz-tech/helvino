@@ -76,6 +76,13 @@ model Organization {
   visitors              Visitor[]
   orgUsers              OrgUser[]
   usages                Usage[]
+  operatingHours        OperatingHours?
+  channelConfigs        ChannelConfig[]
+  macros                Macro[]
+  workflowRules         WorkflowRule[]
+  slaPolicies           SlaPolicy[]
+  chatPageConfig        ChatPageConfig?
+  translationOverrides  TranslationOverride[]
 
   @@index([siteId])
   @@index([ownerUserId])
@@ -480,4 +487,130 @@ model WidgetSettings {
 
   @@index([orgId])
   @@map("widget_settings")
+}
+
+model OperatingHours {
+  id                  String              @id @default(cuid())
+  orgId               String              @unique
+  timezone            String              @default("UTC")
+  enabled             Boolean             @default(false)
+  offHoursAutoReply   Boolean             @default(false)
+  offHoursReplyText   String?             @db.Text
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  organization        Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  days                OperatingHoursDay[]
+
+  @@index([orgId])
+  @@map("operating_hours")
+}
+
+model OperatingHoursDay {
+  id                String          @id @default(cuid())
+  operatingHoursId  String
+  weekday           Int             // 0=Sunday ... 6=Saturday
+  isOpen            Boolean         @default(false)
+  startTime         String?         // HH:mm
+  endTime           String?         // HH:mm
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  operatingHours    OperatingHours  @relation(fields: [operatingHoursId], references: [id], onDelete: Cascade)
+
+  @@unique([operatingHoursId, weekday])
+  @@index([operatingHoursId])
+  @@map("operating_hours_days")
+}
+
+model ChannelConfig {
+  id            String       @id @default(cuid())
+  orgId         String
+  channelType   String       // live_chat | email | whatsapp | facebook | instagram
+  enabled       Boolean      @default(false)
+  settingsJson  Json?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, channelType])
+  @@index([orgId])
+  @@map("channel_configs")
+}
+
+model Macro {
+  id            String       @id @default(cuid())
+  orgId         String
+  title         String
+  content       String       @db.Text
+  enabled       Boolean      @default(true)
+  createdById   String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, enabled])
+  @@map("macros")
+}
+
+model WorkflowRule {
+  id            String       @id @default(cuid())
+  orgId         String
+  name          String
+  trigger       String       // message_created | conversation_created | conversation_closed
+  enabled       Boolean      @default(true)
+  conditionsJson Json?
+  actionsJson   Json?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, enabled])
+  @@map("workflow_rules")
+}
+
+model SlaPolicy {
+  id                     String       @id @default(cuid())
+  orgId                  String
+  name                   String       @default("Default SLA")
+  enabled                Boolean      @default(false)
+  firstResponseMinutes   Int          @default(15)
+  resolutionMinutes      Int          @default(480)
+  warnThresholdPercent   Int          @default(80)
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  organization           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, name])
+  @@index([orgId])
+  @@map("sla_policies")
+}
+
+model ChatPageConfig {
+  id                   String       @id @default(cuid())
+  orgId                String       @unique
+  title                String       @default("Chat with us")
+  subtitle             String       @default("We reply as soon as possible")
+  placeholder          String       @default("Write your message...")
+  showAgentAvatars     Boolean      @default(true)
+  showOperatingHours   Boolean      @default(true)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  organization         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@map("chat_page_configs")
+}
+
+model TranslationOverride {
+  id            String       @id @default(cuid())
+  orgId         String
+  locale        String
+  translationKey String
+  value         String       @db.Text
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, locale, translationKey])
+  @@index([orgId, locale])
+  @@map("translation_overrides")
 }

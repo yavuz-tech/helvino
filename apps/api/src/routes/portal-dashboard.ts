@@ -108,7 +108,21 @@ export async function portalDashboardRoutes(fastify: FastifyInstance) {
       ]);
 
       // Parse user agents
-      const formatVisitor = (v: typeof liveVisitors[0]) => {
+      const formatVisitor = (
+        v: {
+          id: string;
+          visitorKey: string;
+          ip: string | null;
+          country: string | null;
+          city: string | null;
+          userAgent: string | null;
+          currentPage: string | null;
+          referrer?: string | null;
+          firstSeenAt: Date;
+          lastSeenAt: Date;
+          _count: { conversations: number };
+        }
+      ) => {
         const parsed = parseUserAgent(v.userAgent);
         return {
           id: v.id,
@@ -120,7 +134,7 @@ export async function portalDashboardRoutes(fastify: FastifyInstance) {
           os: parsed.os,
           device: parsed.device,
           currentPage: v.currentPage || null,
-          referrer: (v as any).referrer || null,
+          referrer: v.referrer || null,
           firstSeenAt: v.firstSeenAt.toISOString(),
           lastSeenAt: v.lastSeenAt.toISOString(),
           conversationCount: v._count.conversations,
