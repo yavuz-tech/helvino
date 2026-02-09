@@ -7,6 +7,7 @@ import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { useI18n } from "@/i18n/I18nContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import type { TranslationKey } from "@/i18n/translations";
+import type { LucideIcon } from "lucide-react";
 import { 
   ChevronLeft, TrendingUp, TrendingDown, Minus, 
   MessageSquare, Send, Bot, Users, Download, 
@@ -86,7 +87,7 @@ function HeroMetricCard({
   iconColor,
   trend,
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   value: number;
   limit: number;
@@ -182,7 +183,7 @@ function MeteringCard({
   label: string;
   value: number;
   limit: number | null;
-  icon: any;
+  icon: LucideIcon;
   color: string;
 }) {
   const { t } = useI18n();
@@ -233,7 +234,7 @@ function MeteringCard({
 /* ────────── Main ────────── */
 
 export default function PortalUsagePage() {
-  const { user, loading: authLoading } = usePortalAuth();
+  const { loading: authLoading } = usePortalAuth();
   const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [lockStatus, setLockStatus] = useState<LockStatus | null>(null);
   const [alerts, setAlerts] = useState<AlertsPayload | null>(null);
@@ -665,16 +666,16 @@ export default function PortalUsagePage() {
             {/* Plan Overview Grid */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
               {/* Price Card */}
-              <div className="bg-white rounded-xl p-4 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
+              <div className="bg-white rounded-xl p-5 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="p-1.5 rounded-lg bg-emerald-100">
                     <Zap size={14} className="text-emerald-600" />
                   </div>
-                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  <p className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
                     {t("billing.price")}
                   </p>
                 </div>
-                <p className="text-2xl font-bold text-slate-900">
+                <p className="text-3xl font-bold text-slate-900 leading-none">
                   {billing.plan.monthlyPriceUsd === 0 ? (
                     t("billing.free")
                   ) : (
@@ -687,50 +688,49 @@ export default function PortalUsagePage() {
               </div>
 
               {/* Conversations Card */}
-              <div className="bg-white rounded-xl p-4 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
+              <div className="bg-white rounded-xl p-5 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="p-1.5 rounded-lg bg-blue-100">
                     <MessageSquare size={14} className="text-blue-600" />
                   </div>
-                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  <p className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
                     {t("usage.conversations")}
                   </p>
                 </div>
-                <p className="text-2xl font-bold text-slate-900" suppressHydrationWarning>
+                <p className="text-3xl font-bold text-slate-900 leading-none" suppressHydrationWarning>
                   {limits?.maxConversationsPerMonth.toLocaleString()}
-                  <span className="text-sm font-normal text-slate-500">/mo</span>
+                  <span className="text-sm font-normal text-slate-500">{t("billing.perMonth")}</span>
                 </p>
               </div>
 
               {/* Messages Card */}
-              <div className="bg-white rounded-xl p-4 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
+              <div className="bg-white rounded-xl p-5 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="p-1.5 rounded-lg bg-purple-100">
                     <Send size={14} className="text-purple-600" />
                   </div>
-                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  <p className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
                     {t("usage.messages")}
                   </p>
                 </div>
-                <p className="text-2xl font-bold text-slate-900" suppressHydrationWarning>
+                <p className="text-3xl font-bold text-slate-900 leading-none" suppressHydrationWarning>
                   {limits?.maxMessagesPerMonth.toLocaleString()}
-                  <span className="text-sm font-normal text-slate-500">/mo</span>
+                  <span className="text-sm font-normal text-slate-500">{t("billing.perMonth")}</span>
                 </p>
               </div>
 
               {/* Agents Card */}
-              <div className="bg-white rounded-xl p-4 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
+              <div className="bg-white rounded-xl p-5 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="p-1.5 rounded-lg bg-amber-100">
                     <Users size={14} className="text-amber-600" />
                   </div>
-                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  <p className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
                     {t("usage.agentSeats")}
                   </p>
                 </div>
-                <p className="text-2xl font-bold text-slate-900">
+                <p className="text-3xl font-bold text-slate-900 leading-none">
                   {limits?.maxAgents ?? "—"}
-                  <span className="text-sm font-normal text-slate-500"> {t("usage.agentSeats").toLowerCase()}</span>
                 </p>
               </div>
             </div>

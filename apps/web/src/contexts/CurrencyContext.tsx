@@ -47,22 +47,28 @@ const CONVERSION_RATES: Record<Currency, number> = {
 // ─────────────────────────────────────────────────────────
 
 const COOKIE_NAME = "helvino_currency";
+const COOKIE_LOCALE_NAME = "helvino_currency_locale";
 const COOKIE_MAX_AGE = 180 * 24 * 60 * 60; // 180 days
 
 // ─────────────────────────────────────────────────────────
 // Currency detection based on locale/timezone
 // ─────────────────────────────────────────────────────────
 
-/** Read cookie value */
-function getCookieCurrency(): Currency | null {
+function getCookieValue(name: string): string | null {
   if (typeof document === "undefined") return null;
   const match = document.cookie.match(
-    new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]*)`)
+    new RegExp(`(?:^|;\\s*)${name}=([^;]*)`)
   );
-  if (match) {
-    const val = match[1] as Currency;
-    if (val in CURRENCIES) return val;
-  }
+  return match ? match[1] : null;
+}
+
+/** Read locale-bound currency cookie */
+function getCookieCurrency(locale: string): Currency | null {
+  const rawCurrency = getCookieValue(COOKIE_NAME);
+  const rawLocale = getCookieValue(COOKIE_LOCALE_NAME);
+  if (!rawCurrency || !rawLocale) return null;
+  const val = rawCurrency as Currency;
+  if (val in CURRENCIES && rawLocale === locale) return val;
   return null;
 }
 
@@ -118,8 +124,8 @@ function detectTimezoneCurrency(): Currency | null {
 
 /** Resolve currency using priority chain */
 function resolveCurrency(locale: string): Currency {
-  // 1. Cookie → user explicitly chose → ALWAYS respect
-  const cookie = getCookieCurrency();
+  // 1. Cookie (only for the current locale)
+  const cookie = getCookieCurrency(locale);
   if (cookie) return cookie;
 
   // 2. Locale-based detection
@@ -143,10 +149,11 @@ function resolveCurrency(locale: string): Currency {
   return "USD";
 }
 
-/** Write the cookie */
-function persistCurrency(currency: Currency) {
+/** Write locale-bound cookie */
+function persistCurrency(currency: Currency, locale: string) {
   if (typeof document === "undefined") return;
   document.cookie = `${COOKIE_NAME}=${currency};path=/;max-age=${COOKIE_MAX_AGE};SameSite=Lax`;
+  document.cookie = `${COOKIE_LOCALE_NAME}=${locale};path=/;max-age=${COOKIE_MAX_AGE};SameSite=Lax`;
 }
 
 // ─────────────────────────────────────────────────────────
@@ -179,16 +186,16 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     const resolved = resolveCurrency(locale);
     setCurrencyState(resolved);
 
-    // Persist cookie if auto-detected (no explicit user choice yet)
-    if (!getCookieCurrency()) {
-      persistCurrency(resolved);
+    // Persist cookie if auto-detected for this locale
+    if (!getCookieCurrency(locale)) {
+      persistCurrency(resolved, locale);
     }
   }, [locale]);
 
   const setCurrency = useCallback((newCurrency: Currency) => {
     setCurrencyState(newCurrency);
-    persistCurrency(newCurrency);
-  }, []);
+    persistCurrency(newCurrency, locale);
+  }, [locale]);
 
   const config = CURRENCIES[currency];
 

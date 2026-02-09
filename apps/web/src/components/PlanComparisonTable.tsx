@@ -88,7 +88,7 @@ export default function PlanComparisonTable({
   recommendedPlan,
 }: PlanComparisonTableProps) {
   const { t } = useI18n();
-  const { currency, config, formatUsd } = useCurrency();
+  const { formatUsd } = useCurrency();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
 
   const translatePlanName = (key: string, fallbackName: string): string => {
