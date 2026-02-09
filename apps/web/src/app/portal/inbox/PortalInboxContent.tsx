@@ -74,15 +74,22 @@ function getInitials(str: string): string {
   return str.substring(0, 2).toUpperCase();
 }
 
-const AVATAR_COLORS = [
-  "bg-teal-600", "bg-blue-500", "bg-emerald-600", "bg-purple-500",
-  "bg-pink-500", "bg-amber-500", "bg-cyan-600", "bg-rose-500",
-  "bg-indigo-500", "bg-sky-500",
+const AVATAR_GRADIENTS = [
+  "from-teal-500 to-emerald-600",
+  "from-blue-500 to-indigo-600",
+  "from-violet-500 to-purple-600",
+  "from-rose-500 to-pink-600",
+  "from-amber-500 to-orange-600",
+  "from-cyan-500 to-blue-600",
+  "from-fuchsia-500 to-pink-600",
+  "from-emerald-500 to-teal-600",
+  "from-indigo-500 to-violet-600",
+  "from-sky-500 to-cyan-600",
 ];
 function getAvatarColor(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  return `bg-gradient-to-br ${AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length]}`;
 }
 
 function formatTime(dateStr: string, hydrated: boolean): string {
@@ -486,47 +493,49 @@ export default function PortalInboxContent() {
       <div className={`w-full sm:w-[320px] lg:w-[340px] flex-shrink-0 border-r border-slate-200/80 flex flex-col bg-white ${mobileView !== "list" ? "hidden sm:flex" : "flex"}`}>
 
         {/* Search */}
-        <div className="px-3 py-2.5 flex-shrink-0">
-          <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <div className="px-4 py-3 flex-shrink-0">
+          <div className="relative group">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
             <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
               placeholder={t("inbox.sidebar.search")}
-              className="w-full pl-9 pr-3 py-2 text-[13px] border border-slate-200 rounded-xl bg-slate-50/80 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all" />
+              className="w-full pl-10 pr-4 py-2.5 text-[13px] border border-slate-200/80 rounded-xl bg-slate-50/60 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 focus:bg-white transition-all shadow-sm" />
           </div>
         </div>
 
         {/* Filter tabs */}
-        <div className="px-3 pb-2 flex-shrink-0">
-          <div className="flex rounded-xl bg-slate-100/80 p-1 gap-0.5">
+        <div className="px-4 pb-3 flex-shrink-0">
+          <div className="flex rounded-xl bg-slate-100/70 p-1 gap-0.5">
             <button onClick={() => { setStatusFilter("OPEN"); setAssignedFilter("unassigned"); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-semibold transition-all ${
-                statusFilter === "OPEN" && assignedFilter === "unassigned" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-semibold transition-all duration-200 ${
+                statusFilter === "OPEN" && assignedFilter === "unassigned" ? "bg-white text-slate-900 shadow-sm ring-1 ring-black/[0.04]" : "text-slate-500 hover:text-slate-700 hover:bg-white/40"
               }`}>
               {t("inbox.filterUnassigned")}
               {viewCounts.unassigned > 0 && (
-                <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                  statusFilter === "OPEN" && assignedFilter === "unassigned" ? "bg-blue-500 text-white" : "bg-slate-200 text-slate-600"
+                <span className={`min-w-[20px] h-[20px] px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center transition-colors ${
+                  statusFilter === "OPEN" && assignedFilter === "unassigned" ? "bg-blue-500 text-white shadow-sm shadow-blue-500/30" : "bg-slate-200/80 text-slate-600"
                 }`}>{viewCounts.unassigned > 99 ? "99+" : viewCounts.unassigned}</span>
               )}
             </button>
             <button onClick={() => { setStatusFilter("OPEN"); setAssignedFilter("me"); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-semibold transition-all ${
-                statusFilter === "OPEN" && assignedFilter === "me" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-semibold transition-all duration-200 ${
+                statusFilter === "OPEN" && assignedFilter === "me" ? "bg-white text-slate-900 shadow-sm ring-1 ring-black/[0.04]" : "text-slate-500 hover:text-slate-700 hover:bg-white/40"
               }`}>
               {t("inbox.filterMyOpen")}
               {viewCounts.myOpen > 0 && (
-                <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                  statusFilter === "OPEN" && assignedFilter === "me" ? "bg-blue-500 text-white" : "bg-slate-200 text-slate-600"
+                <span className={`min-w-[20px] h-[20px] px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center transition-colors ${
+                  statusFilter === "OPEN" && assignedFilter === "me" ? "bg-blue-500 text-white shadow-sm shadow-blue-500/30" : "bg-slate-200/80 text-slate-600"
                 }`}>{viewCounts.myOpen}</span>
               )}
             </button>
             <button onClick={() => { setStatusFilter("CLOSED"); setAssignedFilter("any"); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-semibold transition-all ${
-                statusFilter === "CLOSED" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-semibold transition-all duration-200 ${
+                statusFilter === "CLOSED" ? "bg-white text-slate-900 shadow-sm ring-1 ring-black/[0.04]" : "text-slate-500 hover:text-slate-700 hover:bg-white/40"
               }`}>
               {t("inbox.filterSolved")}
               {viewCounts.solved > 0 && (
-                <span className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center bg-slate-200 text-slate-600">{viewCounts.solved}</span>
+                <span className={`min-w-[20px] h-[20px] px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center transition-colors ${
+                  statusFilter === "CLOSED" ? "bg-emerald-500 text-white shadow-sm shadow-emerald-500/30" : "bg-slate-200/80 text-slate-600"
+                }`}>{viewCounts.solved}</span>
               )}
             </button>
           </div>
@@ -545,14 +554,19 @@ export default function PortalInboxContent() {
         <div className="flex-1 overflow-y-auto">
           {error && <div className="m-3"><ErrorBanner message={error} /></div>}
           {isLoading && conversations.length === 0 ? (
-            <div className="flex items-center justify-center py-16"><div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" /></div>
-          ) : conversations.length === 0 ? (
-            <div className="px-6 py-16 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                <MessageSquare size={20} className="text-slate-400" />
+            <div className="flex items-center justify-center py-20">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
+                <span className="text-[11px] text-slate-400 font-medium">{t("common.loading")}</span>
               </div>
-              <p className="text-sm font-medium text-slate-600 mb-1">{emptyListHint}</p>
-              <p className="text-xs text-slate-400">{t("inbox.empty.desc")}</p>
+            </div>
+          ) : conversations.length === 0 ? (
+            <div className="px-6 py-20 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center mx-auto mb-4 ring-1 ring-slate-200/60">
+                <MessageSquare size={22} className="text-slate-400" />
+              </div>
+              <p className="text-sm font-bold text-slate-700 mb-1">{emptyListHint}</p>
+              <p className="text-xs text-slate-400 leading-relaxed">{t("inbox.empty.desc")}</p>
             </div>
           ) : conversations.map(conv => {
             const name = displayName(conv);
@@ -561,38 +575,54 @@ export default function PortalInboxContent() {
             return (
               <div key={conv.id} onClick={() => selectConversation(conv.id)} role="button" tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectConversation(conv.id); } }}
-                className={`group px-3 py-3 cursor-pointer border-b border-slate-50 transition-all ${
-                  active ? "bg-blue-50 border-l-[3px] border-l-blue-500 pl-[9px]" : hasUnread ? "bg-blue-50/30 hover:bg-slate-50" : "hover:bg-slate-50"
+                className={`group relative mx-2 my-1 px-3 py-3 cursor-pointer rounded-xl transition-all duration-200 ${
+                  active
+                    ? "bg-blue-50/80 ring-1 ring-blue-200/60 shadow-sm"
+                    : hasUnread
+                      ? "bg-white hover:bg-slate-50/80 ring-1 ring-blue-100/50"
+                      : "hover:bg-slate-50/60"
                 }`}>
+                {/* Active indicator bar */}
+                {active && <div className="absolute left-0 top-3 bottom-3 w-[3px] bg-blue-500 rounded-r-full" />}
+
                 <div className="flex items-start gap-3">
+                  {/* Avatar */}
                   <div className="relative flex-shrink-0 mt-0.5">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white ${getAvatarColor(conv.id)}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-[11px] font-bold text-white shadow-sm ${getAvatarColor(conv.id)}`}>
                       {getInitials(name)}
                     </div>
-                    {hasUnread && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-blue-500 rounded-full border-[1.5px] border-white" />}
+                    {hasUnread && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white shadow-sm shadow-blue-500/30">
+                        <span className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-40" />
+                      </span>
+                    )}
                   </div>
+
+                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
                       <span className={`text-[13px] truncate ${hasUnread ? "font-bold text-slate-900" : "font-semibold text-slate-700"}`}>{name}</span>
-                      <span className="text-[10px] text-slate-400 flex-shrink-0 tabular-nums" suppressHydrationWarning>{hydrated ? formatRelativeTime(conv.updatedAt) : formatTime(conv.updatedAt, hydrated)}</span>
+                      <span className="text-[10px] text-slate-400 flex-shrink-0 tabular-nums font-medium" suppressHydrationWarning>{hydrated ? formatRelativeTime(conv.updatedAt) : formatTime(conv.updatedAt, hydrated)}</span>
                     </div>
-                    {conv.preview && <p className={`text-[12px] leading-snug truncate ${hasUnread ? "text-slate-700 font-medium" : "text-slate-500"}`}>{conv.preview.text}</p>}
-                    <div className="flex items-center gap-1.5 mt-1">
+                    {conv.preview && <p className={`text-[12px] leading-snug truncate mb-1.5 ${hasUnread ? "text-slate-700 font-medium" : "text-slate-500"}`}>{conv.preview.text}</p>}
+                    <div className="flex items-center gap-1.5">
                       {conv.assignedTo && (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">
-                          <User size={9} />{conv.assignedTo.email.split("@")[0]}
+                        <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100/80 px-2 py-0.5 rounded-md font-medium">
+                          <User size={9} className="text-slate-400" />{conv.assignedTo.email.split("@")[0]}
                         </span>
                       )}
                       {conv.status === "CLOSED" && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
                           <CheckCircle size={9} />{t("inbox.statusClosed")}
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-300 tabular-nums">{conv.messageCount} msg</span>
+                      <span className="text-[10px] text-slate-300 tabular-nums font-medium">{conv.messageCount} msg</span>
                     </div>
                   </div>
+
+                  {/* Unread badge */}
                   {hasUnread && conv.messageCount > 0 && (
-                    <span className="mt-1 min-w-[20px] h-5 px-1.5 bg-blue-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                    <span className="mt-1 min-w-[22px] h-[22px] px-1.5 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-500/25">
                       {conv.messageCount > 99 ? "99+" : conv.messageCount}
                     </span>
                   )}
@@ -615,60 +645,72 @@ export default function PortalInboxContent() {
           /* ── Rich Empty State — Dashboard-like ── */
           <div className="flex-1 flex flex-col bg-[#f8f9fb] overflow-y-auto">
             {/* Stats row */}
-            <div className="grid grid-cols-3 gap-4 p-6 pb-2">
-              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center"><MessageSquare size={16} className="text-amber-500" /></div>
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{t("inbox.filterUnassigned")}</span>
+            <div className="grid grid-cols-3 gap-5 p-6 pb-3">
+              <div className="group relative bg-white rounded-2xl border border-slate-200/60 p-5 hover:shadow-lg hover:shadow-amber-500/[0.04] hover:border-amber-200/60 transition-all duration-300 overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-amber-50 to-transparent rounded-bl-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm shadow-amber-500/20"><MessageSquare size={17} className="text-white" /></div>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("inbox.filterUnassigned")}</span>
+                  </div>
+                  <div className="text-3xl font-extrabold text-slate-900 tabular-nums tracking-tight">{viewCounts.unassigned}</div>
                 </div>
-                <div className="text-2xl font-bold text-slate-900 tabular-nums">{viewCounts.unassigned}</div>
               </div>
-              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center"><User size={16} className="text-blue-500" /></div>
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{t("inbox.filterMyOpen")}</span>
+              <div className="group relative bg-white rounded-2xl border border-slate-200/60 p-5 hover:shadow-lg hover:shadow-blue-500/[0.04] hover:border-blue-200/60 transition-all duration-300 overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-blue-50 to-transparent rounded-bl-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-blue-500/20"><User size={17} className="text-white" /></div>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("inbox.filterMyOpen")}</span>
+                  </div>
+                  <div className="text-3xl font-extrabold text-slate-900 tabular-nums tracking-tight">{viewCounts.myOpen}</div>
                 </div>
-                <div className="text-2xl font-bold text-slate-900 tabular-nums">{viewCounts.myOpen}</div>
               </div>
-              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center"><CheckCircle size={16} className="text-emerald-500" /></div>
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{t("inbox.filterSolved")}</span>
+              <div className="group relative bg-white rounded-2xl border border-slate-200/60 p-5 hover:shadow-lg hover:shadow-emerald-500/[0.04] hover:border-emerald-200/60 transition-all duration-300 overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-emerald-50 to-transparent rounded-bl-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm shadow-emerald-500/20"><CheckCircle size={17} className="text-white" /></div>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t("inbox.filterSolved")}</span>
+                  </div>
+                  <div className="text-3xl font-extrabold text-slate-900 tabular-nums tracking-tight">{viewCounts.solved}</div>
                 </div>
-                <div className="text-2xl font-bold text-slate-900 tabular-nums">{viewCounts.solved}</div>
               </div>
             </div>
 
             {/* Welcome hero */}
             <div className="flex-1 flex items-center justify-center px-8">
-              <div className="max-w-lg text-center">
-                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/20">
-                  <MessageSquare size={32} className="text-white" />
+              <div className="max-w-xl text-center">
+                <div className="relative w-20 h-20 mx-auto mb-8">
+                  <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-xl shadow-blue-500/25 rotate-3" />
+                  <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                    <MessageSquare size={32} className="text-white" />
+                  </div>
                 </div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">{t("inbox.empty.welcomeTitle")}</h2>
-                <p className="text-sm text-slate-500 leading-relaxed mb-8 max-w-md mx-auto">{t("inbox.empty.welcomeDesc")}</p>
+                <h2 className="text-2xl font-extrabold text-slate-900 mb-3 tracking-tight">{t("inbox.empty.welcomeTitle")}</h2>
+                <p className="text-sm text-slate-500 leading-relaxed mb-10 max-w-md mx-auto">{t("inbox.empty.welcomeDesc")}</p>
 
                 {/* Feature tips */}
-                <div className="grid grid-cols-3 gap-4 mb-8 text-left">
-                  <div className="bg-white rounded-xl border border-slate-200/80 p-4">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center mb-2.5"><svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg></div>
-                    <p className="text-xs font-semibold text-slate-700 mb-0.5">{t("inbox.empty.tip1Title")}</p>
-                    <p className="text-[11px] text-slate-400 leading-snug">{t("inbox.empty.tip1Desc")}</p>
+                <div className="grid grid-cols-3 gap-5 mb-10 text-left">
+                  <div className="group bg-white rounded-2xl border border-slate-200/60 p-5 hover:shadow-lg hover:border-blue-200/60 transition-all duration-300">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-3.5 shadow-sm shadow-blue-500/20 group-hover:scale-105 transition-transform"><svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg></div>
+                    <p className="text-[13px] font-bold text-slate-800 mb-1">{t("inbox.empty.tip1Title")}</p>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">{t("inbox.empty.tip1Desc")}</p>
                   </div>
-                  <div className="bg-white rounded-xl border border-slate-200/80 p-4">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center mb-2.5"><svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg></div>
-                    <p className="text-xs font-semibold text-slate-700 mb-0.5">{t("inbox.empty.tip2Title")}</p>
-                    <p className="text-[11px] text-slate-400 leading-snug">{t("inbox.empty.tip2Desc")}</p>
+                  <div className="group bg-white rounded-2xl border border-slate-200/60 p-5 hover:shadow-lg hover:border-emerald-200/60 transition-all duration-300">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-3.5 shadow-sm shadow-emerald-500/20 group-hover:scale-105 transition-transform"><svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg></div>
+                    <p className="text-[13px] font-bold text-slate-800 mb-1">{t("inbox.empty.tip2Title")}</p>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">{t("inbox.empty.tip2Desc")}</p>
                   </div>
-                  <div className="bg-white rounded-xl border border-slate-200/80 p-4">
-                    <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center mb-2.5"><svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg></div>
-                    <p className="text-xs font-semibold text-slate-700 mb-0.5">{t("inbox.empty.tip3Title")}</p>
-                    <p className="text-[11px] text-slate-400 leading-snug">{t("inbox.empty.tip3Desc")}</p>
+                  <div className="group bg-white rounded-2xl border border-slate-200/60 p-5 hover:shadow-lg hover:border-amber-200/60 transition-all duration-300">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center mb-3.5 shadow-sm shadow-amber-500/20 group-hover:scale-105 transition-transform"><svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg></div>
+                    <p className="text-[13px] font-bold text-slate-800 mb-1">{t("inbox.empty.tip3Title")}</p>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">{t("inbox.empty.tip3Desc")}</p>
                   </div>
                 </div>
 
                 <Link href="/demo-chat"
-                  className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20">
+                  className="inline-flex items-center gap-2.5 px-7 py-3.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 duration-200">
                   <MessageSquare size={16} />
                   {t("inbox.simulateConversation")}
                 </Link>
@@ -678,17 +720,17 @@ export default function PortalInboxContent() {
         ) : (
           <>
             {/* ── Chat header ── */}
-            <div className="px-4 py-2.5 bg-white border-b border-slate-200/80 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-3">
+            <div className="px-5 py-3 bg-white border-b border-slate-200/60 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3.5">
                 <button onClick={closePanel} className="sm:hidden text-slate-500 hover:text-slate-700"><ArrowLeft size={18} /></button>
                 <div className="relative">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white ${getAvatarColor(selectedConversationId)}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold text-white shadow-sm ${getAvatarColor(selectedConversationId)}`}>
                     {selectedConv ? getInitials(displayName(selectedConv)) : "?"}
                   </div>
-                  <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${isOpen ? "bg-emerald-400" : "bg-slate-300"}`} />
+                  <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${isOpen ? "bg-emerald-400 shadow-sm shadow-emerald-400/40" : "bg-slate-300"}`} />
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-slate-900">{selectedConv ? displayName(selectedConv) : ""}</div>
+                  <div className="text-[14px] font-bold text-slate-900">{selectedConv ? displayName(selectedConv) : ""}</div>
                   {userTypingConvId === selectedConversationId ? (
                     <div className="flex items-center gap-1 text-[11px] text-blue-500 font-medium">
                       <span className="inline-flex gap-0.5">
@@ -743,26 +785,28 @@ export default function PortalInboxContent() {
                   <p className="text-sm text-slate-400">{t("inbox.chat.noMessages")}</p>
                 </div>
               ) : conversationDetail?.messages.map(msg => (
-                <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-start" : "justify-end"}`}>
+                <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-start" : "justify-end"} group/msg`}>
                   {msg.role === "user" && (
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 mr-2 mt-1 ${getAvatarColor(selectedConversationId || "")}`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 mr-2.5 mt-1 shadow-sm ${getAvatarColor(selectedConversationId || "")}`}>
                       {selectedConv ? getInitials(displayName(selectedConv)) : "?"}
                     </div>
                   )}
                   <div className={`max-w-[65%] ${
                     msg.role === "user"
-                      ? "bg-white border border-slate-200/80 text-slate-800 rounded-2xl rounded-tl-md shadow-sm px-4 py-2.5"
-                      : "bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl rounded-tr-md shadow-sm shadow-blue-500/10 px-4 py-2.5"
+                      ? "bg-white border border-slate-200/60 text-slate-800 rounded-2xl rounded-tl-md shadow-sm hover:shadow-md px-4 py-3 transition-shadow"
+                      : "bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-500 text-white rounded-2xl rounded-tr-md shadow-md shadow-blue-500/15 px-4 py-3"
                   }`}>
                     {msg.role === "assistant" && (
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <Bot size={11} className="text-blue-200" />
-                        <span className="text-[9px] font-bold text-blue-200/80 uppercase tracking-wider">AI Assistant</span>
-                        <Sparkles size={9} className="text-blue-300/60" />
+                      <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-white/10">
+                        <div className="w-4 h-4 rounded bg-white/15 flex items-center justify-center">
+                          <Bot size={10} className="text-white/80" />
+                        </div>
+                        <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest">AI Assistant</span>
+                        <Sparkles size={9} className="text-blue-300/50" />
                       </div>
                     )}
                     <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                    <div className={`text-[10px] mt-1 text-right ${msg.role === "user" ? "text-slate-400" : "text-white/60"}`} suppressHydrationWarning>
+                    <div className={`text-[10px] mt-1.5 text-right font-medium ${msg.role === "user" ? "text-slate-400" : "text-white/50"}`} suppressHydrationWarning>
                       {formatTime(msg.timestamp, hydrated)}
                     </div>
                   </div>
@@ -786,8 +830,8 @@ export default function PortalInboxContent() {
             </div>
 
             {/* ── Composer ── */}
-            <div className="px-4 py-3 bg-white border-t border-slate-200/80 flex-shrink-0" role="form" aria-label={t("inbox.chat.replyForm")}>
-              <div className="flex items-end gap-2">
+            <div className="px-5 py-3.5 bg-white border-t border-slate-200/60 flex-shrink-0" role="form" aria-label={t("inbox.chat.replyForm")}>
+              <div className="flex items-end gap-2.5">
                 <div className="flex-1 relative">
                   <textarea
                     value={replyBody}
@@ -806,15 +850,15 @@ export default function PortalInboxContent() {
                     disabled={isSendingReply}
                     aria-label={t("inbox.chat.typeMessage")}
                     rows={1}
-                    className="w-full px-4 py-2.5 text-[13px] border border-slate-200 rounded-xl bg-slate-50/50 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:bg-white disabled:opacity-50 resize-none transition-all"
-                    style={{ minHeight: "40px", maxHeight: "120px" }}
+                    className="w-full px-4 py-3 text-[13px] border border-slate-200/80 rounded-xl bg-slate-50/40 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 focus:bg-white disabled:opacity-50 resize-none transition-all shadow-sm"
+                    style={{ minHeight: "44px", maxHeight: "120px" }}
                   />
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button disabled title={t("inbox.chat.notSupported")} className="p-2 text-slate-300 cursor-not-allowed hover:text-slate-400 transition-colors"><Paperclip size={16} /></button>
-                  <button disabled title={t("inbox.chat.notSupported")} className="p-2 text-slate-300 cursor-not-allowed hover:text-slate-400 transition-colors"><Smile size={16} /></button>
+                <div className="flex items-center gap-1 flex-shrink-0 pb-0.5">
+                  <button disabled title={t("inbox.chat.notSupported")} className="p-2.5 text-slate-300 cursor-not-allowed hover:text-slate-400 rounded-lg transition-colors"><Paperclip size={16} /></button>
+                  <button disabled title={t("inbox.chat.notSupported")} className="p-2.5 text-slate-300 cursor-not-allowed hover:text-slate-400 rounded-lg transition-colors"><Smile size={16} /></button>
                   <button type="button" onClick={handleSendReply} disabled={!replyBody.trim() || isSendingReply} aria-label={t("inbox.chat.send")}
-                    className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-colors">
+                    className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-blue-500/20 hover:shadow-md hover:shadow-blue-500/25 transition-all">
                     {isSendingReply ? <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin block" /> : <Send size={15} />}
                   </button>
                 </div>
@@ -833,11 +877,11 @@ export default function PortalInboxContent() {
         {!selectedConversationId || !conversationDetail ? (
           /* ── Empty right panel — helpful tips ── */
           <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-              <User size={22} className="text-slate-400" />
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center mb-5 ring-1 ring-slate-200/60">
+              <User size={24} className="text-slate-400" />
             </div>
-            <p className="text-sm font-semibold text-slate-600 mb-1">{t("inbox.detail.noSelection")}</p>
-            <p className="text-xs text-slate-400 leading-relaxed">{t("inbox.detail.selectHint")}</p>
+            <p className="text-sm font-bold text-slate-600 mb-1.5">{t("inbox.detail.noSelection")}</p>
+            <p className="text-xs text-slate-400 leading-relaxed max-w-[200px]">{t("inbox.detail.selectHint")}</p>
           </div>
         ) : (
           <>
@@ -850,15 +894,15 @@ export default function PortalInboxContent() {
 
             {/* Customer profile card */}
             <div className="px-5 py-5 border-b border-slate-100">
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white ${getAvatarColor(selectedConversationId)}`}>
+              <div className="flex items-center gap-3.5 mb-5">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm ${getAvatarColor(selectedConversationId)}`}>
                   {selectedConv ? getInitials(displayName(selectedConv)) : "?"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-slate-900">{selectedConv ? displayName(selectedConv) : ""}</div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                      isOpen ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-slate-100 text-slate-600 border border-slate-200"
+                  <div className="text-[14px] font-bold text-slate-900">{selectedConv ? displayName(selectedConv) : ""}</div>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-lg ${
+                      isOpen ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60" : "bg-slate-100 text-slate-600 ring-1 ring-slate-200/60"
                     }`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${isOpen ? "bg-emerald-500" : "bg-slate-400"}`} />
                       {isOpen ? t("inbox.detail.open") : t("inbox.detail.close")}
@@ -868,18 +912,18 @@ export default function PortalInboxContent() {
               </div>
 
               {/* Quick stats for this conversation */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-slate-50 rounded-xl px-3 py-2 text-center">
-                  <div className="text-lg font-bold text-slate-900 tabular-nums">{conversationDetail.messages.length}</div>
-                  <div className="text-[10px] text-slate-400 font-medium">{t("inbox.customer.messageCount")}</div>
+              <div className="grid grid-cols-3 gap-2.5">
+                <div className="bg-slate-50/80 rounded-xl px-3 py-2.5 text-center ring-1 ring-slate-100">
+                  <div className="text-lg font-extrabold text-slate-900 tabular-nums">{conversationDetail.messages.length}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold">{t("inbox.customer.messageCount")}</div>
                 </div>
-                <div className="bg-slate-50 rounded-xl px-3 py-2 text-center">
-                  <div className="text-lg font-bold text-slate-900 tabular-nums">{notes.length}</div>
-                  <div className="text-[10px] text-slate-400 font-medium">{t("inbox.detail.notes")}</div>
+                <div className="bg-slate-50/80 rounded-xl px-3 py-2.5 text-center ring-1 ring-slate-100">
+                  <div className="text-lg font-extrabold text-slate-900 tabular-nums">{notes.length}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold">{t("inbox.detail.notes")}</div>
                 </div>
-                <div className="bg-slate-50 rounded-xl px-3 py-2 text-center">
-                  <div className="text-sm font-bold text-slate-900 tabular-nums" suppressHydrationWarning>{hydrated ? formatRelativeTime(conversationDetail.createdAt) : "--"}</div>
-                  <div className="text-[10px] text-slate-400 font-medium">{t("inbox.customer.createdAt")}</div>
+                <div className="bg-slate-50/80 rounded-xl px-3 py-2.5 text-center ring-1 ring-slate-100">
+                  <div className="text-sm font-extrabold text-slate-900 tabular-nums" suppressHydrationWarning>{hydrated ? formatRelativeTime(conversationDetail.createdAt) : "--"}</div>
+                  <div className="text-[10px] text-slate-400 font-semibold">{t("inbox.customer.createdAt")}</div>
                 </div>
               </div>
             </div>
@@ -956,8 +1000,8 @@ export default function PortalInboxContent() {
 
       {/* Toast */}
       {toastMsg && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-xl shadow-xl shadow-slate-900/20 flex items-center gap-2">
-          <CheckCircle size={14} className="text-emerald-400" />
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-slate-900 text-white text-sm font-semibold rounded-xl shadow-2xl shadow-slate-900/30 flex items-center gap-2.5 ring-1 ring-white/10 animate-in slide-in-from-bottom-4">
+          <CheckCircle size={15} className="text-emerald-400" />
           {toastMsg}
         </div>
       )}

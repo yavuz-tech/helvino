@@ -13,6 +13,15 @@ export interface VisitorInfo {
   lastSeenAt: Date;
 }
 
+export interface VisitorMeta {
+  userAgent?: string;
+  ip?: string;
+  country?: string;
+  city?: string;
+  currentPage?: string;
+  referrer?: string;
+}
+
 /**
  * Upsert visitor record
  * Creates new visitor or updates lastSeenAt for existing visitor
@@ -20,8 +29,23 @@ export interface VisitorInfo {
 export async function upsertVisitor(
   orgId: string,
   visitorKey: string,
-  userAgent?: string
+  meta?: VisitorMeta
 ): Promise<VisitorInfo> {
+  const updateData: Record<string, unknown> = { lastSeenAt: new Date() };
+  const createData: Record<string, unknown> = {
+    orgId,
+    visitorKey,
+    firstSeenAt: new Date(),
+    lastSeenAt: new Date(),
+  };
+
+  if (meta?.userAgent) { updateData.userAgent = meta.userAgent; createData.userAgent = meta.userAgent; }
+  if (meta?.ip) { updateData.ip = meta.ip; createData.ip = meta.ip; }
+  if (meta?.country) { updateData.country = meta.country; createData.country = meta.country; }
+  if (meta?.city) { updateData.city = meta.city; createData.city = meta.city; }
+  if (meta?.currentPage) { updateData.currentPage = meta.currentPage; createData.currentPage = meta.currentPage; }
+  if (meta?.referrer) { updateData.referrer = meta.referrer; createData.referrer = meta.referrer; }
+
   const visitor = await prisma.visitor.upsert({
     where: {
       orgId_visitorKey: {
@@ -29,17 +53,8 @@ export async function upsertVisitor(
         visitorKey,
       },
     },
-    update: {
-      lastSeenAt: new Date(),
-      userAgent: userAgent || undefined,
-    },
-    create: {
-      orgId,
-      visitorKey,
-      userAgent: userAgent || undefined,
-      firstSeenAt: new Date(),
-      lastSeenAt: new Date(),
-    },
+    update: updateData,
+    create: createData as any,
     select: {
       id: true,
       visitorKey: true,

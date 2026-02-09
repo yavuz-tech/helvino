@@ -36,6 +36,7 @@ import { adminOrgDirectoryRoutes } from "./routes/admin-orgs";
 import { portalWidgetConfigRoutes } from "./routes/portal-widget-config";
 import { portalAiConfigRoutes } from "./routes/portal-ai-config";
 import { portalWidgetSettingsRoutes } from "./routes/portal-widget-settings";
+import { portalDashboardRoutes } from "./routes/portal-dashboard";
 import { auditLogRoutes } from "./routes/audit-log-routes";
 import { portalNotificationRoutes } from "./routes/portal-notifications";
 import { portalConversationRoutes } from "./routes/portal-conversations";
@@ -209,6 +210,7 @@ fastify.register(adminOrgDirectoryRoutes); // Admin org directory (Step 11.39)
 fastify.register(portalWidgetConfigRoutes); // Portal widget config + domains (Step 11.40)
 fastify.register(portalAiConfigRoutes);    // Portal AI configuration
 fastify.register(portalWidgetSettingsRoutes); // Portal widget appearance settings (Step 11.52)
+fastify.register(portalDashboardRoutes);   // Portal dashboard (visitors, stats)
 fastify.register(auditLogRoutes); // Audit log routes: portal + admin (Step 11.42)
 fastify.register(portalNotificationRoutes); // Portal notifications (Step 11.43)
 
@@ -268,7 +270,14 @@ fastify.post<{
   let visitorId: string | undefined;
   if (visitorKey) {
     try {
-      const visitor = await upsertVisitor(org.id, visitorKey, userAgent);
+      const clientIp = (request.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
+        || request.headers["x-real-ip"] as string
+        || request.ip;
+      const visitor = await upsertVisitor(org.id, visitorKey, {
+        userAgent,
+        ip: clientIp || undefined,
+        currentPage: request.headers["referer"] as string || undefined,
+      });
       visitorId = visitor.id;
     } catch (error) {
       console.error("Failed to upsert visitor:", error);

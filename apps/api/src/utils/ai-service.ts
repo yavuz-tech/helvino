@@ -4,6 +4,7 @@
  * Supports OpenAI, Google Gemini, and Anthropic Claude.
  * Features: quota tracking, provider fallback, cost calculation,
  * response timing, and plan-based routing.
+ * Updated: Gemini 2.0 Flash models + seamless provider fallback
  * ═══════════════════════════════════════════════════════════════ */
 
 import OpenAI from "openai";
@@ -87,8 +88,11 @@ const PRICING: Record<string, { input: number; output: number }> = {
   "gpt-4o-mini":               { input: 0.15,  output: 0.60 },
   "gpt-4o":                    { input: 2.50,  output: 10.00 },
   "gpt-3.5-turbo":             { input: 0.50,  output: 1.50 },
-  "gemini-1.5-flash":          { input: 0.075, output: 0.30 },
+  "gemini-2.5-flash":          { input: 0.15,  output: 0.60 },
+  "gemini-2.0-flash":          { input: 0.10,  output: 0.40 },
+  "gemini-2.0-flash-lite":     { input: 0.075, output: 0.30 },
   "gemini-1.5-pro":            { input: 1.25,  output: 5.00 },
+  "gemini-1.5-flash":          { input: 0.075, output: 0.30 },  // legacy
   "claude-3-5-haiku-latest":   { input: 0.25,  output: 1.25 },
   "claude-3-5-sonnet-latest":  { input: 3.00,  output: 15.00 },
 };
@@ -130,7 +134,7 @@ export function getDefaultProviderForPlan(planKey: string): AiProvider {
 
 export function getDefaultModelForPlan(planKey: string, provider: AiProvider): string {
   if (provider === "gemini") {
-    return planKey === "free" ? "gemini-1.5-flash" : "gemini-1.5-pro";
+    return planKey === "free" ? "gemini-2.5-flash" : "gemini-2.5-flash";
   }
   if (provider === "openai") {
     return planKey === "enterprise" ? "gpt-4o" : "gpt-4o-mini";
@@ -184,8 +188,9 @@ export function getAvailableModels() {
   return [
     { id: "gpt-4o-mini", name: "GPT-4o Mini", provider: "openai" as AiProvider, description: "Fast & affordable", recommended: true, available: Boolean(process.env.OPENAI_API_KEY) },
     { id: "gpt-4o", name: "GPT-4o", provider: "openai" as AiProvider, description: "Most capable", recommended: false, available: Boolean(process.env.OPENAI_API_KEY) },
-    { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", provider: "gemini" as AiProvider, description: "Fast & free tier", recommended: true, available: Boolean(process.env.GEMINI_API_KEY) },
-    { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "gemini" as AiProvider, description: "Advanced reasoning", recommended: false, available: Boolean(process.env.GEMINI_API_KEY) },
+    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "gemini" as AiProvider, description: "Latest & fastest", recommended: true, available: Boolean(process.env.GEMINI_API_KEY) },
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "gemini" as AiProvider, description: "Fast & affordable", recommended: false, available: Boolean(process.env.GEMINI_API_KEY) },
+    { id: "gemini-2.0-flash-lite", name: "Gemini 2.0 Flash Lite", provider: "gemini" as AiProvider, description: "Ultra fast & free tier", recommended: false, available: Boolean(process.env.GEMINI_API_KEY) },
     { id: "claude-3-5-haiku-latest", name: "Claude 3.5 Haiku", provider: "claude" as AiProvider, description: "Fast & efficient", recommended: true, available: Boolean(process.env.ANTHROPIC_API_KEY) },
     { id: "claude-3-5-sonnet-latest", name: "Claude 3.5 Sonnet", provider: "claude" as AiProvider, description: "Best quality", recommended: false, available: Boolean(process.env.ANTHROPIC_API_KEY) },
   ];
@@ -246,7 +251,26 @@ export async function generateAiResponse(
   config: Partial<AiConfig> = {},
 ): Promise<AiGenerateResult> {
   const cfg: AiConfig = { ...DEFAULT_AI_CONFIG, ...config };
-  const primaryProvider = cfg.provider || "openai";
+
+  // Smart provider resolution: if the configured provider has no API key,
+  // silently switch to an available one BEFORE starting the fallback chain.
+  // This ensures the customer never sees a "provider unavailable" error.
+  let primaryProvider = cfg.provider || "openai";
+  const providerHasKey = (p: AiProvider) =>
+    (p === "openai" && !!process.env.OPENAI_API_KEY) ||
+    (p === "gemini" && !!process.env.GEMINI_API_KEY) ||
+    (p === "claude" && !!process.env.ANTHROPIC_API_KEY);
+
+  if (!providerHasKey(primaryProvider)) {
+    // Find the first available provider
+    const available = (["gemini", "openai", "claude"] as AiProvider[]).find(providerHasKey);
+    if (available) {
+      console.log(`[AI] Configured provider "${primaryProvider}" unavailable, using "${available}" instead`);
+      primaryProvider = available;
+      // Also fix the model to match the new provider
+      cfg.model = getDefaultModelForPlan("free", available);
+    }
+  }
 
   // Build system prompt
   const systemPrompt = [
@@ -341,36 +365,65 @@ async function generateOpenAI(messages: ConversationMessage[], systemPrompt: str
   return { ok: true, content, model: completion.model, provider: "openai", tokensUsed, inputTokens, outputTokens, cost: 0, responseTimeMs: 0 };
 }
 
-/* ── Gemini Provider ── */
+/* ── Gemini Provider (with retry for rate limits) ── */
 async function generateGemini(messages: ConversationMessage[], systemPrompt: string, cfg: AiConfig): Promise<AiGenerateResult> {
   const gemini = getGemini();
   if (!gemini) return { ok: false, error: "Gemini API key not configured", code: "NO_API_KEY" };
 
-  const modelId = cfg.model && cfg.model.startsWith("gemini") ? cfg.model : "gemini-1.5-flash";
-  const model = gemini.getGenerativeModel({
-    model: modelId,
-    systemInstruction: systemPrompt,
-    generationConfig: { temperature: cfg.temperature, maxOutputTokens: cfg.maxTokens },
-  });
+  // Map deprecated/unavailable model names to current ones
+  let modelId = cfg.model && cfg.model.startsWith("gemini") ? cfg.model : "gemini-2.5-flash";
+  // Upgrade deprecated models to latest
+  if (modelId === "gemini-1.5-flash" || modelId === "gemini-2.0-flash") modelId = "gemini-2.5-flash";
 
-  const history = messages.slice(0, -1).map((m) => ({
-    role: m.role === "assistant" ? "model" as const : "user" as const,
-    parts: [{ text: m.content }],
-  }));
+  // Retry up to 2 times with delay for rate limits
+  const maxRetries = 2;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const model = gemini.getGenerativeModel({
+        model: modelId,
+        systemInstruction: systemPrompt,
+        generationConfig: { temperature: cfg.temperature, maxOutputTokens: cfg.maxTokens },
+      });
 
-  const lastMsg = messages[messages.length - 1];
-  const chat = model.startChat({ history });
-  const result = await chat.sendMessage(lastMsg?.content || "Hello");
-  const content = result.response.text()?.trim();
-  if (!content) return { ok: false, error: "Empty response from Gemini", code: "GENERATION_FAILED" };
+      const history = messages.slice(0, -1).map((m) => ({
+        role: m.role === "assistant" ? "model" as const : "user" as const,
+        parts: [{ text: m.content }],
+      }));
 
-  // Gemini usage metadata
-  const usageMetadata = result.response.usageMetadata;
-  const inputTokens = usageMetadata?.promptTokenCount ?? 0;
-  const outputTokens = usageMetadata?.candidatesTokenCount ?? 0;
-  const tokensUsed = inputTokens + outputTokens;
+      const lastMsg = messages[messages.length - 1];
+      const chat = model.startChat({ history });
+      const result = await chat.sendMessage(lastMsg?.content || "Hello");
+      const content = result.response.text()?.trim();
+      if (!content) return { ok: false, error: "Empty response from Gemini", code: "GENERATION_FAILED" };
 
-  return { ok: true, content, model: modelId, provider: "gemini", tokensUsed, inputTokens, outputTokens, cost: 0, responseTimeMs: 0 };
+      // Gemini usage metadata
+      const usageMetadata = result.response.usageMetadata;
+      const inputTokens = usageMetadata?.promptTokenCount ?? 0;
+      const outputTokens = usageMetadata?.candidatesTokenCount ?? 0;
+      const tokensUsed = inputTokens + outputTokens;
+
+      return { ok: true, content, model: modelId, provider: "gemini", tokensUsed, inputTokens, outputTokens, cost: 0, responseTimeMs: 0 };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isRateLimit = msg.includes("429") || msg.includes("Too Many Requests") || msg.includes("quota");
+      if (isRateLimit && attempt < maxRetries) {
+        const delay = (attempt + 1) * 5000; // 5s, 10s
+        console.log(`[AI] Gemini rate limited (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay / 1000}s...`);
+        await new Promise(r => setTimeout(r, delay));
+        // On second retry, try a different model
+        if (attempt === 1) {
+          const fallbackModel = modelId === "gemini-2.5-flash" ? "gemini-2.0-flash" : "gemini-2.0-flash-lite";
+          console.log(`[AI] Switching to fallback model: ${fallbackModel}`);
+          modelId = fallbackModel;
+        }
+        continue;
+      }
+      // Re-throw so the outer fallback chain catches it
+      throw err;
+    }
+  }
+
+  return { ok: false, error: "Gemini max retries exhausted", code: "RATE_LIMITED" };
 }
 
 /* ── Claude Provider ── */

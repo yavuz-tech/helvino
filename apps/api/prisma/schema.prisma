@@ -150,6 +150,11 @@ model Visitor {
   firstSeenAt    DateTime       @default(now())
   lastSeenAt     DateTime       @default(now())
   userAgent      String?
+  ip             String?
+  country        String?        // ISO 3166-1 alpha-2 (e.g. "TR", "US", "DE")
+  city           String?
+  currentPage    String?
+  referrer       String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   conversations  Conversation[]

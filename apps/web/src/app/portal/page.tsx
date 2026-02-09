@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   portalApiFetch,
   type PortalUser,
@@ -9,68 +10,83 @@ import {
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import MfaPolicyBanner from "@/components/MfaPolicyBanner";
 import OnboardingOverlay from "@/components/OnboardingOverlay";
-import SecurityBadges from "@/components/SecurityBadges";
 import TrialBanner from "@/components/TrialBanner";
 import UsageNudge from "@/components/UsageNudge";
-import EmbedChecklist from "@/components/EmbedChecklist";
-import WidgetStatusBanner from "@/components/WidgetStatusBanner";
-import ConversationNudge from "@/components/ConversationNudge";
-import AIUsageStats from "@/components/AIUsageStats";
 import UpgradeModal from "@/components/UpgradeModal";
 import {
-  MessageSquare,
-  Palette,
-  Bell,
-  Shield,
-  CreditCard,
-  Users,
-  BarChart3,
-  FileText,
-  Settings,
-  ArrowRight,
-  CheckCircle2,
-  Zap,
-  Bot,
-  Sparkles,
-  Globe,
-  GitBranch,
-  ChevronRight,
-  Activity,
-  Code,
-  TrendingUp,
-  Clock,
-  Eye,
+  MessageSquare, Bot, Sparkles, Globe, Zap, TrendingUp,
+  ArrowRight, CheckCircle2, Users, BarChart3, Eye,
+  Shield, CreditCard, Activity, ExternalLink,
+  Monitor, Smartphone, Chrome, X, Lock, Crown,
+  Code, Palette, Bell, Settings, ChevronRight, Send,
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 
+/* ── Types ── */
 interface OrgInfo {
-  id: string;
-  key: string;
-  name: string;
-  siteId: string;
-  allowLocalhost: boolean;
-  allowedDomains: string[];
-  widgetEnabled: boolean;
-  writeEnabled: boolean;
-  aiEnabled: boolean;
-  messageRetentionDays: number;
-  hardDeleteOnRetention: boolean;
+  id: string; key: string; name: string; siteId: string;
+  allowLocalhost: boolean; allowedDomains: string[];
+  widgetEnabled: boolean; writeEnabled: boolean; aiEnabled: boolean;
+  messageRetentionDays: number; hardDeleteOnRetention: boolean;
 }
 
+interface DashboardStats {
+  conversations: { open: number; closed: number; total: number };
+  messages: { today: number; thisWeek: number; thisMonth: number };
+  ai: { totalResponses: number; monthlyUsage: number; monthlyLimit: number; avgResponseTimeMs: number; enabled: boolean };
+  usage: { conversations: number; messages: number; humanConversations: number; aiResponses: number; visitorsReached: number };
+  widget: { enabled: boolean; totalLoads: number; lastSeen: string | null };
+  plan: string;
+}
+
+interface LiveVisitor {
+  id: string; visitorKey: string; ip: string | null; country: string | null;
+  city: string | null; browser: string; os: string; device: string;
+  currentPage: string | null; referrer: string | null;
+  firstSeenAt: string; lastSeenAt: string; conversationCount: number;
+}
+
+interface VisitorsData {
+  live: LiveVisitor[];
+  recent: LiveVisitor[];
+  counts: { live: number; today: number; total: number };
+}
+
+/* ── Country flag helper ── */
+function countryToFlag(code: string | null): string {
+  if (!code || code.length !== 2) return "\uD83C\uDF10"; // globe
+  const offset = 127397;
+  return String.fromCodePoint(...[...code.toUpperCase()].map(c => c.charCodeAt(0) + offset));
+}
+
+function timeAgo(dateStr: string): string {
+  try {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  } catch { return ""; }
+}
+
+/* ═══════════════════════════════════════════════════ */
 export default function PortalOverviewPage() {
   const { user, loading: authLoading } = usePortalAuth();
   const { t } = useI18n();
+  const router = useRouter();
   const [org, setOrg] = useState<OrgInfo | null>(null);
   const [showMfaBanner, setShowMfaBanner] = useState(false);
-  const [snippetCopied, setSnippetCopied] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [chatLoading, setChatLoading] = useState<string | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [visitors, setVisitors] = useState<VisitorsData | null>(null);
+  const [convCounts, setConvCounts] = useState({ unassigned: 0, myOpen: 0, solved: 0 });
 
   const [conversionSignals, setConversionSignals] = useState<{
-    firstConversationAt: string | null;
-    firstWidgetEmbedAt: string | null;
-    firstInviteSentAt: string | null;
+    firstConversationAt: string | null; firstWidgetEmbedAt: string | null; firstInviteSentAt: string | null;
   } | null>(null);
-
   const [trial, setTrial] = useState<{ daysLeft: number; isExpired: boolean; isTrialing: boolean; endsAt: string | null } | null>(null);
   const [usage, setUsage] = useState<{ usedConversations: number; limitConversations: number; usedMessages: number; limitMessages: number } | null>(null);
 
@@ -78,47 +94,55 @@ export default function PortalOverviewPage() {
     if (authLoading || !user) return;
 
     if (!(user as PortalUser & { mfaEnabled?: boolean }).mfaEnabled) {
-      portalApiFetch("/portal/security/mfa-policy")
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data?.portalMfaRecommended) setShowMfaBanner(true);
-        })
-        .catch(() => {});
+      portalApiFetch("/portal/security/mfa-policy").then(r => r.ok ? r.json() : null).then(d => { if (d?.portalMfaRecommended) setShowMfaBanner(true); }).catch(() => {});
     }
 
-    portalApiFetch("/portal/org/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.org) setOrg(data.org);
-      })
-      .catch(() => {});
+    portalApiFetch("/portal/org/me").then(r => r.ok ? r.json() : null).then(d => { if (d?.org) setOrg(d.org); }).catch(() => {});
+    portalApiFetch("/portal/billing/status").then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.conversionSignals) setConversionSignals(d.conversionSignals);
+      if (d?.trial) setTrial(d.trial);
+      if (d?.usage) setUsage(d.usage);
+    }).catch(() => {});
+    portalApiFetch("/portal/conversations/counts").then(r => r.ok ? r.json() : null).then(d => {
+      if (d) setConvCounts({ unassigned: d.unassigned ?? 0, myOpen: d.myOpen ?? 0, solved: d.solved ?? 0 });
+    }).catch(() => {});
+    portalApiFetch("/portal/dashboard/stats").then(r => r.ok ? r.json() : null).then(d => { if (d) setStats(d); }).catch(() => {});
+    portalApiFetch("/portal/dashboard/visitors").then(r => r.ok ? r.json() : null).then(d => { if (d) setVisitors(d); }).catch(() => {});
+  }, [authLoading, user]);
 
-    portalApiFetch("/portal/billing/status")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.conversionSignals) setConversionSignals(data.conversionSignals);
-        if (data?.trial) setTrial(data.trial);
-        if (data?.usage) setUsage(data.usage);
-      })
-      .catch(() => {});
+  // Poll visitors every 30s
+  useEffect(() => {
+    if (authLoading || !user) return;
+    const interval = setInterval(() => {
+      portalApiFetch("/portal/dashboard/visitors").then(r => r.ok ? r.json() : null).then(d => { if (d) setVisitors(d); }).catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
   }, [authLoading, user]);
 
   const widgetConnected = !!conversionSignals?.firstWidgetEmbedAt;
   const domainsConfigured = !!org && ((org.allowedDomains?.length ?? 0) > 0 || org.allowLocalhost);
-  const hasConversation = !!conversionSignals?.firstConversationAt;
-
-  const handleCopySnippet = () => {
-    if (!org) return;
-    const snippet = `<!-- Helvion Chat Widget -->\n<script>window.HELVINO_SITE_ID="${org.siteId}";</script>\n<script src="https://cdn.helvion.io/embed.js"></script>`;
-    navigator.clipboard.writeText(snippet).catch(() => {});
-    setSnippetCopied(true);
-    setTimeout(() => setSnippetCopied(false), 2000);
-  };
-
   const userName = user?.email?.split("@")[0] || "";
+  const planKey = stats?.plan || "FREE";
+  const isPro = planKey === "PRO" || planKey === "ENTERPRISE";
+
+  const handleStartChat = useCallback(async (visitorId: string) => {
+    setChatLoading(visitorId);
+    try {
+      const res = await portalApiFetch(`/portal/dashboard/visitors/${visitorId}/chat`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/portal/inbox?c=${data.conversationId}`);
+      }
+    } catch { /* ignore */ }
+    setChatLoading(null);
+  }, [router]);
+
+  if (authLoading) {
+    return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-[#1A1A2E] animate-spin" /></div>;
+  }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <OnboardingOverlay area="portal" />
 
       {/* ═══ Alerts ═══ */}
@@ -128,291 +152,591 @@ export default function PortalOverviewPage() {
           {trial && (trial.isTrialing || trial.isExpired) && (
             <TrialBanner daysLeft={trial.daysLeft} isExpired={trial.isExpired} isTrialing={trial.isTrialing} endsAt={trial.endsAt} />
           )}
-          {usage && (
-            <UsageNudge
-              usedConversations={usage.usedConversations}
-              limitConversations={usage.limitConversations}
-              usedMessages={usage.usedMessages}
-              limitMessages={usage.limitMessages}
-            />
-          )}
+          {usage && <UsageNudge usedConversations={usage.usedConversations} limitConversations={usage.limitConversations} usedMessages={usage.usedMessages} limitMessages={usage.limitMessages} />}
         </div>
       )}
 
-      {/* ═══ Hero Section ═══ */}
-      <div>
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
-          {t("portalOnboarding.greeting")}{userName ? `, ${userName}` : ""}
-        </h1>
-        <p className="text-base text-slate-500 mt-2 max-w-xl">
-          {t("portalOnboarding.subtitle")}
-          {org && <span className="font-medium text-slate-600"> &mdash; {org.name}</span>}
-        </p>
+      {/* ═══ Hero + Title ═══ */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+            {t("portalOnboarding.greeting")}{userName ? `, ${userName}` : ""}
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {t("portalOnboarding.subtitle")}
+            {org && <span className="font-semibold text-slate-600"> — {org.name}</span>}
+          </p>
+        </div>
+        {trial && trial.isTrialing && (
+          <Link href="/portal/billing" className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl hover:from-blue-700 hover:to-indigo-700 shadow-sm shadow-blue-500/20 transition-all">
+            <Crown size={14} /> Upgrade
+          </Link>
+        )}
       </div>
 
-      {/* ═══ Stats Row — Large Premium Cards ═══ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* AI Status */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-6 text-white">
-          <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full" />
-          <div className="relative">
-            <div className="w-12 h-12 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center mb-4">
-              <Bot size={24} className="text-white" />
+      {/* ═══ MAIN LAYOUT: Content + Sidebar ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+        {/* ── LEFT COLUMN (3/4) ── */}
+        <div className="lg:col-span-3 space-y-6">
+
+          {/* Quick Actions Row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Link href="/portal/inbox" className="group relative bg-gradient-to-br from-blue-50/60 to-indigo-50/30 rounded-2xl border border-blue-100/50 p-5 hover:shadow-lg hover:border-blue-200/60 transition-all duration-300">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-3 shadow-sm shadow-blue-500/20 group-hover:scale-105 transition-transform">
+                <MessageSquare size={20} className="text-white" />
+              </div>
+              <p className="text-sm font-bold text-slate-800">{t("dashboard.quickActions.liveConversations")}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{t("dashboard.quickActions.liveConversationsDesc").replace("{count}", String(convCounts.unassigned))}</p>
+            </Link>
+
+            <Link href="/portal/ai" className="group relative bg-gradient-to-br from-violet-50/60 to-purple-50/30 rounded-2xl border border-violet-100/50 p-5 hover:shadow-lg hover:border-violet-200/60 transition-all duration-300">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-3 shadow-sm shadow-violet-500/20 group-hover:scale-105 transition-transform">
+                <Bot size={20} className="text-white" />
+              </div>
+              <p className="text-sm font-bold text-slate-800">{t("dashboard.quickActions.aiAgent")}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{t("dashboard.quickActions.aiAgentDesc")}</p>
+            </Link>
+
+            <div className="group relative bg-gradient-to-br from-emerald-50/60 to-teal-50/30 rounded-2xl border border-emerald-100/50 p-5 hover:shadow-lg hover:border-emerald-200/60 transition-all duration-300 cursor-default">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-3 shadow-sm shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+                <Eye size={20} className="text-white" />
+              </div>
+              <p className="text-sm font-bold text-slate-800">{t("dashboard.quickActions.liveVisitors")}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{t("dashboard.quickActions.liveVisitorsDesc").replace("{count}", String(visitors?.counts.live ?? 0))}</p>
             </div>
-            <p className="text-2xl font-extrabold leading-none mb-1">
-              {org?.aiEnabled ? t("dashboard.aiCard.enabled") : t("dashboard.aiCard.disabled")}
-            </p>
-            <p className="text-sm text-blue-200/80">{t("dashboard.aiCard.status")}</p>
-            <Link href="/portal/ai" className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-100 hover:text-white transition-colors">
-              {t("dashboard.aiHero.cta")} <ArrowRight size={13} />
+
+            <Link href="/portal/usage" className="group relative bg-gradient-to-br from-amber-50/60 to-orange-50/30 rounded-2xl border border-amber-100/50 p-5 hover:shadow-lg hover:border-amber-200/60 transition-all duration-300">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center mb-3 shadow-sm shadow-amber-500/20 group-hover:scale-105 transition-transform">
+                <BarChart3 size={20} className="text-white" />
+              </div>
+              <p className="text-sm font-bold text-slate-800">{t("portalOnboarding.quickActions.usage.title")}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{stats?.messages.thisMonth ?? 0} msg</p>
             </Link>
           </div>
-        </div>
 
-        {/* AI Responses */}
-        <div className="rounded-2xl bg-white border border-slate-200 p-6 hover:shadow-lg hover:shadow-slate-200/50 transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center mb-4">
-            <Sparkles size={22} className="text-emerald-500" />
+          {/* Performance Section */}
+          <div className="space-y-4">
+
+            {/* Insight tip */}
+            <div className="flex items-center gap-3 px-5 py-3 bg-white border border-slate-200/80 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 rounded-lg text-[10px] font-bold text-blue-600 flex-shrink-0">
+                <Sparkles size={10} /> {t("dashboard.insight")}
+              </div>
+              <p className="text-[12px] text-slate-500 flex-1">{t("dashboard.insight.proactive")} <Link href="/portal/inbox" className="text-[#1A1A2E] hover:underline font-semibold">{t("dashboard.insight.chatWithVisitors")}</Link></p>
+            </div>
+
+            {/* 3 stat cards */}
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                {
+                  label: t("dashboard.performance.interactions"),
+                  value: stats?.messages.thisMonth ?? 0,
+                  icon: <MessageSquare size={16} />,
+                  iconBg: "bg-[#1A1A2E]",
+                  tint: "from-slate-50/80 to-blue-50/40",
+                  border: "border-slate-200/70",
+                },
+                {
+                  label: t("dashboard.performance.aiResolution"),
+                  value: stats && stats.usage.conversations > 0
+                    ? `${Math.round((stats.ai.totalResponses / Math.max(stats.usage.conversations, 1)) * 100)}%`
+                    : "0%",
+                  icon: <Bot size={16} />,
+                  iconBg: "bg-emerald-600",
+                  tint: "from-emerald-50/50 to-teal-50/30",
+                  border: "border-emerald-100/50",
+                },
+                {
+                  label: t("dashboard.performance.leadsAcquired"),
+                  value: stats?.usage.visitorsReached ?? 0,
+                  icon: <TrendingUp size={16} />,
+                  iconBg: "bg-amber-600",
+                  tint: "from-amber-50/50 to-orange-50/30",
+                  border: "border-amber-100/50",
+                },
+              ].map((card, i) => (
+                <div key={i} className={`bg-gradient-to-br ${card.tint} rounded-2xl border ${card.border} p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,26,46,0.06)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,26,46,0.08)] transition-shadow`}>
+                  <div className={`w-9 h-9 rounded-xl ${card.iconBg} flex items-center justify-center mb-4`}>
+                    <span className="text-white">{card.icon}</span>
+                  </div>
+                  <p className="text-3xl font-extrabold text-slate-900 leading-none tabular-nums mb-1.5">{card.value}</p>
+                  <p className="text-[11px] font-medium text-slate-400">{card.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Bottom metrics row */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)] grid grid-cols-4 divide-x divide-slate-100">
+              {[
+                { label: t("dashboard.performance.repliedLive"), value: stats?.usage.humanConversations ?? 0, dot: "bg-[#1A1A2E]" },
+                { label: t("dashboard.performance.repliedTickets"), value: 0, dot: "bg-slate-300" },
+                { label: t("dashboard.performance.flowInteractions"), value: 0, dot: "bg-slate-300" },
+                { label: t("dashboard.performance.aiConversations"), value: stats?.ai.totalResponses ?? 0, dot: "bg-emerald-500" },
+              ].map((item, i) => (
+                <div key={i} className="px-5 py-4 flex items-center gap-3">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.dot}`} />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-slate-400 truncate">{item.label}</p>
+                    <p className="text-sm font-semibold text-slate-800 tabular-nums mt-0.5">{item.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <p className="text-3xl font-extrabold text-slate-900 leading-none mb-1">&mdash;</p>
-          <p className="text-sm text-slate-500">{t("dashboard.stat.aiResponses")}</p>
-          <p className="text-xs text-slate-400 mt-1">{t("dashboard.stat.aiResponsesDesc")}</p>
-        </div>
 
-        {/* Response Time */}
-        <div className="rounded-2xl bg-white border border-slate-200 p-6 hover:shadow-lg hover:shadow-slate-200/50 transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center mb-4">
-            <Zap size={22} className="text-amber-500" />
-          </div>
-          <p className="text-3xl font-extrabold text-slate-900 leading-none mb-1">&lt;2s</p>
-          <p className="text-sm text-slate-500">{t("dashboard.stat.avgResponseTime")}</p>
-          <p className="text-xs text-slate-400 mt-1">{t("dashboard.stat.avgResponseTimeDesc")}</p>
-        </div>
-
-        {/* Satisfaction */}
-        <div className="rounded-2xl bg-white border border-slate-200 p-6 hover:shadow-lg hover:shadow-slate-200/50 transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-violet-50 flex items-center justify-center mb-4">
-            <TrendingUp size={22} className="text-violet-500" />
-          </div>
-          <p className="text-3xl font-extrabold text-slate-900 leading-none mb-1">&mdash;</p>
-          <p className="text-sm text-slate-500">{t("dashboard.stat.satisfaction")}</p>
-          <p className="text-xs text-slate-400 mt-1">{t("dashboard.stat.satisfactionDesc")}</p>
-        </div>
-      </div>
-
-      {/* ═══ AI Usage Quota ═══ */}
-      <AIUsageStats prominent onUpgradeNeeded={() => setShowUpgradeModal(true)} />
-
-      {/* ═══ Capabilities — Rich Feature Cards ═══ */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="group rounded-2xl bg-white border border-slate-200 p-6 hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100/50 transition-all cursor-default">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-            <Bot size={26} className="text-blue-600" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-900 mb-2">{t("dashboard.feature.aiTitle")}</h3>
-          <p className="text-sm text-slate-500 leading-relaxed">{t("dashboard.feature.aiDesc")}</p>
-        </div>
-
-        <div className="group rounded-2xl bg-white border border-slate-200 p-6 hover:border-violet-300 hover:shadow-lg hover:shadow-violet-100/50 transition-all cursor-default">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-50 to-violet-100 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-            <Globe size={26} className="text-violet-600" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-900 mb-2">{t("dashboard.feature.multiLangTitle")}</h3>
-          <p className="text-sm text-slate-500 leading-relaxed">{t("dashboard.feature.multiLangDesc")}</p>
-        </div>
-
-        <div className="group rounded-2xl bg-white border border-slate-200 p-6 hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100/50 transition-all cursor-default">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-            <GitBranch size={26} className="text-emerald-600" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-900 mb-2">{t("dashboard.feature.smartRoutingTitle")}</h3>
-          <p className="text-sm text-slate-500 leading-relaxed">{t("dashboard.feature.smartRoutingDesc")}</p>
-        </div>
-      </div>
-
-      {/* ═══ Widget Setup Section ═══ */}
-      {org && (
-        <div className="space-y-5">
-          <WidgetStatusBanner status={widgetConnected ? "ready" : "loading"} />
-          <EmbedChecklist
-            siteId={org.siteId}
-            snippetCopied={snippetCopied}
-            domainsConfigured={domainsConfigured}
-            widgetConnected={widgetConnected}
-            onCopySnippet={handleCopySnippet}
+          {/* ═══ Live Visitors Section ═══ */}
+          <LiveVisitorsPanel
+            visitors={visitors}
+            isPro={isPro}
+            onStartChat={handleStartChat}
+            chatLoading={chatLoading}
+            onUpgrade={() => setShowUpgradeModal(true)}
+            t={t}
           />
-        </div>
-      )}
 
-      <ConversationNudge widgetConnected={widgetConnected} hasConversation={hasConversation} />
-
-      {/* ═══ Two Column Layout: Getting Started + Quick Actions ═══ */}
-      <div className="grid gap-6 lg:grid-cols-5">
-
-        {/* LEFT: Getting Started (3 cols) */}
-        <div className="lg:col-span-3">
-          <div className="rounded-2xl bg-white border border-slate-200 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          {/* Setup Checklist (compact) */}
+          <div className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-                  <Zap size={18} className="text-white" />
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+                  <Zap size={16} className="text-white" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-slate-900">{t("portalOnboarding.setupCard.title")}</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {t("portalOnboarding.setupCard.tasksComplete")
-                      .replace("{completed}", String([widgetConnected, domainsConfigured, hasConversation].filter(Boolean).length))
-                      .replace("{total}", "5")}
-                  </p>
+                  <h2 className="text-[15px] font-bold text-slate-900">{t("dashboard.setupBanner")}</h2>
+                  <p className="text-[11px] text-slate-400">{t("dashboard.setupBanner.desc")}</p>
                 </div>
               </div>
-              {/* Progress ring */}
-              <div className="relative w-12 h-12">
-                <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="#f1f5f9" strokeWidth="3" />
-                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="97.4" strokeDashoffset={97.4 - (97.4 * [widgetConnected, domainsConfigured, hasConversation].filter(Boolean).length) / 5} strokeLinecap="round" className="transition-all duration-700" />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-700">
-                  {[widgetConnected, domainsConfigured, hasConversation].filter(Boolean).length}/5
-                </span>
-              </div>
+              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg tabular-nums">
+                {[widgetConnected, domainsConfigured, !!conversionSignals?.firstConversationAt].filter(Boolean).length}/5
+              </span>
             </div>
-
-            <div className="p-3">
-              <div className="space-y-1.5">
-                {[
-                  { href: "/portal/widget", icon: MessageSquare, titleKey: "portalOnboarding.task.widget.title" as const, descKey: "portalOnboarding.task.widget.desc" as const, done: widgetConnected, gradient: "from-blue-500 to-blue-600" },
-                  { href: "/portal/widget-appearance", icon: Palette, titleKey: "portalOnboarding.task.appearance.title" as const, descKey: "portalOnboarding.task.appearance.desc" as const, done: false, gradient: "from-pink-500 to-rose-600" },
-                  { href: "/portal/inbox", icon: Bell, titleKey: "portalOnboarding.task.inbox.title" as const, descKey: "portalOnboarding.task.inbox.desc" as const, done: hasConversation, gradient: "from-amber-500 to-orange-600" },
-                  { href: "/portal/security", icon: Shield, titleKey: "portalOnboarding.task.security.title" as const, descKey: "portalOnboarding.task.security.desc" as const, done: domainsConfigured, gradient: "from-emerald-500 to-teal-600" },
-                  { href: "/portal/billing", icon: CreditCard, titleKey: "portalOnboarding.task.billing.title" as const, descKey: "portalOnboarding.task.billing.desc" as const, done: false, gradient: "from-violet-500 to-purple-600" },
-                ].map((task) => {
-                  const Icon = task.icon;
-                  return (
-                    <Link key={task.href} href={task.href}
-                      className="group flex items-center gap-5 px-5 py-5 rounded-xl hover:bg-slate-50 transition-all">
-                      {/* Icon */}
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm transition-all ${
-                        task.done
-                          ? "bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-500/20"
-                          : `bg-gradient-to-br ${task.gradient} shadow-slate-300/20 group-hover:shadow-md`
-                      }`}>
-                        {task.done
-                          ? <CheckCircle2 size={22} className="text-white" />
-                          : <Icon size={22} className="text-white" />
-                        }
-                      </div>
-
-                      {/* Text */}
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-base font-semibold leading-snug ${task.done ? "text-emerald-700" : "text-slate-800 group-hover:text-slate-900"}`}>
-                          {t(task.titleKey)}
-                        </p>
-                        <p className="text-sm text-slate-400 mt-1 leading-relaxed">{t(task.descKey)}</p>
-                      </div>
-
-                      {/* Status / Arrow */}
-                      {task.done ? (
-                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200/60 px-3 py-1.5 rounded-lg flex-shrink-0">
-                          {t("embed.completed")}
-                        </span>
-                      ) : (
-                        <div className="w-9 h-9 rounded-lg bg-slate-100 group-hover:bg-slate-200 flex items-center justify-center flex-shrink-0 transition-colors">
-                          <ArrowRight size={16} className="text-slate-400 group-hover:text-slate-600" />
-                        </div>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
+            <div className="p-2">
+              {[
+                { href: "/portal/widget", icon: Code, label: t("portalOnboarding.task.widget.title"), desc: t("portalOnboarding.task.widget.desc"), done: widgetConnected, gradient: "from-blue-500 to-blue-600" },
+                { href: "/portal/widget-appearance", icon: Palette, label: t("portalOnboarding.task.appearance.title"), desc: t("portalOnboarding.task.appearance.desc"), done: false, gradient: "from-pink-500 to-rose-600" },
+                { href: "/portal/inbox", icon: Bell, label: t("portalOnboarding.task.inbox.title"), desc: t("portalOnboarding.task.inbox.desc"), done: !!conversionSignals?.firstConversationAt, gradient: "from-amber-500 to-orange-600" },
+                { href: "/portal/security", icon: Shield, label: t("portalOnboarding.task.security.title"), desc: t("portalOnboarding.task.security.desc"), done: domainsConfigured, gradient: "from-emerald-500 to-teal-600" },
+                { href: "/portal/billing", icon: CreditCard, label: t("portalOnboarding.task.billing.title"), desc: t("portalOnboarding.task.billing.desc"), done: false, gradient: "from-violet-500 to-purple-600" },
+              ].map(task => {
+                const Icon = task.icon;
+                return (
+                  <Link key={task.href} href={task.href} className="group flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-slate-50/80 transition-all">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${task.done ? "bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-500/20" : `bg-gradient-to-br ${task.gradient}`}`}>
+                      {task.done ? <CheckCircle2 size={18} className="text-white" /> : <Icon size={18} className="text-white" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold ${task.done ? "text-emerald-700" : "text-slate-800"}`}>{task.label}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{task.desc}</p>
+                    </div>
+                    {task.done ? (
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">{t("embed.completed")}</span>
+                    ) : (
+                      <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 flex-shrink-0" />
+                    )}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* RIGHT: Quick Actions + More (2 cols) */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* ── RIGHT SIDEBAR (1/4) ── */}
+        <div className="space-y-5">
 
-          {/* Quick Actions */}
-          <div className="rounded-2xl bg-white border border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100">
-              <h2 className="text-base font-bold text-slate-900">{t("portalOnboarding.quickActions.title")}</h2>
+          {/* Project Status */}
+          <div className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-100">
+              <h3 className="text-[13px] font-bold text-slate-900">{t("dashboard.projectStatus")}</h3>
             </div>
-            <div className="p-3">
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { href: "/portal/inbox", icon: MessageSquare, label: t("portalOnboarding.quickActions.inbox.title"), bg: "from-blue-500 to-blue-600" },
-                  { href: "/portal/ai", icon: Bot, label: t("nav.ai"), bg: "from-violet-500 to-violet-600" },
-                  { href: "/portal/widget", icon: Code, label: "Widget", bg: "from-emerald-500 to-emerald-600" },
-                  { href: "/portal/widget-appearance", icon: Palette, label: t("widgetAppearance.title"), bg: "from-pink-500 to-pink-600" },
-                  { href: "/portal/team", icon: Users, label: t("portalOnboarding.quickActions.team.title"), bg: "from-amber-500 to-amber-600" },
-                  { href: "/portal/usage", icon: BarChart3, label: t("portalOnboarding.quickActions.usage.title"), bg: "from-cyan-500 to-cyan-600" },
-                  { href: "/portal/billing", icon: CreditCard, label: t("portalOnboarding.quickActions.billing.title"), bg: "from-indigo-500 to-indigo-600" },
-                  { href: "/portal/settings", icon: Settings, label: t("portalOnboarding.quickActions.settings.title"), bg: "from-slate-500 to-slate-600" },
-                ].map((a) => {
-                  const Icon = a.icon;
-                  return (
-                    <Link key={a.href + a.label} href={a.href}
-                      className="group flex items-center gap-3 p-3.5 rounded-xl hover:bg-slate-50 transition-colors">
-                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${a.bg} flex items-center justify-center flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow`}>
-                        <Icon size={18} className="text-white" />
-                      </div>
-                      <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 leading-tight">{a.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Security & Account */}
-          <div className="rounded-2xl bg-white border border-slate-200 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
-                <Shield size={18} className="text-slate-600" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900">{t("nav.security")}</h3>
-                <p className="text-xs text-slate-400">{t("portalOnboarding.task.security.desc")}</p>
-              </div>
-            </div>
-            {user && (
-              <SecurityBadges
-                mfaEnabled={(user as PortalUser & { mfaEnabled?: boolean }).mfaEnabled}
+            <div className="p-4 space-y-3.5">
+              {/* Chat Widget */}
+              <ProjectStatusItem
+                label={t("dashboard.projectStatus.chatWidget")}
+                status={widgetConnected}
+                statusText={widgetConnected ? t("dashboard.projectStatus.chatWidgetInstalled") : t("dashboard.projectStatus.chatWidgetNotInstalled")}
+                actionText={t("dashboard.projectStatus.installWidget")}
+                href="/portal/widget"
               />
-            )}
-            <Link href="/portal/security"
-              className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 w-full justify-center text-sm font-semibold text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">
-              {t("mfaPolicy.goToSecurity")} <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          {/* Workspace */}
-          {org && (
-            <div className="rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200/60 p-6">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">{t("portal.workspaceName")}</h4>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500">{t("portal.workspaceName")}</span>
-                  <span className="text-sm font-bold text-slate-800">{org.name}</span>
-                </div>
-                <div className="h-px bg-slate-200/60" />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500">{t("portal.key")}</span>
-                  <span className="text-sm font-mono font-semibold text-slate-700 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-sm">{org.key}</span>
-                </div>
-                <div className="h-px bg-slate-200/60" />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500">Site ID</span>
-                  <span className="text-xs font-mono text-slate-600 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-sm truncate max-w-[160px]">{org.siteId}</span>
+              {/* AI Agent */}
+              <ProjectStatusItem
+                label={t("dashboard.projectStatus.aiAgent")}
+                status={!!stats?.ai.enabled}
+                statusText={stats?.ai.enabled ? t("dashboard.projectStatus.aiAgentActive") : t("dashboard.projectStatus.aiAgentInactive")}
+                actionText={t("dashboard.projectStatus.setupAi")}
+                href="/portal/ai"
+              />
+              {/* Domains */}
+              <ProjectStatusItem
+                label={t("dashboard.projectStatus.domains")}
+                status={domainsConfigured}
+                statusText={domainsConfigured ? t("dashboard.projectStatus.domainsConfigured") : t("dashboard.projectStatus.domainsNotConfigured")}
+                actionText={t("dashboard.projectStatus.configureDomains")}
+                href="/portal/security"
+              />
+              {/* Channels */}
+              <div className="pt-2 border-t border-slate-50">
+                <p className="text-[11px] text-slate-400 mb-2">{t("dashboard.projectStatus.addChannel")}</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center cursor-default" title="Web Widget">
+                    <MessageSquare size={14} className="text-blue-500" />
+                  </div>
+                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center cursor-not-allowed opacity-40" title="WhatsApp (coming soon)">
+                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
+                  </div>
+                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center cursor-not-allowed opacity-40" title="Instagram (coming soon)">
+                    <svg className="w-4 h-4 text-pink-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" /></svg>
+                  </div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
+
+          {/* Current Usage */}
+          <div className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-100">
+              <h3 className="text-[13px] font-bold text-slate-900">{t("dashboard.currentUsage")}</h3>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Customer Service */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[12px] font-bold text-slate-700">{t("dashboard.currentUsage.customerService")}</span>
+                  <span className="text-[10px] font-semibold text-slate-400 bg-slate-50 px-2 py-0.5 rounded">{planKey === "FREE" ? "Free trial" : planKey}</span>
+                </div>
+                <UsageBar label={t("dashboard.currentUsage.billableConversations")} used={stats?.usage.conversations ?? 0} limit={usage?.limitConversations ?? 100} />
+              </div>
+
+              {/* AI */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[12px] font-bold text-slate-700">{t("dashboard.quickActions.aiAgent")}</span>
+                </div>
+                <UsageBar label={t("dashboard.currentUsage.aiConversations")} used={stats?.ai.monthlyUsage ?? 0} limit={stats?.ai.monthlyLimit ?? 100} />
+              </div>
+
+              {/* Visitors */}
+              <div>
+                <UsageBar label={t("dashboard.currentUsage.visitorsReached")} used={stats?.usage.visitorsReached ?? 0} limit={-1} />
+              </div>
+
+              <Link href="/portal/billing" className="flex items-center justify-center gap-2 w-full py-2.5 text-[12px] font-bold text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors">
+                <Crown size={13} /> Upgrade
+              </Link>
+            </div>
+          </div>
+
+          {/* Quick Nav */}
+          <div className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden">
+            <div className="p-2">
+              {[
+                { href: "/portal/team", icon: Users, label: t("portalOnboarding.quickActions.team.title") },
+                { href: "/portal/settings", icon: Settings, label: t("portalOnboarding.quickActions.settings.title") },
+                { href: "/portal/audit", icon: Shield, label: t("nav.audit") },
+              ].map(a => {
+                const Icon = a.icon;
+                return (
+                  <Link key={a.href} href={a.href} className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600 hover:text-slate-800">
+                    <Icon size={16} className="text-slate-400" /> {a.label} <ChevronRight size={14} className="text-slate-300 ml-auto" />
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ═══ Upgrade Modal ═══ */}
       <UpgradeModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LIVE VISITORS PANEL — Premium component
+   ═══════════════════════════════════════════════════════════════ */
+function LiveVisitorsPanel({ visitors, isPro, onStartChat, chatLoading, onUpgrade, t }: {
+  visitors: VisitorsData | null; isPro: boolean;
+  onStartChat: (id: string) => void; chatLoading: string | null;
+  onUpgrade: () => void; t: (key: any) => string;
+}) {
+  const liveCount = visitors?.counts.live ?? 0;
+  const allLive = visitors?.live ?? [];
+  const allRecent = visitors?.recent ?? [];
+  const FREE_LIMIT = 3;
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+
+      {/* ── Header ── */}
+      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm shadow-emerald-500/20">
+              <Eye size={18} className="text-white" />
+            </div>
+            {liveCount > 0 && (
+              <>
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-400 rounded-full animate-ping" />
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white" />
+              </>
+            )}
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-slate-900">{t("dashboard.liveVisitors")}</h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">{t("dashboard.liveVisitors.desc")}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {liveCount > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200/50 rounded-full">
+              <span className="relative flex h-2 w-2"><span className="animate-ping absolute h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative rounded-full h-2 w-2 bg-emerald-500" /></span>
+              <span className="text-[12px] font-bold text-emerald-700 tabular-nums">{liveCount} {t("dashboard.liveVisitors.online")}</span>
+            </div>
+          )}
+          <div className="px-3 py-1.5 bg-slate-50 border border-slate-200/50 rounded-full text-[11px] font-semibold text-slate-500 tabular-nums">
+            {visitors?.counts.today ?? 0} {t("dashboard.liveVisitors.todayCount")}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Table header ── */}
+      {allLive.length > 0 && (
+        <div className="px-6 py-2 bg-slate-50/70 border-b border-slate-100 grid grid-cols-12 gap-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+          <div className="col-span-4">{t("dashboard.liveVisitors.page").replace("Bulundugu sayfa", "Ziyaretci").replace("Current page", "Visitor")}</div>
+          <div className="col-span-2">IP</div>
+          <div className="col-span-2">{t("dashboard.liveVisitors.page")}</div>
+          <div className="col-span-2">Device</div>
+          <div className="col-span-2 text-right">Status</div>
+        </div>
+      )}
+
+      {/* ── Body ── */}
+      {allLive.length === 0 && allRecent.length === 0 ? (
+        <div className="px-6 py-16 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center mx-auto mb-4 shadow-inner">
+            <Eye size={28} className="text-slate-300" />
+          </div>
+          <p className="text-sm font-bold text-slate-700 mb-1">{t("dashboard.liveVisitors.noVisitors")}</p>
+          <p className="text-xs text-slate-400 max-w-xs mx-auto">{t("dashboard.liveVisitors.noVisitorsDesc")}</p>
+        </div>
+      ) : (
+        <div>
+          {/* ── Clear rows (Free: first 3, Pro: all) ── */}
+          {allLive.slice(0, isPro ? 50 : FREE_LIMIT).map(v => (
+            <VRow key={v.id} v={v} isLive onStartChat={onStartChat} chatLoading={chatLoading} t={t} />
+          ))}
+
+          {/* ── Blurred rows (Free plan, 4th+ visitor) ── */}
+          {!isPro && allLive.length > FREE_LIMIT && (
+            <>
+              {allLive.slice(FREE_LIMIT).map((v, idx) => (
+                <div key={v.id} className="relative group cursor-pointer" onClick={onUpgrade}>
+                  {/* Real row rendered with minimal blur — content fully visible shape-wise */}
+                  <div className="px-6 py-3.5 grid grid-cols-12 gap-3 items-center" style={{ filter: `blur(${1.8 + idx * 0.35}px)` }}>
+                    {/* Visitor */}
+                    <div className="col-span-4 flex items-center gap-3 min-w-0">
+                      <div className="relative flex-shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-[18px]">
+                          {countryToFlag(v.country)}
+                        </div>
+                        <span className="absolute -bottom-px -right-px w-3 h-3 bg-emerald-500 rounded-full border-[1.5px] border-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-semibold text-slate-800 truncate">{v.city || v.country || "Unknown"}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{v.conversationCount > 0 ? t("dashboard.liveVisitors.returningVisitor") : t("dashboard.liveVisitors.newVisitor")}</p>
+                      </div>
+                    </div>
+                    {/* IP */}
+                    <div className="col-span-2">
+                      <span className="text-[11px] font-mono text-slate-500">{v.ip || "—"}</span>
+                    </div>
+                    {/* Page */}
+                    <div className="col-span-2">
+                      <span className="text-[11px] text-slate-500 truncate block">{v.currentPage || "/"}</span>
+                    </div>
+                    {/* Device */}
+                    <div className="col-span-2 flex items-center gap-1.5 text-[11px] text-slate-500">
+                      {v.device === "mobile" ? <Smartphone size={11} className="text-slate-400" /> : <Monitor size={11} className="text-slate-400" />}
+                      <span className="truncate">{v.browser}</span>
+                    </div>
+                    {/* Time */}
+                    <div className="col-span-2 text-right">
+                      <span className="text-[10px] text-slate-400 tabular-nums">{timeAgo(v.lastSeenAt)}</span>
+                    </div>
+                  </div>
+
+                  {/* Hover tooltip */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-900/85 backdrop-blur-sm text-white text-[11px] font-semibold rounded-xl shadow-xl">
+                      <Crown size={12} className="text-amber-400" /> {t("dashboard.liveVisitors.upgradePro")}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* ── Upgrade banner ── */}
+              <div className="mx-4 mb-4 mt-2 rounded-xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                    <Crown size={16} className="text-amber-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-bold text-white">{t("dashboard.liveVisitors.upgradeHint")}</p>
+                  </div>
+                </div>
+                <button onClick={onUpgrade} className="flex-shrink-0 px-5 py-2 bg-white text-slate-900 text-[12px] font-bold rounded-lg hover:bg-slate-100 transition-colors shadow-sm">
+                  {t("dashboard.liveVisitors.upgradePro")}
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ── Recent visitors ── */}
+          {allRecent.length > 0 && (
+            <>
+              <div className="px-6 py-2 bg-slate-50/70 border-t border-b border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t("dashboard.liveVisitors.recentVisitors")} — {t("dashboard.liveVisitors.recentDesc")}</span>
+              </div>
+              {allRecent.slice(0, isPro ? 10 : 3).map((v, idx) => isPro ? (
+                <VRow key={v.id} v={v} isLive={false} onStartChat={onStartChat} chatLoading={chatLoading} t={t} />
+              ) : (
+                <div key={v.id} className="relative group cursor-pointer" onClick={onUpgrade}>
+                  <div className="px-6 py-3.5 grid grid-cols-12 gap-3 items-center" style={{ filter: `blur(${1.7 + idx * 0.3}px)` }}>
+                    <div className="col-span-4 flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-[18px] flex-shrink-0">
+                        {countryToFlag(v.country)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-semibold text-slate-800 truncate">{v.city || v.country || "Unknown"}</p>
+                        <p className="text-[10px] text-slate-400">{t("dashboard.liveVisitors.browsingNow")}</p>
+                      </div>
+                    </div>
+                    <div className="col-span-2"><span className="text-[11px] font-mono text-slate-500">{v.ip || "—"}</span></div>
+                    <div className="col-span-2"><span className="text-[11px] text-slate-500">{v.currentPage || "/"}</span></div>
+                    <div className="col-span-2 flex items-center gap-1.5 text-[11px] text-slate-500">
+                      {v.device === "mobile" ? <Smartphone size={11} /> : <Monitor size={11} />} {v.browser}
+                    </div>
+                    <div className="col-span-2 text-right"><span className="text-[10px] text-slate-400 tabular-nums">{timeAgo(v.lastSeenAt)}</span></div>
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-900/85 backdrop-blur-sm text-white text-[11px] font-semibold rounded-xl shadow-xl">
+                      <Crown size={12} className="text-amber-400" /> {t("dashboard.liveVisitors.upgradePro")}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Single clear visitor row (table-style) ── */
+function VRow({ v, isLive, onStartChat, chatLoading, t }: {
+  v: LiveVisitor; isLive: boolean;
+  onStartChat: (id: string) => void; chatLoading: string | null; t: (key: any) => string;
+}) {
+  const isLoading = chatLoading === v.id;
+  return (
+    <div className="group px-6 py-3.5 grid grid-cols-12 gap-3 items-center hover:bg-blue-50/30 transition-colors cursor-pointer border-b border-slate-50 last:border-b-0" onClick={() => onStartChat(v.id)}>
+      {/* Visitor */}
+      <div className="col-span-4 flex items-center gap-3 min-w-0">
+        <div className="relative flex-shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-[18px]">
+            {countryToFlag(v.country)}
+          </div>
+          {isLive && (
+            <>
+              <span className="absolute -bottom-px -right-px w-3 h-3 bg-emerald-500 rounded-full border-[1.5px] border-white" />
+              <span className="absolute -bottom-px -right-px w-3 h-3 bg-emerald-400 rounded-full border-[1.5px] border-white animate-ping" />
+            </>
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-slate-800 truncate">{v.city || v.country || "Visitor"}</p>
+          <p className="text-[10px] text-slate-400">
+            {v.conversationCount > 0 ? (
+              <span className="text-violet-500 font-semibold">{t("dashboard.liveVisitors.returningVisitor")} · {v.conversationCount} {t("dashboard.liveVisitors.conversations")}</span>
+            ) : (
+              <span className="text-emerald-500 font-semibold">{t("dashboard.liveVisitors.newVisitor")}</span>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {/* IP */}
+      <div className="col-span-2">
+        <span className="text-[11px] font-mono text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded">{v.ip || "—"}</span>
+      </div>
+
+      {/* Current page */}
+      <div className="col-span-2">
+        <span className="text-[11px] text-slate-500 truncate block">{v.currentPage || "/"}</span>
+      </div>
+
+      {/* Device */}
+      <div className="col-span-2 flex items-center gap-1.5 text-[11px] text-slate-500">
+        {v.device === "mobile" ? <Smartphone size={12} className="text-slate-400" /> : <Monitor size={12} className="text-slate-400" />}
+        <span className="truncate">{v.browser} / {v.os}</span>
+      </div>
+
+      {/* Action */}
+      <div className="col-span-2 flex items-center justify-end gap-2">
+        <span className="text-[10px] text-slate-400 tabular-nums group-hover:hidden">{timeAgo(v.lastSeenAt)}</span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onStartChat(v.id); }}
+          disabled={isLoading}
+          className="hidden group-hover:flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold rounded-lg transition-colors disabled:opacity-50"
+        >
+          {isLoading ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={10} />}
+          {t("dashboard.liveVisitors.startChat")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Project Status Item ── */
+function ProjectStatusItem({ label, status, statusText, actionText, href }: {
+  label: string; status: boolean; statusText: string; actionText: string; href: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${status ? "bg-emerald-100" : "bg-red-100"}`}>
+        {status ? <CheckCircle2 size={12} className="text-emerald-600" /> : <X size={12} className="text-red-500" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[12px] font-bold text-slate-800">{label}</p>
+        <p className={`text-[11px] ${status ? "text-emerald-600" : "text-red-500"}`}>{statusText}</p>
+        {!status && (
+          <Link href={href} className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 mt-0.5 inline-block">{actionText}</Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Usage Bar ── */
+function UsageBar({ label, used, limit }: { label: string; used: number; limit: number }) {
+  const isUnlimited = limit < 0;
+  const pct = isUnlimited ? 0 : Math.min(100, (used / Math.max(limit, 1)) * 100);
+  const isHigh = pct > 80;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[11px] text-slate-500">{label}</span>
+        <span className="text-[11px] font-bold text-slate-700 tabular-nums">
+          {used} / {isUnlimited ? "\u221E" : limit}
+        </span>
+      </div>
+      {!isUnlimited && (
+        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all duration-500 ${isHigh ? "bg-red-500" : "bg-blue-500"}`} style={{ width: `${pct}%` }} />
+        </div>
+      )}
     </div>
   );
 }
