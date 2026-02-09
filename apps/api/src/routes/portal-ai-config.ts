@@ -182,6 +182,8 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
         model: result.model,
         provider: result.provider,
         tokensUsed: result.tokensUsed,
+        cost: result.cost,
+        responseTimeMs: result.responseTimeMs,
       };
     }
   );

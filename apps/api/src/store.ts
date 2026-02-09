@@ -3,7 +3,7 @@
  * Replaces in-memory storage with PostgreSQL
  */
 
-import { Conversation, Message, ConversationDetail, Organization } from "./types";
+import { Conversation, Message, ConversationDetail, Organization, AiMessageMeta } from "./types";
 import { generateId } from "@helvino/shared";
 import { prisma } from "./prisma";
 
@@ -148,7 +148,8 @@ class PrismaStore {
     conversationId: string,
     orgId: string,
     role: "user" | "assistant",
-    content: string
+    content: string,
+    aiMeta?: AiMessageMeta,
   ): Promise<Message | null> {
     // Verify conversation exists and belongs to org
     const conversation = await prisma.conversation.findFirst({
@@ -174,17 +175,27 @@ class PrismaStore {
       updateData.closedAt = null;
     }
 
+    const messageData: Record<string, unknown> = {
+      id,
+      conversationId,
+      orgId,
+      role,
+      content,
+      timestamp: now,
+    };
+
+    // Attach AI tracking metadata if present
+    if (aiMeta) {
+      messageData.isAIGenerated = true;
+      messageData.aiProvider = aiMeta.provider;
+      messageData.aiModel = aiMeta.model;
+      messageData.aiTokensUsed = aiMeta.tokensUsed;
+      messageData.aiCost = aiMeta.cost;
+      messageData.aiResponseTime = aiMeta.responseTimeMs;
+    }
+
     const [message] = await prisma.$transaction([
-      prisma.message.create({
-        data: {
-          id,
-          conversationId,
-          orgId,
-          role,
-          content,
-          timestamp: now,
-        },
-      }),
+      prisma.message.create({ data: messageData as any }),
       prisma.conversation.update({
         where: { id: conversationId },
         data: updateData as any,
@@ -197,6 +208,12 @@ class PrismaStore {
       role: message.role as "user" | "assistant",
       content: message.content,
       timestamp: message.timestamp.toISOString(),
+      isAIGenerated: message.isAIGenerated,
+      aiProvider: message.aiProvider,
+      aiModel: message.aiModel,
+      aiTokensUsed: message.aiTokensUsed,
+      aiCost: message.aiCost ? Number(message.aiCost) : null,
+      aiResponseTime: message.aiResponseTime,
     };
   }
 

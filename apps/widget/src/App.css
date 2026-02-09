@@ -458,3 +458,59 @@
   color: #6366f1;
   font-weight: 600;
 }
+
+/* ── AI Help Prompt (offline button) ── */
+.ai-help-prompt {
+  padding: 8px 14px;
+  display: flex;
+  justify-content: center;
+}
+
+.ai-help-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.ai-help-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.ai-help-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.ai-help-zap {
+  font-size: 14px;
+}
+
+/* ── AI System Message (auto-joined) ── */
+.ai-system-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 11px;
+  color: #6366f1;
+  font-weight: 600;
+  text-align: center;
+  opacity: 0.9;
+}
+
+.ai-system-message svg {
+  flex-shrink: 0;
+  color: #6366f1;
+}

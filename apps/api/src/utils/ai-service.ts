@@ -1,8 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════
- * Helvino AI Service — Multi-Provider (OpenAI + Gemini + Claude)
+ * Helvino AI Service — Multi-Provider with Fallback Chain
  * ═══════════════════════════════════════════════════════════════
  * Supports OpenAI, Google Gemini, and Anthropic Claude.
- * Includes quota tracking, auto-reset, and plan-based limits.
+ * Features: quota tracking, provider fallback, cost calculation,
+ * response timing, and plan-based routing.
  * ═══════════════════════════════════════════════════════════════ */
 
 import OpenAI from "openai";
@@ -38,10 +39,14 @@ export type AiGenerateResult = {
   model: string;
   provider: AiProvider;
   tokensUsed: number;
+  inputTokens: number;
+  outputTokens: number;
+  cost: number;          // USD
+  responseTimeMs: number;
 } | {
   ok: false;
   error: string;
-  code: "NO_API_KEY" | "AI_DISABLED" | "GENERATION_FAILED" | "RATE_LIMITED" | "QUOTA_EXCEEDED";
+  code: "NO_API_KEY" | "AI_DISABLED" | "GENERATION_FAILED" | "RATE_LIMITED" | "QUOTA_EXCEEDED" | "ALL_PROVIDERS_FAILED";
 };
 
 export interface AiQuotaStatus {
@@ -76,6 +81,24 @@ const TONE_INSTRUCTIONS: Record<AiConfig["tone"], string> = {
   casual: "Be casual and relaxed. Use simple language and feel free to use light humor.",
 };
 
+/* ── Cost Pricing (USD per 1M tokens) ── */
+
+const PRICING: Record<string, { input: number; output: number }> = {
+  "gpt-4o-mini":               { input: 0.15,  output: 0.60 },
+  "gpt-4o":                    { input: 2.50,  output: 10.00 },
+  "gpt-3.5-turbo":             { input: 0.50,  output: 1.50 },
+  "gemini-1.5-flash":          { input: 0.075, output: 0.30 },
+  "gemini-1.5-pro":            { input: 1.25,  output: 5.00 },
+  "claude-3-5-haiku-latest":   { input: 0.25,  output: 1.25 },
+  "claude-3-5-sonnet-latest":  { input: 3.00,  output: 15.00 },
+};
+
+function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
+  const pricing = PRICING[model];
+  if (!pricing) return 0;
+  return (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
+}
+
 /* ── Plan Limits ── */
 
 const PLAN_AI_LIMITS: Record<string, number> = {
@@ -84,11 +107,38 @@ const PLAN_AI_LIMITS: Record<string, number> = {
   pro: 2000,
   growth: 2000,
   business: 5000,
-  enterprise: -1, // unlimited
+  enterprise: -1,
 };
 
 export function getAiLimitForPlan(planKey: string): number {
   return PLAN_AI_LIMITS[planKey] ?? PLAN_AI_LIMITS.free;
+}
+
+/* ── Plan-Based Provider & Model Routing ── */
+
+export function getDefaultProviderForPlan(planKey: string): AiProvider {
+  switch (planKey) {
+    case "free":       return "gemini";   // cheapest
+    case "starter":    return "openai";   // balanced
+    case "pro":        return "openai";   // quality
+    case "growth":     return "openai";
+    case "business":   return "openai";
+    case "enterprise": return "openai";   // best + fallback
+    default:           return "openai";
+  }
+}
+
+export function getDefaultModelForPlan(planKey: string, provider: AiProvider): string {
+  if (provider === "gemini") {
+    return planKey === "free" ? "gemini-1.5-flash" : "gemini-1.5-pro";
+  }
+  if (provider === "openai") {
+    return planKey === "enterprise" ? "gpt-4o" : "gpt-4o-mini";
+  }
+  if (provider === "claude") {
+    return planKey === "enterprise" ? "claude-3-5-sonnet-latest" : "claude-3-5-haiku-latest";
+  }
+  return "gpt-4o-mini";
 }
 
 /* ── Provider Singletons ── */
@@ -118,12 +168,10 @@ function getAnthropic(): Anthropic | null {
   return _anthropic;
 }
 
-/** Check if any AI provider is available */
 export function isAiAvailable(): boolean {
   return Boolean(process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY);
 }
 
-/** Check which providers are available */
 export function getAvailableProviders(): { id: AiProvider; name: string; available: boolean }[] {
   return [
     { id: "openai", name: "OpenAI", available: Boolean(process.env.OPENAI_API_KEY) },
@@ -132,16 +180,12 @@ export function getAvailableProviders(): { id: AiProvider; name: string; availab
   ];
 }
 
-/** Get available models for all providers */
 export function getAvailableModels() {
   return [
-    // OpenAI
     { id: "gpt-4o-mini", name: "GPT-4o Mini", provider: "openai" as AiProvider, description: "Fast & affordable", recommended: true, available: Boolean(process.env.OPENAI_API_KEY) },
     { id: "gpt-4o", name: "GPT-4o", provider: "openai" as AiProvider, description: "Most capable", recommended: false, available: Boolean(process.env.OPENAI_API_KEY) },
-    // Gemini
     { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", provider: "gemini" as AiProvider, description: "Fast & free tier", recommended: true, available: Boolean(process.env.GEMINI_API_KEY) },
     { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "gemini" as AiProvider, description: "Advanced reasoning", recommended: false, available: Boolean(process.env.GEMINI_API_KEY) },
-    // Claude
     { id: "claude-3-5-haiku-latest", name: "Claude 3.5 Haiku", provider: "claude" as AiProvider, description: "Fast & efficient", recommended: true, available: Boolean(process.env.ANTHROPIC_API_KEY) },
     { id: "claude-3-5-sonnet-latest", name: "Claude 3.5 Sonnet", provider: "claude" as AiProvider, description: "Best quality", recommended: false, available: Boolean(process.env.ANTHROPIC_API_KEY) },
   ];
@@ -149,7 +193,6 @@ export function getAvailableModels() {
 
 /* ── Quota Management ── */
 
-/** Check and auto-reset AI quota if needed. Returns current quota status. */
 export async function checkAiQuota(orgId: string): Promise<AiQuotaStatus> {
   const org = await prisma.organization.findUnique({
     where: { id: orgId },
@@ -160,7 +203,6 @@ export async function checkAiQuota(orgId: string): Promise<AiQuotaStatus> {
     return { used: 0, limit: 100, remaining: 100, isUnlimited: false, exceeded: false, resetDate: new Date().toISOString(), daysUntilReset: 30, percentUsed: 0 };
   }
 
-  // Auto-reset if 30 days have passed
   const resetDate = new Date(org.aiMessagesResetDate);
   const now = new Date();
   const daysSinceReset = Math.floor((now.getTime() - resetDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -185,7 +227,6 @@ export async function checkAiQuota(orgId: string): Promise<AiQuotaStatus> {
   return { used, limit, remaining: isUnlimited ? -1 : remaining, isUnlimited, exceeded, resetDate: resetDate.toISOString(), daysUntilReset, percentUsed };
 }
 
-/** Increment AI message counter after successful response */
 export async function incrementAiUsage(orgId: string): Promise<void> {
   await prisma.organization.update({
     where: { id: orgId },
@@ -193,14 +234,19 @@ export async function incrementAiUsage(orgId: string): Promise<void> {
   });
 }
 
-/* ── Generate AI Response (Multi-Provider) ── */
+/* ═══════════════════════════════════════════════════════════════
+ * Generate AI Response — WITH FALLBACK CHAIN
+ * ═══════════════════════════════════════════════════════════════
+ * Tries the primary provider first, then falls back to others.
+ * Tracks response time and calculates cost.
+ * ═══════════════════════════════════════════════════════════════ */
 
 export async function generateAiResponse(
   messages: ConversationMessage[],
   config: Partial<AiConfig> = {},
 ): Promise<AiGenerateResult> {
   const cfg: AiConfig = { ...DEFAULT_AI_CONFIG, ...config };
-  const provider = cfg.provider || "openai";
+  const primaryProvider = cfg.provider || "openai";
 
   // Build system prompt
   const systemPrompt = [
@@ -209,25 +255,60 @@ export async function generateAiResponse(
     cfg.language !== "en" ? `Respond in the same language as the customer. If the customer writes in ${cfg.language}, respond in ${cfg.language}.` : "",
   ].filter(Boolean).join("\n\n");
 
-  try {
-    switch (provider) {
-      case "openai":
-        return await generateOpenAI(messages, systemPrompt, cfg);
-      case "gemini":
-        return await generateGemini(messages, systemPrompt, cfg);
-      case "claude":
-        return await generateClaude(messages, systemPrompt, cfg);
-      default:
-        return await generateOpenAI(messages, systemPrompt, cfg);
+  // Build fallback chain: primary → others (deduped)
+  const fallbackOrder: AiProvider[] = [primaryProvider, "openai", "gemini", "claude"]
+    .filter((v, i, a) => a.indexOf(v) === i) as AiProvider[];
+
+  const startTime = Date.now();
+
+  for (const provider of fallbackOrder) {
+    // Skip providers without API keys
+    if (provider === "openai" && !process.env.OPENAI_API_KEY) continue;
+    if (provider === "gemini" && !process.env.GEMINI_API_KEY) continue;
+    if (provider === "claude" && !process.env.ANTHROPIC_API_KEY) continue;
+
+    try {
+      let result: AiGenerateResult;
+
+      switch (provider) {
+        case "openai":
+          result = await generateOpenAI(messages, systemPrompt, cfg);
+          break;
+        case "gemini":
+          result = await generateGemini(messages, systemPrompt, cfg);
+          break;
+        case "claude":
+          result = await generateClaude(messages, systemPrompt, cfg);
+          break;
+        default:
+          continue;
+      }
+
+      if (result.ok) {
+        const responseTimeMs = Date.now() - startTime;
+        const cost = calculateCost(result.model, result.inputTokens, result.outputTokens);
+        console.log(`[AI] Response generated by: ${provider} (${result.model}) in ${responseTimeMs}ms, tokens: ${result.tokensUsed}, cost: $${cost.toFixed(6)}`);
+        return { ...result, cost, responseTimeMs };
+      }
+
+      // NO_API_KEY means skip to next provider
+      if (!result.ok && result.code === "NO_API_KEY") continue;
+
+      // For other errors, log and try next
+      console.warn(`[AI] Provider ${provider} failed: ${result.error}, trying next...`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      console.warn(`[AI] Provider ${provider} threw exception: ${msg}, trying next...`);
+
+      if (msg.includes("Rate limit") || msg.includes("rate_limit")) {
+        // Rate limited on this provider, try next
+        continue;
+      }
     }
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Unknown AI error";
-    console.error(`[AI/${provider}] Generation failed:`, msg);
-    if (msg.includes("Rate limit") || msg.includes("rate_limit")) {
-      return { ok: false, error: "AI rate limit exceeded.", code: "RATE_LIMITED" };
-    }
-    return { ok: false, error: msg, code: "GENERATION_FAILED" };
   }
+
+  console.error("[AI] All providers failed");
+  return { ok: false, error: "All AI providers failed", code: "ALL_PROVIDERS_FAILED" };
 }
 
 /* ── OpenAI Provider ── */
@@ -235,13 +316,14 @@ async function generateOpenAI(messages: ConversationMessage[], systemPrompt: str
   const openai = getOpenAI();
   if (!openai) return { ok: false, error: "OpenAI API key not configured", code: "NO_API_KEY" };
 
+  const model = cfg.model && cfg.model.startsWith("gpt") ? cfg.model : "gpt-4o-mini";
   const chatMessages: OpenAI.ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
     ...messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
 
   const completion = await openai.chat.completions.create({
-    model: cfg.model || "gpt-4o-mini",
+    model,
     messages: chatMessages,
     temperature: cfg.temperature,
     max_tokens: cfg.maxTokens,
@@ -252,7 +334,11 @@ async function generateOpenAI(messages: ConversationMessage[], systemPrompt: str
   const content = completion.choices[0]?.message?.content?.trim();
   if (!content) return { ok: false, error: "Empty response", code: "GENERATION_FAILED" };
 
-  return { ok: true, content, model: completion.model, provider: "openai", tokensUsed: completion.usage?.total_tokens ?? 0 };
+  const inputTokens = completion.usage?.prompt_tokens ?? 0;
+  const outputTokens = completion.usage?.completion_tokens ?? 0;
+  const tokensUsed = completion.usage?.total_tokens ?? 0;
+
+  return { ok: true, content, model: completion.model, provider: "openai", tokensUsed, inputTokens, outputTokens, cost: 0, responseTimeMs: 0 };
 }
 
 /* ── Gemini Provider ── */
@@ -260,8 +346,9 @@ async function generateGemini(messages: ConversationMessage[], systemPrompt: str
   const gemini = getGemini();
   if (!gemini) return { ok: false, error: "Gemini API key not configured", code: "NO_API_KEY" };
 
+  const modelId = cfg.model && cfg.model.startsWith("gemini") ? cfg.model : "gemini-1.5-flash";
   const model = gemini.getGenerativeModel({
-    model: cfg.model || "gemini-1.5-flash",
+    model: modelId,
     systemInstruction: systemPrompt,
     generationConfig: { temperature: cfg.temperature, maxOutputTokens: cfg.maxTokens },
   });
@@ -275,10 +362,15 @@ async function generateGemini(messages: ConversationMessage[], systemPrompt: str
   const chat = model.startChat({ history });
   const result = await chat.sendMessage(lastMsg?.content || "Hello");
   const content = result.response.text()?.trim();
-
   if (!content) return { ok: false, error: "Empty response from Gemini", code: "GENERATION_FAILED" };
 
-  return { ok: true, content, model: cfg.model || "gemini-1.5-flash", provider: "gemini", tokensUsed: 0 };
+  // Gemini usage metadata
+  const usageMetadata = result.response.usageMetadata;
+  const inputTokens = usageMetadata?.promptTokenCount ?? 0;
+  const outputTokens = usageMetadata?.candidatesTokenCount ?? 0;
+  const tokensUsed = inputTokens + outputTokens;
+
+  return { ok: true, content, model: modelId, provider: "gemini", tokensUsed, inputTokens, outputTokens, cost: 0, responseTimeMs: 0 };
 }
 
 /* ── Claude Provider ── */
@@ -286,13 +378,14 @@ async function generateClaude(messages: ConversationMessage[], systemPrompt: str
   const anthropic = getAnthropic();
   if (!anthropic) return { ok: false, error: "Anthropic API key not configured", code: "NO_API_KEY" };
 
+  const modelId = cfg.model && cfg.model.startsWith("claude") ? cfg.model : "claude-3-5-haiku-latest";
   const claudeMessages = messages.map((m) => ({
     role: m.role === "assistant" ? "assistant" as const : "user" as const,
     content: m.content,
   }));
 
   const response = await anthropic.messages.create({
-    model: cfg.model || "claude-3-5-haiku-latest",
+    model: modelId,
     max_tokens: cfg.maxTokens,
     system: systemPrompt,
     messages: claudeMessages,
@@ -302,8 +395,11 @@ async function generateClaude(messages: ConversationMessage[], systemPrompt: str
   const content = response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
   if (!content) return { ok: false, error: "Empty response from Claude", code: "GENERATION_FAILED" };
 
-  const tokensUsed = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0);
-  return { ok: true, content, model: cfg.model || "claude-3-5-haiku-latest", provider: "claude", tokensUsed };
+  const inputTokens = response.usage?.input_tokens ?? 0;
+  const outputTokens = response.usage?.output_tokens ?? 0;
+  const tokensUsed = inputTokens + outputTokens;
+
+  return { ok: true, content, model: modelId, provider: "claude", tokensUsed, inputTokens, outputTokens, cost: 0, responseTimeMs: 0 };
 }
 
 /* ── Helpers ── */

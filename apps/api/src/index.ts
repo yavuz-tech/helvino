@@ -475,7 +475,7 @@ fastify.post<{
           content: m.content,
         }));
 
-        // Generate AI response (multi-provider)
+        // Generate AI response (multi-provider with fallback chain)
         const result = await generateAiResponse(history, {
           ...aiConfig,
           language: aiConfig.language || orgRecord?.language || "en",
@@ -487,8 +487,14 @@ fastify.post<{
           return;
         }
 
-        // Store AI response as assistant message
-        const aiMessage = await store.addMessage(id, org.id, "assistant", result.content);
+        // Store AI response with tracking metadata
+        const aiMessage = await store.addMessage(id, org.id, "assistant", result.content, {
+          provider: result.provider,
+          model: result.model,
+          tokensUsed: result.tokensUsed,
+          cost: result.cost,
+          responseTimeMs: result.responseTimeMs,
+        });
         if (!aiMessage) return;
 
         // Stop typing indicator
@@ -514,6 +520,78 @@ fastify.post<{
   reply.code(201);
   return message;
 });
+
+// ── Request AI Help: manually trigger AI response for a conversation ──
+fastify.post<{ Params: { conversationId: string } }>(
+  "/conversations/:conversationId/ai-help",
+  {
+    preHandler: [requireOrgToken],
+  },
+  async (request, reply) => {
+    const org = request.org!;
+    const { conversationId } = request.params;
+
+    if (!org.aiEnabled || !isAiAvailable()) {
+      reply.code(503);
+      return { error: "AI not available" };
+    }
+
+    const quota = await checkAiQuota(org.id);
+    if (quota.exceeded) {
+      reply.code(402);
+      return { error: "AI quota exceeded", code: "QUOTA_EXCEEDED" };
+    }
+
+    // Load AI config
+    const orgRecord = await prisma.organization.findUnique({
+      where: { id: org.id },
+      select: { aiConfigJson: true, aiProvider: true, language: true },
+    });
+    const aiConfig = parseAiConfig(orgRecord?.aiConfigJson);
+    if (orgRecord?.aiProvider) {
+      aiConfig.provider = orgRecord.aiProvider as "openai" | "gemini" | "claude";
+    }
+
+    // Emit typing
+    fastify.io.to(`org:${org.id}`).emit("agent:typing", { conversationId, isAI: true });
+
+    // Load conversation history
+    const recentMessages = await store.getMessages(conversationId);
+    const history: ConversationMessage[] = recentMessages.slice(-20).map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+
+    const result = await generateAiResponse(history, {
+      ...aiConfig,
+      language: aiConfig.language || orgRecord?.language || "en",
+    });
+
+    if (!result.ok) {
+      fastify.io.to(`org:${org.id}`).emit("agent:typing:stop", { conversationId });
+      reply.code(500);
+      return { error: result.error, code: result.code };
+    }
+
+    const aiMessage = await store.addMessage(conversationId, org.id, "assistant", result.content, {
+      provider: result.provider,
+      model: result.model,
+      tokensUsed: result.tokensUsed,
+      cost: result.cost,
+      responseTimeMs: result.responseTimeMs,
+    });
+
+    fastify.io.to(`org:${org.id}`).emit("agent:typing:stop", { conversationId });
+
+    if (aiMessage) {
+      fastify.io.to(`org:${org.id}`).emit("message:new", { conversationId, message: aiMessage });
+      await recordM2Usage(org.id);
+      await incrementAiUsage(org.id);
+    }
+
+    return { ok: true, message: aiMessage };
+  }
+);
 
 // Socket.IO connection handlers with org-based rooms
 fastify.ready().then(() => {

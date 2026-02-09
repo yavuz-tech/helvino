@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
-import { createConversation, sendMessage, API_URL, getOrgKey, getOrgToken, Message, loadBootloader, BootloaderConfig, setOrgToken } from "./api";
+import { createConversation, sendMessage, requestAiHelp, API_URL, getOrgKey, getOrgToken, Message, loadBootloader, BootloaderConfig, setOrgToken } from "./api";
 import { EMOJI_LIST } from "@helvino/shared";
 import "./App.css";
 
@@ -16,6 +16,13 @@ const POWERED_BY: Record<string, { before: string; after: string }> = {
   en: { before: "Powered by ", after: "" },
   tr: { before: "", after: " tarafından desteklenmektedir" },
   es: { before: "Desarrollado por ", after: "" },
+};
+
+/** AI offline help strings */
+const AI_OFFLINE_COPY: Record<string, { button: string; joined: string; systemMsg: string }> = {
+  en: { button: "No operators available. Get AI help now", joined: "AI Assistant has joined to help you", systemMsg: "No operators available. AI Assistant will help." },
+  tr: { button: "Operatör yok. Şimdi AI yardımı alın", joined: "AI Asistan size yardım etmek için katıldı", systemMsg: "Operatör yok. AI Asistan yardım edecek." },
+  es: { button: "Sin operadores. Obtener ayuda AI ahora", joined: "El Asistente AI se ha unido para ayudarte", systemMsg: "Sin operadores disponibles. El Asistente AI ayudará." },
 };
 
 const UNAUTHORIZED_COPY: Record<string, { title: string; body: string }> = {
@@ -62,6 +69,15 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const [recentEmojis, setRecentEmojis] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(RECENT_EMOJI_KEY) || "[]"); } catch { return []; }
   });
+
+  // AI offline help state
+  const [showAiHelpButton, setShowAiHelpButton] = useState(false);
+  const [aiHelpLoading, setAiHelpLoading] = useState(false);
+  const [aiAutoJoinedShown, setAiAutoJoinedShown] = useState(false);
+  const aiWaitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastUserMsgTimeRef = useRef<number>(0);
+  const gotResponseSinceLastMsgRef = useRef(false);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const conversationIdRef = useRef<string | null>(null);
@@ -179,11 +195,15 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
       }
 
       socketRef.current.on("message:new", (data: { conversationId: string; message: Message }) => {
-        // Use ref so we always compare against current conversation (avoids stale closure)
         if (data.conversationId === conversationIdRef.current) {
           setMessages((prev) => [...prev, data.message]);
-          // Agent sent a message → stop showing typing
           setAgentTyping(false);
+          // Response received → cancel AI wait timer and hide button
+          if (data.message.role === "assistant") {
+            gotResponseSinceLastMsgRef.current = true;
+            setShowAiHelpButton(false);
+            if (aiWaitTimerRef.current) { clearTimeout(aiWaitTimerRef.current); aiWaitTimerRef.current = null; }
+          }
         }
       });
 
@@ -224,27 +244,48 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     console.log("[Widget] handleSend", { conversationId, API_URL, hasToken: !!getOrgToken() });
     setInputValue("");
     setIsLoading(true);
+    setShowAiHelpButton(false);
+    gotResponseSinceLastMsgRef.current = false;
+    lastUserMsgTimeRef.current = Date.now();
+
+    // Clear previous wait timer
+    if (aiWaitTimerRef.current) { clearTimeout(aiWaitTimerRef.current); aiWaitTimerRef.current = null; }
 
     try {
-      // Show refreshing status if token is being renewed
       setConnectionStatus("refreshing");
-      
-      // Send message to API (auto-refreshes token if needed)
       const message = await sendMessage(conversationId, userMessage);
-      
-      // Clear status on success
       setConnectionStatus(null);
-      
-      // Add user message to UI (Socket.IO will also emit it, but this is instant)
       setMessages((prev) => [...prev, message]);
+
+      // Start 30s auto-trigger timer: if no response arrives, show AI help button
+      // (only if AI is enabled for this org)
+      const aiEnabled = bootloaderConfig?.config?.aiEnabled;
+      if (aiEnabled) {
+        aiWaitTimerRef.current = setTimeout(() => {
+          if (!gotResponseSinceLastMsgRef.current) {
+            console.log("[Widget] No response after 30s, showing AI help button");
+            setShowAiHelpButton(true);
+
+            // Auto-trigger AI help after showing button for 5s
+            setTimeout(async () => {
+              if (!gotResponseSinceLastMsgRef.current && conversationIdRef.current) {
+                console.log("[Widget] Auto-triggering AI help");
+                try {
+                  setAiAutoJoinedShown(true);
+                  await requestAiHelp(conversationIdRef.current);
+                  setShowAiHelpButton(false);
+                } catch (err) {
+                  console.warn("[Widget] Auto AI help failed:", err);
+                }
+              }
+            }, 5000);
+          }
+        }, 30000);
+      }
     } catch (error) {
       console.error("[Widget] send failed", error);
       setConnectionStatus("error");
-      
-      // Auto-clear error status after 3 seconds
       setTimeout(() => setConnectionStatus(null), 3000);
-      
-      // Don't use alert, just log - the status banner will show the error
     } finally {
       setIsLoading(false);
     }
@@ -254,6 +295,22 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  // Manual AI help button click
+  const handleAiHelp = async () => {
+    if (!conversationId || aiHelpLoading) return;
+    setAiHelpLoading(true);
+    try {
+      await requestAiHelp(conversationId);
+      setShowAiHelpButton(false);
+      setAiAutoJoinedShown(true);
+      if (aiWaitTimerRef.current) { clearTimeout(aiWaitTimerRef.current); aiWaitTimerRef.current = null; }
+    } catch (err) {
+      console.warn("[Widget] AI help request failed:", err);
+    } finally {
+      setAiHelpLoading(false);
     }
   };
 
@@ -282,9 +339,11 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
 
   const primaryColor = bootloaderConfig.config.theme.primaryColor;
   const writeEnabled = bootloaderConfig.config.writeEnabled;
+  const aiEnabled = bootloaderConfig.config.aiEnabled;
   const lang = bootloaderConfig.config.language || "en";
   const poweredBy = POWERED_BY[lang] || POWERED_BY.en;
   const unauthorizedCopy = UNAUTHORIZED_COPY[lang] || UNAUTHORIZED_COPY.en;
+  const aiOfflineCopy = AI_OFFLINE_COPY[lang] || AI_OFFLINE_COPY.en;
 
   /** Reusable branding block */
   const poweredByBlock = brandingRequired ? (
@@ -368,6 +427,25 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
                 </div>
               ))
             )}
+            {/* AI auto-joined system message */}
+            {aiAutoJoinedShown && (
+              <div className="ai-system-message">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                <span>{aiOfflineCopy.joined}</span>
+              </div>
+            )}
+
+            {/* "Get AI Help" button when no response after 30s */}
+            {showAiHelpButton && aiEnabled && (
+              <div className="ai-help-prompt">
+                <button className="ai-help-button" onClick={handleAiHelp} disabled={aiHelpLoading}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                  {aiHelpLoading ? "..." : aiOfflineCopy.button}
+                  {!aiHelpLoading && <span className="ai-help-zap">⚡</span>}
+                </button>
+              </div>
+            )}
+
             {agentTyping && (
               <div className={`typing-indicator${aiTyping ? " ai-typing" : ""}`}>
                 <span className="typing-dot" />

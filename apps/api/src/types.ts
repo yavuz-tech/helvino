@@ -49,6 +49,21 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  // AI tracking fields
+  isAIGenerated?: boolean;
+  aiProvider?: string | null;
+  aiModel?: string | null;
+  aiTokensUsed?: number | null;
+  aiCost?: number | null;
+  aiResponseTime?: number | null;
+}
+
+export interface AiMessageMeta {
+  provider: string;
+  model: string;
+  tokensUsed: number;
+  cost: number;
+  responseTimeMs: number;
 }
 
 export interface Conversation {

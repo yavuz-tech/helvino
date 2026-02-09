@@ -213,6 +213,14 @@ model Message {
   content        String       @db.Text
   timestamp      DateTime
 
+  // Enhanced AI tracking
+  isAIGenerated  Boolean      @default(false)
+  aiProvider     String?      // "openai" | "gemini" | "claude"
+  aiModel        String?      // "gpt-4o-mini", "gemini-1.5-flash", etc.
+  aiTokensUsed   Int?         // Total tokens (input + output)
+  aiCost         Decimal?     @db.Decimal(10, 6) // Cost in USD
+  aiResponseTime Int?         // Response time in milliseconds
+
   @@index([conversationId])
   @@index([orgId])
   @@index([orgId, conversationId, timestamp(sort: Desc)])

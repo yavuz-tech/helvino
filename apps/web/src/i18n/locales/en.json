@@ -2055,5 +2055,18 @@
   "aiProvider.gemini": "Google Gemini",
   "aiProvider.claude": "Anthropic Claude",
   "aiProvider.select": "Select AI Provider",
-  "aiProvider.current": "Current Provider"
+  "aiProvider.current": "Current Provider",
+
+  "analytics.ai.title": "AI Analytics",
+  "analytics.ai.totalCost": "Total Cost",
+  "analytics.ai.avgResponseTime": "Avg Response Time",
+  "analytics.ai.mostUsedModel": "Most Used Model",
+  "analytics.ai.byProvider": "Cost by Provider",
+  "analytics.ai.tokensUsed": "Tokens Used",
+  "analytics.ai.responseTime": "Response Time",
+
+  "widget.ai.noOperators": "No operators available",
+  "widget.ai.getHelpNow": "Get AI help now",
+  "widget.ai.autoJoined": "AI Assistant has joined to help you",
+  "widget.ai.systemMessage": "No operators available. AI Assistant will help."
 }

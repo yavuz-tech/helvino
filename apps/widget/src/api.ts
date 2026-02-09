@@ -356,4 +356,27 @@ export async function loadBootloader(): Promise<BootloaderConfig> {
   return response.json();
 }
 
+/**
+ * Request AI help for a conversation (on-demand trigger)
+ */
+export async function requestAiHelp(conversationId: string): Promise<{ ok: boolean; message?: Message }> {
+  const url = `${API_URL}/conversations/${conversationId}/ai-help`;
+  console.log("[Widget API] requestAiHelp called", { conversationId });
+
+  await ensureValidToken();
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: getHeaders({ useOrgToken: true }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "AI help unavailable" }));
+    console.error("[Widget API] requestAiHelp failed", { status: response.status, error });
+    throw new Error(typeof error.error === "string" ? error.error : "AI help unavailable");
+  }
+
+  return response.json();
+}
+
 export { API_URL, getOrgKey };

@@ -2055,5 +2055,18 @@
   "aiProvider.gemini": "Google Gemini",
   "aiProvider.claude": "Anthropic Claude",
   "aiProvider.select": "AI Saglayicisi Sec",
-  "aiProvider.current": "Mevcut Saglayici"
+  "aiProvider.current": "Mevcut Saglayici",
+
+  "analytics.ai.title": "AI Analitikleri",
+  "analytics.ai.totalCost": "Toplam Maliyet",
+  "analytics.ai.avgResponseTime": "Ort. Yanit Suresi",
+  "analytics.ai.mostUsedModel": "En Cok Kullanilan Model",
+  "analytics.ai.byProvider": "Saglayiciya Gore Maliyet",
+  "analytics.ai.tokensUsed": "Kullanilan Token",
+  "analytics.ai.responseTime": "Yanit Suresi",
+
+  "widget.ai.noOperators": "Operator yok",
+  "widget.ai.getHelpNow": "Simdi AI yardimi alin",
+  "widget.ai.autoJoined": "AI Asistan yardim etmek icin katildi",
+  "widget.ai.systemMessage": "Operator yok. AI Asistan yardim edecek."
 }
