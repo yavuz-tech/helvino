@@ -4,6 +4,7 @@ import { DebugProvider } from "@/contexts/DebugContext";
 import { OrgProvider } from "@/contexts/OrgContext";
 import { StepUpProvider } from "@/contexts/StepUpContext";
 import { I18nProvider } from "@/i18n/I18nContext";
+import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import DebugBanner from "@/components/DebugBanner";
 import PremiumToastProvider from "@/components/PremiumToast";
 import { useSearchParams } from "next/navigation";
@@ -19,17 +20,19 @@ function DebugGate() {
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <I18nProvider>
-      <StepUpProvider>
-        <OrgProvider>
-          <DebugProvider>
-            {children}
-            <PremiumToastProvider />
-            <Suspense fallback={null}>
-              <DebugGate />
-            </Suspense>
-          </DebugProvider>
-        </OrgProvider>
-      </StepUpProvider>
+      <CurrencyProvider>
+        <StepUpProvider>
+          <OrgProvider>
+            <DebugProvider>
+              {children}
+              <PremiumToastProvider />
+              <Suspense fallback={null}>
+                <DebugGate />
+              </Suspense>
+            </DebugProvider>
+          </OrgProvider>
+        </StepUpProvider>
+      </CurrencyProvider>
     </I18nProvider>
   );
 }

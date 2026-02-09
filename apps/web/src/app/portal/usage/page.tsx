@@ -5,6 +5,7 @@ import Link from "next/link";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { useI18n } from "@/i18n/I18nContext";
+import { useCurrency } from "@/contexts/CurrencyContext";
 import type { TranslationKey } from "@/i18n/translations";
 import { 
   ChevronLeft, TrendingUp, TrendingDown, Minus, 
@@ -240,6 +241,7 @@ export default function PortalUsagePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { t } = useI18n();
+  const { formatUsd } = useCurrency();
 
   useEffect(() => {
     if (authLoading) return;
@@ -677,7 +679,7 @@ export default function PortalUsagePage() {
                     t("billing.free")
                   ) : (
                     <span suppressHydrationWarning>
-                      ${billing.plan.monthlyPriceUsd}
+                      {formatUsd(billing.plan.monthlyPriceUsd, { decimals: 0 })}
                       <span className="text-sm font-normal text-slate-500">{t("billing.perMonth")}</span>
                     </span>
                   )}

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { APP_NAME } from "@helvino/shared";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import CurrencySwitcher from "@/components/CurrencySwitcher";
 import { designTokens } from "@/lib/designTokens";
 import {
   MessageCircle,
@@ -368,6 +369,7 @@ export default function PublicLayout({
           {/* ── Desktop CTAs ── */}
           <div className="hidden lg:flex items-center gap-2 ml-auto">
             <LanguageSwitcher />
+            <CurrencySwitcher />
             <Link
               href="/contact"
               className="px-3.5 py-2 text-sm text-slate-600 hover:text-slate-900 transition-colors font-medium rounded-lg hover:bg-slate-50"
@@ -391,6 +393,7 @@ export default function PublicLayout({
           {/* ── Mobile burger ── */}
           <div className="flex lg:hidden items-center gap-2">
             <LanguageSwitcher />
+            <CurrencySwitcher />
             <button
               onClick={() => setMobileMenuOpen((v) => !v)}
               aria-label={t("nav.menu")}

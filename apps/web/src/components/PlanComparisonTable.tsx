@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/I18nContext";
+import { useCurrency } from "@/contexts/CurrencyContext";
 import SecurityBadges from "@/components/SecurityBadges";
 import type { TranslationKey } from "@/i18n/translations";
 
@@ -87,6 +88,7 @@ export default function PlanComparisonTable({
   recommendedPlan,
 }: PlanComparisonTableProps) {
   const { t } = useI18n();
+  const { currency, config, formatUsd } = useCurrency();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
 
   const translatePlanName = (key: string, fallbackName: string): string => {
@@ -216,7 +218,7 @@ export default function PlanComparisonTable({
                     <div>
                       <div className="flex items-baseline justify-center gap-1">
                         <span className="text-6xl font-semibold text-slate-900">
-                          ${displayPrice}
+                          {formatUsd(displayPrice, { decimals: 0 })}
                         </span>
                         <span className="text-slate-500 text-base font-semibold">
                           {billingCycle === "yearly"
