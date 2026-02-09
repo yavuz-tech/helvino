@@ -1,5 +1,5 @@
 // AUTO-GENERATED compat file for legacy verify scripts — DO NOT EDIT
-// Generated from JSON locales at 2026-02-08T22:01:37.325Z
+// Generated from JSON locales at 2026-02-09T00:21:21.845Z
 const en = {
   "admin.auditSummary.last24h": "Total events (24h)",
   "admin.auditSummary.suspicious": "Suspicious Events",
@@ -1602,6 +1602,7 @@ const en = {
   "team.inviteMember": "Invite Member",
   "team.inviteRole": "Role",
   "team.inviteSent": "Invite sent successfully!",
+  "team.inviteCreatedEmailFailed": "Invite created, but the email could not be sent.",
   "team.invitedAt": "Invited",
   "team.joined": "Joined",
   "team.lastLogin": "Last Login",
@@ -3496,6 +3497,7 @@ const tr: Record<TranslationKey, string> = {
   "team.inviteMember": "Üye Davet Et",
   "team.inviteRole": "Rol",
   "team.inviteSent": "Davet başarıyla gönderildi!",
+  "team.inviteCreatedEmailFailed": "Davet oluşturuldu ancak e-posta gönderilemedi.",
   "team.invitedAt": "Davet Tarihi",
   "team.joined": "Katılım",
   "team.lastLogin": "Son Giriş",
@@ -5388,6 +5390,7 @@ const es: Record<TranslationKey, string> = {
   "team.inviteMember": "Invitar Miembro",
   "team.inviteRole": "Rol",
   "team.inviteSent": "¡Invitación enviada con éxito!",
+  "team.inviteCreatedEmailFailed": "Invitación creada, pero no se pudo enviar el correo.",
   "team.invitedAt": "Fecha de invitación",
   "team.joined": "Se unió",
   "team.lastLogin": "Último inicio de sesión",

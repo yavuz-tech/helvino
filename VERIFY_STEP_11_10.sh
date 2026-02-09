@@ -5,6 +5,7 @@ PASS=0
 FAIL=0
 TOTAL=0
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+source "$ROOT/verify/_lib.sh"
 
 if command -v rg &>/dev/null; then
   SEARCH="rg"
@@ -24,17 +25,11 @@ echo ""
 # ── 1-2. Builds ──
 if [ "${SKIP_BUILD:-}" != "1" ]; then
   echo "--- 1. API Build ---"
-  cd "$ROOT/apps/api"
-  if pnpm build 2>&1 | tail -1; then pass "API build"; else fail "API build"; fi
+  if build_api_once >/dev/null 2>&1; then pass "API build"; else fail "API build"; fi
   echo ""
 
   echo "--- 2. Web Build ---"
-  cd "$ROOT/apps/web"
-  if NEXT_BUILD_DIR=.next-verify pnpm build 2>&1 | tail -3; then
-    pass "Web build"; rm -rf .next-verify 2>/dev/null || true
-  else
-    fail "Web build"; rm -rf .next-verify 2>/dev/null || true
-  fi
+  if build_web_once >/dev/null 2>&1; then pass "Web build"; else fail "Web build"; fi
   echo ""
 else
   echo "--- Builds skipped (SKIP_BUILD=1) ---"
@@ -69,6 +64,10 @@ echo ""
 
 # ── 5. Negative tests (API must be running) ──
 echo "--- 5. Negative tests ---"
+if should_skip_smoke; then
+  echo "  SKIP: smoke already done"
+  echo ""
+else
 API_URL="${API_URL:-http://localhost:4000}"
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@helvion.io}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-helvino_admin_2026}"
@@ -140,6 +139,7 @@ else
   fi
 fi
 echo ""
+fi
 
 # ── Summary ──
 echo "=============================="

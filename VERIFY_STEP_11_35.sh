@@ -7,6 +7,7 @@ set -uo pipefail
 
 # i18n compat: use generated flat file instead of translations.ts
 _COMPAT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$_COMPAT_DIR/verify/_lib.sh"
 if [ -n "${I18N_COMPAT_FILE:-}" ] && [ -f "${I18N_COMPAT_FILE}" ]; then
   _I18N_COMPAT="$I18N_COMPAT_FILE"
 elif [ -f "$_COMPAT_DIR/apps/web/src/i18n/.translations-compat.ts" ]; then
@@ -43,15 +44,13 @@ echo ""
 # ── 1) Build checks ─────────────────────────────────────────
 echo "── 1) Build Checks ──"
 if [ "${SKIP_BUILD:-}" != "1" ]; then
-  cd "$API_DIR"
-  if pnpm build > /dev/null 2>&1; then
+  if build_api_once >/dev/null 2>&1; then
     ok "API build passes"
   else
     fail "API build fails"
   fi
 
-  cd "$WEB_DIR"
-  if NEXT_BUILD_DIR=.next-verify pnpm build > /dev/null 2>&1; then
+  if build_web_once >/dev/null 2>&1; then
     ok "Web build passes"
   else
     fail "Web build fails"

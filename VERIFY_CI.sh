@@ -7,6 +7,9 @@ set -euo pipefail
 # Does NOT require interactive TTY.
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+LOG_DIR="$ROOT/.verify-logs"
+source "$ROOT/verify/_lib.sh"
+verify_reset_sentinels
 
 echo "============================================================"
 echo "  VERIFY_CI — $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
@@ -22,20 +25,20 @@ fi
 
 # ── 2. API build ──
 echo "--- API build ---"
-cd "$ROOT/apps/api"
-pnpm build
+build_api_once "$LOG_DIR/api-build.log"
 echo ""
 
 # ── 3. Web build (isolated) ──
 echo "--- Web build ---"
-cd "$ROOT/apps/web"
-pnpm build
+build_web_once "$LOG_DIR/web-build.log"
 echo ""
 
 # ── 4. Run VERIFY_ALL.sh ──
 echo "--- VERIFY_ALL ---"
 cd "$ROOT"
 EXIT=0
+export SKIP_SMOKE=1
+bash "$ROOT/verify/smoke_once.sh" || true
 bash "$ROOT/VERIFY_ALL.sh" || EXIT=$?
 
 echo ""

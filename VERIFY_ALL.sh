@@ -12,6 +12,8 @@ export RATE_LIMIT_DEV_MULTIPLIER=50
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 LOG_DIR="$ROOT/.verify-logs"
 mkdir -p "$LOG_DIR"
+source "$ROOT/verify/_lib.sh"
+verify_reset_sentinels
 
 TOTAL=0
 PASSED=0
@@ -86,8 +88,7 @@ echo ""
 # 2. API BUILD
 # ──────────────────────────────────────────────────
 divider "API BUILD"
-cd "$ROOT/apps/api"
-if pnpm build 2>&1 | tee "$LOG_DIR/api-build.log" | tail -5; then
+if build_api_once "$LOG_DIR/api-build.log"; then
   echo -e "  ${GREEN}PASS${NC}: API build"
 else
   echo -e "  ${RED}STOP${NC}: API build broken"
@@ -99,8 +100,7 @@ echo ""
 # 3. WEB BUILD (isolated dir to protect dev server)
 # ──────────────────────────────────────────────────
 divider "WEB BUILD"
-cd "$ROOT/apps/web"
-if pnpm build 2>&1 | tee "$LOG_DIR/web-build.log" | tail -5; then
+if build_web_once "$LOG_DIR/web-build.log"; then
   echo -e "  ${GREEN}PASS${NC}: Web build"
 else
   echo -e "  ${RED}STOP${NC}: Web build broken"
@@ -137,8 +137,16 @@ else
 fi
 echo ""
 
+# ──────────────────────────────────────────────────
+# 3c. SMOKE (once per run)
+# ──────────────────────────────────────────────────
+divider "SMOKE (ONCE)"
+bash "$ROOT/verify/smoke_once.sh" || true
+echo ""
+
 # Tell individual scripts to skip redundant builds (VERIFY_ALL already built them above)
 export SKIP_BUILD=1
+export SKIP_SMOKE=1
 
 # ──────────────────────────────────────────────────
 # 4. DISCOVER VERIFY SCRIPTS

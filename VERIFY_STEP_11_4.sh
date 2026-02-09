@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$ROOT_DIR/verify/_lib.sh"
 
 echo "== Step 11.4 Verification =="
 
@@ -20,15 +21,19 @@ test -f "$ROOT_DIR/docs/STEP_11_4_CUSTOMER_PORTAL.md"
 
 if [ "${SKIP_BUILD:-}" != "1" ]; then
   echo "-> Building API"
-  (cd "$ROOT_DIR/apps/api" && npx pnpm build)
+  build_api_once
 
   echo "-> Building Web (isolated dir)"
-  (cd "$ROOT_DIR/apps/web" && NEXT_BUILD_DIR=.next-verify npx pnpm build && rm -rf .next-verify 2>/dev/null || true)
+  build_web_once
 else
   echo "-> Builds skipped (SKIP_BUILD=1)"
 fi
 
 echo "-> Checking portal auth endpoints (if API healthy)"
+if should_skip_smoke; then
+  echo "-> Smoke skipped (already done)"
+  exit 0
+fi
 __API_HC=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 3 --max-time 5 http://localhost:4000/health 2>/dev/null || echo "000")
 if [ "$__API_HC" = "200" ]; then
   EMAIL="${ORG_OWNER_EMAIL:-owner@demo.helvion.io}"

@@ -242,17 +242,32 @@ else
   pass "9.1 No hardcoded email subjects in portal-team.ts"
 fi
 
-# 59: Email sends are best-effort (catch)
-CATCH_COUNT_TEAM=$(grep -c '\.catch' "$TEAM" 2>/dev/null || echo 0)
-if [ "$CATCH_COUNT_TEAM" -ge 1 ]; then pass "9.2 Email sends are best-effort in portal-team.ts"; else fail "9.2 Email sends are best-effort in portal-team.ts"; fi
+# 59: Email sends are best-effort (catch or sendEmailAsync)
+CATCH_COUNT_TEAM=$(grep -c '\.catch' "$TEAM" 2>/dev/null | tr -d '[:space:]' || echo 0)
+ASYNC_TEAM=$(grep -c 'sendEmailAsync' "$TEAM" 2>/dev/null | tr -d '[:space:]' || echo 0)
+if [ "$CATCH_COUNT_TEAM" -ge 1 ] || [ "$ASYNC_TEAM" -ge 1 ]; then
+  pass "9.2 Email sends are best-effort in portal-team.ts"
+else
+  fail "9.2 Email sends are best-effort in portal-team.ts"
+fi
 
 # 60: Email sends are best-effort in portal-security.ts
-CATCH_COUNT_SEC=$(grep -c '\.catch' "$SECURITY" 2>/dev/null || echo 0)
-if [ "$CATCH_COUNT_SEC" -ge 1 ]; then pass "9.3 Email sends are best-effort in portal-security.ts"; else fail "9.3 Email sends are best-effort in portal-security.ts"; fi
+CATCH_COUNT_SEC=$(grep -c '\.catch' "$SECURITY" 2>/dev/null | tr -d '[:space:]' || echo 0)
+ASYNC_SEC=$(grep -c 'sendEmailAsync' "$SECURITY" 2>/dev/null | tr -d '[:space:]' || echo 0)
+if [ "$CATCH_COUNT_SEC" -ge 1 ] || [ "$ASYNC_SEC" -ge 1 ]; then
+  pass "9.3 Email sends are best-effort in portal-security.ts"
+else
+  fail "9.3 Email sends are best-effort in portal-security.ts"
+fi
 
 # 61: Email sends are best-effort in recovery-routes.ts
-CATCH_COUNT_REC=$(grep -c '\.catch' "$RECOVERY" 2>/dev/null || echo 0)
-if [ "$CATCH_COUNT_REC" -ge 2 ]; then pass "9.4 Email sends are best-effort in recovery-routes.ts (>= 2 catches)"; else fail "9.4 Email sends are best-effort in recovery-routes.ts (found $CATCH_COUNT_REC)"; fi
+CATCH_COUNT_REC=$(grep -c '\.catch' "$RECOVERY" 2>/dev/null | tr -d '[:space:]' || echo 0)
+ASYNC_REC=$(grep -c 'sendEmailAsync' "$RECOVERY" 2>/dev/null | tr -d '[:space:]' || echo 0)
+if [ "$CATCH_COUNT_REC" -ge 2 ] || [ "$ASYNC_REC" -ge 1 ]; then
+  pass "9.4 Email sends are best-effort in recovery-routes.ts"
+else
+  fail "9.4 Email sends are best-effort in recovery-routes.ts (found $CATCH_COUNT_REC catches, $ASYNC_REC async)"
+fi
 
 echo ""
 
