@@ -114,8 +114,13 @@ export default function EmbedChecklist({
 
       {/* Embed Code Toggle */}
       <div className="border-t border-slate-100">
-        <button onClick={() => setShowCode(!showCode)}
-          className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50/50 transition-colors">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setShowCode(!showCode)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowCode(!showCode); } }}
+          className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50/50 transition-colors cursor-pointer select-none"
+        >
           <div className="flex items-center gap-2">
             <Code size={15} className="text-slate-400" />
             <span className="text-sm font-semibold text-slate-600">{t("embed.snippetTitle")}</span>
@@ -128,7 +133,7 @@ export default function EmbedChecklist({
             </button>
             {showCode ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
           </div>
-        </button>
+        </div>
         {showCode && (
           <div className="px-6 pb-5">
             <pre className="bg-slate-900 text-slate-200 px-5 py-4 rounded-xl text-sm overflow-x-auto leading-relaxed font-mono">
