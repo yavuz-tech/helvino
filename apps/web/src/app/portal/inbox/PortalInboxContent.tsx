@@ -194,11 +194,11 @@ export default function PortalInboxContent() {
 
   // Plan info
   const [planKey, setPlanKey] = useState<string>("free");
-  const isPro = planKey === "pro" || planKey === "enterprise" || planKey === "PRO" || planKey === "ENTERPRISE";
-  const isStarter = isPro || planKey === "starter" || planKey === "STARTER";
+  const isPro = planKey === "pro" || planKey === "business" || planKey === "PRO" || planKey === "BUSINESS";
+  const isProPlus = isPro; // Pro+ features (AI assist, smart filters)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<"quota" | "plan">("plan");
-  const [upgradeRequiredPlan, setUpgradeRequiredPlan] = useState<string>("starter");
+  const [upgradeRequiredPlan, setUpgradeRequiredPlan] = useState<string>("pro");
 
   // Bulk select
   const [bulkMode, setBulkMode] = useState(false);
@@ -272,13 +272,13 @@ export default function PortalInboxContent() {
   // Helper: handle 402 quota exceeded from any AI endpoint
   const handleAiQuotaError = useCallback(() => {
     setUpgradeReason("quota");
-    setUpgradeRequiredPlan("starter");
+    setUpgradeRequiredPlan("pro");
     setShowUpgradeModal(true);
   }, []);
 
   const handleAiSuggest = useCallback(async () => {
     if (!selectedConversationId || aiLoading || isLoadingDetail) return;
-    if (!isStarter) { setUpgradeReason("plan"); setUpgradeRequiredPlan("starter"); setShowUpgradeModal(true); return; }
+    if (!isProPlus) { setUpgradeReason("plan"); setUpgradeRequiredPlan("pro"); setShowUpgradeModal(true); return; }
     if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet" as any) }); return; }
     setAiLoading("suggest");
     setAiSuggestions(null);
@@ -293,11 +293,11 @@ export default function PortalInboxContent() {
       }
     } catch { premiumToast.error({ title: t("common.error") }); }
     finally { setAiLoading(null); }
-  }, [selectedConversationId, aiLoading, isLoadingDetail, isStarter, conversationDetail, handleAiQuotaError, t]);
+  }, [selectedConversationId, aiLoading, isLoadingDetail, isProPlus, conversationDetail, handleAiQuotaError, t]);
 
   const handleAiSummarize = useCallback(async () => {
     if (!selectedConversationId || aiLoading || isLoadingDetail) return;
-    if (!isStarter) { setUpgradeReason("plan"); setUpgradeRequiredPlan("starter"); setShowUpgradeModal(true); return; }
+    if (!isProPlus) { setUpgradeReason("plan"); setUpgradeRequiredPlan("pro"); setShowUpgradeModal(true); return; }
     if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet" as any) }); return; }
     setAiLoading("summarize");
     setAiSummary(null);
@@ -312,7 +312,7 @@ export default function PortalInboxContent() {
       }
     } catch { premiumToast.error({ title: t("common.error") }); }
     finally { setAiLoading(null); }
-  }, [selectedConversationId, aiLoading, isLoadingDetail, isStarter, conversationDetail, handleAiQuotaError, t]);
+  }, [selectedConversationId, aiLoading, isLoadingDetail, isProPlus, conversationDetail, handleAiQuotaError, t]);
 
   // FREE: AI Sentiment Analysis
   const handleAiSentiment = useCallback(async () => {
@@ -1093,29 +1093,29 @@ export default function PortalInboxContent() {
                 <button
                   onClick={handleAiSuggest}
                   disabled={!!aiLoading || isLoadingDetail}
-                  title={isStarter ? t("inbox.ai.suggestReplyTooltip" as any) : t("inbox.ai.suggestReplyLockedTooltip" as any)}
+                  title={isProPlus ? t("inbox.ai.suggestReplyTooltip" as any) : t("inbox.ai.suggestReplyLockedTooltip" as any)}
                   className={`relative p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                    isStarter
+                    isProPlus
                       ? "text-blue-600 hover:text-blue-800 hover:bg-blue-50"
                       : "text-slate-300 hover:text-slate-400 cursor-not-allowed"
                   }`}
                 >
                   {aiLoading === "suggest" ? <span className="w-4 h-4 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin block" /> : <Wand2 size={15} />}
-                  {!isStarter && <Lock size={7} className="absolute -top-0.5 -right-0.5 text-slate-400" />}
+                  {!isProPlus && <Lock size={7} className="absolute -top-0.5 -right-0.5 text-slate-400" />}
                 </button>
                 {/* PRO AI: Summarize */}
                 <button
                   onClick={handleAiSummarize}
                   disabled={!!aiLoading || isLoadingDetail}
-                  title={isStarter ? t("inbox.ai.summarizeTooltip" as any) : t("inbox.ai.summarizeLockedTooltip" as any)}
+                  title={isProPlus ? t("inbox.ai.summarizeTooltip" as any) : t("inbox.ai.summarizeLockedTooltip" as any)}
                   className={`relative p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                    isStarter
+                    isProPlus
                       ? "text-purple-600 hover:text-purple-800 hover:bg-purple-50"
                       : "text-slate-300 hover:text-slate-400 cursor-not-allowed"
                   }`}
                 >
                   {aiLoading === "summarize" ? <span className="w-4 h-4 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin block" /> : <FileText size={15} />}
-                  {!isStarter && <Lock size={7} className="absolute -top-0.5 -right-0.5 text-slate-400" />}
+                  {!isProPlus && <Lock size={7} className="absolute -top-0.5 -right-0.5 text-slate-400" />}
                 </button>
 
                 <div className="w-px h-5 bg-slate-200 mx-0.5" />

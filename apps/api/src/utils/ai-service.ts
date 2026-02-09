@@ -137,11 +137,8 @@ function calculateCost(model: string, inputTokens: number, outputTokens: number)
 
 const PLAN_AI_LIMITS: Record<string, number> = {
   free: 100,
-  starter: 500,
   pro: 2000,
-  growth: 2000,
   business: 5000,
-  enterprise: -1,
 };
 
 export function getAiLimitForPlan(planKey: string): number {
@@ -153,11 +150,8 @@ export function getAiLimitForPlan(planKey: string): number {
 export function getDefaultProviderForPlan(planKey: string): AiProvider {
   switch (planKey) {
     case "free":       return "gemini";   // cheapest
-    case "starter":    return "openai";   // balanced
     case "pro":        return "openai";   // quality
-    case "growth":     return "openai";
-    case "business":   return "openai";
-    case "enterprise": return "openai";   // best + fallback
+    case "business":   return "openai";   // premium
     default:           return "openai";
   }
 }
@@ -167,10 +161,10 @@ export function getDefaultModelForPlan(planKey: string, provider: AiProvider): s
     return planKey === "free" ? "gemini-2.5-flash" : "gemini-2.5-flash";
   }
   if (provider === "openai") {
-    return planKey === "enterprise" ? "gpt-4o" : "gpt-4o-mini";
+    return planKey === "business" ? "gpt-4o" : "gpt-4o-mini";
   }
   if (provider === "claude") {
-    return planKey === "enterprise" ? "claude-3-5-sonnet-latest" : "claude-3-5-haiku-latest";
+    return planKey === "business" ? "claude-3-5-sonnet-latest" : "claude-3-5-haiku-latest";
   }
   return "gpt-4o-mini";
 }

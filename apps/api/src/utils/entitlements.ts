@@ -34,9 +34,7 @@ export interface MeteringLimits {
 const PLAN_METERING_LIMITS: Record<string, MeteringLimits> = {
   free: { m1LimitPerMonth: 50, m2LimitPerMonth: 50, m3LimitVisitorsPerMonth: 100 },
   pro: { m1LimitPerMonth: 500, m2LimitPerMonth: 250, m3LimitVisitorsPerMonth: 2000 },
-  growth: { m1LimitPerMonth: 2000, m2LimitPerMonth: 1000, m3LimitVisitorsPerMonth: 10000 },
   business: { m1LimitPerMonth: 2000, m2LimitPerMonth: 1000, m3LimitVisitorsPerMonth: 10000 },
-  enterprise: { m1LimitPerMonth: null, m2LimitPerMonth: null, m3LimitVisitorsPerMonth: null },
 };
 
 export function getMeteringLimitsForPlan(planKey: string): MeteringLimits {
