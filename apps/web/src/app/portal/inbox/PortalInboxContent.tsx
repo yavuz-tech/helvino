@@ -7,6 +7,7 @@ import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { useI18n } from "@/i18n/I18nContext";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useHydrated } from "@/hooks/useHydrated";
+import { usePortalInboxNotification } from "@/contexts/PortalInboxNotificationContext";
 import {
   Search, X, Send, User, Pause, XCircle,
   MessageSquare, Paperclip, Smile,
@@ -26,6 +27,7 @@ interface ConversationListItem {
   messageCount: number;
   lastMessageAt: string;
   noteCount: number;
+  hasUnreadFromUser?: boolean;
   preview: { text: string; from: string } | null;
 }
 
@@ -132,6 +134,10 @@ export default function PortalInboxContent() {
   const [noteBody, setNoteBody] = useState("");
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
 
+  // Reply (agent message)
+  const [replyBody, setReplyBody] = useState("");
+  const [isSendingReply, setIsSendingReply] = useState(false);
+
   // Team
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -147,6 +153,12 @@ export default function PortalInboxContent() {
   // Toast
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const showToast = useCallback((msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 2500); }, []);
+
+  // Typing indicator
+  const { emitAgentTyping, emitAgentTypingStop, onUserTyping, onUserTypingStop } = usePortalInboxNotification();
+  const [userTypingConvId, setUserTypingConvId] = useState<string | null>(null);
+  const agentTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const userTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -186,6 +198,13 @@ export default function PortalInboxContent() {
 
   useEffect(() => { if (!authLoading) fetchConversations(); }, [authLoading, fetchConversations]);
 
+  // Poll for new conversations (e.g. from widget) so inbox updates without manual refresh
+  useEffect(() => {
+    if (authLoading || !user) return;
+    const interval = setInterval(fetchConversations, 15000);
+    return () => clearInterval(interval);
+  }, [authLoading, user, fetchConversations]);
+
   // Detail + notes
   const fetchConversationDetail = useCallback(async (id: string) => {
     try { setIsLoadingDetail(true); const res = await portalApiFetch(`/portal/conversations/${id}`); if (!res.ok) throw new Error(); setConversationDetail(await res.json()); }
@@ -195,17 +214,19 @@ export default function PortalInboxContent() {
     try { const res = await portalApiFetch(`/portal/conversations/${id}/notes`); if (res.ok) { const d = await res.json(); setNotes(d.notes || []); } } catch { /* */ }
   }, []);
 
-  const selectConversation = useCallback((id: string) => {
+  const selectConversation = useCallback(async (id: string) => {
     setSelectedConversationId(id);
-    fetchConversationDetail(id);
-    fetchNotes(id);
+    setConversations(prev => prev.map(c => c.id === id ? { ...c, hasUnreadFromUser: false } : c));
     setMobileView("chat");
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       params.set("c", id);
       router.replace(`/portal/inbox?${params.toString()}`, { scroll: false });
     }
-  }, [router, fetchConversationDetail, fetchNotes]);
+    await fetchConversationDetail(id);
+    fetchNotes(id);
+    await fetchConversations();
+  }, [router, fetchConversationDetail, fetchNotes, fetchConversations]);
 
   const closePanel = useCallback(() => {
     setSelectedConversationId(null); setConversationDetail(null); setNotes([]); setMobileView("list");
@@ -264,6 +285,20 @@ export default function PortalInboxContent() {
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [conversationDetail?.messages]);
 
+  // Listen for user typing events
+  useEffect(() => {
+    const offTyping = onUserTyping((data) => {
+      setUserTypingConvId(data.conversationId);
+      if (userTypingTimerRef.current) clearTimeout(userTypingTimerRef.current);
+      userTypingTimerRef.current = setTimeout(() => setUserTypingConvId(null), 3000);
+    });
+    const offStop = onUserTypingStop(() => {
+      setUserTypingConvId(null);
+      if (userTypingTimerRef.current) clearTimeout(userTypingTimerRef.current);
+    });
+    return () => { offTyping(); offStop(); };
+  }, [onUserTyping, onUserTypingStop]);
+
   // Actions
   const handleStatusChange = async (s: "OPEN" | "CLOSED") => {
     if (!selectedConversationId || !conversationDetail) return;
@@ -306,6 +341,45 @@ export default function PortalInboxContent() {
         showToast(t("inbox.noteSubmit"));
       }
     } catch { /* */ } finally { setIsSubmittingNote(false); }
+  };
+
+  const handleSendReply = async () => {
+    if (!selectedConversationId || !conversationDetail || !replyBody.trim() || isSendingReply) return;
+    setIsSendingReply(true);
+    try {
+      const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ content: replyBody.trim() }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        const newMsg = {
+          id: d.id,
+          conversationId: selectedConversationId,
+          role: "assistant" as const,
+          content: d.content,
+          timestamp: d.timestamp,
+        };
+        setConversationDetail({
+          ...conversationDetail,
+          messages: [...conversationDetail.messages, newMsg],
+        });
+        setReplyBody("");
+        showToast(t("inbox.chat.replySent"));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        const msg = typeof err?.error === "object" && err?.error?.message
+          ? err.error.message
+          : typeof err?.error === "string"
+            ? err.error
+            : t("common.error");
+        showToast(msg);
+      }
+    } catch {
+      showToast(t("common.error"));
+    } finally {
+      setIsSendingReply(false);
+    }
   };
 
   // Derived
@@ -414,19 +488,24 @@ export default function PortalInboxContent() {
             const isSelected = selectedIds.has(conv.id);
             return (
               <div key={conv.id}
-                className={`group px-4 py-3.5 cursor-pointer border-b border-slate-100 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${active ? "bg-blue-50/60" : "hover:bg-slate-50"}`}>
+                className={`group px-4 py-3.5 cursor-pointer border-b border-slate-100 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${active ? "bg-blue-50/60" : "hover:bg-slate-50"} ${conv.hasUnreadFromUser ? "bg-blue-50/40" : ""}`}>
                 <div className="flex items-start gap-3">
                   <input type="checkbox" checked={isSelected} onChange={() => toggleSelectConversation(conv.id)} onClick={e => e.stopPropagation()}
                     className="mt-3 w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 focus:ring-2 focus:ring-offset-0 cursor-pointer" />
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${getAvatarColor(conv.id)}`}
+                  <div className="relative flex-shrink-0">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white ${getAvatarColor(conv.id)}`}
                     onClick={() => selectConversation(conv.id)} role="button" tabIndex={0}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectConversation(conv.id); } }}
                     aria-label={`${t("inbox.sidebar.inbox")}: ${name}`}>
                     {getInitials(name)}
                   </div>
+                    {conv.hasUnreadFromUser && (
+                      <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-white" title={t("inbox.unread")} />
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0" onClick={() => selectConversation(conv.id)}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-semibold text-slate-800 truncate">{name}</span>
+                      <span className={`text-sm font-semibold truncate ${conv.hasUnreadFromUser ? "text-slate-900 font-bold" : "text-slate-800"}`}>{name}</span>
                       <span className="text-[11px] text-slate-400 flex-shrink-0 ml-2" suppressHydrationWarning>{formatTime(conv.updatedAt, hydrated)}</span>
                     </div>
                     {conv.preview && <p className="text-[13px] text-slate-600 truncate">{conv.preview.text}</p>}
@@ -478,10 +557,21 @@ export default function PortalInboxContent() {
                 </div>
                 <div>
                   <div className="text-[15px] font-semibold text-slate-900">{selectedConv ? displayName(selectedConv) : ""}</div>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <span className={`w-1.5 h-1.5 rounded-full ${isOpen ? "bg-emerald-500" : "bg-slate-300"}`} />
-                    {isOpen ? t("inbox.sidebar.online") : t("inbox.sidebar.offline")}
-                  </div>
+                  {userTypingConvId === selectedConversationId ? (
+                    <div className="flex items-center gap-1 text-xs text-blue-500 font-medium">
+                      <span className="inline-flex gap-0.5">
+                        <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </span>
+                      {t("inbox.typing.userTyping")}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <span className={`w-1.5 h-1.5 rounded-full ${isOpen ? "bg-emerald-500" : "bg-slate-300"}`} />
+                      {isOpen ? t("inbox.sidebar.online") : t("inbox.sidebar.offline")}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -555,17 +645,40 @@ export default function PortalInboxContent() {
               </button>
             </div>
 
-            {/* Composer */}
-            <div className="px-5 py-3 bg-white border-t border-slate-200 flex-shrink-0">
+            {/* Composer — send agent reply (enabled; POST /portal/conversations/:id/messages) */}
+            <div className="px-5 py-3 bg-white border-t border-slate-200 flex-shrink-0" role="form" aria-label={t("inbox.chat.replyForm")}>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2 text-slate-300">
                   <button disabled title={t("inbox.chat.notSupported")} className="cursor-not-allowed hover:text-slate-400"><Paperclip size={18} /></button>
                   <button disabled title={t("inbox.chat.notSupported")} className="cursor-not-allowed hover:text-slate-400"><Smile size={18} /></button>
                 </div>
-                <input type="text" readOnly placeholder={t("inbox.chat.typeMessage")} title={t("inbox.chat.sendDisabled")}
-                  className="flex-1 px-4 py-2.5 text-sm border border-slate-200 rounded-lg bg-white placeholder:text-slate-400 cursor-not-allowed focus:outline-none" />
-                <button disabled className="p-2.5 bg-[#F26B3A] text-white rounded-lg opacity-50 cursor-not-allowed shadow-sm">
-                  <Send size={16} />
+                <input
+                  type="text"
+                  value={replyBody}
+                  onChange={e => {
+                    setReplyBody(e.target.value);
+                    if (selectedConversationId) {
+                      emitAgentTyping(selectedConversationId);
+                      if (agentTypingTimerRef.current) clearTimeout(agentTypingTimerRef.current);
+                      agentTypingTimerRef.current = setTimeout(() => {
+                        if (selectedConversationId) emitAgentTypingStop(selectedConversationId);
+                      }, 1500);
+                    }
+                  }}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendReply(); } }}
+                  placeholder={t("inbox.chat.typeMessage")}
+                  disabled={isSendingReply}
+                  aria-label={t("inbox.chat.typeMessage")}
+                  className="flex-1 px-4 py-2.5 text-sm border border-slate-200 rounded-lg bg-white placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                />
+                <button
+                  type="button"
+                  onClick={handleSendReply}
+                  disabled={!replyBody.trim() || isSendingReply}
+                  aria-label={t("inbox.chat.send")}
+                  className="p-2.5 bg-[#F26B3A] text-white rounded-lg hover:bg-[#e55a2d] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors"
+                >
+                  {isSendingReply ? <span className="text-sm">...</span> : <Send size={16} />}
                 </button>
               </div>
             </div>

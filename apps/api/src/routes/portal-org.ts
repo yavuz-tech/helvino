@@ -418,22 +418,49 @@ export async function portalOrgRoutes(fastify: FastifyInstance) {
    */
 
   /**
-   * GET /portal/conversations/:id
+   * GET /portal/conversations/:id — full detail with messages, status, assignedTo
    */
   fastify.get<{ Params: { id: string } }>(
     "/portal/conversations/:id",
     { preHandler: [requirePortalUser] },
     async (request, reply) => {
       const user = request.portalUser!;
-      const conversation = await store.getConversationWithMessages(
-        request.params.id,
-        user.orgId
-      );
-      if (!conversation) {
+      const conv = await prisma.conversation.findFirst({
+        where: { id: request.params.id, orgId: user.orgId },
+        include: {
+          messages: { orderBy: { timestamp: "asc" as const } },
+          assignedTo: { select: { id: true, email: true, role: true } },
+        },
+      });
+      if (!conv) {
         reply.code(404);
         return { error: "Conversation not found" };
       }
-      return conversation;
+      // Mark as read when agent opens conversation (so list reorders: unread at top)
+      if (conv.hasUnreadFromUser) {
+        await prisma.conversation.update({
+          where: { id: conv.id },
+          data: { hasUnreadFromUser: false },
+        });
+      }
+      return {
+        id: conv.id,
+        orgId: conv.orgId,
+        createdAt: conv.createdAt.toISOString(),
+        updatedAt: conv.updatedAt.toISOString(),
+        messageCount: conv.messageCount,
+        status: conv.status,
+        assignedTo: conv.assignedTo ?? null,
+        closedAt: conv.closedAt?.toISOString() ?? null,
+        hasUnreadFromUser: false,
+        messages: conv.messages.map((m) => ({
+          id: m.id,
+          conversationId: m.conversationId,
+          role: m.role,
+          content: m.content,
+          timestamp: m.timestamp.toISOString(),
+        })),
+      };
     }
   );
 }

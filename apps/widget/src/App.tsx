@@ -54,6 +54,9 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "refreshing" | "error" | null>(null);
+  const [agentTyping, setAgentTyping] = useState(false);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const agentTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [recentEmojis, setRecentEmojis] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(RECENT_EMOJI_KEY) || "[]"); } catch { return []; }
@@ -178,6 +181,23 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
         // Use ref so we always compare against current conversation (avoids stale closure)
         if (data.conversationId === conversationIdRef.current) {
           setMessages((prev) => [...prev, data.message]);
+          // Agent sent a message → stop showing typing
+          setAgentTyping(false);
+        }
+      });
+
+      // Agent typing indicator
+      socketRef.current.on("agent:typing", (data: { conversationId: string }) => {
+        if (data.conversationId === conversationIdRef.current) {
+          setAgentTyping(true);
+          if (agentTypingTimerRef.current) clearTimeout(agentTypingTimerRef.current);
+          agentTypingTimerRef.current = setTimeout(() => setAgentTyping(false), 3000);
+        }
+      });
+      socketRef.current.on("agent:typing:stop", (data: { conversationId: string }) => {
+        if (data.conversationId === conversationIdRef.current) {
+          setAgentTyping(false);
+          if (agentTypingTimerRef.current) clearTimeout(agentTypingTimerRef.current);
         }
       });
 
@@ -232,6 +252,16 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  // Emit typing events to server
+  const emitTyping = () => {
+    if (!socketRef.current || !conversationIdRef.current) return;
+    socketRef.current.emit("typing:start", { conversationId: conversationIdRef.current });
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      socketRef.current?.emit("typing:stop", { conversationId: conversationIdRef.current });
+    }, 1500);
   };
 
   // Don't render if bootloader failed or widget is disabled
@@ -329,6 +359,14 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
                 </div>
               ))
             )}
+            {agentTyping && (
+              <div className="typing-indicator">
+                <span className="typing-dot" />
+                <span className="typing-dot" />
+                <span className="typing-dot" />
+                <span className="typing-label">Agent is typing</span>
+              </div>
+            )}
           </div>
           
           {!writeEnabled ? (
@@ -360,7 +398,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
                 type="text"
                 placeholder="Type a message..."
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                onChange={(e) => { setInputValue(e.target.value); emitTyping(); }}
                 onKeyPress={handleKeyPress}
                 disabled={isLoading || !conversationId}
               />

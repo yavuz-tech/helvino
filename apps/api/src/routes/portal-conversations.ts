@@ -4,16 +4,19 @@
  * GET   /portal/conversations                  — list with filters/search/pagination
  * POST  /portal/conversations/bulk             — bulk assign/unassign/open/close
  * PATCH /portal/conversations/:id              — update status/assignment
- * GET   /portal/conversations/:id/notes        — list notes
+ * POST  /portal/conversations/:id/messages      — send agent reply (assistant message)
+ * GET   /portal/conversations/:id/notes         — list notes
  * POST  /portal/conversations/:id/notes        — create note
  */
 
 import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
+import { store } from "../store";
 import { requirePortalUser, requirePortalRole } from "../middleware/require-portal-user";
 import { requireStepUp } from "../middleware/require-step-up";
 import { writeAuditLog } from "../utils/audit-log";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { checkMessageEntitlement, checkM2Entitlement, recordMessageUsage, recordM2Usage } from "../utils/entitlements";
 
 export async function portalConversationRoutes(fastify: FastifyInstance) {
   // ═══════════════════════════════════════════════════════════════
@@ -77,7 +80,10 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
       // Cursor-based pagination
       const findArgs: Record<string, unknown> = {
         where,
-        orderBy: { updatedAt: "desc" as const },
+        orderBy: [
+          { hasUnreadFromUser: "desc" as const },
+          { updatedAt: "desc" as const },
+        ],
         take: limit + 1,
         include: {
           assignedTo: { select: { id: true, email: true, role: true } },
@@ -114,6 +120,7 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
           messageCount: conv.messageCount,
           lastMessageAt: lastMsg?.timestamp?.toISOString() || conv.updatedAt.toISOString(),
           noteCount: conv._count?.notes || 0,
+          hasUnreadFromUser: !!conv.hasUnreadFromUser,
           preview: lastMsg
             ? {
                 text: lastMsg.content.length > 100 ? lastMsg.content.slice(0, 100) + "..." : lastMsg.content,
@@ -124,6 +131,27 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
       });
 
       return { items, nextCursor, requestId };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════
+  // GET /portal/conversations/unread-count — Inbox unread count (for bell badge)
+  // ═══════════════════════════════════════════════════════════════
+  fastify.get(
+    "/portal/conversations/unread-count",
+    {
+      preHandler: [
+        requirePortalUser,
+        requirePortalRole(["owner", "admin", "agent"]),
+        createRateLimitMiddleware({ limit: 60, windowMs: 60000 }),
+      ],
+    },
+    async (request) => {
+      const actor = request.portalUser!;
+      const count = await prisma.conversation.count({
+        where: { orgId: actor.orgId, hasUnreadFromUser: true },
+      });
+      return { unreadCount: count };
     }
   );
 
@@ -340,6 +368,98 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
         },
         requestId,
       };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════
+  // POST /portal/conversations/:id/messages
+  // Send agent reply (assistant message) — visible in conversation thread and widget
+  // ═══════════════════════════════════════════════════════════════
+  fastify.post<{
+    Params: { id: string };
+    Body: { content: string };
+  }>(
+    "/portal/conversations/:id/messages",
+    {
+      preHandler: [
+        requirePortalUser,
+        requirePortalRole(["owner", "admin", "agent"]),
+        createRateLimitMiddleware({ limit: 120, windowMs: 60000 }),
+      ],
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      const { content } = request.body;
+      const actor = request.portalUser!;
+      const requestId =
+        (request as any).requestId ||
+        (request.headers["x-request-id"] as string) ||
+        undefined;
+
+      if (!content || typeof content !== "string" || content.trim().length === 0) {
+        return reply.status(400).send({
+          error: { code: "INVALID_INPUT", message: "Message content is required", requestId },
+        });
+      }
+      if (content.length > 10000) {
+        return reply.status(400).send({
+          error: { code: "INVALID_INPUT", message: "Message too long (max 10000)", requestId },
+        });
+      }
+
+      // Verify conversation belongs to org
+      const conversation = await prisma.conversation.findFirst({
+        where: { id, orgId: actor.orgId },
+        select: { id: true },
+      });
+      if (!conversation) {
+        return reply.status(404).send({
+          error: { code: "NOT_FOUND", message: "Conversation not found", requestId },
+        });
+      }
+
+      const entitlement = await checkMessageEntitlement(actor.orgId);
+      if (!entitlement.allowed) {
+        return reply.status(402).send({
+          error: { code: entitlement.code || "QUOTA_EXCEEDED", message: entitlement.error || "Plan limit exceeded", requestId },
+        });
+      }
+      const m2Entitlement = await checkM2Entitlement(actor.orgId);
+      if (!m2Entitlement.allowed) {
+        return reply.status(402).send({
+          error: {
+            code: "QUOTA_M2_EXCEEDED",
+            message: m2Entitlement.error || "M2 quota exceeded",
+            resetAt: m2Entitlement.resetAt || null,
+            requestId,
+          },
+        });
+      }
+
+      const message = await store.addMessage(id, actor.orgId, "assistant", content.trim());
+      if (!message) {
+        return reply.status(404).send({
+          error: { code: "NOT_FOUND", message: "Conversation not found", requestId },
+        });
+      }
+
+      (fastify as any).io?.to(`org:${actor.orgId}`).emit("message:new", {
+        conversationId: id,
+        message,
+      });
+
+      await recordMessageUsage(actor.orgId);
+      recordM2Usage(actor.orgId).catch(() => {});
+
+      writeAuditLog(
+        actor.orgId,
+        actor.email,
+        "conversation.message_sent",
+        { conversationId: id, messageId: message.id },
+        requestId
+      ).catch(() => {});
+
+      return reply.status(201).send({ ...message, requestId });
     }
   );
 

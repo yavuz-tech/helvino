@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
+import { usePortalInboxNotification } from "@/contexts/PortalInboxNotificationContext";
 import { useI18n } from "@/i18n/I18nContext";
 import { ChevronLeft } from "lucide-react";
 
@@ -19,6 +20,13 @@ interface Settings {
 export default function PortalSettingsPage() {
   const { user, loading: authLoading } = usePortalAuth();
   const { t } = useI18n();
+  const {
+    soundEnabled,
+    setSoundEnabled,
+    notificationPermission,
+    requestNotificationPermission,
+    testSound,
+  } = usePortalInboxNotification();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [original, setOriginal] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -230,7 +238,7 @@ export default function PortalSettingsPage() {
         )}
 
         {canEdit && (
-          <button
+            <button
             onClick={handleSave}
             disabled={!hasChanges || saving}
             className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
@@ -238,6 +246,58 @@ export default function PortalSettingsPage() {
             {saving ? t("common.saving") : t("portal.saveSettings")}
           </button>
         )}
+      </div>
+
+      <div className="mt-8 bg-white rounded-lg border border-slate-200 p-6">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">{t("inbox.notification.title")}</h2>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border rounded-lg p-4">
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={soundEnabled}
+                onChange={(e) => setSoundEnabled(e.target.checked)}
+                aria-label={t("inbox.notification.soundEnabled")}
+              />
+              <span className="font-medium">{t("inbox.notification.soundEnabled")}</span>
+            </label>
+            <button
+              type="button"
+              onClick={testSound}
+              className="px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              {t("inbox.notification.testSound")}
+            </button>
+          </div>
+          <div className="flex items-center justify-between border rounded-lg p-4">
+            <div>
+              <span className="font-medium block">{t("inbox.notification.enableDesktop")}</span>
+              <span className="text-xs text-slate-500">
+                {notificationPermission === "granted" && t("inbox.notification.desktopEnabled")}
+                {notificationPermission === "denied" && t("inbox.notification.desktopDenied")}
+                {notificationPermission === "default" && (
+                  <button
+                    type="button"
+                    onClick={() => requestNotificationPermission()}
+                    className="text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    {t("inbox.notification.enableDesktop")}
+                  </button>
+                )}
+              </span>
+            </div>
+            {notificationPermission === "default" && (
+              <button
+                type="button"
+                onClick={() => requestNotificationPermission()}
+                className="px-3 py-1.5 text-sm font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-700"
+              >
+                {t("inbox.notification.enableDesktop")}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </>
   );

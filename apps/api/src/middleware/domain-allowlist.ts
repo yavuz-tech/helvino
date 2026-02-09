@@ -48,12 +48,15 @@ export function validateDomainAllowlist() {
       return reply.send({ error: "Organization not found" });
     }
 
-    // Get Origin or Referer header
+    // Get Origin or Referer header (file:// sends Origin: "null" string)
     const origin = request.headers.origin as string | undefined;
     const referer = request.headers.referer as string | undefined;
-    const requestOrigin = origin || referer;
+    let requestOrigin = origin || referer;
+    if (requestOrigin === "null" || requestOrigin === "file://") {
+      requestOrigin = undefined; // Treat file:// like no origin for allowlist check
+    }
 
-    // If no Origin/Referer header present
+    // If no Origin/Referer header present (or file://)
     if (!requestOrigin) {
       // For development/testing (curl, local scripts):
       // Allow if allowLocalhost is true OR if request IP is localhost

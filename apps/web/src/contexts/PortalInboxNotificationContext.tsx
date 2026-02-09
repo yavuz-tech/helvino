@@ -1,0 +1,368 @@
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from "react";
+import { useRouter } from "next/navigation";
+import { usePortalAuth } from "@/contexts/PortalAuthContext";
+
+const SOUND_STORAGE_KEY = "helvino_portal_sound_enabled";
+
+interface PortalInboxNotificationContextValue {
+  soundEnabled: boolean;
+  setSoundEnabled: (enabled: boolean) => void;
+  notificationPermission: NotificationPermission;
+  requestNotificationPermission: () => Promise<NotificationPermission>;
+  emitAgentTyping: (conversationId: string) => void;
+  emitAgentTypingStop: (conversationId: string) => void;
+  onUserTyping: (cb: (data: { conversationId: string }) => void) => () => void;
+  onUserTypingStop: (cb: (data: { conversationId: string }) => void) => () => void;
+  testSound: () => void;
+  socketStatus: string;
+  lastMessageAt: string | null;
+}
+
+const noop = () => () => {};
+const defaultValue: PortalInboxNotificationContextValue = {
+  soundEnabled: true,
+  setSoundEnabled: () => {},
+  notificationPermission: "default",
+  requestNotificationPermission: async () => "default",
+  emitAgentTyping: () => {},
+  emitAgentTypingStop: () => {},
+  onUserTyping: noop,
+  onUserTypingStop: noop,
+  testSound: () => {},
+  socketStatus: "not-initialized",
+  lastMessageAt: null,
+};
+
+const PortalInboxNotificationContext = createContext<PortalInboxNotificationContextValue>(defaultValue);
+
+export function usePortalInboxNotification() {
+  return useContext(PortalInboxNotificationContext);
+}
+
+// ── Sound helper: HTML5 Audio with base64 WAV (most reliable cross-browser) ──
+// Tiny two-tone WAV generated at build time — no file dependency, no autoplay issues
+// after a single user gesture (click anywhere on portal page).
+let _userHasInteracted = false;
+
+if (typeof window !== "undefined") {
+  const markInteracted = () => {
+    _userHasInteracted = true;
+    console.log("[Portal Sound] User interaction detected — sound unlocked");
+    document.removeEventListener("click", markInteracted);
+    document.removeEventListener("keydown", markInteracted);
+    document.removeEventListener("touchstart", markInteracted);
+  };
+  document.addEventListener("click", markInteracted);
+  document.addEventListener("keydown", markInteracted);
+  document.addEventListener("touchstart", markInteracted);
+}
+
+/**
+ * Play notification beep using Web Audio API.
+ * Falls back silently if anything fails.
+ */
+function safePlayBeep(): void {
+  try {
+    if (typeof window === "undefined") {
+      console.log("[Portal Sound] No window — skipping");
+      return;
+    }
+
+    if (!_userHasInteracted) {
+      console.log("[Portal Sound] No user interaction yet — cannot play (browser policy)");
+      return;
+    }
+
+    // Use AudioContext for programmatic beep — create fresh each time to avoid state issues
+    const ACtor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+    if (!ACtor) {
+      console.log("[Portal Sound] AudioContext not available");
+      return;
+    }
+
+    const ctx = new ACtor();
+    console.log("[Portal Sound] AudioContext state:", ctx.state);
+
+    // Resume if needed, then play
+    const play = () => {
+      try {
+        // First tone (C6 = 1047 Hz)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.frequency.value = 1047;
+        osc1.type = "sine";
+        gain1.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        osc1.start(ctx.currentTime);
+        osc1.stop(ctx.currentTime + 0.15);
+
+        // Second tone (E6 = 1319 Hz) after short gap
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.frequency.value = 1319;
+        osc2.type = "sine";
+        gain2.gain.setValueAtTime(0.3, ctx.currentTime + 0.15);
+        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        osc2.start(ctx.currentTime + 0.15);
+        osc2.stop(ctx.currentTime + 0.35);
+
+        // Clean up context after sound finishes
+        setTimeout(() => { try { ctx.close(); } catch { /* */ } }, 500);
+
+        console.log("[Portal Sound] Beep played successfully!");
+      } catch (e) {
+        console.warn("[Portal Sound] Failed to play beep:", e);
+      }
+    };
+
+    if (ctx.state === "suspended") {
+      ctx.resume().then(play).catch((e) => {
+        console.warn("[Portal Sound] Failed to resume AudioContext:", e);
+      });
+    } else {
+      play();
+    }
+  } catch (e) {
+    console.warn("[Portal Sound] safePlayBeep error:", e);
+  }
+}
+
+export function PortalInboxNotificationProvider({ children }: { children: ReactNode }) {
+  const { user } = usePortalAuth();
+  const router = useRouter();
+  const socketRef = useRef<unknown>(null);
+  const [soundEnabled, setSoundEnabledState] = useState(true);
+  const soundEnabledRef = useRef(true);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
+  const [socketStatus, setSocketStatus] = useState("not-initialized");
+  const [lastMessageAt, setLastMessageAt] = useState<string | null>(null);
+
+  soundEnabledRef.current = soundEnabled;
+
+  // ── Load sound preference from localStorage (safe) ──
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(SOUND_STORAGE_KEY);
+      setSoundEnabledState(stored !== "false");
+    } catch {
+      // localStorage unavailable — keep default
+    }
+  }, []);
+
+  const setSoundEnabled = useCallback((enabled: boolean) => {
+    setSoundEnabledState(enabled);
+    try { localStorage.setItem(SOUND_STORAGE_KEY, String(enabled)); } catch { /* */ }
+  }, []);
+
+  // ── Notification permission (safe) ──
+  const requestNotificationPermission = useCallback(async (): Promise<NotificationPermission> => {
+    try {
+      if (typeof window === "undefined" || !("Notification" in window)) return "denied";
+      if (Notification.permission !== "default") {
+        setNotificationPermission(Notification.permission);
+        return Notification.permission;
+      }
+      const perm = await Notification.requestPermission();
+      setNotificationPermission(perm);
+      return perm;
+    } catch {
+      return "denied";
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined" && "Notification" in window) {
+        setNotificationPermission(Notification.permission);
+      }
+    } catch { /* */ }
+  }, []);
+
+  // ── Socket.IO connection (fully wrapped in try-catch, lazy import) ──
+  useEffect(() => {
+    console.log("[Portal Socket] useEffect fired. user:", user ? { orgKey: user.orgKey, email: user.email } : null);
+    if (!user?.orgKey) {
+      console.log("[Portal Socket] No user/orgKey — skipping socket connection");
+      setSocketStatus("no-user");
+      return;
+    }
+
+    let socketInstance: ReturnType<typeof import("socket.io-client").io> | null = null;
+    let cancelled = false;
+
+    const connect = async () => {
+      try {
+        console.log("[Portal Socket] Connecting... orgKey:", user.orgKey);
+        // Lazy import so socket.io-client failure never crashes the page
+        const { io } = await import("socket.io-client");
+        const { API_URL } = await import("@/lib/portal-auth");
+
+        if (cancelled) return;
+
+        console.log("[Portal Socket] API_URL:", API_URL);
+        setSocketStatus("connecting");
+        socketInstance = io(API_URL, {
+          transports: ["websocket", "polling"],
+          auth: { orgKey: user.orgKey },
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 2000,
+        });
+        socketRef.current = socketInstance;
+
+        socketInstance.on("connect", () => {
+          console.log("[Portal Socket] Connected! socket.id:", socketInstance?.id);
+          setSocketStatus("connected:" + socketInstance?.id);
+        });
+
+        socketInstance.on("connect_error", (err: Error) => {
+          console.error("[Portal Socket] Connection error:", err.message);
+          setSocketStatus("error:" + err.message);
+        });
+
+        socketInstance.on("disconnect", (reason: string) => {
+          console.log("[Portal Socket] Disconnected:", reason);
+          setSocketStatus("disconnected:" + reason);
+        });
+
+        // Relay user:typing and user:typing:stop via custom events to inbox
+        socketInstance.on("user:typing", (data: { conversationId?: string }) => {
+          try { window.dispatchEvent(new CustomEvent("portal-user-typing", { detail: data })); } catch { /* */ }
+        });
+        socketInstance.on("user:typing:stop", (data: { conversationId?: string }) => {
+          try { window.dispatchEvent(new CustomEvent("portal-user-typing-stop", { detail: data })); } catch { /* */ }
+        });
+
+        socketInstance.on("message:new", (payload: { conversationId?: string; message?: { content?: string } }) => {
+          try {
+            const conversationId = payload?.conversationId || "";
+            const preview = (payload?.message?.content || "").slice(0, 80);
+            console.log("[Portal] ▶▶▶ message:new received!", { conversationId, preview: preview.slice(0, 30) });
+            setLastMessageAt(new Date().toLocaleTimeString());
+
+            // Sound
+            console.log("[Portal] soundEnabled:", soundEnabledRef.current, "userInteracted:", _userHasInteracted);
+            if (soundEnabledRef.current) {
+              console.log("[Portal] Attempting to play notification sound...");
+              safePlayBeep();
+            } else {
+              console.log("[Portal] Sound is DISABLED — skipping beep");
+            }
+
+            // Desktop notification
+            try {
+              if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+                const n = new Notification("New message", {
+                  body: preview || "New message in conversation",
+                  tag: conversationId,
+                  icon: "/favicon.ico",
+                });
+                n.onclick = () => {
+                  try {
+                    window.focus();
+                    n.close();
+                    router.push(`/portal/inbox?c=${conversationId}`);
+                  } catch { /* */ }
+                };
+              }
+            } catch { /* notification failed, no crash */ }
+
+            // Tell bell badge to refresh
+            try {
+              window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
+            } catch { /* */ }
+          } catch {
+            // message:new handler failed — never crash
+          }
+        });
+      } catch (err) {
+        console.warn("[Portal Socket] Failed to connect (non-fatal):", err);
+        // Socket failed — pages still work, just no real-time updates
+      }
+    };
+
+    connect();
+
+    return () => {
+      cancelled = true;
+      try {
+        if (socketInstance) {
+          socketInstance.off("message:new");
+          socketInstance.off("user:typing");
+          socketInstance.off("user:typing:stop");
+          socketInstance.disconnect();
+        }
+      } catch { /* */ }
+      socketRef.current = null;
+    };
+  }, [user?.orgKey, router]);
+
+  const emitAgentTyping = useCallback((conversationId: string) => {
+    try {
+      const s = socketRef.current as { emit?: (e: string, d: unknown) => void } | null;
+      s?.emit?.("agent:typing:start", { conversationId });
+    } catch { /* */ }
+  }, []);
+
+  const emitAgentTypingStop = useCallback((conversationId: string) => {
+    try {
+      const s = socketRef.current as { emit?: (e: string, d: unknown) => void } | null;
+      s?.emit?.("agent:typing:stop", { conversationId });
+    } catch { /* */ }
+  }, []);
+
+  const onUserTyping = useCallback((cb: (data: { conversationId: string }) => void) => {
+    const handler = (e: Event) => { try { cb((e as CustomEvent).detail); } catch { /* */ } };
+    window.addEventListener("portal-user-typing", handler);
+    return () => window.removeEventListener("portal-user-typing", handler);
+  }, []);
+
+  const onUserTypingStop = useCallback((cb: (data: { conversationId: string }) => void) => {
+    const handler = (e: Event) => { try { cb((e as CustomEvent).detail); } catch { /* */ } };
+    window.addEventListener("portal-user-typing-stop", handler);
+    return () => window.removeEventListener("portal-user-typing-stop", handler);
+  }, []);
+
+  const testSound = useCallback(() => {
+    console.log("[Portal] Test sound button pressed");
+    safePlayBeep();
+  }, []);
+
+  const value: PortalInboxNotificationContextValue = {
+    soundEnabled,
+    setSoundEnabled,
+    notificationPermission,
+    requestNotificationPermission,
+    emitAgentTyping,
+    emitAgentTypingStop,
+    onUserTyping,
+    onUserTypingStop,
+    testSound,
+    socketStatus,
+    lastMessageAt,
+  };
+
+  // ALWAYS render children — provider must never block page content
+  return (
+    <PortalInboxNotificationContext.Provider value={value}>
+      {children}
+    </PortalInboxNotificationContext.Provider>
+  );
+}

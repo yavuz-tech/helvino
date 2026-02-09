@@ -55,14 +55,14 @@ export default function PortalLayout({
   const pathname = usePathname();
   const { t } = useI18n();
 
-  // Poll unread notification count every 30s
+  // Poll inbox unread count every 30s and refetch when new message arrives (Socket event)
   useEffect(() => {
     if (!user) return;
     let mounted = true;
 
     const fetchCount = async () => {
       try {
-        const res = await portalApiFetch("/portal/notifications/unread-count");
+        const res = await portalApiFetch("/portal/conversations/unread-count");
         if (res.ok && mounted) {
           const data = await res.json();
           setUnreadCount(data.unreadCount ?? 0);
@@ -72,9 +72,19 @@ export default function PortalLayout({
       }
     };
 
+    const onRefresh = () => { if (mounted) fetchCount(); };
+    const onVisible = () => { if (document.visibilityState === "visible" && mounted) fetchCount(); };
+    window.addEventListener("portal-inbox-unread-refresh", onRefresh);
+    document.addEventListener("visibilitychange", onVisible);
+
     fetchCount();
     const interval = setInterval(fetchCount, 30_000);
-    return () => { mounted = false; clearInterval(interval); };
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+      window.removeEventListener("portal-inbox-unread-refresh", onRefresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [user]);
 
   return (
@@ -153,9 +163,10 @@ export default function PortalLayout({
 
           <div className="flex items-center gap-2 ml-auto">
             <Link
-              href="/portal/notifications"
+              href="/portal/inbox"
               className="relative p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              title={t("notifications.title")}
+              title={t("inbox.bell.recentMessages")}
+              aria-label={t("inbox.bell.recentMessages")}
             >
               <Bell size={17} strokeWidth={2} className="text-slate-500" />
               {unreadCount > 0 && (

@@ -4,7 +4,8 @@
   "private": true,
   "description": "Helvino.io - AI-powered chat platform monorepo",
   "scripts": {
-    "dev": "pnpm -r --parallel dev",
+    "kill-ports": "lsof -ti:3000,3002,4000,5173 | xargs kill -9 || true",
+    "dev": "pnpm kill-ports && pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "clean": "pnpm -r clean && rm -rf node_modules"

@@ -450,6 +450,20 @@ fastify.ready().then(() => {
     socket.join(roomName);
     console.log(`✅ Socket connected: ${socket.id} → ${roomName} (${org.name})`);
 
+    // ── Typing indicator relay ──
+    socket.on("typing:start", (data: { conversationId?: string }) => {
+      socket.to(roomName).emit("user:typing", { conversationId: data?.conversationId || "" });
+    });
+    socket.on("typing:stop", (data: { conversationId?: string }) => {
+      socket.to(roomName).emit("user:typing:stop", { conversationId: data?.conversationId || "" });
+    });
+    socket.on("agent:typing:start", (data: { conversationId?: string }) => {
+      socket.to(roomName).emit("agent:typing", { conversationId: data?.conversationId || "" });
+    });
+    socket.on("agent:typing:stop", (data: { conversationId?: string }) => {
+      socket.to(roomName).emit("agent:typing:stop", { conversationId: data?.conversationId || "" });
+    });
+
     socket.on("disconnect", () => {
       console.log(`❌ Socket disconnected: ${socket.id} from ${roomName}`);
     });

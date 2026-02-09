@@ -2,6 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import { PortalAuthProvider, usePortalAuth } from "@/contexts/PortalAuthContext";
+import { PortalInboxNotificationProvider } from "@/contexts/PortalInboxNotificationContext";
+import { PortalErrorBoundary } from "@/components/PortalErrorBoundary";
 import PortalLayout from "@/components/PortalLayout";
 
 const PUBLIC_PATHS = [
@@ -22,15 +24,21 @@ function PortalShell({ children }: { children: React.ReactNode }) {
   if (isPublic) return <>{children}</>;
 
   return (
-    <PortalLayout>
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-[#1A1A2E] animate-spin" />
-        </div>
-      ) : (
-        children
-      )}
-    </PortalLayout>
+    <PortalErrorBoundary section="notifications">
+      <PortalInboxNotificationProvider>
+        <PortalLayout>
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-[#1A1A2E] animate-spin" />
+            </div>
+          ) : (
+            <PortalErrorBoundary section="page">
+              {children}
+            </PortalErrorBoundary>
+          )}
+        </PortalLayout>
+      </PortalInboxNotificationProvider>
+    </PortalErrorBoundary>
   );
 }
 

@@ -163,7 +163,17 @@ class PrismaStore {
     const now = new Date().toISOString();
     const id = generateId();
 
-    // Create message and update conversation in a transaction
+    // When customer (user) sends a message, reopen conversation if it was closed
+    const updateData: Record<string, unknown> = {
+      updatedAt: now,
+      messageCount: { increment: 1 },
+      hasUnreadFromUser: role === "user",
+    };
+    if (role === "user" && conversation.status === "CLOSED") {
+      updateData.status = "OPEN";
+      updateData.closedAt = null;
+    }
+
     const [message] = await prisma.$transaction([
       prisma.message.create({
         data: {
@@ -177,12 +187,7 @@ class PrismaStore {
       }),
       prisma.conversation.update({
         where: { id: conversationId },
-        data: {
-          updatedAt: now,
-          messageCount: {
-            increment: 1,
-          },
-        },
+        data: updateData as any,
       }),
     ]);
 

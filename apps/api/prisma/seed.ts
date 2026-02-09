@@ -168,13 +168,15 @@ async function main() {
   const orgOwner = await prisma.orgUser.upsert({
     where: { email: orgOwnerEmail },
     update: {
-      // Only update password if explicitly needed
+      // Mark email as verified so demo user can log in without verification flow
+      emailVerifiedAt: new Date(),
     },
     create: {
       email: orgOwnerEmail,
       passwordHash: orgOwnerPasswordHash,
       role: "owner",
       orgId: demoOrg.id,
+      emailVerifiedAt: new Date(), // Demo user: skip verification, allow login
     },
   });
 

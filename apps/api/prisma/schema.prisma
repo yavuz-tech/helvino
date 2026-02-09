@@ -169,6 +169,7 @@ model Conversation {
   assignedToOrgUserId  String?
   assignedTo           OrgUser?            @relation(fields: [assignedToOrgUserId], references: [id], onDelete: SetNull)
   closedAt             DateTime?
+  hasUnreadFromUser    Boolean             @default(false) // true = last msg from customer, list shows unread first
   messages             Message[]
   notes                ConversationNote[]
 
@@ -177,6 +178,7 @@ model Conversation {
   @@index([orgId, id])
   @@index([visitorId])
   @@index([orgId, status])
+  @@index([orgId, hasUnreadFromUser])
   @@index([assignedToOrgUserId])
   @@map("conversations")
 }
