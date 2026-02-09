@@ -414,3 +414,47 @@
 .widget-unauthorized-msg {
   display: none;
 }
+
+/* ── AI Message Styles ── */
+.message.ai-message {
+  position: relative;
+}
+
+.message.ai-message .message-content {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: white;
+  border-radius: 12px 12px 12px 4px;
+  padding: 10px 14px;
+}
+
+.message.ai-message .message-time {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.ai-badge svg {
+  flex-shrink: 0;
+}
+
+/* AI typing indicator style */
+.typing-indicator.ai-typing .typing-dot {
+  background: #6366f1;
+}
+.typing-indicator.ai-typing .typing-label {
+  color: #6366f1;
+  font-weight: 600;
+}

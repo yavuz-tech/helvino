@@ -18,6 +18,7 @@ import {
   FileText,
   Bell,
   Paintbrush,
+  Bot,
 } from "lucide-react";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useI18n } from "@/i18n/I18nContext";
@@ -34,6 +35,7 @@ interface NavItemDef {
 const navItemDefs: NavItemDef[] = [
   { labelKey: "nav.overview", href: "/portal", icon: Home },
   { labelKey: "nav.inbox", href: "/portal/inbox", icon: Inbox },
+  { labelKey: "nav.ai", href: "/portal/ai", icon: Bot },
   { labelKey: "nav.widgetSettings", href: "/portal/widget", icon: Puzzle },
   { labelKey: "widgetAppearance.title", href: "/portal/widget-appearance", icon: Paintbrush },
   { labelKey: "nav.usage", href: "/portal/usage", icon: BarChart3 },
@@ -62,7 +64,8 @@ export default function PortalLayout({
 
     const fetchCount = async () => {
       try {
-        const res = await portalApiFetch("/portal/conversations/unread-count");
+        // cache: no-store so opening a conversation immediately reflects in the bell badge
+        const res = await portalApiFetch("/portal/conversations/unread-count", { cache: "no-store" });
         if (res.ok && mounted) {
           const data = await res.json();
           setUnreadCount(data.unreadCount ?? 0);
@@ -202,7 +205,11 @@ export default function PortalLayout({
           </div>
         </header>
 
-        <main className="p-5 sm:p-6">{children}</main>
+        {pathname === "/portal/inbox" ? (
+          <>{children}</>
+        ) : (
+          <main className="p-5 sm:p-6">{children}</main>
+        )}
       </div>
     </div>
   );

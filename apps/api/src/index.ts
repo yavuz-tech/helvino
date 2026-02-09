@@ -34,6 +34,7 @@ import { stripeWebhookRoutes } from "./routes/stripe-webhook";
 import { widgetAnalyticsRoutes } from "./routes/widget-analytics";
 import { adminOrgDirectoryRoutes } from "./routes/admin-orgs";
 import { portalWidgetConfigRoutes } from "./routes/portal-widget-config";
+import { portalAiConfigRoutes } from "./routes/portal-ai-config";
 import { portalWidgetSettingsRoutes } from "./routes/portal-widget-settings";
 import { auditLogRoutes } from "./routes/audit-log-routes";
 import { portalNotificationRoutes } from "./routes/portal-notifications";
@@ -60,6 +61,15 @@ import {
   recordM2Usage,
   recordM3Usage,
 } from "./utils/entitlements";
+import {
+  generateAiResponse,
+  parseAiConfig,
+  isAiAvailable,
+  checkAiQuota,
+  incrementAiUsage,
+  type ConversationMessage,
+} from "./utils/ai-service";
+import { prisma } from "./prisma";
 import type {
   CreateConversationResponse,
   CreateMessageRequest,
@@ -146,15 +156,17 @@ fastify.register(session, {
   rolling: true, // Reset maxAge on every request
 });
 
-fastify.register(socketioServer, {
-  cors: {
-    origin: "*", // Allow all origins for Socket.IO in development
-  },
-});
 
 fastify.register(requestContextPlugin);
 fastify.register(hostTrustPlugin);
 fastify.register(securityHeadersPlugin);
+const socketCorsOrigin = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL;
+fastify.register(socketioServer, {
+  cors: {
+    origin: isProduction ? (socketCorsOrigin || true) : true,
+    credentials: true,
+  },
+});
 
 // Metrics tracking (global onResponse hook)
 fastify.addHook("onResponse", async (request, reply) => {
@@ -195,6 +207,7 @@ fastify.register(stripeWebhookRoutes); // Stripe webhooks
 fastify.register(widgetAnalyticsRoutes); // Widget analytics + health (no prefix)
 fastify.register(adminOrgDirectoryRoutes); // Admin org directory (Step 11.39)
 fastify.register(portalWidgetConfigRoutes); // Portal widget config + domains (Step 11.40)
+fastify.register(portalAiConfigRoutes);    // Portal AI configuration
 fastify.register(portalWidgetSettingsRoutes); // Portal widget appearance settings (Step 11.52)
 fastify.register(auditLogRoutes); // Audit log routes: portal + admin (Step 11.42)
 fastify.register(portalNotificationRoutes); // Portal notifications (Step 11.43)
@@ -423,6 +436,81 @@ fastify.post<{
     recordM2Usage(org.id).catch(() => {});
   }
 
+  // ── AI Auto-Reply: generate AI response when user sends a message ──
+  if (role === "user" && org.aiEnabled && isAiAvailable()) {
+    // Fire-and-forget: don't block the user's request
+    (async () => {
+      try {
+        // Check AI quota before generating response
+        const quota = await checkAiQuota(org.id);
+        if (quota.exceeded) {
+          console.warn(`[AI] Quota exceeded for org ${org.id}: ${quota.used}/${quota.limit}`);
+          return;
+        }
+
+        // Check M2 entitlement before generating AI response
+        const m2Check = await checkM2Entitlement(org.id);
+        if (!m2Check.allowed) return;
+
+        // Load org AI config from database
+        const orgRecord = await prisma.organization.findUnique({
+          where: { id: org.id },
+          select: { aiConfigJson: true, aiProvider: true, language: true },
+        });
+        const aiConfig = parseAiConfig(orgRecord?.aiConfigJson);
+        if (!aiConfig.autoReplyEnabled) return;
+
+        // Override provider from org setting
+        if (orgRecord?.aiProvider) {
+          aiConfig.provider = orgRecord.aiProvider as "openai" | "gemini" | "claude";
+        }
+
+        // Emit typing indicator so widget shows "AI Assistant is typing..."
+        fastify.io.to(`org:${org.id}`).emit("agent:typing", { conversationId: id, isAI: true });
+
+        // Load recent conversation history (last 20 messages) for context
+        const recentMessages = await store.getMessages(id);
+        const history: ConversationMessage[] = recentMessages.slice(-20).map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }));
+
+        // Generate AI response (multi-provider)
+        const result = await generateAiResponse(history, {
+          ...aiConfig,
+          language: aiConfig.language || orgRecord?.language || "en",
+        });
+
+        if (!result.ok) {
+          console.warn(`[AI] Generation failed for org ${org.id}:`, result.error);
+          fastify.io.to(`org:${org.id}`).emit("agent:typing:stop", { conversationId: id });
+          return;
+        }
+
+        // Store AI response as assistant message
+        const aiMessage = await store.addMessage(id, org.id, "assistant", result.content);
+        if (!aiMessage) return;
+
+        // Stop typing indicator
+        fastify.io.to(`org:${org.id}`).emit("agent:typing:stop", { conversationId: id });
+
+        // Emit to org room via Socket.IO
+        fastify.io.to(`org:${org.id}`).emit("message:new", {
+          conversationId: id,
+          message: aiMessage,
+        });
+
+        // Record M2 usage + increment AI quota counter
+        await recordM2Usage(org.id);
+        await incrementAiUsage(org.id);
+      } catch (err) {
+        console.error("[AI] Auto-reply error:", err);
+        // Stop typing on error too
+        fastify.io.to(`org:${org.id}`).emit("agent:typing:stop", { conversationId: id });
+      }
+    })();
+  }
+
   reply.code(201);
   return message;
 });
@@ -470,6 +558,9 @@ fastify.ready().then(() => {
   });
 });
 
+// ── Background Jobs ──
+import { scheduleAiQuotaReset } from "./jobs/reset-ai-quota";
+
 // Start server
 const start = async () => {
   try {
@@ -478,6 +569,9 @@ const start = async () => {
     console.log(`📡 Health check: http://localhost:${PORT}/health`);
     console.log(`📚 API docs: http://localhost:${PORT}/`);
     console.log(`🔌 Socket.IO enabled on the same port\n`);
+
+    // Start background jobs
+    scheduleAiQuotaReset();
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

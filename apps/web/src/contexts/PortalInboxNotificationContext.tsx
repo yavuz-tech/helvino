@@ -219,11 +219,13 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
         console.log("[Portal Socket] API_URL:", API_URL);
         setSocketStatus("connecting");
         socketInstance = io(API_URL, {
-          transports: ["websocket", "polling"],
+          transports: ["polling", "websocket"],
           auth: { orgKey: user.orgKey },
           reconnection: true,
-          reconnectionAttempts: 5,
-          reconnectionDelay: 2000,
+          reconnectionAttempts: 10,
+          reconnectionDelay: 3000,
+          timeout: 10000,
+          withCredentials: true,
         });
         socketRef.current = socketInstance;
 
@@ -233,7 +235,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
         });
 
         socketInstance.on("connect_error", (err: Error) => {
-          console.error("[Portal Socket] Connection error:", err.message);
+          console.warn("[Portal Socket] Connection error (non-fatal):", err.message);
           setSocketStatus("error:" + err.message);
         });
 
@@ -287,6 +289,13 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
             // Tell bell badge to refresh
             try {
               window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
+            } catch { /* */ }
+
+            // Notify inbox screen so it can mark active conversation as read
+            try {
+              window.dispatchEvent(new CustomEvent("portal-inbox-message-new", {
+                detail: { conversationId, content: payload?.message?.content || "" },
+              }));
             } catch { /* */ }
           } catch {
             // message:new handler failed — never crash

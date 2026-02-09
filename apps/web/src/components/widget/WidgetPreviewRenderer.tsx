@@ -25,15 +25,29 @@ interface SizeConfig {
   customMaxHeight: number;
 }
 
+interface AvatarConfig {
+  /** Resolved src for bot avatar (url or data-url) */
+  botSrc?: string | null;
+  /** Resolved src list for agent avatars */
+  agentSrcs?: (string | null)[];
+}
+
+interface LauncherConfig {
+  label?: string;
+  style?: "bubble" | "button";
+}
+
 interface WidgetPreviewRendererProps {
   settings: WidgetSettings;
   theme?: ThemeOverrides;
   size?: SizeConfig;
+  avatars?: AvatarConfig;
+  launcher?: LauncherConfig;
 }
 
 type WidgetState = "closed" | "open" | "welcome";
 
-export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetPreviewRendererProps) {
+export default function WidgetPreviewRenderer({ settings, theme, size, avatars, launcher }: WidgetPreviewRendererProps) {
   const { t } = useI18n();
   const [widgetState, setWidgetState] = useState<WidgetState>("closed");
   const [messageInput, setMessageInput] = useState("");
@@ -68,6 +82,39 @@ export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetP
   const surface = theme?.surfaceColor || "#F8FAFC";
   const grad = theme?.gradient || { from: settings.primaryColor, to: settings.primaryColor, angle: 135 };
   const headerBg = `linear-gradient(${grad.angle}deg, ${grad.from}, ${grad.to})`;
+
+  // Resolve avatar sources for header display
+  const headerAvatarSrcs: string[] = [];
+  if (avatars?.agentSrcs) {
+    avatars.agentSrcs.forEach((s) => { if (s) headerAvatarSrcs.push(s); });
+  }
+  if (avatars?.botSrc) headerAvatarSrcs.push(avatars.botSrc);
+  const hasAvatars = headerAvatarSrcs.length > 0;
+
+  const HeaderAvatarRow = () => (
+    <div className="flex -space-x-2">
+      {hasAvatars ? (
+        headerAvatarSrcs.slice(0, 3).map((src, i) => (
+          <img
+            key={i}
+            src={src}
+            alt=""
+            style={{ objectPosition: "50% 15%" }}
+            className="w-8 h-8 rounded-full object-cover border-2 border-white/80 shadow-sm"
+          />
+        ))
+      ) : (
+        <>
+          <div className="w-8 h-8 rounded-full bg-white/20 border-2 border-white flex items-center justify-center">
+            <User size={16} />
+          </div>
+          <div className="w-8 h-8 rounded-full bg-white/20 border-2 border-white flex items-center justify-center">
+            <User size={16} />
+          </div>
+        </>
+      )}
+    </div>
+  );
 
   /* ── Proportional scaling: map config values into preview-safe range ── */
   const mapRange = (v: number, inMin: number, inMax: number, outMin: number, outMax: number) =>
@@ -127,16 +174,24 @@ export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetP
 
         {/* Widget Launcher */}
         {widgetState === "closed" && (
-          <div className={`absolute bottom-6 flex flex-col items-center gap-1.5 ${
+          <div className={`absolute bottom-6 flex items-end gap-2 ${
             settings.position === "right" ? "right-6" : "left-6"
           }`}>
+            {launcher?.label && (
+              <div
+                style={{ background: headerBg }}
+                className="px-4 py-2.5 rounded-2xl rounded-br-sm shadow-lg text-white text-sm font-medium max-w-[200px] truncate mb-1"
+              >
+                {launcher.label}
+              </div>
+            )}
             <button
               onClick={toggleWidget}
               style={{ background: headerBg }}
-              className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white hover:scale-110 transition-all duration-200 group relative"
+              className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white hover:scale-110 transition-all duration-200 group relative flex-shrink-0"
               aria-label={t("widgetPreview.openChat")}
             >
-              {settings.launcher === "bubble" ? (
+              {(launcher?.style ?? settings.launcher) === "bubble" ? (
                 <MessageCircle size={24} strokeWidth={2} className="group-hover:rotate-12 transition-transform" />
               ) : (
                 <HelpCircle size={24} strokeWidth={2} className="group-hover:rotate-12 transition-transform" />
@@ -162,14 +217,7 @@ export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetP
               className="px-5 py-4 text-white flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
-                <div className="flex -space-x-2">
-                  <div className="w-8 h-8 rounded-full bg-white/20 border-2 border-white flex items-center justify-center">
-                    <User size={16} />
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-white/20 border-2 border-white flex items-center justify-center">
-                    <User size={16} />
-                  </div>
-                </div>
+                <HeaderAvatarRow />
                 <div>
                   <div className="font-semibold text-sm">
                     {settings.brandName || t("widgetPreview.defaultTeam")}
@@ -256,14 +304,7 @@ export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetP
               className="px-5 py-4 text-white flex items-center justify-between flex-shrink-0"
             >
               <div className="flex items-center gap-3">
-                <div className="flex -space-x-2">
-                  <div className="w-8 h-8 rounded-full bg-white/20 border-2 border-white flex items-center justify-center">
-                    <User size={16} />
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-white/20 border-2 border-white flex items-center justify-center">
-                    <User size={16} />
-                  </div>
-                </div>
+                <HeaderAvatarRow />
                 <div>
                   <div className="font-semibold text-sm">
                     {settings.brandName || t("widgetPreview.defaultTeam")}
@@ -296,9 +337,13 @@ export default function WidgetPreviewRenderer({ settings, theme, size }: WidgetP
             <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: surface }}>
               {/* Bot Welcome Message */}
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: `linear-gradient(135deg, ${accent}, ${settings.primaryColor})` }}>
-                  AI
-                </div>
+                {avatars?.botSrc ? (
+                  <img src={avatars.botSrc} alt="Bot" style={{ objectPosition: "50% 15%" }} className="w-8 h-8 rounded-full object-cover flex-shrink-0 shadow-sm" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: `linear-gradient(135deg, ${accent}, ${settings.primaryColor})` }}>
+                    AI
+                  </div>
+                )}
                 <div className="flex-1">
                   <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm border border-slate-200/80">
                     <p className="text-sm text-slate-800 leading-relaxed">

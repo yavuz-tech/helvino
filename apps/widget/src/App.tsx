@@ -55,6 +55,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "refreshing" | "error" | null>(null);
   const [agentTyping, setAgentTyping] = useState(false);
+  const [aiTyping, setAiTyping] = useState(false); // Distinguish AI vs human typing
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const agentTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -186,17 +187,19 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
         }
       });
 
-      // Agent typing indicator
-      socketRef.current.on("agent:typing", (data: { conversationId: string }) => {
+      // Agent typing indicator (supports AI vs human distinction)
+      socketRef.current.on("agent:typing", (data: { conversationId: string; isAI?: boolean }) => {
         if (data.conversationId === conversationIdRef.current) {
           setAgentTyping(true);
+          setAiTyping(Boolean(data.isAI));
           if (agentTypingTimerRef.current) clearTimeout(agentTypingTimerRef.current);
-          agentTypingTimerRef.current = setTimeout(() => setAgentTyping(false), 3000);
+          agentTypingTimerRef.current = setTimeout(() => { setAgentTyping(false); setAiTyping(false); }, 8000);
         }
       });
       socketRef.current.on("agent:typing:stop", (data: { conversationId: string }) => {
         if (data.conversationId === conversationIdRef.current) {
           setAgentTyping(false);
+          setAiTyping(false);
           if (agentTypingTimerRef.current) clearTimeout(agentTypingTimerRef.current);
         }
       });
@@ -350,8 +353,14 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
               messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`message ${msg.role}`}
+                  className={`message ${msg.role}${msg.role === "assistant" ? " ai-message" : ""}`}
                 >
+                  {msg.role === "assistant" && (
+                    <div className="ai-badge">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                      <span>AI</span>
+                    </div>
+                  )}
                   <div className="message-content">{msg.content}</div>
                   <div className="message-time">
                     {new Date(msg.timestamp).toLocaleTimeString()}
@@ -360,11 +369,11 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
               ))
             )}
             {agentTyping && (
-              <div className="typing-indicator">
+              <div className={`typing-indicator${aiTyping ? " ai-typing" : ""}`}>
                 <span className="typing-dot" />
                 <span className="typing-dot" />
                 <span className="typing-dot" />
-                <span className="typing-label">Agent is typing</span>
+                <span className="typing-label">{aiTyping ? "AI Assistant is typing..." : "Agent is typing..."}</span>
               </div>
             )}
           </div>

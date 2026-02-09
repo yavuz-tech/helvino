@@ -50,6 +50,11 @@ model Organization {
   widgetEnabled         Boolean        @default(true)
   writeEnabled          Boolean        @default(true)
   aiEnabled             Boolean        @default(true)
+  aiConfigJson          Json?          // AI bot configuration: systemPrompt, model, temperature, etc.
+  aiProvider            String         @default("openai") // "openai" | "gemini" | "claude"
+  currentMonthAIMessages Int          @default(0)
+  aiMessagesLimit       Int            @default(100)      // FREE=100, STARTER=500, PRO=2000, ENTERPRISE=-1
+  aiMessagesResetDate   DateTime       @default(now())
   primaryColor          String         @default("#0F5C5C")
   widgetName            String         @default("Brand Name")
   widgetSubtitle        String         @default("Default Subtitle")

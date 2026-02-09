@@ -156,6 +156,30 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
   );
 
   // ═══════════════════════════════════════════════════════════════
+  // GET /portal/conversations/counts — Unassigned / My open / Solved (Tidio-style sidebar)
+  // ═══════════════════════════════════════════════════════════════
+  fastify.get(
+    "/portal/conversations/counts",
+    {
+      preHandler: [
+        requirePortalUser,
+        requirePortalRole(["owner", "admin", "agent"]),
+        createRateLimitMiddleware({ limit: 60, windowMs: 60000 }),
+      ],
+    },
+    async (request) => {
+      const actor = request.portalUser!;
+      const base = { orgId: actor.orgId };
+      const [unassigned, myOpen, solved] = await Promise.all([
+        prisma.conversation.count({ where: { ...base, status: "OPEN", assignedToOrgUserId: null } }),
+        prisma.conversation.count({ where: { ...base, status: "OPEN", assignedToOrgUserId: actor.id } }),
+        prisma.conversation.count({ where: { ...base, status: "CLOSED" } }),
+      ]);
+      return { unassigned, myOpen, solved };
+    }
+  );
+
+  // ═══════════════════════════════════════════════════════════════
   // POST /portal/conversations/bulk — Bulk actions
   // ═══════════════════════════════════════════════════════════════
   fastify.post<{
