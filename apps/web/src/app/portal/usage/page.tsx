@@ -9,7 +9,8 @@ import type { TranslationKey } from "@/i18n/translations";
 import { 
   ChevronLeft, TrendingUp, TrendingDown, Minus, 
   MessageSquare, Send, Bot, Users, Download, 
-  AlertCircle, CheckCircle2, AlertTriangle, Sparkles 
+  AlertCircle, CheckCircle2, AlertTriangle, Sparkles,
+  Crown, Zap, Calendar, ArrowUpRight
 } from "lucide-react";
 
 /* ────────── Types ────────── */
@@ -629,50 +630,207 @@ export default function PortalUsagePage() {
             </div>
           </div>
 
-          {/* Plan info card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">{t("usage.planDetails")}</h3>
-            <div className="grid gap-6 sm:grid-cols-3">
+          {/* Plan info card - Premium Design */}
+          <div className="bg-gradient-to-br from-slate-50 via-white to-slate-50/50 rounded-2xl border border-slate-200/80 p-8 shadow-sm">
+            {/* Header with Plan Badge */}
+            <div className="flex items-start justify-between mb-6">
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">{t("usage.plan")}</p>
-                <p className="text-xl font-bold text-slate-900">
-                  {billing.plan.name}
+                <h3 className="text-lg font-bold text-slate-900 mb-2">{t("usage.planDetails")}</h3>
+                <p className="text-sm text-slate-600">
+                  {billing.subscription.currentPeriodEnd && (
+                    <span className="flex items-center gap-1.5">
+                      <Calendar size={14} />
+                      {t("usage.resetDate")}{" "}
+                      <span className="font-semibold" suppressHydrationWarning>
+                        {new Date(billing.subscription.currentPeriodEnd).toLocaleDateString()}
+                      </span>
+                    </span>
+                  )}
                 </p>
-                {billing.plan.monthlyPriceUsd != null && billing.plan.monthlyPriceUsd > 0 && (
-                  <p className="text-sm text-slate-600 mt-0.5">
-                    ${billing.plan.monthlyPriceUsd}{t("billing.perMonth")}
+              </div>
+              <div className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md ${
+                billing.plan.key === "business"
+                  ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white"
+                  : billing.plan.key === "pro"
+                  ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white"
+                  : "bg-gradient-to-r from-slate-400 to-slate-500 text-white"
+              }`}>
+                {billing.plan.key !== "free" && <Crown size={16} />}
+                {billing.plan.name}
+              </div>
+            </div>
+
+            {/* Plan Overview Grid */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+              {/* Price Card */}
+              <div className="bg-white rounded-xl p-4 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-100">
+                    <Zap size={14} className="text-emerald-600" />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                    {t("billing.price")}
                   </p>
-                )}
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">{t("usage.status")}</p>
-                <p className="text-xl font-bold text-slate-900 capitalize">
-                  {(() => {
-                    const sKey = `billing.status.${billing.subscription.status}` as TranslationKey;
-                    const sTranslated = t(sKey);
-                    return sTranslated === sKey
-                      ? (billing.subscription.status === "none" ? t("usage.noSubscription") : billing.subscription.status.replace("_", " "))
-                      : sTranslated;
-                  })()}
+                </div>
+                <p className="text-2xl font-bold text-slate-900">
+                  {billing.plan.monthlyPriceUsd === 0 ? (
+                    t("billing.free")
+                  ) : (
+                    <span suppressHydrationWarning>
+                      ${billing.plan.monthlyPriceUsd}
+                      <span className="text-sm font-normal text-slate-500">{t("billing.perMonth")}</span>
+                    </span>
+                  )}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">{t("usage.agentSeats")}</p>
-                <p className="text-xl font-bold text-slate-900">
+
+              {/* Conversations Card */}
+              <div className="bg-white rounded-xl p-4 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 rounded-lg bg-blue-100">
+                    <MessageSquare size={14} className="text-blue-600" />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                    {t("usage.conversations")}
+                  </p>
+                </div>
+                <p className="text-2xl font-bold text-slate-900" suppressHydrationWarning>
+                  {limits?.maxConversationsPerMonth.toLocaleString()}
+                  <span className="text-sm font-normal text-slate-500">/mo</span>
+                </p>
+              </div>
+
+              {/* Messages Card */}
+              <div className="bg-white rounded-xl p-4 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 rounded-lg bg-purple-100">
+                    <Send size={14} className="text-purple-600" />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                    {t("usage.messages")}
+                  </p>
+                </div>
+                <p className="text-2xl font-bold text-slate-900" suppressHydrationWarning>
+                  {limits?.maxMessagesPerMonth.toLocaleString()}
+                  <span className="text-sm font-normal text-slate-500">/mo</span>
+                </p>
+              </div>
+
+              {/* Agents Card */}
+              <div className="bg-white rounded-xl p-4 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 rounded-lg bg-amber-100">
+                    <Users size={14} className="text-amber-600" />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                    {t("usage.agentSeats")}
+                  </p>
+                </div>
+                <p className="text-2xl font-bold text-slate-900">
                   {limits?.maxAgents ?? "—"}
+                  <span className="text-sm font-normal text-slate-500"> {t("usage.agentSeats").toLowerCase()}</span>
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 pt-6 border-t border-slate-100 flex flex-wrap gap-3">
+            {/* Status Banner */}
+            <div className={`rounded-xl p-4 mb-6 border ${
+              billing.subscription.status === "active"
+                ? "bg-emerald-50/50 border-emerald-200/60"
+                : billing.subscription.status === "trialing"
+                ? "bg-blue-50/50 border-blue-200/60"
+                : "bg-slate-50/50 border-slate-200/60"
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${
+                    billing.subscription.status === "active"
+                      ? "bg-emerald-100"
+                      : billing.subscription.status === "trialing"
+                      ? "bg-blue-100"
+                      : "bg-slate-100"
+                  }`}>
+                    {billing.subscription.status === "active" ? (
+                      <CheckCircle2 size={18} className="text-emerald-600" />
+                    ) : billing.subscription.status === "trialing" ? (
+                      <Sparkles size={18} className="text-blue-600" />
+                    ) : (
+                      <AlertCircle size={18} className="text-slate-600" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {t("usage.status")}:{" "}
+                      {(() => {
+                        const sKey = `billing.status.${billing.subscription.status}` as TranslationKey;
+                        const sTranslated = t(sKey);
+                        return sTranslated === sKey
+                          ? (billing.subscription.status === "none" ? t("usage.noSubscription") : billing.subscription.status.replace("_", " "))
+                          : sTranslated;
+                      })()}
+                    </p>
+                    {billing.subscription.status === "active" && (
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        {t("usage.healthy")} • {t("billing.autoRenew")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Upgrade CTA (if Free) */}
+            {billing.plan.key === "free" && (
+              <div className="bg-gradient-to-br from-blue-50 via-indigo-50/30 to-purple-50/50 rounded-xl p-5 border border-blue-200/60 mb-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Crown size={20} className="text-blue-600" />
+                      <h4 className="text-base font-bold text-slate-900">
+                        {t("billing.upgradePlan")}
+                      </h4>
+                    </div>
+                    <p className="text-sm text-slate-700 mb-3">
+                      {t("billing.unlockPremiumFeatures")}
+                    </p>
+                    <ul className="space-y-1.5 text-xs text-slate-600">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
+                        2,000+ {t("usage.conversations").toLowerCase()} & 20,000+ {t("usage.messages").toLowerCase()}
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
+                        10 {t("usage.agentSeats").toLowerCase()}
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
+                        2,000 AI {t("usage.aiResponses").toLowerCase()}
+                      </li>
+                    </ul>
+                  </div>
+                  <Link
+                    href="/portal/billing"
+                    className="px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2 whitespace-nowrap"
+                  >
+                    {t("billing.viewPlans")}
+                    <ArrowUpRight size={16} />
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-3">
               <Link
                 href="/portal/billing"
-                className="px-5 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition-colors shadow-md hover:shadow-lg"
+                className="px-6 py-3 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
               >
                 {t("billing.manageBilling")}
+                <ArrowUpRight size={16} />
               </Link>
               {isLocked && (
-                <span className="px-5 py-2.5 text-sm text-red-700 bg-red-50 rounded-xl border border-red-200 font-medium">
+                <span className="px-6 py-3 text-sm text-red-700 bg-red-50 rounded-xl border border-red-200 font-semibold flex items-center gap-2">
+                  <AlertCircle size={16} />
                   {t("usage.contactSupport")}
                 </span>
               )}
