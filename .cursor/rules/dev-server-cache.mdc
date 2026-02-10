@@ -1,0 +1,51 @@
+---
+description: Dev server management — ALWAYS verify servers before/after operations
+globs: 
+alwaysApply: true
+---
+
+# 🔧 Dev Server Rule — Helvino (MANDATORY)
+
+**CRITICAL**: Dev servers (API :4000 + Web :3000) MUST always be running. Every Cursor agent MUST follow these rules.
+
+## BEFORE any operation that changes files or runs commands
+
+```bash
+curl -sf http://localhost:4000/health > /dev/null 2>&1 && echo "API OK" || echo "API DOWN"
+curl -sf http://localhost:3000/ > /dev/null 2>&1 && echo "WEB OK" || echo "WEB DOWN"
+```
+
+If either is DOWN → restart it immediately:
+```bash
+# API down:
+cd /Users/yavuz/Desktop/helvino && pnpm --filter @helvino/api dev > /tmp/helvino-api.log 2>&1 &
+# WEB down:
+cd /Users/yavuz/Desktop/helvino && pnpm --filter web dev > /tmp/helvino-web.log 2>&1 &
+```
+
+## AFTER completing ALL operations
+
+ALWAYS verify both servers respond before ending your turn:
+```bash
+curl -sf http://localhost:4000/health > /dev/null 2>&1 && curl -sf http://localhost:3000/ > /dev/null 2>&1 && echo "Both OK"
+```
+If either is down → restart it.
+
+## Build safety
+
+- **NEVER** run `pnpm --filter web build` while `next dev` is running
+- For TypeScript checks: `NEXT_BUILD_DIR=.next-verify pnpm --filter web build`
+- NEVER run `rm -rf apps/web/.next` while `next dev` is running
+
+## Recovery commands
+
+- 500/ENOENT: Kill port, clear cache, restart → `lsof -ti:3000 | xargs kill -9; rm -rf apps/web/.next; pnpm --filter web dev`
+- API crash: `lsof -ti:4000 | xargs kill -9; pnpm --filter @helvino/api dev`
+- Full reset: `./helvino-stop.sh && ./helvino-start.sh`
+
+## Available scripts
+
+- `./helvino-start.sh` — Start everything with watchdog (auto-recovery)
+- `./helvino-stop.sh` — Stop everything
+- `./helvino-status.sh` — Check status
+- `./dev-server.sh` — Manual watchdog (foreground, Ctrl+C to stop)

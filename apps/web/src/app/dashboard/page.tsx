@@ -20,6 +20,7 @@ import Card from "@/components/Card";
 import StatCard from "@/components/StatCard";
 import SectionTitle from "@/components/SectionTitle";
 import { useI18n } from "@/i18n/I18nContext";
+import { premiumToast } from "@/components/PremiumToast";
 import { Activity, AlertTriangle, BarChart3, Users } from "lucide-react";
 
 interface Conversation {
@@ -238,7 +239,7 @@ export default function DashboardPage() {
       });
     } catch (err) {
       console.error("Failed to send reply:", err);
-      alert(t("dashboard.failedSendMessage"));
+      premiumToast.error({ title: t("dashboard.failedSendMessage") });
       setReplyContent(content); // Restore content on error
     } finally {
       setIsSending(false);

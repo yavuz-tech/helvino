@@ -322,6 +322,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
       } catch { /* */ }
       socketRef.current = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.orgKey, router]);
 
   const emitAgentTyping = useCallback((conversationId: string) => {

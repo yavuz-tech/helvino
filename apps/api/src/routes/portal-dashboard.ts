@@ -12,6 +12,7 @@ import { prisma } from "../prisma";
 import { requirePortalUser, requirePortalRole } from "../middleware/require-portal-user";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { store } from "../store";
+import { getAiLimitForPlan } from "../utils/ai-service";
 
 /**
  * Parse user-agent into human-readable browser + OS
@@ -224,7 +225,7 @@ export async function portalDashboardRoutes(fastify: FastifyInstance) {
         ai: {
           totalResponses: aiMessages,
           monthlyUsage: org?.currentMonthAIMessages || 0,
-          monthlyLimit: org?.aiMessagesLimit || 100,
+          monthlyLimit: org?.aiMessagesLimit || getAiLimitForPlan(org?.planKey || "free"),
           avgResponseTimeMs: Math.round(avgResponseTime._avg.aiResponseTime || 0),
           enabled: org?.aiEnabled || false,
         },

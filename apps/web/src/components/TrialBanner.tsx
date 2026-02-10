@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useI18n } from "@/i18n/I18nContext";
-import { Clock, AlertTriangle, XCircle, ArrowRight, Sparkles } from "lucide-react";
+import { AlertTriangle, XCircle, ArrowRight, Sparkles } from "lucide-react";
 
 interface TrialBannerProps {
   daysLeft: number;

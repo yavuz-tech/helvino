@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { checkOrgAuth, orgLogout, orgApiFetch, type OrgUser } from "@/lib/org-auth";
 import OrgPortalLayout from "@/components/OrgPortalLayout";
 import { useI18n } from "@/i18n/I18nContext";
+import { premiumToast } from "@/components/PremiumToast";
 
 interface Conversation {
   id: string;
@@ -151,7 +152,10 @@ export default function OrgPortalPage() {
       });
     } catch (err) {
       console.error("Failed to send reply:", err);
-      alert(err instanceof Error ? err.message : t("dashboard.failedSendMessage"));
+      premiumToast.error({
+        title: t("dashboard.failedSendMessage"),
+        description: err instanceof Error ? err.message : undefined,
+      });
       setReplyContent(content);
     } finally {
       setIsSending(false);

@@ -63,6 +63,42 @@ async function ensureStripeCustomer(orgId: string) {
   return { stripe, org, customerId: customer.id };
 }
 
+async function resolveCheckoutEmail(orgId: string, explicitEmail?: string): Promise<string> {
+  if (explicitEmail && explicitEmail.trim()) {
+    return explicitEmail.trim().toLowerCase();
+  }
+
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { ownerUserId: true },
+  });
+
+  if (org?.ownerUserId) {
+    const owner = await prisma.orgUser.findUnique({
+      where: { id: org.ownerUserId },
+      select: { email: true },
+    });
+    if (owner?.email) {
+      return owner.email.toLowerCase();
+    }
+  }
+
+  const firstOrgUser = await prisma.orgUser.findFirst({
+    where: { orgId },
+    orderBy: { createdAt: "asc" },
+    select: { email: true },
+  });
+
+  return (firstOrgUser?.email || "unknown@unknown.local").toLowerCase();
+}
+
+function normalizePlanType(planKey: string): string {
+  const key = planKey.toLowerCase();
+  if (key === "pro") return "PRO";
+  if (key === "business" || key === "enterprise") return "ENTERPRISE";
+  return "STARTER";
+}
+
 /**
  * Resolve a Stripe Price ID from a plan key.
  * Priority: Plan.stripePriceId from DB > env fallback > throw.
@@ -114,7 +150,8 @@ export async function mapPriceToplanKey(priceId: string): Promise<string | null>
 export async function createCheckoutSession(
   orgId: string,
   returnUrl?: string,
-  planKey?: string
+  planKey?: string,
+  customerEmail?: string
 ) {
   if (!isStripeConfigured()) {
     throw new StripeNotConfiguredError();
@@ -129,12 +166,40 @@ export async function createCheckoutSession(
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
+    ...(customerEmail ? { customer_email: customerEmail } : {}),
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: urls.successUrl,
     cancel_url: urls.cancelUrl,
     metadata: { orgId: org.id, orgKey: org.key, planKey: targetPlan },
     subscription_data: {
       metadata: { orgId: org.id, orgKey: org.key, planKey: targetPlan },
+    },
+  });
+
+  const email =
+    (session.customer_details?.email || customerEmail || (await resolveCheckoutEmail(org.id, customerEmail))).toLowerCase();
+  const amount = session.amount_total || 0;
+
+  await prisma.checkoutSession.upsert({
+    where: { id: session.id },
+    update: {
+      organizationId: org.id,
+      email,
+      stripeCustomerId: typeof session.customer === "string" ? session.customer : customerId,
+      stripePriceId: priceId,
+      planType: normalizePlanType(targetPlan),
+      amount,
+      status: "started",
+    },
+    create: {
+      id: session.id,
+      organizationId: org.id,
+      email,
+      stripeCustomerId: typeof session.customer === "string" ? session.customer : customerId,
+      stripePriceId: priceId,
+      planType: normalizePlanType(targetPlan),
+      amount,
+      status: "started",
     },
   });
 

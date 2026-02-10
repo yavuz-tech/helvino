@@ -84,7 +84,7 @@ async function main() {
 
   await prisma.plan.upsert({
     where: { key: "free" },
-    update: { stripePriceId: null },
+    update: { stripePriceId: null, maxAgents: 3 },
     create: {
       key: "free",
       name: "Free",
@@ -92,7 +92,7 @@ async function main() {
       monthlyPriceUsd: 0,
       maxConversationsPerMonth: 200,
       maxMessagesPerMonth: 2000,
-      maxAgents: 2,
+      maxAgents: 3,
     },
   });
 

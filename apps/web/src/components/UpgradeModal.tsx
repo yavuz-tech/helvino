@@ -82,15 +82,15 @@ export default function UpgradeModal({ isOpen, onClose, currentLimit = 100, curr
           </div>
 
           <h2 className="text-xl font-extrabold text-slate-900 text-center mb-2">
-            {isQuotaReason ? t("upgrade.title") : t("upgrade.planRequired" as any)}
+            {isQuotaReason ? t("upgrade.title") : t("upgrade.planRequired")}
           </h2>
           <p className="text-sm text-slate-500 text-center mb-1">
             {isQuotaReason
               ? t("upgrade.description").replace("{limit}", String(currentLimit))
-              : t("upgrade.planRequiredDesc" as any).replace("{plan}", requiredPlan === "pro" ? "Pro" : "Starter+")}
+              : t("upgrade.planRequiredDesc").replace("{plan}", requiredPlan === "pro" ? "Pro" : "Starter+")}
           </p>
           <p className="text-sm text-slate-600 text-center font-medium mb-6">
-            {isQuotaReason ? t("upgrade.continue") : t("upgrade.unlockFeatures" as any)}
+            {isQuotaReason ? t("upgrade.continue") : t("upgrade.unlockFeatures")}
           </p>
 
           {/* Plan cards */}

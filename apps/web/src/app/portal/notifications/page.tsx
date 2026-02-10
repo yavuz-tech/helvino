@@ -156,12 +156,13 @@ export default function NotificationsPage() {
         setNextCursor(data.nextCursor);
         setUnreadCount(data.unreadCount ?? 0);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(err instanceof Error ? err.message : t("common.error.unknown"));
       } finally {
         setLoading(false);
         setLoadingMore(false);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [tab, categoryFilter]
   );
 

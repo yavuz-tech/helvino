@@ -83,10 +83,58 @@ model Organization {
   slaPolicies           SlaPolicy[]
   chatPageConfig        ChatPageConfig?
   translationOverrides  TranslationOverride[]
+  checkoutSessions      CheckoutSession[]
+  promotionCodes        PromotionCode[]
 
   @@index([siteId])
   @@index([ownerUserId])
   @@map("organizations")
+}
+
+model CheckoutSession {
+  id                  String       @id // Stripe checkout session id
+  organizationId      String
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email               String
+  stripeCustomerId    String?
+  stripePriceId       String?
+  planType            String
+  amount              Int
+  status              String       @default("started") // started | completed | abandoned
+  promoCodeId         String?
+  promoCode           PromotionCode? @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  createdAt           DateTime     @default(now())
+  completedAt         DateTime?
+  abandonedAt         DateTime?
+  abandonedEmailSentAt DateTime?
+
+  @@index([organizationId, status, createdAt])
+  @@index([email, status, createdAt])
+  @@map("checkout_sessions")
+}
+
+model PromotionCode {
+  id                    String       @id @default(cuid())
+  organizationId        String?
+  organization          Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  code                  String       @unique
+  title                 String
+  percentOff            Int
+  stripeCouponId        String       @unique
+  stripePromotionCodeId String       @unique
+  active                Boolean      @default(true)
+  customerEmail         String?
+  checkoutSessionId     String?
+  maxRedemptions        Int?
+  expiresAt             DateTime?
+  createdBy             String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  checkoutSessions      CheckoutSession[]
+
+  @@index([organizationId, active, createdAt])
+  @@index([customerEmail, active])
+  @@map("promotion_codes")
 }
 
 model Plan {

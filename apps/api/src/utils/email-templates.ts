@@ -13,6 +13,15 @@
 
 type Locale = "en" | "tr" | "es";
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ── Base HTML wrapper ──
 
 const footerText: Record<Locale, string> = {
@@ -59,52 +68,127 @@ function buttonHtml(url: string, label: string, color = "#0F5C5C"): string {
 
 const inviteTemplates: Record<Locale, { subject: (orgName: string) => string; body: (orgName: string, role: string, link: string, expiresIn: string) => string }> = {
   en: {
-    subject: (orgName) => `You've been invited to ${orgName} on Helvion`,
-    body: (orgName, role, link, expiresIn) => wrapHtml(`
-<h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">You're invited!</h2>
-<p style="color:#475569;font-size:14px;line-height:1.6;">
-  You've been invited to join <strong>${orgName}</strong> as <strong>${role}</strong>.
+    subject: (orgName) => `${orgName} invited you to Helvion ✨`,
+    body: (orgName, role, link, expiresIn) => {
+      const safeOrg = escapeHtml(orgName);
+      const safeRole = escapeHtml(role);
+      const safeLink = escapeHtml(link);
+      return wrapHtml(`
+<div style="display:inline-block;margin:0 0 14px;padding:6px 10px;border-radius:999px;background:#ede9fe;color:#5b21b6;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Helvion Access ✨</div>
+<p style="margin:0 0 8px;color:#6d28d9;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Team Invitation</p>
+<h2 style="margin:0 0 10px;color:#0b1020;font-size:24px;line-height:1.25;">Welcome aboard! 👋</h2>
+<p style="margin:0 0 22px;color:#475569;font-size:14px;line-height:1.7;">
+  You have been invited to join <strong>${safeOrg}</strong> on Helvion as <strong>${safeRole}</strong>.
 </p>
-<p style="color:#475569;font-size:14px;line-height:1.6;">
-  Click the button below to accept and create your account:
+
+<div style="margin:0 0 22px;padding:14px 16px;border-radius:10px;background:#f5f3ff;border:1px solid #ddd6fe;">
+  <p style="margin:0 0 6px;color:#6d28d9;font-size:12px;font-weight:700;">Invitation details</p>
+  <p style="margin:0;color:#0f172a;font-size:13px;line-height:1.6;">
+    Organization: <strong>${safeOrg}</strong><br>
+    Role: <strong>${safeRole}</strong>
+  </p>
+</div>
+
+<p style="margin:0 0 8px;color:#334155;font-size:14px;line-height:1.6;">
+  Click below to accept your invitation and create your account:
 </p>
-${buttonHtml(link, "Accept Invitation")}
-<p style="color:#94a3b8;font-size:12px;">
-  This link expires in ${expiresIn}. If you didn't expect this invitation, you can safely ignore this email.
+${buttonHtml(link, "Accept Invitation", "#4f46e5")}
+
+<div style="margin-top:12px;padding:12px 14px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;">
+  <p style="margin:0 0 6px;color:#64748b;font-size:12px;font-weight:600;">Can’t use the button?</p>
+  <a href="${safeLink}" style="color:#4338ca;font-size:12px;word-break:break-all;">${safeLink}</a>
+</div>
+
+<p style="margin:18px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">
+  This link is valid for ${expiresIn}. If you were not expecting this invitation, you can safely ignore this email.
 </p>
-`, "#0F5C5C", "en"),
+<p style="margin:12px 0 0;color:#64748b;font-size:13px;">
+  See you in Helvion! 🚀
+</p>
+`, "#1f1b4d", "en");
+    },
   },
   tr: {
-    subject: (orgName) => `${orgName} sizi Helvion'a davet etti`,
-    body: (orgName, role, link, expiresIn) => wrapHtml(`
-<h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Davetlisiniz!</h2>
-<p style="color:#475569;font-size:14px;line-height:1.6;">
-  <strong>${orgName}</strong> organizasyonuna <strong>${role}</strong> olarak davet edildiniz.
+    subject: (orgName) => `${orgName} sizi Helvion'a davet etti ✨`,
+    body: (orgName, role, link, expiresIn) => {
+      const safeOrg = escapeHtml(orgName);
+      const safeRole = escapeHtml(role);
+      const safeLink = escapeHtml(link);
+      return wrapHtml(`
+<div style="display:inline-block;margin:0 0 14px;padding:6px 10px;border-radius:999px;background:#ede9fe;color:#5b21b6;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Helvion Daveti ✨</div>
+<p style="margin:0 0 8px;color:#6d28d9;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Ekip Daveti</p>
+<h2 style="margin:0 0 10px;color:#0b1020;font-size:24px;line-height:1.25;">Aramıza hoş geldiniz! 👋</h2>
+<p style="margin:0 0 22px;color:#475569;font-size:14px;line-height:1.7;">
+  <strong>${safeOrg}</strong> organizasyonuna Helvion üzerinde <strong>${safeRole}</strong> olarak davet edildiniz.
 </p>
-<p style="color:#475569;font-size:14px;line-height:1.6;">
-  Daveti kabul etmek ve hesabınızı oluşturmak için aşağıdaki düğmeye tıklayın:
+
+<div style="margin:0 0 22px;padding:14px 16px;border-radius:10px;background:#f5f3ff;border:1px solid #ddd6fe;">
+  <p style="margin:0 0 6px;color:#6d28d9;font-size:12px;font-weight:700;">Davet detayları</p>
+  <p style="margin:0;color:#0f172a;font-size:13px;line-height:1.6;">
+    Organizasyon: <strong>${safeOrg}</strong><br>
+    Rol: <strong>${safeRole}</strong>
+  </p>
+</div>
+
+<p style="margin:0 0 8px;color:#334155;font-size:14px;line-height:1.6;">
+  Daveti kabul edip hesabınızı oluşturmak için aşağıdaki butona tıklayın:
 </p>
-${buttonHtml(link, "Daveti Kabul Et")}
-<p style="color:#94a3b8;font-size:12px;">
-  Bu bağlantı ${expiresIn} içinde geçerlidir. Bu daveti beklemiyorsanız bu e-postayı görmezden gelebilirsiniz.
+${buttonHtml(link, "Daveti Kabul Et", "#4f46e5")}
+
+<div style="margin-top:12px;padding:12px 14px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;">
+  <p style="margin:0 0 6px;color:#64748b;font-size:12px;font-weight:600;">Buton açılmazsa bağlantıyı kullanın:</p>
+  <a href="${safeLink}" style="color:#4338ca;font-size:12px;word-break:break-all;">${safeLink}</a>
+</div>
+
+<p style="margin:18px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">
+  Bu bağlantı ${expiresIn} boyunca geçerlidir. Bu daveti beklemiyorsanız e-postayı güvenle görmezden gelebilirsiniz.
 </p>
-`, "#0F5C5C", "tr"),
+<p style="margin:12px 0 0;color:#64748b;font-size:13px;">
+  Helvion'da görüşmek üzere! 🚀
+</p>
+`, "#1f1b4d", "tr");
+    },
   },
   es: {
-    subject: (orgName) => `Has sido invitado a ${orgName} en Helvion`,
-    body: (orgName, role, link, expiresIn) => wrapHtml(`
-<h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">¡Estás invitado!</h2>
-<p style="color:#475569;font-size:14px;line-height:1.6;">
-  Has sido invitado a unirte a <strong>${orgName}</strong> como <strong>${role}</strong>.
+    subject: (orgName) => `${orgName} te invitó a Helvion ✨`,
+    body: (orgName, role, link, expiresIn) => {
+      const safeOrg = escapeHtml(orgName);
+      const safeRole = escapeHtml(role);
+      const safeLink = escapeHtml(link);
+      return wrapHtml(`
+<div style="display:inline-block;margin:0 0 14px;padding:6px 10px;border-radius:999px;background:#ede9fe;color:#5b21b6;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Invitación Helvion ✨</div>
+<p style="margin:0 0 8px;color:#6d28d9;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Invitación al equipo</p>
+<h2 style="margin:0 0 10px;color:#0b1020;font-size:24px;line-height:1.25;">¡Bienvenido al equipo! 👋</h2>
+<p style="margin:0 0 22px;color:#475569;font-size:14px;line-height:1.7;">
+  Has sido invitado a <strong>${safeOrg}</strong> en Helvion como <strong>${safeRole}</strong>.
 </p>
-<p style="color:#475569;font-size:14px;line-height:1.6;">
-  Haz clic en el botón de abajo para aceptar y crear tu cuenta:
+
+<div style="margin:0 0 22px;padding:14px 16px;border-radius:10px;background:#f5f3ff;border:1px solid #ddd6fe;">
+  <p style="margin:0 0 6px;color:#6d28d9;font-size:12px;font-weight:700;">Detalles de la invitación</p>
+  <p style="margin:0;color:#0f172a;font-size:13px;line-height:1.6;">
+    Organización: <strong>${safeOrg}</strong><br>
+    Rol: <strong>${safeRole}</strong>
+  </p>
+</div>
+
+<p style="margin:0 0 8px;color:#334155;font-size:14px;line-height:1.6;">
+  Haz clic en el botón para aceptar la invitación y crear tu cuenta:
 </p>
-${buttonHtml(link, "Aceptar Invitación")}
-<p style="color:#94a3b8;font-size:12px;">
-  Este enlace caduca en ${expiresIn}. Si no esperabas esta invitación, puedes ignorar este correo.
+${buttonHtml(link, "Aceptar Invitación", "#4f46e5")}
+
+<div style="margin-top:12px;padding:12px 14px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;">
+  <p style="margin:0 0 6px;color:#64748b;font-size:12px;font-weight:600;">¿No funciona el botón?</p>
+  <a href="${safeLink}" style="color:#4338ca;font-size:12px;word-break:break-all;">${safeLink}</a>
+</div>
+
+<p style="margin:18px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">
+  Este enlace es válido por ${expiresIn}. Si no esperabas esta invitación, puedes ignorar este correo con tranquilidad.
 </p>
-`, "#0F5C5C", "es"),
+<p style="margin:12px 0 0;color:#64748b;font-size:13px;">
+  ¡Nos vemos en Helvion! 🚀
+</p>
+`, "#1f1b4d", "es");
+    },
   },
 };
 
@@ -364,11 +448,11 @@ export function extractLocaleCookie(cookieHeader?: string): string | undefined {
 
 const invitePlainTexts: Record<Locale, (orgName: string, role: string, link: string, expiresIn: string) => string> = {
   en: (orgName, role, link, expiresIn) =>
-    `You're invited!\n\nYou've been invited to join ${orgName} as ${role}. Click the link below to accept and create your account:\n\n${link}\n\nThis link expires in ${expiresIn}. If you didn't expect this invitation, you can safely ignore this email.\n\n— Helvion`,
+    `Welcome aboard! 👋\n\nYou have been invited to join ${orgName} on Helvion as ${role}.\n\nAccept your invitation:\n${link}\n\nThis link is valid for ${expiresIn}. If you were not expecting this invitation, you can safely ignore this email.\n\nSee you in Helvion! 🚀\n— Helvion`,
   tr: (orgName, role, link, expiresIn) =>
-    `Davetlisiniz!\n\n${orgName} organizasyonuna ${role} olarak davet edildiniz. Daveti kabul etmek ve hesabınızı oluşturmak için aşağıdaki bağlantıya tıklayın:\n\n${link}\n\nBu bağlantı ${expiresIn} içinde geçerlidir. Bu daveti beklemiyorsanız bu e-postayı görmezden gelebilirsiniz.\n\n— Helvion`,
+    `Aramıza hoş geldiniz! 👋\n\n${orgName} organizasyonuna Helvion üzerinde ${role} olarak davet edildiniz.\n\nDaveti kabul edin:\n${link}\n\nBu bağlantı ${expiresIn} boyunca geçerlidir. Bu daveti beklemiyorsanız e-postayı güvenle görmezden gelebilirsiniz.\n\nHelvion'da görüşmek üzere! 🚀\n— Helvion`,
   es: (orgName, role, link, expiresIn) =>
-    `¡Estás invitado!\n\nHas sido invitado a unirte a ${orgName} como ${role}. Haz clic en el enlace para aceptar y crear tu cuenta:\n\n${link}\n\nEste enlace caduca en ${expiresIn}. Si no esperabas esta invitación, puedes ignorar este correo.\n\n— Helvion`,
+    `¡Bienvenido al equipo! 👋\n\nHas sido invitado a ${orgName} en Helvion como ${role}.\n\nAcepta tu invitación:\n${link}\n\nEste enlace es válido por ${expiresIn}. Si no esperabas esta invitación, puedes ignorar este correo con tranquilidad.\n\n¡Nos vemos en Helvion! 🚀\n— Helvion`,
 };
 
 /** Translate role names (agent/admin/owner) for email templates */

@@ -1,0 +1,168 @@
+---
+description: Helvino master project context — architecture, standards, and conventions (MANDATORY for every agent)
+globs: 
+alwaysApply: true
+---
+
+# Helvino — Master Project Context
+
+Every Cursor agent working on this project MUST read and follow this file. It contains the complete architecture, standards, and conventions.
+
+## Project Overview
+
+Helvino (brand: Helvion) is a multi-tenant SaaS live chat + AI customer support platform. Competitors: Tidio, Intercom, Crisp.
+
+## Tech Stack
+
+| Layer | Tech |
+|-------|------|
+| Frontend | Next.js 14 (App Router), React, Tailwind CSS |
+| Backend | Fastify, TypeScript |
+| Database | PostgreSQL via Prisma ORM |
+| Real-time | Socket.IO |
+| Email | Resend (primary), Postmark, SMTP, Console fallback |
+| Payments | Stripe (Checkout, Webhooks, Customer Portal) |
+| AI | OpenAI, Google Gemini, Anthropic Claude (multi-provider) |
+| Cache | Redis (with in-memory fallback) |
+| Auth | Cookie-based sessions, MFA (TOTP), WebAuthn passkeys |
+
+## Monorepo Structure
+
+```
+apps/
+  api/          — Fastify backend (port 4000)
+    src/
+      index.ts           — Main server, all route registrations
+      routes/            — All API routes (portal-*, internal-*, stripe-webhook, etc.)
+      utils/             — Business logic (stripe.ts, mailer.ts, email-templates.ts, entitlements.ts, etc.)
+      middleware/         — Auth, rate-limit, billing-lock, validation
+      jobs/              — Background jobs (reset-ai-quota.ts)
+    prisma/
+      schema.prisma      — DATABASE SCHEMA (source of truth for all models)
+      seed.ts            — Plan seeding (free/pro/business)
+      migrations/        — All Prisma migrations
+  web/           — Next.js frontend (port 3000)
+    src/
+      app/
+        dashboard/       — Admin panel pages
+        portal/          — Customer portal pages (billing, inbox, team, settings, etc.)
+        pricing/         — Public pricing page
+      components/        — Shared UI components (PremiumToast, PortalLayout, etc.)
+      i18n/
+        locales/en.json  — English translations
+        locales/tr.json  — Turkish translations
+        locales/es.json  — Spanish translations
+        translations.ts  — Type-safe i18n with build-time parity check
+        I18nContext.tsx   — React context provider
+      styles/theme.ts    — Global design system tokens
+      contexts/          — React contexts (PortalAuth, StepUp, Currency, etc.)
+      lib/               — Client utilities
+```
+
+## Critical Rules (NEVER violate)
+
+### 1. i18n — ALL UI text must use `t()` 
+- Import `useI18n` from `@/i18n/I18nContext`
+- Every visible string: `t("key.name")`
+- Add keys to ALL 3 locale files: en.json, tr.json, es.json
+- Key count MUST be identical across all 3 files (build-time check in translations.ts)
+- See `.cursor/rules/i18n-enforcement.mdc` for full details
+
+### 2. Dev Servers — ALWAYS verify before/after work
+- Check: `curl -sf http://localhost:4000/health && curl -sf http://localhost:3000/`
+- If down, restart: `pnpm --filter @helvino/api dev` / `pnpm --filter web dev`
+- NEVER run `pnpm --filter web build` while dev server is running
+- See `.cursor/rules/dev-server-cache.mdc` for full details
+
+### 3. No Fake Data
+- ALL displayed data must come from real API calls
+- No hardcoded demo/mock values in production UI
+- Plan limits, usage stats, billing — all from API
+
+### 4. Premium UI Standard
+- All pages follow Tidio/Intercom-level design
+- Use the global theme from `apps/web/src/styles/theme.ts`
+- Reusable components: Card, PageHeader, StatCard, Toggle, Field
+- Toast notifications via PremiumToast (not alert())
+- Consistent spacing, typography, color palette
+
+### 5. Security
+- All portal routes require `requirePortalUser` middleware
+- Admin routes require `requireAdmin` + `requireStepUp("admin")`
+- Stripe webhooks verify signature via `verifyWebhookSignature`
+- HTML in emails: always use `escapeHtml()` for user data
+- Never log secrets or email body content in production
+
+### 6. TypeScript Strictness
+- No `any` types (use proper typing or `unknown`)
+- No unused imports or variables
+- Fix all linter errors before finishing
+
+## API Conventions
+
+### Portal Routes (customer-facing)
+- Prefix: `/portal/...`
+- Auth: `requirePortalUser` middleware
+- User object: `request.portalUser!` → `{ id, orgId, email, role }`
+
+### Admin Routes (internal)
+- Prefix: `/internal/...`
+- Auth: `requireAdmin` middleware
+- Step-up for sensitive ops: `requireStepUp("admin")`
+
+### Stripe Integration
+- Utils: `apps/api/src/utils/stripe.ts` — `getStripeClient()`, `createCheckoutSession()`, etc.
+- Webhook: `apps/api/src/routes/stripe-webhook.ts`
+- Config: env vars `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, etc.
+
+### Email System
+- Mailer: `apps/api/src/utils/mailer.ts` — `sendEmail()`, `sendEmailAsync()`
+- Templates: `apps/api/src/utils/email-templates.ts` — i18n templates (EN/TR/ES)
+- All templates use `wrapHtml()` base wrapper + `escapeHtml()` for user data
+- Premium design with Helvion branding
+
+### Background Jobs
+- Pattern: see `apps/api/src/jobs/reset-ai-quota.ts`
+- Register in `apps/api/src/index.ts` at server boot
+- Use `setInterval` for periodic jobs
+
+## Database
+
+- Schema: `apps/api/prisma/schema.prisma` (READ THIS FIRST to understand all models)
+- Migrations: manual SQL files in `prisma/migrations/`
+- Apply: `cd apps/api && npx prisma db push` (dev) or `npx prisma migrate dev`
+- Plans: free (3 agents, 200 conv/mo), pro ($29, 10 agents), business ($79, 25 agents)
+
+## Plans & Entitlements
+
+- Plan data from `Plan` table (seeded via `prisma/seed.ts`)
+- Entitlements: `apps/api/src/utils/entitlements.ts`
+- Free plan: 3 agents, 200 conversations/mo, 2000 messages/mo, 100 AI messages
+- Channels: WhatsApp/Instagram/Facebook require premium plan
+
+## Available Scripts
+
+- `./helvino-start.sh` — Start API + Web with watchdog (auto-recovery)
+- `./helvino-stop.sh` — Stop everything
+- `./helvino-status.sh` — Check health status
+- `pnpm --filter @helvino/api dev` — Start API only
+- `pnpm --filter web dev` — Start Web only
+
+## Current State (Latest Features)
+
+- Full portal with: Inbox, AI config, Widget customization, Team management, Billing, Security, Audit logs, Settings (general, channels, macros, workflows, SLA, operating hours, chat page, translations)
+- Stripe billing: Checkout, webhooks, invoices, customer portal
+- Multi-currency display with auto-detection
+- Premium toast notifications system-wide
+- Floating widget bubble preview on all portal pages
+- ChunkLoadError auto-recovery in layout.tsx
+- CheckoutSession and PromotionCode models added to schema (migration pending)
+
+## When Starting a New Task
+
+1. Read `prisma/schema.prisma` to understand the data model
+2. Check existing routes in `apps/api/src/routes/` for patterns
+3. Check existing components in `apps/web/src/components/` for UI patterns
+4. Add i18n keys to ALL 3 locale files BEFORE building UI
+5. Verify servers are running before and after work
+6. Test your changes work (curl API endpoints, check pages load)

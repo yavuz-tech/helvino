@@ -207,7 +207,7 @@ export default function PortalWidgetAppearancePage() {
 
   const canEdit = user?.role === "owner" || user?.role === "admin";
   const isFree = planKey === "free";
-  const effectiveMaxAgents = isFree ? 2 : maxAgents;
+  const effectiveMaxAgents = isFree ? 3 : maxAgents;
   const uploadMaxBytes = getUploadDataMaxBytes();
   const uploadMaxKb = Math.round(uploadMaxBytes / 1024);
 
@@ -345,6 +345,8 @@ export default function PortalWidgetAppearancePage() {
       saveLocalTheme(localTheme);
       setSaveMessage(t("widgetTheme.saved"));
       setTimeout(() => setSaveMessage(null), 3000);
+      /* Notify layout to refresh the floating bubble */
+      window.dispatchEvent(new CustomEvent("widget-settings-updated"));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("common.saveFailed"));
     } finally {
@@ -589,7 +591,7 @@ export default function PortalWidgetAppearancePage() {
                       {t("widgetConfig.premiumPalettes")}
                     </span>
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-[10px] font-semibold text-amber-700">
-                      PRO
+                      {t("common.badge.pro")}
                     </span>
                   </div>
                 </div>
@@ -771,7 +773,7 @@ export default function PortalWidgetAppearancePage() {
                             <p className="text-xs text-slate-400">{t("widgetConfig.upgradeAgentsDesc")}</p>
                           </div>
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-[11px] font-semibold text-amber-700 flex-shrink-0 group-hover:bg-amber-100 transition-colors">
-                            PRO
+                            {t("common.badge.pro")}
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
                           </span>
                         </a>

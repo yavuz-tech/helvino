@@ -20,12 +20,20 @@ import {
   Paintbrush,
   Bot,
   CheckCheck,
+  MessageCircle,
 } from "lucide-react";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useI18n } from "@/i18n/I18nContext";
 import type { TranslationKey } from "@/i18n/translations";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
+
+interface WidgetBubbleSettings {
+  primaryColor: string;
+  position: "right" | "left";
+  launcher: "bubble" | "icon";
+  welcomeTitle: string;
+}
 
 interface NavItemDef {
   labelKey: TranslationKey;
@@ -84,6 +92,8 @@ export default function PortalLayout({
   const [unreadCount, setUnreadCount] = useState(0);
   const [bellPulse, setBellPulse] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
+  const [widgetSettings, setWidgetSettings] = useState<WidgetBubbleSettings | null>(null);
+  const [bubbleHover, setBubbleHover] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -93,6 +103,27 @@ export default function PortalLayout({
     setBellOpen(false);
     router.push(unreadOnly ? "/portal/inbox?unread=1" : "/portal/inbox");
   }, [router]);
+
+  // Fetch widget appearance settings for the floating bubble
+  useEffect(() => {
+    if (!user) return;
+    portalApiFetch("/portal/widget/settings")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.settings) setWidgetSettings(d.settings); })
+      .catch(() => {});
+  }, [user]);
+
+  // Refresh widget settings when user customizes them
+  useEffect(() => {
+    const handler = () => {
+      portalApiFetch("/portal/widget/settings")
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.settings) setWidgetSettings(d.settings); })
+        .catch(() => {});
+    };
+    window.addEventListener("widget-settings-updated", handler);
+    return () => window.removeEventListener("widget-settings-updated", handler);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -389,6 +420,46 @@ export default function PortalLayout({
           <main className="p-5 sm:p-6">{children}</main>
         )}
       </div>
+
+      {/* ── Floating Widget Bubble (customer's own customization) ── */}
+      {widgetSettings && (
+        <div
+          className={`fixed bottom-6 z-[60] ${widgetSettings.position === "left" ? "left-6 lg:left-[276px]" : "right-6"}`}
+          onMouseEnter={() => setBubbleHover(true)}
+          onMouseLeave={() => setBubbleHover(false)}
+        >
+          {/* Tooltip on hover */}
+          <div
+            className={`absolute bottom-full mb-2.5 ${widgetSettings.position === "left" ? "left-0" : "right-0"} transition-all duration-200 pointer-events-none ${
+              bubbleHover ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
+            }`}
+          >
+            <div className="bg-slate-900 text-white text-[11px] font-semibold px-3 py-2 rounded-xl shadow-lg whitespace-nowrap">
+              {widgetSettings.welcomeTitle}
+              <div className={`absolute -bottom-1 ${widgetSettings.position === "left" ? "left-5" : "right-5"} w-2 h-2 bg-slate-900 rotate-45`} />
+            </div>
+          </div>
+
+          {/* Bubble */}
+          <button
+            type="button"
+            onClick={() => router.push("/portal/widget-appearance")}
+            className="group relative w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-2xl active:scale-95"
+            style={{
+              backgroundColor: widgetSettings.primaryColor,
+              boxShadow: `0 8px 25px ${widgetSettings.primaryColor}40, 0 4px 10px ${widgetSettings.primaryColor}30`,
+            }}
+            title={t("dashboard.widgetPreview.customize")}
+          >
+            <MessageCircle size={24} className="text-white group-hover:scale-110 transition-transform duration-200" />
+            {/* Pulse ring */}
+            <span
+              className="absolute inset-0 rounded-full animate-ping opacity-20"
+              style={{ backgroundColor: widgetSettings.primaryColor }}
+            />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

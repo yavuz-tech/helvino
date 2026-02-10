@@ -22,8 +22,11 @@ export class ResendEmailProvider implements EmailProvider {
 
   async send(payload: EmailPayload): Promise<EmailResult> {
     let from = payload.from || process.env.EMAIL_FROM || process.env.MAIL_FROM || "noreply@helvion.io";
-    // Resend 403: helvion.io domain must be verified. Until then, force onboarding@resend.dev so mail always delivers.
-    if (typeof from === "string" && from.includes("@helvion.io")) {
+    // Optional dev fallback: force resend.dev sender only when explicitly enabled.
+    // This should stay OFF in production, otherwise Resend may keep account in testing behavior.
+    const forceResendDevFrom =
+      process.env.FORCE_RESEND_DEV_FROM === "true" || process.env.FORCE_RESEND_DEV_FROM === "1";
+    if (forceResendDevFrom) {
       from = "Helvion <onboarding@resend.dev>";
     }
     const resendPayload = {

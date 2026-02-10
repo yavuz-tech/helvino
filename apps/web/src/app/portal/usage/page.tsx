@@ -676,7 +676,7 @@ export default function PortalUsagePage() {
                   </p>
                 </div>
                 <p className="text-3xl font-bold text-slate-900 leading-none">
-                  {billing.plan.monthlyPriceUsd === 0 ? (
+                  {billing.plan.monthlyPriceUsd == null || billing.plan.monthlyPriceUsd === 0 ? (
                     t("billing.free")
                   ) : (
                     <span suppressHydrationWarning>

@@ -5,12 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { useI18n } from "@/i18n/I18nContext";
+import type { TranslationKey } from "@/i18n/.translations-compat";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useHydrated } from "@/hooks/useHydrated";
 import { usePortalInboxNotification } from "@/contexts/PortalInboxNotificationContext";
 import Link from "next/link";
 import {
-  Search, Send, User, Pause, XCircle,
+  Search, Send, User,
   MessageSquare, Paperclip, Smile,
   ArrowLeft, PanelRightOpen, PanelRightClose,
   Copy, CheckCircle, Bot, Sparkles,
@@ -113,9 +114,9 @@ function formatDateTime(dateStr: string, hydrated: boolean): string {
   } catch { return dateStr.slice(0, 16); }
 }
 
-function displayName(conv: ConversationListItem): string {
+function displayName(conv: ConversationListItem, t: (key: string) => string): string {
   if (conv.preview?.from && conv.preview.from !== "assistant") return conv.preview.from;
-  return `Visitor #${conv.id.substring(0, 6)}`;
+  return t("common.visitorNumber").replace("{id}", conv.id.substring(0, 6));
 }
 
 /** Sort conversations: unread first, then by updatedAt descending */
@@ -130,20 +131,20 @@ function sortConversations(list: ConversationListItem[]): ConversationListItem[]
   });
 }
 
-function formatRelativeTime(dateStr: string): string {
+function formatRelativeTime(dateStr: string, t: (key: string) => string): string {
   try {
     const now = Date.now();
     const then = new Date(dateStr).getTime();
     const diff = Math.max(0, now - then);
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "now";
-    if (mins < 60) return `${mins}m`;
+    if (mins < 1) return t("common.time.now");
+    if (mins < 60) return `${mins}${t("common.time.minuteShort")}`;
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h`;
+    if (hrs < 24) return `${hrs}${t("common.time.hourShort")}`;
     const days = Math.floor(hrs / 24);
-    if (days < 7) return `${days}d`;
+    if (days < 7) return `${days}${t("common.time.dayShort")}`;
     const weeks = Math.floor(days / 7);
-    return `${weeks}w`;
+    return `${weeks}${t("common.time.weekShort")}`;
   } catch { return ""; }
 }
 
@@ -281,7 +282,7 @@ export default function PortalInboxContent() {
   const handleAiSuggest = useCallback(async () => {
     if (!selectedConversationId || aiLoading || isLoadingDetail) return;
     if (!isProPlus) { setUpgradeReason("plan"); setUpgradeRequiredPlan("pro"); setShowUpgradeModal(true); return; }
-    if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet" as any) }); return; }
+    if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet") }); return; }
     setAiLoading("suggest");
     setAiSuggestions(null);
     try {
@@ -300,7 +301,7 @@ export default function PortalInboxContent() {
   const handleAiSummarize = useCallback(async () => {
     if (!selectedConversationId || aiLoading || isLoadingDetail) return;
     if (!isProPlus) { setUpgradeReason("plan"); setUpgradeRequiredPlan("pro"); setShowUpgradeModal(true); return; }
-    if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet" as any) }); return; }
+    if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet") }); return; }
     setAiLoading("summarize");
     setAiSummary(null);
     try {
@@ -319,7 +320,7 @@ export default function PortalInboxContent() {
   // FREE: AI Sentiment Analysis
   const handleAiSentiment = useCallback(async () => {
     if (!selectedConversationId || aiLoading || isLoadingDetail) return;
-    if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet" as any) }); return; }
+    if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet") }); return; }
     setAiLoading("suggest"); // reuse loading state
     setAiSentiment(null);
     try {
@@ -338,7 +339,7 @@ export default function PortalInboxContent() {
   // FREE: AI Quick Reply (single contextual reply)
   const handleAiQuickReply = useCallback(async () => {
     if (!selectedConversationId || aiLoading || isLoadingDetail) return;
-    if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet" as any) }); return; }
+    if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet") }); return; }
     setAiLoading("suggest");
     try {
       const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/ai-quick-reply`, { method: "POST" });
@@ -691,7 +692,8 @@ export default function PortalInboxContent() {
     return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-[#1A1A2E] animate-spin" /></div>;
   }
 
-  const totalOpen = viewCounts.unassigned + viewCounts.myOpen;
+  const _totalOpen = viewCounts.unassigned + viewCounts.myOpen;
+  void _totalOpen;
 
   return (
     <div className="fixed inset-0 top-16 lg:left-[260px] flex overflow-hidden bg-[#f8f9fb] z-10">
@@ -786,7 +788,7 @@ export default function PortalInboxContent() {
                     if (locked) { setUpgradeReason("plan"); setUpgradeRequiredPlan("pro"); setShowUpgradeModal(true); return; }
                     setSmartFilter(active ? null : f.key);
                   }}
-                  title={t(tooltipKey as any)}
+                  title={t(tooltipKey as TranslationKey)}
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold border rounded-lg transition-all ${
                     active
                       ? f.color + " ring-1 ring-current/20"
@@ -796,7 +798,7 @@ export default function PortalInboxContent() {
                   }`}
                 >
                   <Icon size={11} />
-                  {t(`inbox.smartFilter.${f.key}` as any)}
+                  {t(`inbox.smartFilter.${f.key}` as TranslationKey)}
                   {locked && <Lock size={9} className="text-slate-300" />}
                 </button>
               );
@@ -883,7 +885,7 @@ export default function PortalInboxContent() {
               <p className="text-xs text-slate-400 leading-relaxed">{t("inbox.empty.desc")}</p>
             </div>
           ) : conversations.map(conv => {
-            const name = displayName(conv);
+            const name = displayName(conv, t);
             const active = conv.id === selectedConversationId;
             const hasUnread = !!conv.hasUnreadMessages;
             return (
@@ -923,7 +925,7 @@ export default function PortalInboxContent() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
                       <span className={`text-[13px] truncate ${hasUnread ? "font-bold text-slate-900" : "font-semibold text-slate-700"}`}>{name}</span>
-                      <span className="text-[10px] text-slate-400 flex-shrink-0 tabular-nums font-medium" suppressHydrationWarning>{hydrated ? formatRelativeTime(conv.updatedAt) : formatTime(conv.updatedAt, hydrated)}</span>
+                      <span className="text-[10px] text-slate-400 flex-shrink-0 tabular-nums font-medium" suppressHydrationWarning>{hydrated ? formatRelativeTime(conv.updatedAt, t) : formatTime(conv.updatedAt, hydrated)}</span>
                     </div>
                     {conv.preview && <p className={`text-[12px] leading-snug truncate mb-1.5 ${hasUnread ? "text-slate-700 font-medium" : "text-slate-500"}`}>{conv.preview.text}</p>}
                     <div className="flex items-center gap-1.5">
@@ -954,7 +956,7 @@ export default function PortalInboxContent() {
                           <CheckCircle size={9} />{t("inbox.statusClosed")}
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-300 tabular-nums font-medium">{conv.messageCount} msg</span>
+                      <span className="text-[10px] text-slate-300 tabular-nums font-medium">{conv.messageCount} {t("common.abbrev.messages")}</span>
                     </div>
                   </div>
 
@@ -1063,12 +1065,12 @@ export default function PortalInboxContent() {
                 <button onClick={closePanel} className="sm:hidden text-slate-500 hover:text-slate-700"><ArrowLeft size={18} /></button>
                 <div className="relative">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold text-white shadow-sm ${getAvatarColor(selectedConversationId)}`}>
-                    {selectedConv ? getInitials(displayName(selectedConv)) : "?"}
+                    {selectedConv ? getInitials(displayName(selectedConv, t)) : "?"}
                   </div>
                   <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${isOpen ? "bg-emerald-400 shadow-sm shadow-emerald-400/40" : "bg-slate-300"}`} />
                 </div>
                 <div>
-                  <div className="text-[14px] font-bold text-slate-900">{selectedConv ? displayName(selectedConv) : ""}</div>
+                  <div className="text-[14px] font-bold text-slate-900">{selectedConv ? displayName(selectedConv, t) : ""}</div>
                   {userTypingConvId === selectedConversationId ? (
                     <div className="flex items-center gap-1 text-[11px] text-blue-500 font-medium">
                       <span className="inline-flex gap-0.5">
@@ -1091,7 +1093,7 @@ export default function PortalInboxContent() {
                 <button
                   onClick={handleAiQuickReply}
                   disabled={!!aiLoading || isLoadingDetail}
-                  title={t("inbox.ai.quickReplyTooltip" as any)}
+                  title={t("inbox.ai.quickReplyTooltip")}
                   className="relative p-2 rounded-lg transition-all text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {aiLoading ? <span className="w-4 h-4 rounded-full border-2 border-indigo-200 border-t-indigo-500 animate-spin block" /> : <Sparkles size={15} />}
@@ -1100,7 +1102,7 @@ export default function PortalInboxContent() {
                 <button
                   onClick={handleAiSentiment}
                   disabled={!!aiLoading || isLoadingDetail}
-                  title={t("inbox.ai.sentimentTooltip" as any)}
+                  title={t("inbox.ai.sentimentTooltip")}
                   className="relative p-2 rounded-lg transition-all text-violet-500 hover:text-violet-700 hover:bg-violet-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Smile size={15} />
@@ -1112,7 +1114,7 @@ export default function PortalInboxContent() {
                 <button
                   onClick={handleAiSuggest}
                   disabled={!!aiLoading || isLoadingDetail}
-                  title={isProPlus ? t("inbox.ai.suggestReplyTooltip" as any) : t("inbox.ai.suggestReplyLockedTooltip" as any)}
+                  title={isProPlus ? t("inbox.ai.suggestReplyTooltip") : t("inbox.ai.suggestReplyLockedTooltip")}
                   className={`relative p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                     isProPlus
                       ? "text-blue-600 hover:text-blue-800 hover:bg-blue-50"
@@ -1126,7 +1128,7 @@ export default function PortalInboxContent() {
                 <button
                   onClick={handleAiSummarize}
                   disabled={!!aiLoading || isLoadingDetail}
-                  title={isProPlus ? t("inbox.ai.summarizeTooltip" as any) : t("inbox.ai.summarizeLockedTooltip" as any)}
+                  title={isProPlus ? t("inbox.ai.summarizeTooltip") : t("inbox.ai.summarizeLockedTooltip")}
                   className={`relative p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                     isProPlus
                       ? "text-purple-600 hover:text-purple-800 hover:bg-purple-50"
@@ -1266,7 +1268,7 @@ export default function PortalInboxContent() {
                 <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-start" : "justify-end"} group/msg`}>
                   {msg.role === "user" && (
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 mr-2.5 mt-1 shadow-sm ${getAvatarColor(selectedConversationId || "")}`}>
-                      {selectedConv ? getInitials(displayName(selectedConv)) : "?"}
+                      {selectedConv ? getInitials(displayName(selectedConv, t)) : "?"}
                     </div>
                   )}
                   <div className={`max-w-[65%] ${
@@ -1374,10 +1376,10 @@ export default function PortalInboxContent() {
             <div className="px-5 py-5 border-b border-slate-100">
               <div className="flex items-center gap-3.5 mb-5">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm ${getAvatarColor(selectedConversationId)}`}>
-                  {selectedConv ? getInitials(displayName(selectedConv)) : "?"}
+                  {selectedConv ? getInitials(displayName(selectedConv, t)) : "?"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[14px] font-bold text-slate-900">{selectedConv ? displayName(selectedConv) : ""}</div>
+                  <div className="text-[14px] font-bold text-slate-900">{selectedConv ? displayName(selectedConv, t) : ""}</div>
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-lg ${
                       isOpen ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60" : "bg-slate-100 text-slate-600 ring-1 ring-slate-200/60"
@@ -1400,7 +1402,7 @@ export default function PortalInboxContent() {
                   <div className="text-[10px] text-slate-400 font-semibold">{t("inbox.detail.notes")}</div>
                 </div>
                 <div className="bg-slate-50/80 rounded-xl px-3 py-2.5 text-center ring-1 ring-slate-100">
-                  <div className="text-sm font-extrabold text-slate-900 tabular-nums" suppressHydrationWarning>{hydrated ? formatRelativeTime(conversationDetail.createdAt) : "--"}</div>
+                  <div className="text-sm font-extrabold text-slate-900 tabular-nums" suppressHydrationWarning>{hydrated ? formatRelativeTime(conversationDetail.createdAt, t) : "--"}</div>
                   <div className="text-[10px] text-slate-400 font-semibold">{t("inbox.customer.createdAt")}</div>
                 </div>
               </div>

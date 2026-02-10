@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
+import { Crown, Lock, Mail, MessageSquare, Plug } from "lucide-react";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { useI18n } from "@/i18n/I18nContext";
+import { premiumToast } from "@/components/PremiumToast";
 import type { TranslationKey } from "@/i18n/translations";
-import { Plug, MessageSquare, Mail, Check, AlertCircle } from "lucide-react";
+import Card from "@/components/ui/Card";
+import PageHeader from "@/components/ui/PageHeader";
+import StatCard from "@/components/ui/StatCard";
+import { p } from "@/styles/theme";
 
 type Channel = {
   channelType: string;
@@ -12,6 +19,7 @@ type Channel = {
   configured: boolean;
 };
 
+/* ── Channel metadata ── */
 const CHANNEL_LABELS: Record<string, TranslationKey> = {
   live_chat: "settingsPortal.channelLiveChat",
   email: "settingsPortal.channelEmail",
@@ -20,134 +28,202 @@ const CHANNEL_LABELS: Record<string, TranslationKey> = {
   instagram: "settingsPortal.channelInstagram",
 };
 
-const CHANNEL_ICONS: Record<string, { icon: React.FC<{ size?: number; className?: string }>; color: string; bg: string }> = {
-  live_chat: { icon: MessageSquare, color: "text-blue-600", bg: "bg-blue-50" },
-  email: { icon: Mail, color: "text-emerald-600", bg: "bg-emerald-50" },
-  whatsapp: { icon: MessageSquare, color: "text-green-600", bg: "bg-green-50" },
-  facebook: { icon: MessageSquare, color: "text-indigo-600", bg: "bg-indigo-50" },
-  instagram: { icon: MessageSquare, color: "text-pink-600", bg: "bg-pink-50" },
+const CHANNEL_ICONS: Record<string, LucideIcon> = {
+  live_chat: MessageSquare,
+  email: Mail,
+  whatsapp: MessageSquare,
+  facebook: MessageSquare,
+  instagram: MessageSquare,
 };
+
+const CHANNEL_COLORS: Record<string, string> = {
+  live_chat: p.iconBlue,
+  email: p.iconIndigo,
+  whatsapp: p.iconEmerald,
+  facebook: p.iconBlue,
+  instagram: p.iconViolet,
+};
+
+/* Channels available on Free plan */
+const FREE_CHANNELS = new Set(["live_chat", "email"]);
 
 export default function PortalSettingsChannelsPage() {
   const { t } = useI18n();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [saving, setSaving] = useState<string | null>(null);
-  const [status, setStatus] = useState("");
+  const [planKey, setPlanKey] = useState<string>("free");
 
+  /* Fetch channels + plan */
   useEffect(() => {
     portalApiFetch("/portal/settings/channels")
       .then((r) => r.json())
       .then((data) => setChannels(data.channels || []))
-      .catch(() => setStatus(t("common.networkError")));
-  }, [t]);
+      .catch(() => {});
+
+    portalApiFetch("/portal/org/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.org?.planKey) setPlanKey(data.org.planKey.toLowerCase());
+      })
+      .catch(() => {});
+  }, []);
+
+  const isPro =
+    planKey === "pro" ||
+    planKey === "business" ||
+    planKey === "enterprise" ||
+    planKey === "unlimited";
 
   const toggleChannel = async (channelType: string, enabled: boolean) => {
     setSaving(channelType);
-    setStatus("");
-    const res = await portalApiFetch("/portal/settings/channels", {
-      method: "PUT",
-      body: JSON.stringify({ channelType, enabled }),
-    });
-    if (res.ok) {
-      setChannels((prev) =>
-        prev.map((ch) => (ch.channelType === channelType ? { ...ch, enabled } : ch))
-      );
-      setStatus(t("portal.settingsSaved"));
-    } else {
-      setStatus(t("portal.failedSaveSettings"));
+    try {
+      const res = await portalApiFetch("/portal/settings/channels", {
+        method: "PUT",
+        body: JSON.stringify({ channelType, enabled }),
+      });
+      if (res.ok) {
+        setChannels((prev) =>
+          prev.map((ch) =>
+            ch.channelType === channelType ? { ...ch, enabled } : ch
+          )
+        );
+        premiumToast.success({ title: t("toast.settingsSaved"), description: t("toast.settingsSavedDesc") });
+      } else {
+        premiumToast.error({ title: t("toast.settingsFailed"), description: t("toast.settingsFailedDesc") });
+      }
+    } catch {
+      premiumToast.error({ title: t("toast.settingsFailed"), description: t("toast.settingsFailedDesc") });
     }
     setSaving(null);
   };
 
-  if (!channels.length) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-violet-500 animate-spin" />
-      </div>
-    );
-  }
-
   const enabledCount = channels.filter((c) => c.enabled).length;
 
   return (
-    <div className="space-y-5">
-      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-violet-50/40 p-6 shadow-sm">
-        <div className="flex items-center gap-2.5 mb-1">
-          <Plug size={18} className="text-violet-600" />
-          <h1 className="text-2xl font-bold text-slate-900">{t("settingsPortal.channels")}</h1>
-        </div>
-        <p className="text-sm text-slate-600 mt-1">{t("settingsPortal.channelsSubtitle")}</p>
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
-            <p className="text-xs text-slate-500">{t("settingsPortal.channels")}</p>
-            <p className="text-lg font-bold text-slate-900 mt-1">{channels.length}</p>
-          </div>
-          <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
-            <p className="text-xs text-slate-500">{t("common.enabled")}</p>
-            <p className="text-lg font-bold text-emerald-600 mt-1">{enabledCount}</p>
-          </div>
-        </div>
+    <div className={p.sectionGap}>
+      <PageHeader
+        title={t("settingsPortal.channels")}
+        subtitle={t("settingsPortal.channelsSubtitle")}
+      />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard
+          label={t("settingsPortal.channels")}
+          value={String(channels.length)}
+          icon={Plug}
+          color="amber"
+        />
+        <StatCard
+          label={t("common.enabled")}
+          value={String(enabledCount)}
+          icon={MessageSquare}
+          color="emerald"
+        />
+        <StatCard
+          label={t("common.disabled")}
+          value={String(channels.length - enabledCount)}
+          icon={Mail}
+          color="slate"
+        />
       </div>
 
-      {status && (
-        <div className={`rounded-xl border p-4 flex items-center gap-3 ${
-          status.includes(t("portal.settingsSaved"))
-            ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-            : "bg-red-50 border-red-200 text-red-900"
-        }`}>
-          {status.includes(t("portal.settingsSaved")) ? <Check size={18} /> : <AlertCircle size={18} />}
-          <span className="text-sm font-medium">{status}</span>
-        </div>
-      )}
+      {/* ── Channel Cards ── */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {channels.map((channel) => {
+          const Icon = CHANNEL_ICONS[channel.channelType] || Plug;
+          const iconColor = CHANNEL_COLORS[channel.channelType] || p.iconSlate;
+          const isSaving = saving === channel.channelType;
+          const isFreeChannel = FREE_CHANNELS.has(channel.channelType);
+          const isLocked = !isFreeChannel && !isPro;
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-900 mb-5 uppercase tracking-wider">{t("settingsPortal.channels")}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {channels.map((channel) => {
-            const cfg = CHANNEL_ICONS[channel.channelType] || { icon: Plug, color: "text-slate-600", bg: "bg-slate-50" };
-            const Icon = cfg.icon;
-            return (
-              <div
-                key={channel.channelType}
-                className={`border-2 rounded-xl p-5 transition-all hover:shadow-md ${
-                  channel.enabled
-                    ? "border-emerald-200 bg-emerald-50/30"
-                    : "border-slate-200 bg-slate-50/30"
-                }`}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl ${cfg.bg} flex items-center justify-center`}>
-                      <Icon size={18} className={cfg.color} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-800">{t(CHANNEL_LABELS[channel.channelType] ?? "settingsPortal.channels")}</p>
-                      <p className={`text-xs font-medium ${channel.enabled ? "text-emerald-600" : "text-slate-500"}`}>
-                        {channel.enabled ? t("common.enabled") : t("common.disabled")}
-                      </p>
-                    </div>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={channel.enabled}
-                      onChange={(e) => toggleChannel(channel.channelType, e.target.checked)}
-                      disabled={saving === channel.channelType}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-emerald-500 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5" />
-                  </label>
+          return (
+            <Card key={channel.channelType}>
+              <div className="flex items-center gap-4">
+                <div className={`${p.iconMd} ${isLocked ? p.iconSlate : iconColor}`}>
+                  {isLocked ? <Lock size={18} /> : <Icon size={18} />}
                 </div>
-                {saving === channel.channelType && (
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <span className="w-3 h-3 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
-                    {t("common.saving")}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-semibold text-slate-800">
+                      {t(
+                        CHANNEL_LABELS[channel.channelType] ??
+                          "settingsPortal.channels"
+                      )}
+                    </span>
+                    {isFreeChannel ? (
+                      <span className={p.badgeGreen}>
+                        {t("settingsPortal.channelFree")}
+                      </span>
+                    ) : (
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          isPro
+                            ? "bg-violet-50 text-violet-700"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        <Crown size={10} />
+                        {t("settingsPortal.channelPremium")}
+                      </span>
+                    )}
                   </div>
+                  {isLocked ? (
+                    <p className="mt-0.5 text-[11px] text-slate-400">
+                      {t("settingsPortal.channelPremiumDesc")}
+                    </p>
+                  ) : (
+                    <span
+                      className={`mt-1 ${
+                        channel.enabled ? p.badgeGreen : p.badgeSlate
+                      }`}
+                    >
+                      {channel.enabled
+                        ? t("common.enabled")
+                        : t("common.disabled")}
+                    </span>
+                  )}
+                </div>
+
+                {/* Toggle or Upgrade CTA */}
+                {isLocked ? (
+                  <Link
+                    href="/portal/billing"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-3 py-1.5 text-[11px] font-semibold text-violet-700 transition-colors hover:bg-violet-100"
+                  >
+                    <Crown size={11} />
+                    {t("settingsPortal.channelUpgrade")}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() =>
+                      toggleChannel(channel.channelType, !channel.enabled)
+                    }
+                    className={[
+                      "relative h-6 w-11 flex-shrink-0 rounded-full transition-colors duration-200",
+                      channel.enabled
+                        ? "bg-blue-600"
+                        : "bg-slate-200 hover:bg-slate-300",
+                      isSaving
+                        ? "opacity-50 cursor-not-allowed"
+                        : "cursor-pointer",
+                    ].join(" ")}
+                  >
+                    <div
+                      className={[
+                        "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200",
+                        channel.enabled
+                          ? "translate-x-[22px]"
+                          : "translate-x-0.5",
+                      ].join(" ")}
+                    />
+                  </button>
                 )}
               </div>
-            );
-          })}
-        </div>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

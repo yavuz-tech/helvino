@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
@@ -12,198 +11,89 @@ import { useStepUp } from "@/contexts/StepUpContext";
 import PlanComparisonTable from "@/components/PlanComparisonTable";
 import TrialBanner from "@/components/TrialBanner";
 import UsageNudge from "@/components/UsageNudge";
-import { ChevronLeft } from "lucide-react";
+import {
+  Crown, AlertTriangle, ArrowUpRight, Sparkles,
+  MessageSquare, Mail, Users, ExternalLink, FileText,
+  Zap, BarChart3, Download, ChevronRight,
+  Shield, CheckCircle2, ArrowRight, Bot, Eye,
+  X, Activity, Settings, Code, Palette,
+} from "lucide-react";
 
-/* ────────── Types ────────── */
-
-interface PlanInfo {
-  key: string;
-  name: string;
-  monthlyPriceUsd: number | null;
-}
-
-interface Limits {
-  maxConversationsPerMonth: number;
-  maxMessagesPerMonth: number;
-  maxAgents: number;
-}
-
-interface Usage {
-  monthKey: string;
-  conversationsCreated: number;
-  messagesSent: number;
-  nextResetDate?: string;
-}
-
+/* ═══════════ Types ═══════════ */
+interface PlanInfo { key: string; name: string; monthlyPriceUsd: number | null }
+interface Limits { maxConversationsPerMonth: number; maxMessagesPerMonth: number; maxAgents: number }
+interface BillingUsage { monthKey: string; conversationsCreated: number; messagesSent: number; nextResetDate?: string }
 interface Subscription {
-  status: string;
-  planStatus: string;
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
-  stripePriceId: string | null;
-  currentPeriodEnd: string | null;
-  cancelAtPeriodEnd: boolean;
-  trialEndsAt: string | null;
-  billingEnforced: boolean;
-  billingGraceDays: number;
+  status: string; planStatus: string; stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null; stripePriceId: string | null;
+  currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean;
+  trialEndsAt: string | null; billingEnforced: boolean; billingGraceDays: number;
 }
-
 interface AvailablePlan {
-  key: string;
-  name: string;
-  stripePriceId: string | null;
-  monthlyPriceUsd: number | null;
-  maxConversationsPerMonth: number;
-  maxMessagesPerMonth: number;
-  maxAgents: number;
+  key: string; name: string; stripePriceId: string | null;
+  monthlyPriceUsd: number | null; maxConversationsPerMonth: number;
+  maxMessagesPerMonth: number; maxAgents: number;
 }
-
-interface TrialInfo {
-  isTrialing: boolean;
-  isExpired: boolean;
-  daysLeft: number;
-  endsAt: string | null;
-}
-
+interface TrialInfo { isTrialing: boolean; isExpired: boolean; daysLeft: number; endsAt: string | null }
 interface BillingStatus {
-  stripeConfigured: boolean;
-  org: { id: string; key: string; name: string };
-  plan: PlanInfo;
-  limits: Limits | null;
-  usage: Usage;
-  subscription: Subscription;
-  availablePlans: AvailablePlan[];
-  trial?: TrialInfo;
-  recommendedPlan?: string;
+  stripeConfigured: boolean; org: { id: string; key: string; name: string };
+  plan: PlanInfo; limits: Limits | null; usage: BillingUsage;
+  subscription: Subscription; availablePlans: AvailablePlan[];
+  trial?: TrialInfo; recommendedPlan?: string;
 }
-
 interface BillingLockStatus {
-  locked: boolean;
-  graceEndsAt: string | null;
-  billingLockedAt: string | null;
-  reason: string;
-  lastReconcileAt: string | null;
+  locked: boolean; graceEndsAt: string | null; billingLockedAt: string | null;
+  reason: string; lastReconcileAt: string | null;
 }
-
 interface Invoice {
-  id: string;
-  number: string | null;
-  status: string;
-  amountDue: number;
-  amountPaid: number;
-  currency: string;
-  hostedInvoiceUrl: string | null;
-  invoicePdf: string | null;
-  created: number;
-  periodEnd: number;
+  id: string; number: string | null; status: string; amountDue: number;
+  amountPaid: number; currency: string; hostedInvoiceUrl: string | null;
+  invoicePdf: string | null; created: number; periodEnd: number;
+}
+interface DashboardStats {
+  conversations: { open: number; closed: number; total: number };
+  messages: { today: number; thisWeek: number; thisMonth: number };
+  ai: { totalResponses: number; monthlyUsage: number; monthlyLimit: number; avgResponseTimeMs: number; enabled: boolean };
+  usage: { conversations: number; messages: number; humanConversations: number; aiResponses: number; visitorsReached: number };
+  widget: { enabled: boolean; totalLoads: number; lastSeen: string | null };
+  plan: string;
+}
+interface OrgInfo {
+  id: string; key: string; name: string; siteId: string;
+  allowLocalhost: boolean; allowedDomains: string[];
+  widgetEnabled: boolean; writeEnabled: boolean; aiEnabled: boolean;
 }
 
-/* ────────── Small components ────────── */
-
-function StatusBadge({ status }: { status: string }) {
-  const { t } = useI18n();
-  const colors: Record<string, string> = {
-    active: "bg-emerald-100 text-emerald-800",
-    trialing: "bg-blue-100 text-blue-800",
-    past_due: "bg-amber-100 text-amber-800",
-    canceled: "bg-red-100 text-red-800",
-    unpaid: "bg-red-100 text-red-800",
-    incomplete: "bg-yellow-100 text-yellow-800",
-    none: "bg-slate-100 text-slate-600",
-    paid: "bg-emerald-100 text-emerald-800",
-    open: "bg-blue-100 text-blue-800",
-    void: "bg-slate-100 text-slate-500",
-    draft: "bg-slate-100 text-slate-500",
-    uncollectible: "bg-red-100 text-red-800",
-  };
-
-  const statusKey = `billing.status.${status}` as TranslationKey;
-  const translated = t(statusKey);
-  const label = translated === statusKey ? (status === "none" ? t("billing.noSubscription") : status.replace("_", " ")) : translated;
-
-  return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[status] || colors.none}`}
-    >
-      {label}
-    </span>
-  );
+/* ═══════════ Helpers ═══════════ */
+function fmtAmount(cents: number, currency: string) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase(), minimumFractionDigits: 2 }).format(cents / 100);
 }
-
-function StateBadge({ state }: { state: string }) {
-  const { t } = useI18n();
-  const colors: Record<string, string> = {
-    active: "bg-emerald-100 text-emerald-800",
-    grace: "bg-amber-100 text-amber-800",
-    locked: "bg-red-100 text-red-800",
-    free: "bg-slate-100 text-slate-700",
-  };
-
-  const stateKey = `billing.state.${state}` as TranslationKey;
-  const translated = t(stateKey);
-  const label = translated === stateKey ? state.toUpperCase() : translated.toUpperCase();
-
+function ProgressBar({ pct, color = "bg-blue-500" }: { pct: number; color?: string }) {
+  const bg = pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-400" : color;
   return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[state] || colors.free}`}
-    >
-      {label}
-    </span>
-  );
-}
-
-function UsageBar({
-  label,
-  used,
-  limit,
-}: {
-  label: string;
-  used: number;
-  limit: number;
-}) {
-  const pct = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
-  const isHigh = pct >= 80;
-  const isFull = pct >= 100;
-
-  return (
-    <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-slate-600">{label}</span>
-        <span
-          className={`font-medium ${isFull ? "text-red-600" : isHigh ? "text-amber-600" : "text-slate-900"}`}
-          suppressHydrationWarning
-        >
-          {used.toLocaleString()} / {limit.toLocaleString()}
-        </span>
-      </div>
-      <div className="w-full bg-slate-200 rounded-full h-2">
-        <div
-          className={`h-2 rounded-full transition-all ${isFull ? "bg-red-500" : isHigh ? "bg-amber-500" : "bg-emerald-500"}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+    <div className="h-1.5 w-full rounded-full bg-slate-100 mt-2">
+      <div className={`h-full rounded-full transition-all duration-700 ${bg}`} style={{ width: `${Math.min(pct, 100)}%` }} />
     </div>
   );
 }
-
-function formatAmount(cents: number, currency: string) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency.toUpperCase(),
-    minimumFractionDigits: 2,
-  }).format(cents / 100);
+function InvBadge({ status, t }: { status: string; t: (k: string) => string }) {
+  const styles: Record<string, string> = { paid: "bg-emerald-50 text-emerald-700", open: "bg-blue-50 text-blue-700", draft: "bg-slate-50 text-slate-600", void: "bg-slate-50 text-slate-500", uncollectible: "bg-red-50 text-red-700" };
+  const dots: Record<string, string> = { paid: "bg-emerald-500", open: "bg-blue-500", draft: "bg-slate-400", void: "bg-slate-400", uncollectible: "bg-red-500" };
+  const key = `billing.status.${status}` as TranslationKey;
+  const label = t(key) === key ? status : t(key);
+  return <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${styles[status] || styles.draft}`}><span className={`h-1.5 w-1.5 rounded-full ${dots[status] || dots.draft}`} /> {label}</span>;
 }
 
-/* ────────── Main page ────────── */
-
+/* ═══════════ MAIN ═══════════ */
 export default function PortalBillingPage() {
-  const router = useRouter();
-  const { user, loading: authLoading } = usePortalAuth();
+  const { loading: authLoading } = usePortalAuth();
   const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [lockStatus, setLockStatus] = useState<BillingLockStatus | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [invoicesError, setInvoicesError] = useState<string | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [org, setOrg] = useState<OrgInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorRequestId, setErrorRequestId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -212,542 +102,409 @@ export default function PortalBillingPage() {
   const { t } = useI18n();
   const { withStepUp } = useStepUp();
 
-  // Load billing status
   useEffect(() => {
     if (authLoading) return;
-    const load = async () => {
+    (async () => {
       try {
-        const res = await portalApiFetch("/portal/billing/status");
-        if (!res.ok) {
-          setErrorRequestId(res.headers.get("x-request-id") || null);
-          setError(t("billing.failedLoad"));
-          setLoading(false);
-          return;
-        }
-        const data = await res.json();
-        setBilling(data);
-      } catch {
-        setError(t("billing.networkError"));
-      }
+        const [bR, lR, sR, oR] = await Promise.all([
+          portalApiFetch("/portal/billing/status"),
+          portalApiFetch("/portal/billing/lock-status"),
+          portalApiFetch("/portal/dashboard/stats"),
+          portalApiFetch("/portal/org/me"),
+        ]);
+        if (bR.ok) setBilling(await bR.json()); else { setErrorRequestId(bR.headers.get("x-request-id") || null); setError(t("billing.failedLoad")); }
+        if (lR.ok) setLockStatus(await lR.json());
+        if (sR.ok) setStats(await sR.json());
+        if (oR.ok) { const d = await oR.json(); if (d?.org) setOrg(d.org); }
+      } catch { setError(t("billing.networkError")); }
       setLoading(false);
-    };
-    load();
+    })();
   }, [authLoading, t]);
 
-  // Load billing lock/grace status
   useEffect(() => {
-    if (authLoading) return;
-    const loadLockStatus = async () => {
-      try {
-        const res = await portalApiFetch("/portal/billing/lock-status");
-        if (res.ok) {
-          const data = await res.json();
-          setLockStatus(data);
-        }
-      } catch {
-        // Ignore lock status errors (non-blocking)
-      }
-    };
-    loadLockStatus();
-  }, [authLoading]);
-
-  // Load invoices (after billing loads, only if stripe configured + customer exists)
-  useEffect(() => {
-    if (!billing || !billing.stripeConfigured) return;
-    if (!billing.subscription.stripeCustomerId) return;
-
+    if (!billing?.stripeConfigured || !billing.subscription.stripeCustomerId) return;
     setInvoicesLoading(true);
-    const loadInvoices = async () => {
+    (async () => {
       try {
-        const res = await portalApiFetch("/portal/billing/invoices?limit=10");
-        if (res.status === 501) {
-          setInvoicesError(t("billing.stripeNotConfigured"));
-        } else if (res.status === 409) {
-          // No customer yet — not an error, just no invoices
-          setInvoices([]);
-        } else if (!res.ok) {
-          setInvoicesError(t("billing.failedLoadInvoices"));
-        } else {
-          const data = await res.json();
-          setInvoices(data.invoices || []);
-        }
-      } catch {
-        setInvoicesError(t("billing.networkErrorInvoices"));
-      }
+        const r = await portalApiFetch("/portal/billing/invoices?limit=10");
+        if (r.status === 501) setInvoicesError(t("billing.stripeNotConfigured"));
+        else if (r.status === 409) setInvoices([]);
+        else if (!r.ok) setInvoicesError(t("billing.failedLoadInvoices"));
+        else setInvoices((await r.json()).invoices || []);
+      } catch { setInvoicesError(t("billing.networkErrorInvoices")); }
       setInvoicesLoading(false);
-    };
-    loadInvoices();
+    })();
   }, [billing, t]);
 
   const handleCheckout = async (planKey: string) => {
     setCheckoutLoading(planKey);
-    const result = await withStepUp(() =>
-      portalApiFetch("/portal/billing/checkout", {
-        method: "POST",
-        body: JSON.stringify({
-          planKey,
-          returnUrl: window.location.origin + "/portal/billing",
-        }),
-      }),
-      "portal"
-    );
+    const result = await withStepUp(() => portalApiFetch("/portal/billing/checkout", { method: "POST", body: JSON.stringify({ planKey, returnUrl: window.location.origin + "/portal/billing" }) }), "portal");
     if (result.cancelled) { setCheckoutLoading(null); return; }
-    if (!result.ok) {
-      const errData = result.data as Record<string, string> | undefined;
-      setError(errData?.error || t("billing.checkoutFailed"));
-      setCheckoutLoading(null);
-      return;
-    }
-    const successData = result.data as Record<string, string> | undefined;
-    if (successData?.url) window.location.href = successData.url;
+    if (!result.ok) { setError((result.data as Record<string, string>)?.error || t("billing.checkoutFailed")); setCheckoutLoading(null); return; }
+    const d = result.data as Record<string, string> | undefined;
+    if (d?.url) window.location.href = d.url;
   };
-
-  const handleManageSubscription = async () => {
+  const handleManage = async () => {
     setPortalLoading(true);
-    const result = await withStepUp(() =>
-      portalApiFetch("/portal/billing/portal-session", {
-        method: "POST",
-        body: JSON.stringify({
-          returnUrl: window.location.origin + "/portal/billing",
-        }),
-      }),
-      "portal"
-    );
+    const result = await withStepUp(() => portalApiFetch("/portal/billing/portal-session", { method: "POST", body: JSON.stringify({ returnUrl: window.location.origin + "/portal/billing" }) }), "portal");
     if (result.cancelled) { setPortalLoading(false); return; }
-    if (!result.ok) {
-      const errData = result.data as Record<string, string> | undefined;
-      setError(errData?.error || t("billing.failedOpenPortal"));
-      setPortalLoading(false);
-      return;
-    }
-    const successData = result.data as Record<string, string> | undefined;
-    if (successData?.url) window.location.href = successData.url;
+    if (!result.ok) { setError((result.data as Record<string, string>)?.error || t("billing.failedOpenPortal")); setPortalLoading(false); return; }
+    const d = result.data as Record<string, string> | undefined;
+    if (d?.url) window.location.href = d.url;
   };
+  const scrollToPlans = () => document.getElementById("plans-section")?.scrollIntoView({ behavior: "smooth" });
 
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
-      </div>
-    );
-  }
-
-  const isFreePlan = billing?.plan?.key === "free";
-  const hasSubscription = billing?.subscription?.stripeSubscriptionId != null;
   const hasCustomer = billing?.subscription?.stripeCustomerId != null;
-
-  /** Translate plan name using i18n keys, fallback to raw name */
-  const translatePlanName = (key: string, fallbackName: string): string => {
-    const i18nKey = `billing.planName.${key}` as TranslationKey;
-    const translated = t(i18nKey);
-    // If translation key is returned as-is, it means no translation found
-    return translated === i18nKey ? fallbackName : translated;
-  };
+  const tPlan = (key: string, name: string) => { const k = `billing.planName.${key}` as TranslationKey; const v = t(k); return v === k ? name : v; };
   const subStatus = billing?.subscription?.status || "none";
   const isGrace = lockStatus?.reason === "grace";
   const isLocked = lockStatus?.reason === "locked";
-  const stateLabel =
-    lockStatus?.reason === "active" || lockStatus?.reason === "free"
-      ? lockStatus.reason
-      : isGrace
-        ? "grace"
-        : isLocked
-          ? "locked"
-          : "free";
-
-  // Usage percentages for alert banners
-  const convPct =
-    billing?.limits && billing.limits.maxConversationsPerMonth > 0
-      ? (billing.usage.conversationsCreated / billing.limits.maxConversationsPerMonth) * 100
-      : 0;
-  const msgPct =
-    billing?.limits && billing.limits.maxMessagesPerMonth > 0
-      ? (billing.usage.messagesSent / billing.limits.maxMessagesPerMonth) * 100
-      : 0;
-  const usageHigh = convPct >= 80 || msgPct >= 80;
+  const convPct = useMemo(() => billing?.limits?.maxConversationsPerMonth ? (billing.usage.conversationsCreated / billing.limits.maxConversationsPerMonth) * 100 : 0, [billing]);
+  const msgPct = useMemo(() => billing?.limits?.maxMessagesPerMonth ? (billing.usage.messagesSent / billing.limits.maxMessagesPerMonth) * 100 : 0, [billing]);
+  const aiPct = useMemo(() => stats?.ai.monthlyLimit ? (stats.ai.monthlyUsage / stats.ai.monthlyLimit) * 100 : 0, [stats]);
   const usageFull = convPct >= 100 || msgPct >= 100;
 
+  const widgetOk = !!stats?.widget.enabled && (stats?.widget.totalLoads ?? 0) > 0;
+  const aiOk = !!stats?.ai.enabled;
+  const domainsOk = !!org && ((org.allowedDomains?.length ?? 0) > 0 || org.allowLocalhost);
+  const setupDone = [widgetOk, aiOk, domainsOk].filter(Boolean).length;
+  const planBadge = billing?.plan.key === "free" ? t("dashboard.currentUsage.freeTrial") : billing?.plan.name || "";
+
+  if (authLoading) return <div className="flex items-center justify-center py-20"><div className="h-7 w-7 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" /></div>;
+
   return (
-    <>
+    <div className="space-y-8">
+      {/* ── System banners ── */}
       {billing?.trial && (billing.trial.isTrialing || billing.trial.isExpired) && (
-        <TrialBanner
-          daysLeft={billing.trial.daysLeft}
-          isExpired={billing.trial.isExpired}
-          isTrialing={billing.trial.isTrialing}
-          endsAt={billing.trial.endsAt}
-          className="mb-4"
-        />
+        <TrialBanner daysLeft={billing.trial.daysLeft} isExpired={billing.trial.isExpired} isTrialing={billing.trial.isTrialing} endsAt={billing.trial.endsAt} />
       )}
-
       {billing?.limits && billing?.usage && (
-        <UsageNudge
-          usedConversations={billing.usage.conversationsCreated}
-          limitConversations={billing.limits.maxConversationsPerMonth}
-          usedMessages={billing.usage.messagesSent}
-          limitMessages={billing.limits.maxMessagesPerMonth}
-          className="mb-4"
-        />
+        <UsageNudge usedConversations={billing.usage.conversationsCreated} limitConversations={billing.limits.maxConversationsPerMonth}
+          usedMessages={billing.usage.messagesSent} limitMessages={billing.limits.maxMessagesPerMonth} />
       )}
 
-      <div className="mb-6">
-        <Link
-          href="/portal"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#1A1A2E] transition-colors mb-3 group"
-        >
-          <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
-          {t("portalOnboarding.backToDashboard")}
-        </Link>
-        <h1 className="text-2xl font-bold text-slate-900">{t("billing.title")}</h1>
-        <p className="text-sm text-slate-600 mt-1">
-          {t("billing.subtitle")}
-        </p>
-        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-          <span suppressHydrationWarning>
-            {t("billing.lastSync")}{" "}
-            {lockStatus?.lastReconcileAt
-              ? new Date(lockStatus.lastReconcileAt).toLocaleString()
-              : t("billing.never")}
-          </span>
-          <StateBadge state={stateLabel} />
-        </div>
-      </div>
-
-      {error && (
-        <ErrorBanner
-          message={error}
-          requestId={errorRequestId}
-          onDismiss={() => { setError(null); setErrorRequestId(null); }}
-          className="mb-6"
-        />
-      )}
+      {error && <ErrorBanner message={error} requestId={errorRequestId} onDismiss={() => { setError(null); setErrorRequestId(null); }} />}
 
       {loading || !billing ? (
-        <div className="text-slate-600">{t("billing.loadingBilling")}</div>
+        <div className="flex items-center justify-center py-24"><div className="flex flex-col items-center gap-3"><div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" /><p className="text-sm text-slate-400">{t("billing.loadingBilling")}</p></div></div>
       ) : (
-        <div className="space-y-6">
+        <>
+          {/* ── Alerts ── */}
           {(isGrace || isLocked) && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-900">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-semibold">
-                    {isGrace
-                      ? t("billing.gracePeriodActive")
-                      : t("billing.billingLocked")}
-                  </p>
-                  <p className="text-sm text-amber-800 mt-1" suppressHydrationWarning>
-                    {isGrace && lockStatus?.graceEndsAt
-                      ? `${t("billing.graceEndsOn")} ${new Date(
-                          lockStatus.graceEndsAt
-                        ).toLocaleDateString()}.`
-                      : t("billing.writeDisabled")}
-                  </p>
-                </div>
-                {billing.stripeConfigured && hasCustomer ? (
-                  <button
-                    onClick={handleManageSubscription}
-                    disabled={portalLoading}
-                    className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
-                  >
-                    {portalLoading ? t("billing.openingPortal") : t("billing.manageSubscription")}
-                  </button>
-                ) : (
-                  <span className="text-sm text-amber-700">
-                    {t("billing.portalUnavailable")}
-                  </span>
-                )}
-              </div>
+            <div className={`flex items-start gap-4 rounded-2xl border p-5 ${isLocked ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}>
+              <AlertTriangle size={20} className={isLocked ? "text-red-500 mt-0.5" : "text-amber-500 mt-0.5"} />
+              <div className="flex-1"><p className={`text-sm font-bold ${isLocked ? "text-red-900" : "text-amber-900"}`}>{isGrace ? t("billing.gracePeriodActive") : t("billing.billingLocked")}</p><p className={`mt-1 text-xs ${isLocked ? "text-red-700" : "text-amber-700"}`} suppressHydrationWarning>{isGrace && lockStatus?.graceEndsAt ? `${t("billing.graceEndsOn")} ${new Date(lockStatus.graceEndsAt).toLocaleDateString()}.` : t("billing.writeDisabled")}</p></div>
             </div>
           )}
 
-          {/* Stripe not configured notice */}
           {!billing.stripeConfigured && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-900 text-sm">
-              {t("billing.notConfigured")}
+            <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-4">
+              <Zap size={18} className="text-amber-600" /><p className="text-sm text-amber-800">{t("billing.notConfigured")}</p>
             </div>
           )}
 
-          {/* Usage alert banners */}
-          {usageFull && !isLocked && !isGrace && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-900 text-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                {t("billing.limitReached")}
-              </div>
-              {billing.stripeConfigured && (
-                <button
-                  onClick={() => {
-                    const plansSection = document.getElementById("available-plans");
-                    plansSection?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors whitespace-nowrap"
-                >
-                  {t("billing.upgradeNow")}
-                </button>
-              )}
+          {usageFull && (
+            <div className="flex items-center justify-between rounded-2xl border border-red-200 bg-red-50 px-6 py-4">
+              <div className="flex items-center gap-3"><AlertTriangle size={18} className="text-red-500" /><p className="text-sm font-bold text-red-800">{t("billing.limitReached")}</p></div>
+              {billing.stripeConfigured && <button onClick={scrollToPlans} className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-red-700">{t("billing.upgradeNow")}</button>}
             </div>
           )}
 
-          {usageHigh && !usageFull && !isLocked && !isGrace && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-900 text-sm flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                {t("billing.approachingLimit")}
+          {/* ═══════════ SETUP WIZARD ═══════════ */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between px-8 py-5">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-sm font-extrabold text-slate-500">{setupDone}/4</div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">{t("dashboard.setupBanner")}</h2>
+                  <p className="text-sm text-slate-500">{t("dashboard.setupBanner.desc")}</p>
+                </div>
               </div>
-              {billing.stripeConfigured && (
-                <button
-                  onClick={() => {
-                    const plansSection = document.getElementById("available-plans");
-                    plansSection?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors whitespace-nowrap"
-                >
-                  {t("billing.viewPlans")}
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {billing.stripeConfigured && (
+                  <button onClick={scrollToPlans} className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-blue-700">{t("billing.upgradeNow")}</button>
+                )}
+              </div>
             </div>
-          )}
-
-          {/* Current Plan Card */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">
-                  {t("billing.currentPlan")}
-                </p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-1">
-                  {translatePlanName(billing.plan.key, billing.plan.name)}
-                </h2>
-                {billing.plan.monthlyPriceUsd != null &&
-                  billing.plan.monthlyPriceUsd > 0 && (
-                    <p className="text-sm text-slate-600 mt-0.5">
-                      ${billing.plan.monthlyPriceUsd}{t("billing.perMonth")}
-                    </p>
-                  )}
-                {isFreePlan && (
-                  <p className="text-sm text-slate-500 mt-0.5">
-                    {t("billing.freeForever")}
-                  </p>
-                )}
-              </div>
-              <StatusBadge status={subStatus} />
-            </div>
-
-            {/* Subscription details */}
-            {hasSubscription && (
-              <div className="mt-4 pt-4 border-t border-slate-100 grid gap-3 sm:grid-cols-2">
-                {billing.subscription.currentPeriodEnd && (
-                  <div>
-                    <p className="text-xs text-slate-500">
-                      {billing.subscription.cancelAtPeriodEnd
-                        ? t("billing.cancelsOn")
-                        : t("billing.renewsOn")}
-                    </p>
-                    <p className="text-sm font-medium text-slate-900" suppressHydrationWarning>
-                      {new Date(
-                        billing.subscription.currentPeriodEnd
-                      ).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-                {billing.subscription.trialEndsAt && (
-                  <div>
-                    <p className="text-xs text-slate-500">{t("billing.trialEnds")}</p>
-                    <p className="text-sm font-medium text-slate-900" suppressHydrationWarning>
-                      {new Date(
-                        billing.subscription.trialEndsAt
-                      ).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {billing.subscription.cancelAtPeriodEnd && (
-              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                {t("billing.cancelAtPeriodEnd")}
-              </div>
-            )}
-
-            {/* Manage Subscription button */}
-            {hasCustomer && billing.stripeConfigured && (
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                <button
-                  onClick={handleManageSubscription}
-                  disabled={portalLoading}
-                  className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors"
-                >
-                  {portalLoading
-                    ? t("billing.openingPortal")
-                    : t("billing.manageSubscription")}
-                </button>
-              </div>
-            )}
           </div>
 
-          {/* Usage Section */}
-          {billing.limits && (
-            <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4 uppercase tracking-wider">
-                {t("billing.usageThisMonth")}
-              </h3>
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-xs text-slate-500">
-                  {t("billing.period")} {billing.usage.monthKey}
-                </p>
-                {billing.usage.nextResetDate && (
-                  <p className="text-xs text-slate-500" suppressHydrationWarning>
-                    {t("billing.nextReset")} {new Date(billing.usage.nextResetDate).toLocaleDateString()}
-                  </p>
-                )}
+          {/* ═══════════ QUICK ACTIONS ═══════════ */}
+          <div>
+            <h3 className="mb-4 text-base font-bold text-slate-900">{t("dashboard.quickActions")}</h3>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+              {[
+                { href: "/portal/inbox", icon: MessageSquare, label: t("dashboard.quickActions.liveConversations"), desc: `${stats?.conversations.open ?? 0} ${t("dashboard.quickActions.liveConversationsDesc").replace("{count}", "")}`.trim(), iconBg: "bg-blue-50", iconColor: "text-blue-600" },
+                { href: "/portal/ai", icon: Bot, label: t("dashboard.quickActions.aiAgent"), desc: aiOk ? `${stats?.ai.monthlyUsage ?? 0}/${stats?.ai.monthlyLimit ?? 0}` : t("dashboard.projectStatus.setupAi"), iconBg: "bg-violet-50", iconColor: "text-violet-600" },
+                { href: "/portal/widget", icon: Code, label: t("dashboard.projectStatus.chatWidget"), desc: widgetOk ? `${stats?.widget.totalLoads ?? 0} ${t("common.abbrev.loads")}` : t("dashboard.projectStatus.installWidget"), iconBg: "bg-emerald-50", iconColor: "text-emerald-600" },
+                { href: "/portal/usage", icon: BarChart3, label: t("portalOnboarding.quickActions.usage.title"), desc: `${stats?.messages.thisMonth ?? 0} ${t("common.abbrev.messages")}`, iconBg: "bg-amber-50", iconColor: "text-amber-600" },
+                { href: "/portal/team", icon: Users, label: t("portalOnboarding.quickActions.team.title"), desc: `${billing.limits?.maxAgents ?? 0} ${t("billing.agentSeats").toLowerCase()}`, iconBg: "bg-pink-50", iconColor: "text-pink-600" },
+              ].map((a) => {
+                const Icon = a.icon;
+                return (
+                  <Link key={a.href} href={a.href} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-blue-200">
+                    <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${a.iconBg}`}><Icon size={18} className={a.iconColor} /></div>
+                    <p className="text-sm font-bold text-slate-900">{a.label}</p>
+                    <p className="mt-1 text-xs text-slate-400">{a.desc}</p>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ═══════════ MAIN GRID: Content + Sidebar ═══════════ */}
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
+
+            {/* ═══ LEFT (3/4) ═══ */}
+            <div className="space-y-8 lg:col-span-3">
+
+              {/* ── Plan Overview Card ── */}
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-100 px-8 py-5">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50">
+                      <Crown size={22} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t("billing.currentPlan")}</p>
+                      <h2 className="text-xl font-bold text-slate-900">{tPlan(billing.plan.key, billing.plan.name)}</h2>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${subStatus === "active" ? "bg-emerald-50 text-emerald-700" : subStatus === "trialing" ? "bg-blue-50 text-blue-700" : "bg-slate-50 text-slate-600"}`}>
+                      <span className={`h-2 w-2 rounded-full ${subStatus === "active" ? "bg-emerald-500" : subStatus === "trialing" ? "bg-blue-500" : "bg-slate-400"}`} />
+                      {(() => { const k = `billing.status.${subStatus}` as TranslationKey; const v = t(k); return v === k ? subStatus : v; })()}
+                    </span>
+                    {billing.stripeConfigured && (
+                      <button onClick={scrollToPlans} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700">
+                        <ArrowUpRight size={14} className="mr-1.5 inline" />{billing.plan.key === "free" ? t("billing.upgradeNow") : t("billing.viewPlans")}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 divide-x divide-slate-100 sm:grid-cols-4">
+                  <div className="px-8 py-6">
+                    <p className="text-xs text-slate-400">{t("billing.price")}</p>
+                    <p className="mt-1 text-2xl font-extrabold text-slate-900">{billing.plan.monthlyPriceUsd != null && billing.plan.monthlyPriceUsd > 0 ? `$${billing.plan.monthlyPriceUsd}` : t("billing.free")}<span className="text-sm font-normal text-slate-400">{billing.plan.monthlyPriceUsd ? t("billing.perMonth") : ""}</span></p>
+                  </div>
+                  <div className="px-8 py-6">
+                    <p className="text-xs text-slate-400">{t("billing.agentSeats")}</p>
+                    <p className="mt-1 text-2xl font-extrabold text-slate-900">{billing.limits?.maxAgents ?? 0}</p>
+                  </div>
+                  <div className="px-8 py-6">
+                    <p className="text-xs text-slate-400">{t("billing.period")}</p>
+                    <p className="mt-1 text-lg font-bold text-slate-900">{billing.usage.monthKey}</p>
+                    {billing.usage.nextResetDate && <p className="text-[10px] text-slate-400" suppressHydrationWarning>{t("billing.nextReset")} {new Date(billing.usage.nextResetDate).toLocaleDateString()}</p>}
+                  </div>
+                  <div className="px-8 py-6">
+                    <p className="text-xs text-slate-400">{billing.subscription.cancelAtPeriodEnd ? t("billing.cancelsOn") : t("billing.renewsOn")}</p>
+                    <p className="mt-1 text-lg font-bold text-slate-900" suppressHydrationWarning>{billing.subscription.currentPeriodEnd ? new Date(billing.subscription.currentPeriodEnd).toLocaleDateString() : "—"}</p>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-4">
-                <UsageBar
-                  label={t("usage.conversations")}
-                  used={billing.usage.conversationsCreated}
-                  limit={billing.limits.maxConversationsPerMonth}
-                />
-                <UsageBar
-                  label={t("usage.messages")}
-                  used={billing.usage.messagesSent}
-                  limit={billing.limits.maxMessagesPerMonth}
-                />
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">{t("billing.agentSeats")}</span>
-                  <span className="font-medium text-slate-900">
-                    {billing.limits.maxAgents} {t("billing.included")}
-                  </span>
+
+              {/* ── Insight Tip ── */}
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-sm">
+                <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-600"><Sparkles size={10} className="mr-1 inline" />{t("dashboard.insight")}</span>
+                <p className="text-sm text-slate-500">{t("dashboard.insight.proactive")} <Link href="/portal/inbox" className="font-semibold text-blue-600 hover:underline">{t("dashboard.insight.chatWithVisitors")}</Link></p>
+              </div>
+
+              {/* ── Usage Metrics ── */}
+              <div>
+                <h3 className="mb-4 text-base font-bold text-slate-900">{t("billing.usageThisMonth")}</h3>
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-2 text-blue-600"><MessageSquare size={16} /><span className="text-xs font-semibold text-slate-500">{t("usage.conversations")}</span></div>
+                    <p className="mt-4 text-3xl font-extrabold tabular-nums text-slate-900">{billing.usage.conversationsCreated.toLocaleString()}</p>
+                    <p className="mt-1 text-xs text-slate-400">/ {billing.limits?.maxConversationsPerMonth.toLocaleString()} {t("billing.perMo")}</p>
+                    <ProgressBar pct={convPct} color="bg-blue-500" />
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-2 text-violet-600"><Mail size={16} /><span className="text-xs font-semibold text-slate-500">{t("usage.messages")}</span></div>
+                    <p className="mt-4 text-3xl font-extrabold tabular-nums text-slate-900">{billing.usage.messagesSent.toLocaleString()}</p>
+                    <p className="mt-1 text-xs text-slate-400">/ {billing.limits?.maxMessagesPerMonth.toLocaleString()} {t("billing.perMo")}</p>
+                    <ProgressBar pct={msgPct} color="bg-violet-500" />
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-2 text-emerald-600"><Bot size={16} /><span className="text-xs font-semibold text-slate-500">AI</span></div>
+                    <p className="mt-4 text-3xl font-extrabold tabular-nums text-slate-900">{(stats?.ai.monthlyUsage ?? 0).toLocaleString()}</p>
+                    <p className="mt-1 text-xs text-slate-400">/ {(stats?.ai.monthlyLimit ?? 100).toLocaleString()} {t("billing.perMo")}</p>
+                    <ProgressBar pct={aiPct} color="bg-emerald-500" />
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-2 text-amber-600"><Eye size={16} /><span className="text-xs font-semibold text-slate-500">{t("dashboard.currentUsage.visitorsReached")}</span></div>
+                    <p className="mt-4 text-3xl font-extrabold tabular-nums text-slate-900">{(stats?.usage.visitorsReached ?? 0).toLocaleString()}</p>
+                    <p className="mt-1 text-xs text-slate-400">{t("dashboard.currentUsage.unlimited")}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Performance Row ── */}
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="grid grid-cols-4 divide-x divide-slate-100">
+                  {[
+                    { label: t("dashboard.performance.repliedLive"), value: stats?.usage.humanConversations ?? 0, dot: "bg-blue-600" },
+                    { label: t("dashboard.performance.aiConversations"), value: stats?.ai.totalResponses ?? 0, dot: "bg-emerald-500" },
+                    { label: t("dashboard.currentUsage.visitorsReached"), value: stats?.usage.visitorsReached ?? 0, dot: "bg-amber-500" },
+                    { label: t("dashboard.performance.interactions"), value: stats?.messages.today ?? 0, dot: "bg-slate-800" },
+                  ].map((m, i) => (
+                    <div key={i} className="flex items-center gap-3 px-6 py-5">
+                      <span className={`h-3 w-3 flex-shrink-0 rounded-full ${m.dot}`} />
+                      <div>
+                        <p className="text-sm font-medium text-slate-600">{m.label}</p>
+                        <p className="text-lg font-bold tabular-nums text-slate-900">{m.value.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Upgrade CTA ── */}
+              {billing.plan.key === "free" && billing.stripeConfigured && (
+                <div className="flex items-center justify-between rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-violet-50 px-8 py-6">
+                  <div className="flex items-center gap-5">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-600/25"><Sparkles size={24} className="text-white" /></div>
+                    <div><p className="text-lg font-bold text-slate-900">{t("billing.upgradeTo")} {tPlan(billing.recommendedPlan || "pro", "Pro")}</p><p className="text-sm text-slate-500">{t("billing.unlockPremiumFeatures")}</p></div>
+                  </div>
+                  <button onClick={scrollToPlans} className="rounded-xl bg-indigo-600 px-8 py-3 text-sm font-bold text-white shadow-sm hover:bg-indigo-700">{t("billing.viewPlans")} <ArrowRight size={14} className="ml-1 inline" /></button>
+                </div>
+              )}
+
+              {/* ── Plans ── */}
+              {billing.stripeConfigured && billing.availablePlans.length > 0 && (
+                <div id="plans-section" className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <div className="flex items-center gap-3 border-b border-slate-100 px-8 py-5"><BarChart3 size={18} className="text-indigo-600" /><p className="text-base font-bold text-slate-900">{t("billing.availablePlans")}</p></div>
+                  <div className="p-8">
+                    <PlanComparisonTable plans={billing.availablePlans} currentPlanKey={billing.plan.key} onUpgrade={handleCheckout} upgradeLoading={checkoutLoading} showBillingToggle mode="portal" recommendedPlan={billing.recommendedPlan} />
+                  </div>
+                </div>
+              )}
+
+              {/* ── Invoices ── */}
+              {billing.stripeConfigured && (
+                <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <div className="flex items-center justify-between border-b border-slate-100 px-8 py-5">
+                    <div className="flex items-center gap-3"><FileText size={18} className="text-slate-400" /><p className="text-base font-bold text-slate-900">{t("billing.billingHistory")}</p></div>
+                    {hasCustomer && <button onClick={handleManage} disabled={portalLoading} className="text-sm font-semibold text-blue-600 hover:text-blue-800">{t("billing.manageBilling")} <ChevronRight size={14} className="inline" /></button>}
+                  </div>
+                  <div className="p-8">
+                    {invoicesLoading && <div className="flex justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" /></div>}
+                    {invoicesError && <p className="text-sm text-red-600">{invoicesError}</p>}
+                    {!invoicesLoading && !invoicesError && (!hasCustomer || invoices.length === 0) && (
+                      <div className="flex flex-col items-center py-12"><FileText size={36} className="text-slate-200" /><p className="mt-3 text-sm font-semibold text-slate-400">{t("billing.noInvoices")}</p><p className="mt-1 text-xs text-slate-300">{t("billing.noBillingHistory")}</p></div>
+                    )}
+                    {invoices.length > 0 && (
+                      <table className="w-full">
+                        <thead><tr className="border-b border-slate-100">
+                          <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">{t("billing.invoice")}</th>
+                          <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">{t("billing.date")}</th>
+                          <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">{t("billing.amount")}</th>
+                          <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">{t("billing.status")}</th>
+                          <th className="pb-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">{t("billing.actions")}</th>
+                        </tr></thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {invoices.map(inv => (
+                            <tr key={inv.id} className="hover:bg-slate-50/50">
+                              <td className="py-4 text-sm font-medium text-slate-900">{inv.number || inv.id.slice(0, 16)}</td>
+                              <td className="py-4 text-sm text-slate-600" suppressHydrationWarning>{new Date(inv.created * 1000).toLocaleDateString()}</td>
+                              <td className="py-4 text-sm font-bold text-slate-900">{fmtAmount(inv.amountDue, inv.currency)}</td>
+                              <td className="py-4"><InvBadge status={inv.status} t={t} /></td>
+                              <td className="py-4 text-right">
+                                {inv.hostedInvoiceUrl && <a href={inv.hostedInvoiceUrl} target="_blank" rel="noopener noreferrer" className="mr-2 text-xs font-semibold text-blue-600 hover:text-blue-800"><ExternalLink size={12} className="mr-1 inline" />{t("billing.view")}</a>}
+                                {inv.invoicePdf && <a href={inv.invoicePdf} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-slate-500 hover:text-slate-700"><Download size={12} className="mr-1 inline" />{t("common.document.pdf")}</a>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ═══ RIGHT SIDEBAR (1/4) ═══ */}
+            <div className="space-y-6">
+
+              {/* ── Project Status ── */}
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-100 px-6 py-4"><h3 className="text-sm font-bold text-slate-900">{t("dashboard.projectStatus")}</h3></div>
+                <div className="p-5 space-y-4">
+                  {[
+                    { ok: widgetOk, label: t("dashboard.projectStatus.chatWidget"), okText: t("dashboard.projectStatus.chatWidgetInstalled"), noText: t("dashboard.projectStatus.chatWidgetNotInstalled"), action: t("dashboard.projectStatus.installWidget"), href: "/portal/widget" },
+                    { ok: aiOk, label: t("dashboard.projectStatus.aiAgent"), okText: t("dashboard.projectStatus.aiAgentActive"), noText: t("dashboard.projectStatus.aiAgentInactive"), action: t("dashboard.projectStatus.setupAi"), href: "/portal/ai" },
+                    { ok: domainsOk, label: t("dashboard.projectStatus.domains"), okText: t("dashboard.projectStatus.domainsConfigured"), noText: t("dashboard.projectStatus.domainsNotConfigured"), action: t("dashboard.projectStatus.configureDomains"), href: "/portal/security" },
+                  ].map((s, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      {s.ok ? <CheckCircle2 size={18} className="mt-0.5 text-emerald-500" /> : <X size={18} className="mt-0.5 rounded-full bg-red-100 p-0.5 text-red-500" />}
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{s.label}</p>
+                        <p className={`text-xs ${s.ok ? "text-emerald-600" : "text-red-500"}`}>{s.ok ? s.okText : s.noText}</p>
+                        {!s.ok && <Link href={s.href} className="text-xs font-semibold text-blue-600 hover:text-blue-700">{s.action}</Link>}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="border-t border-slate-100 pt-3">
+                    <p className="mb-2 text-xs text-slate-400">{t("dashboard.projectStatus.addChannel")}</p>
+                    <div className="flex gap-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50"><MessageSquare size={15} className="text-blue-500" /></div>
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50 opacity-40"><Mail size={15} className="text-slate-400" /></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Current Usage ── */}
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-100 px-6 py-4"><h3 className="text-sm font-bold text-slate-900">{t("dashboard.currentUsage")}</h3></div>
+                <div className="p-5 space-y-5">
+                  <div>
+                    <div className="flex items-center justify-between"><span className="text-sm font-bold text-slate-800">{t("dashboard.currentUsage.customerService")}</span><span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-blue-600">{planBadge}</span></div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-slate-500"><span>{t("dashboard.currentUsage.billableConversations")}</span><span className="font-bold text-slate-700 tabular-nums">{billing.usage.conversationsCreated} / {billing.limits?.maxConversationsPerMonth ?? 0}</span></div>
+                    <ProgressBar pct={convPct} color="bg-blue-500" />
+                    {!widgetOk && <Link href="/portal/widget" className="mt-2 block text-xs font-semibold text-blue-600">{t("dashboard.projectStatus.installWidget")}</Link>}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between"><span className="text-sm font-bold text-slate-800">{t("dashboard.quickActions.aiAgent")}</span></div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-slate-500"><span>{t("dashboard.currentUsage.aiConversations")}</span><span className="font-bold text-slate-700 tabular-nums">{stats?.ai.monthlyUsage ?? 0} / {stats?.ai.monthlyLimit ?? 100}</span></div>
+                    <ProgressBar pct={aiPct} color="bg-emerald-500" />
+                    {!aiOk && <Link href="/portal/ai" className="mt-2 block text-xs font-semibold text-blue-600">{t("dashboard.projectStatus.setupAi")}</Link>}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between"><span className="text-sm font-bold text-slate-800">{t("dashboard.currentUsage.visitorsReached")}</span></div>
+                    <p className="mt-1 text-lg font-extrabold tabular-nums text-slate-900">{stats?.usage.visitorsReached ?? 0}</p>
+                    <p className="text-[10px] text-slate-400">{t("dashboard.currentUsage.unlimited")}</p>
+                  </div>
+
+                  <Link href="/portal/billing#plans-section" className="flex items-center justify-center gap-2 w-full rounded-xl bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700">
+                    <Crown size={14} /> {t("dashboard.currentUsage.upgrade")}
+                  </Link>
+                </div>
+              </div>
+
+              {/* ── Quick Nav ── */}
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div className="divide-y divide-slate-50">
+                  {[
+                    { href: "/portal/settings", icon: Settings, label: t("portalOnboarding.quickActions.settings.title") },
+                    { href: "/portal/security", icon: Shield, label: t("nav.security") },
+                    { href: "/portal/audit", icon: Activity, label: t("nav.auditLogs") },
+                    { href: "/portal/widget-appearance", icon: Palette, label: t("portalOnboarding.task.appearance.title") },
+                  ].map(a => {
+                    const Icon = a.icon;
+                    return (
+                      <Link key={a.href} href={a.href} className="flex items-center gap-3 px-5 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900">
+                        <Icon size={16} className="text-slate-400" /> {a.label} <ChevronRight size={14} className="ml-auto text-slate-300" />
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-          )}
-
-          {/* Locked — contact support */}
-          {isLocked && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-900 text-sm">
-              {t("billing.accountLocked")}
-            </div>
-          )}
-
-          {/* Available Plans — full comparison */}
-          {billing.stripeConfigured && billing.availablePlans.length > 0 && (
-            <div id="available-plans" className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="text-sm font-semibold text-slate-900 mb-6 uppercase tracking-wider">
-                {t("billing.availablePlans")}
-              </h3>
-              <PlanComparisonTable
-                plans={billing.availablePlans}
-                currentPlanKey={billing.plan.key}
-                onUpgrade={handleCheckout}
-                upgradeLoading={checkoutLoading}
-                showBillingToggle={true}
-                mode="portal"
-                recommendedPlan={billing.recommendedPlan}
-              />
-            </div>
-          )}
-
-          {/* ─── Billing History (Invoices) ─── */}
-          {billing.stripeConfigured && (
-            <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4 uppercase tracking-wider">
-                {t("billing.billingHistory")}
-              </h3>
-
-              {invoicesLoading && (
-                <p className="text-sm text-slate-500">{t("billing.loadingInvoices")}</p>
-              )}
-
-              {invoicesError && (
-                <p className="text-sm text-red-600">{invoicesError}</p>
-              )}
-
-              {!invoicesLoading && !invoicesError && !hasCustomer && (
-                <p className="text-sm text-slate-500">
-                  {t("billing.noBillingHistory")}
-                </p>
-              )}
-
-              {!invoicesLoading &&
-                !invoicesError &&
-                hasCustomer &&
-                invoices.length === 0 && (
-                  <p className="text-sm text-slate-500">
-                    {t("billing.noInvoices")}
-                  </p>
-                )}
-
-              {invoices.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 text-left">
-                        <th className="py-2 pr-4 font-medium text-slate-600">
-                          {t("billing.invoice")}
-                        </th>
-                        <th className="py-2 pr-4 font-medium text-slate-600">
-                          {t("billing.date")}
-                        </th>
-                        <th className="py-2 pr-4 font-medium text-slate-600">
-                          {t("billing.amount")}
-                        </th>
-                        <th className="py-2 pr-4 font-medium text-slate-600">
-                          {t("billing.status")}
-                        </th>
-                        <th className="py-2 font-medium text-slate-600">
-                          {t("billing.actions")}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {invoices.map((inv) => (
-                        <tr
-                          key={inv.id}
-                          className="border-b border-slate-100 last:border-0"
-                        >
-                          <td className="py-3 pr-4 font-mono text-xs text-slate-700">
-                            {inv.number || inv.id.slice(0, 16)}
-                          </td>
-                          <td className="py-3 pr-4 text-slate-700" suppressHydrationWarning>
-                            {new Date(inv.created * 1000).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 pr-4 font-medium text-slate-900">
-                            {formatAmount(inv.amountDue, inv.currency)}
-                          </td>
-                          <td className="py-3 pr-4">
-                            <StatusBadge status={inv.status} />
-                          </td>
-                          <td className="py-3">
-                            <div className="flex gap-2">
-                              {inv.hostedInvoiceUrl && (
-                                <a
-                                  href={inv.hostedInvoiceUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                                >
-                                  {t("billing.view")}
-                                </a>
-                              )}
-                              {inv.invoicePdf && (
-                                <a
-                                  href={inv.invoicePdf}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                                >
-                                  PDF
-                                </a>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+          </div>
+        </>
       )}
-    </>
+    </div>
   );
 }

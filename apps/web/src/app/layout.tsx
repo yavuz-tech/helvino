@@ -54,6 +54,32 @@ const I18N_BLOCKING_SCRIPT = `
   } catch(e) {}
 })();
 `;
+const CHUNK_LOAD_ERROR_RECOVERY = `
+(function(){
+  window.addEventListener('error', function(e) {
+    if (e.message && (e.message.indexOf('ChunkLoadError') !== -1 || e.message.indexOf('Loading chunk') !== -1)) {
+      var key = 'helvino_chunk_retry_' + (location.pathname || '/');
+      var retries = parseInt(sessionStorage.getItem(key) || '0', 10);
+      if (retries < 2) {
+        sessionStorage.setItem(key, String(retries + 1));
+        window.location.reload();
+      }
+    }
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    var msg = (e.reason && (e.reason.message || String(e.reason))) || '';
+    if (msg.indexOf('ChunkLoadError') !== -1 || msg.indexOf('Loading chunk') !== -1) {
+      var key = 'helvino_chunk_retry_' + (location.pathname || '/');
+      var retries = parseInt(sessionStorage.getItem(key) || '0', 10);
+      if (retries < 2) {
+        sessionStorage.setItem(key, String(retries + 1));
+        e.preventDefault();
+        window.location.reload();
+      }
+    }
+  });
+})();
+`;
 
 export default function RootLayout({
   children,
@@ -65,6 +91,7 @@ export default function RootLayout({
       <head suppressHydrationWarning={true} />
       <body className={`${inter.className} antialiased`} suppressHydrationWarning={true}>
         <script dangerouslySetInnerHTML={{ __html: I18N_BLOCKING_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: CHUNK_LOAD_ERROR_RECOVERY }} />
         <Providers>{children}</Providers>
       </body>
     </html>

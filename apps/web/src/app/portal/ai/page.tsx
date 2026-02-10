@@ -36,7 +36,7 @@ export default function PortalAiPage() {
   const { user, loading: authLoading } = usePortalAuth();
 
   const [config, setConfig] = useState<AiConfig | null>(null);
-  const [defaults, setDefaults] = useState<AiConfig | null>(null);
+  const [, setDefaults] = useState<AiConfig | null>(null);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [available, setAvailable] = useState(false);
   const [models, setModels] = useState<AiModel[]>([]);
@@ -116,7 +116,7 @@ export default function PortalAiPage() {
         setTestResponse(data.response);
         setTestMeta({ model: data.model, tokens: data.tokensUsed });
       } else {
-        setTestResponse(`Error: ${data.error || "Unknown error"}`);
+        setTestResponse(`${t("common.error")}: ${data.error || t("common.error.unknown")}`);
       }
     } catch { setTestResponse("Error: Network error"); }
     finally { setTestLoading(false); }

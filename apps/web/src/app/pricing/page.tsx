@@ -19,7 +19,7 @@ const STATIC_PLANS: PlanData[] = [
     monthlyPriceUsd: 0,
     maxConversationsPerMonth: 200,
     maxMessagesPerMonth: 2000,
-    maxAgents: 2,
+    maxAgents: 3,
     stripePriceId: null,
   },
   {
