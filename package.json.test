@@ -1,0 +1,12 @@
+{
+  "name": "portal-login-test",
+  "version": "1.0.0",
+  "description": "E2E test for portal login",
+  "main": "test-portal-login.js",
+  "scripts": {
+    "test:login": "node test-portal-login.js"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  }
+}

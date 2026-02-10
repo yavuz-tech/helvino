@@ -1,6 +1,8 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import {
+  getStripeClient,
+  isStripeConfigured,
   verifyWebhookSignature,
   mapPriceToplanKey,
   StripeNotConfiguredError,
@@ -82,6 +84,48 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as any;
+        const checkoutSessionId =
+          typeof session.id === "string" ? session.id : null;
+        let promoCode =
+          typeof session.metadata?.promoCode === "string" &&
+          session.metadata.promoCode.trim()
+            ? session.metadata.promoCode.trim().toUpperCase()
+            : null;
+        if (!promoCode && checkoutSessionId && isStripeConfigured()) {
+          try {
+            const stripe = getStripeClient();
+            const fullSession = await stripe.checkout.sessions.retrieve(
+              checkoutSessionId,
+              {
+                expand: ["total_details.breakdown.discounts.discount.promotion_code"],
+              } as any
+            );
+            const discounts = (fullSession as any)?.total_details?.breakdown?.discounts;
+            const firstDiscount = Array.isArray(discounts) ? discounts[0] : null;
+            const promotionCodeObj = firstDiscount?.discount?.promotion_code;
+
+            if (promotionCodeObj && typeof promotionCodeObj === "object") {
+              if (typeof promotionCodeObj.code === "string") {
+                promoCode = promotionCodeObj.code.trim().toUpperCase();
+              } else if (typeof promotionCodeObj.id === "string") {
+                const promoFromDb = await prisma.promoCode.findFirst({
+                  where: { stripePromotionCodeId: promotionCodeObj.id },
+                  select: { code: true },
+                });
+                promoCode = promoFromDb?.code || null;
+              }
+            } else if (typeof promotionCodeObj === "string") {
+              const promoFromDb = await prisma.promoCode.findFirst({
+                where: { stripePromotionCodeId: promotionCodeObj },
+                select: { code: true },
+              });
+              promoCode = promoFromDb?.code || null;
+            }
+          } catch (err) {
+            // Non-blocking: still continue checkout completion.
+            console.warn("[stripe-webhook] failed to resolve promotion_code:", err);
+          }
+        }
         const org = await findOrgFromStripe({
           orgId: session.metadata?.orgId,
           orgKey: session.metadata?.orgKey,
@@ -111,9 +155,42 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
               lastStripeEventId: eventId,
             },
           });
+          if (checkoutSessionId) {
+            await prisma.checkoutSession.updateMany({
+              where: {
+                id: checkoutSessionId,
+                status: { in: ["started", "abandoned"] },
+              },
+              data: {
+                status: "completed",
+                completedAt: now,
+              },
+            });
+          }
           await writeAuditLog(org.id, "webhook", "webhook.state_change", {
             event: event.type, eventId, planKey, billingStatus: "active",
           });
+          await writeAuditLog(org.id, "webhook", "checkout_completed", {
+            eventId,
+            stripeCheckoutSessionId: checkoutSessionId,
+            stripeSubscriptionId: session.subscription || null,
+            stripeCustomerId: session.customer || null,
+            planKey,
+            promoCode,
+          });
+          if (promoCode) {
+            const used = await prisma.promoCode.updateMany({
+              where: { code: promoCode },
+              data: { currentUses: { increment: 1 } },
+            });
+            if (used.count > 0) {
+              await writeAuditLog(org.id, "webhook", "promo_code_used", {
+                code: promoCode,
+                stripeCheckoutSessionId: checkoutSessionId,
+                eventId,
+              });
+            }
+          }
         }
         break;
       }

@@ -14,6 +14,7 @@ import {
   portalLogout,
   type PortalUser,
 } from "@/lib/portal-auth";
+import { useAuth } from "@/hooks/useAuth";
 
 interface PortalAuthContextValue {
   user: PortalUser | null;
@@ -42,6 +43,8 @@ const PUBLIC_PATHS = [
   "/portal/accept-invite",
   "/portal/verify-email",
   "/portal/recovery",
+  "/portal/mfa-setup",
+  "/portal/security-onboarding",
 ];
 
 export function PortalAuthProvider({ children }: { children: ReactNode }) {
@@ -72,6 +75,28 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     verify();
   }, [verify]);
+
+  // Fail-safe: never keep portal UI in infinite loading state.
+  useEffect(() => {
+    if (!loading) return;
+    const timeout = window.setTimeout(() => {
+      setLoading(false);
+      if (!user && !isPublicPath) {
+        router.push("/portal/login");
+      }
+    }, 3000);
+    return () => window.clearTimeout(timeout);
+  }, [loading, user, isPublicPath, router]);
+
+  useAuth({
+    enabled: Boolean(user),
+    onRefreshFailed: () => {
+      setUser(null);
+      if (!isPublicPath) {
+        router.push("/portal/login");
+      }
+    },
+  });
 
   const logout = useCallback(async () => {
     await portalLogout();

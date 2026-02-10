@@ -15,6 +15,7 @@ import {
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useI18n } from "@/i18n/I18nContext";
 import type { TranslationKey } from "@/i18n/translations";
+import CampaignTopBanner from "@/components/CampaignTopBanner";
 
 interface NavItemDef {
   labelKey: TranslationKey;
@@ -134,15 +135,20 @@ export default function OrgPortalLayout({
       {/* Main Content */}
       <div className="lg:pl-64">
         {/* Top Bar */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6">
+        <header className="relative h-16 bg-white border-b border-slate-200 flex items-center px-6">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden hover:bg-slate-100 rounded-lg p-2"
+            className="relative z-[2] lg:hidden hover:bg-slate-100 rounded-lg p-2"
           >
             <Menu size={20} strokeWidth={2} className="text-slate-600" />
           </button>
 
-          <div className="flex items-center gap-3 ml-auto">
+          {/* Campaign gradient — blends into header background */}
+          <div className="hidden lg:contents">
+            <CampaignTopBanner source="org" variant="inline" />
+          </div>
+
+          <div className="relative z-[2] flex items-center gap-3 ml-auto">
             <LanguageSwitcher />
             {user && (
               <>
@@ -169,6 +175,10 @@ export default function OrgPortalLayout({
             )}
           </div>
         </header>
+
+        <div className="lg:hidden">
+          <CampaignTopBanner source="org" />
+        </div>
 
         {/* Page Content */}
         <main className="p-6">{children}</main>

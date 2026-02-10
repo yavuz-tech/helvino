@@ -5,6 +5,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import geoip from "geoip-lite";
+import QRCode from "qrcode";
 import { prisma } from "../prisma";
 import { writeAuditLog } from "../utils/audit-log";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
@@ -20,9 +22,20 @@ import {
 } from "../utils/totp";
 import {
   PORTAL_SESSION_COOKIE,
+  PORTAL_ACCESS_TOKEN_TTL_MS,
+  PORTAL_SESSION_TTL_MS,
+  PORTAL_REFRESH_TOKEN_TTL_MS,
+  createPortalTokenPair,
+  createPortalSessionWithLimit,
   verifyPortalSessionToken,
 } from "../utils/portal-session";
 import { upsertDevice } from "../utils/device";
+import { createEmergencyLockToken } from "../utils/emergency-lock-token";
+import { getLoginNotificationEmail } from "../emails/login-notification";
+import { getSessionRevokedEmail } from "../emails/session-revoked";
+import { getDefaultFromAddress, sendEmailAsync } from "../utils/mailer";
+
+const MFA_SETUP_COOKIE = "helvino_portal_mfa_setup";
 
 // ── Step-up middleware ──
 
@@ -87,6 +100,29 @@ export async function requirePortalStepUp(
 }
 
 export async function portalMfaRoutes(fastify: FastifyInstance) {
+  const resolveSetupActor = async (
+    request: FastifyRequest,
+    setupToken?: string
+  ): Promise<{ id: string; orgId: string; email: string; role: string } | null> => {
+    if (request.portalUser) {
+      return request.portalUser;
+    }
+    const headerTokenRaw = request.headers["x-mfa-setup-token"];
+    const headerToken = Array.isArray(headerTokenRaw) ? headerTokenRaw[0] : headerTokenRaw;
+    const queryToken = (request.query as { setupToken?: string } | undefined)?.setupToken;
+    const cookieToken = request.cookies[MFA_SETUP_COOKIE];
+    const token = (setupToken || headerToken || queryToken || cookieToken || "").trim();
+    const secret = process.env.SESSION_SECRET;
+    if (!token || !secret) return null;
+    const parsed = verifyPortalSessionToken(token, secret);
+    if (!parsed) return null;
+    const user = await prisma.orgUser.findUnique({
+      where: { id: parsed.userId },
+      select: { id: true, orgId: true, email: true, role: true },
+    });
+    return user;
+  };
+
   // ──────────────────────────────────────────────────────
   // POST /portal/security/mfa/setup
   // ──────────────────────────────────────────────────────
@@ -94,12 +130,16 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
     "/portal/security/mfa/setup",
     {
       preHandler: [
-        requirePortalUser,
         createRateLimitMiddleware({ limit: 5, windowMs: 60000 }),
       ],
     },
     async (request, reply) => {
-      const actor = request.portalUser!;
+      const body = (request.body || {}) as { setupToken?: string };
+      const actor = await resolveSetupActor(request, body.setupToken);
+      if (!actor) {
+        reply.code(401);
+        return { error: "Authentication required" };
+      }
 
       const user = await prisma.orgUser.findUnique({ where: { id: actor.id } });
       if (!user) {
@@ -115,6 +155,32 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
       const secret = generateTotpSecret();
       const otpauthUri = getTotpUri(secret, user.email);
       const { raw: backupCodes, hashed: backupCodesHashed } = generateBackupCodes();
+      let qrCodeDataUrl: string | null = null;
+      try {
+        qrCodeDataUrl = await QRCode.toDataURL(otpauthUri, {
+          width: 240,
+          margin: 1,
+        });
+      } catch (primaryError) {
+        request.log.warn(
+          { err: primaryError, orgUserId: user.id },
+          "Primary QR generation failed for MFA setup"
+        );
+        try {
+          const svg = await QRCode.toString(otpauthUri, {
+            type: "svg",
+            width: 240,
+            margin: 1,
+          });
+          qrCodeDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+        } catch (fallbackError) {
+          request.log.error(
+            { err: fallbackError, orgUserId: user.id },
+            "Fallback QR generation failed for MFA setup"
+          );
+          qrCodeDataUrl = null;
+        }
+      }
 
       // Store secret temporarily (not yet enabled until verify)
       await prisma.orgUser.update({
@@ -136,6 +202,7 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
       return {
         ok: true,
         otpauthUri,
+        qrCodeDataUrl,
         secret, // So user can enter manually
         backupCodes,
       };
@@ -149,20 +216,28 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
     "/portal/security/mfa/verify",
     {
       preHandler: [
-        requirePortalUser,
         createRateLimitMiddleware({ limit: 10, windowMs: 60000 }),
       ],
     },
     async (request, reply) => {
-      const actor = request.portalUser!;
-      const body = request.body as { code?: string };
+      const body = request.body as { code?: string; setupToken?: string };
+      const actor = await resolveSetupActor(request, body.setupToken);
+      if (!actor) {
+        reply.code(401);
+        return { error: "Authentication required" };
+      }
 
       if (!body.code) {
         reply.code(400);
         return { error: "Verification code is required" };
       }
 
-      const user = await prisma.orgUser.findUnique({ where: { id: actor.id } });
+      const user = await prisma.orgUser.findUnique({
+        where: { id: actor.id },
+        include: {
+          organization: { select: { key: true, name: true } },
+        },
+      });
       if (!user || !user.mfaSecret) {
         reply.code(400);
         return { error: "MFA setup not started" };
@@ -199,6 +274,53 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
       const { emitMfaEnabled } = await import("../utils/notifications");
       await emitMfaEnabled(actor.orgId, user.id, request.requestId);
 
+      if (!request.portalUser) {
+        const secret = process.env.SESSION_SECRET;
+        if (!secret) {
+          return { ok: true };
+        }
+        const tokens = createPortalTokenPair(
+          { userId: user.id, orgId: user.orgId, role: user.role },
+          secret
+        );
+        await createPortalSessionWithLimit({
+          orgUserId: user.id,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          accessExpiresAt: tokens.accessExpiresAt,
+          refreshExpiresAt: tokens.refreshExpiresAt,
+          ip: request.ip || null,
+          userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || null,
+          deviceName: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
+          deviceId: null,
+          loginCountry: null,
+          loginCity: null,
+        });
+        const isProduction = process.env.NODE_ENV === "production";
+        reply.setCookie(PORTAL_SESSION_COOKIE, tokens.accessToken, {
+          path: "/",
+          httpOnly: true,
+          sameSite: "lax",
+          secure: isProduction,
+          maxAge: Math.floor(PORTAL_ACCESS_TOKEN_TTL_MS / 1000),
+        });
+        reply.clearCookie(MFA_SETUP_COOKIE, { path: "/" });
+        return {
+          ok: true,
+          refreshToken: tokens.refreshToken,
+          refreshExpiresInSec: Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000),
+          user: {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            orgId: user.orgId,
+            orgKey: user.organization.key,
+            orgName: user.organization.name,
+          },
+        };
+      }
+
+      reply.clearCookie(MFA_SETUP_COOKIE, { path: "/" });
       return { ok: true };
     }
   );
@@ -455,31 +577,43 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
       }
 
       // Create full session
-      const { createPortalSessionToken, PORTAL_SESSION_COOKIE, PORTAL_SESSION_TTL_MS } = await import("../utils/portal-session");
-      const crypto = await import("crypto");
-
-      const token = createPortalSessionToken(
+      const tokens = createPortalTokenPair(
         { userId: user.id, orgId: user.orgId, role: user.role },
         secret
       );
 
-      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-      await prisma.portalSession.create({
-        data: {
-          orgUserId: user.id,
-          tokenHash,
-          ip: request.ip || null,
-          userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || null,
-        },
+      const geo = request.ip ? geoip.lookup(request.ip) : null;
+      const loginCountry = geo?.country || null;
+      const loginCity = geo?.city || null;
+      const sessionResult = await createPortalSessionWithLimit({
+        orgUserId: user.id,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        accessExpiresAt: tokens.accessExpiresAt,
+        refreshExpiresAt: tokens.refreshExpiresAt,
+        ip: request.ip || null,
+        userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || null,
+        deviceName: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
+        deviceId: null,
+        loginCountry,
+        loginCity,
       });
 
       await prisma.orgUser.update({
         where: { id: user.id },
-        data: { lastLoginAt: new Date() },
+        data: {
+          lastLoginAt: new Date(),
+          lastLoginCountry: loginCountry,
+          lastLoginCity: loginCity,
+          loginAttempts: 0,
+          isLocked: false,
+          lockedAt: null,
+          lastFailedLoginAt: null,
+        },
       });
 
       const isProduction = process.env.NODE_ENV === "production";
-      reply.setCookie(PORTAL_SESSION_COOKIE, token, {
+      reply.setCookie(PORTAL_SESSION_COOKIE, tokens.accessToken, {
         path: "/",
         httpOnly: true,
         sameSite: "lax",
@@ -495,6 +629,43 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
         request.ip
       );
 
+      const appUrl = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+      const lockToken = createEmergencyLockToken(user.id);
+      const lockUrl = `${appUrl}/portal/login?emergencyLockToken=${encodeURIComponent(lockToken)}`;
+      const locationLabel = [loginCity, loginCountry].filter(Boolean).join(", ") || "Unknown";
+      const loginNotification = getLoginNotificationEmail({
+        email: user.email,
+        deviceName: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
+        location: locationLabel,
+        ip: request.ip || "unknown",
+        time: new Date().toISOString(),
+        lockUrl,
+      });
+      sendEmailAsync({
+        to: loginNotification.to,
+        from: getDefaultFromAddress(),
+        subject: loginNotification.subject,
+        html: loginNotification.html,
+        text: loginNotification.text,
+        tags: ["security", "login-notification"],
+      });
+
+      if (sessionResult.revokedSession) {
+        const revokedEmail = getSessionRevokedEmail({
+          email: user.email,
+          deviceName: sessionResult.revokedSession.deviceName || "Unknown device",
+          sessionsUrl: `${appUrl}/portal/settings/sessions`,
+        });
+        sendEmailAsync({
+          to: revokedEmail.to,
+          from: getDefaultFromAddress(),
+          subject: revokedEmail.subject,
+          html: revokedEmail.html,
+          text: revokedEmail.text,
+          tags: ["security", "session-limit"],
+        });
+      }
+
       await writeAuditLog(
         user.orgId,
         user.email,
@@ -505,6 +676,8 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
 
       return {
         ok: true,
+        refreshToken: tokens.refreshToken,
+        refreshExpiresInSec: Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000),
         user: {
           id: user.id,
           email: user.email,

@@ -84,11 +84,23 @@ model Organization {
   chatPageConfig        ChatPageConfig?
   translationOverrides  TranslationOverride[]
   checkoutSessions      CheckoutSession[]
-  promotionCodes        PromotionCode[]
+  settings             OrganizationSettings?
 
   @@index([siteId])
   @@index([ownerUserId])
   @@map("organizations")
+}
+
+model OrganizationSettings {
+  id               String       @id @default(cuid())
+  organizationId   String       @unique
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaignsEnabled Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@map("organization_settings")
 }
 
 model CheckoutSession {
@@ -102,7 +114,7 @@ model CheckoutSession {
   amount              Int
   status              String       @default("started") // started | completed | abandoned
   promoCodeId         String?
-  promoCode           PromotionCode? @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  promoCode           PromoCode?    @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
   createdAt           DateTime     @default(now())
   completedAt         DateTime?
   abandonedAt         DateTime?
@@ -113,27 +125,26 @@ model CheckoutSession {
   @@map("checkout_sessions")
 }
 
-model PromotionCode {
-  id                    String       @id @default(cuid())
-  organizationId        String?
-  organization          Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  code                  String       @unique
-  title                 String
-  percentOff            Int
-  stripeCouponId        String       @unique
-  stripePromotionCodeId String       @unique
-  active                Boolean      @default(true)
-  customerEmail         String?
-  checkoutSessionId     String?
-  maxRedemptions        Int?
-  expiresAt             DateTime?
-  createdBy             String?
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
-  checkoutSessions      CheckoutSession[]
+model PromoCode {
+  id             String       @id
+  code           String       @unique // WELCOME20, SUMMER50
+  isGlobal       Boolean      @default(false)
+  stripeCouponId String?      @unique
+  stripePromotionCodeId String? @unique
+  bannerTitle    String?      // custom banner headline (optional)
+  bannerSubtitle String?      // custom banner description (optional)
+  discountType   String       // percentage, fixed
+  discountValue  Int          // 20 (for 20%), 500 (for $5)
+  maxUses        Int?         // null = unlimited
+  currentUses    Int          @default(0)
+  validFrom      DateTime
+  validUntil     DateTime?
+  isActive       Boolean      @default(true)
+  createdBy      String       // admin user id
+  createdAt      DateTime     @default(now())
+  checkoutSessions CheckoutSession[]
 
-  @@index([organizationId, active, createdAt])
-  @@index([customerEmail, active])
+  @@index([isActive, validFrom, validUntil])
   @@map("promotion_codes")
 }
 
@@ -310,17 +321,27 @@ model OrgUser {
   passwordHash    String
   role            String       // "owner" | "admin" | "agent"
   isActive        Boolean      @default(true)
+  isLocked        Boolean      @default(false)
+  lockedAt        DateTime?
+  loginAttempts   Int          @default(0)
+  lastFailedLoginAt DateTime?
   emailVerifiedAt DateTime?    // null = not verified (Step 11.36)
   lastLoginAt     DateTime?
   mfaEnabled      Boolean      @default(false)
   mfaSecret       String?      // encrypted TOTP secret
   mfaVerifiedAt   DateTime?
   backupCodesHash String?      // JSON array of hashed backup codes
+  mfaBackupCodes  String[]     @default([])
+  lastLoginCountry String?
+  lastLoginCity   String?
+  securityOnboardingShown Boolean @default(false)
+  securityOnboardingDismissedAt DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   organization    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   invitesCreated  PortalInvite[] @relation("InviteCreator")
   passwordResetTokens PasswordResetToken[]
+  unlockTokens    AccountUnlockToken[]
   portalSessions  PortalSession[]
   assignedConversations Conversation[]
   conversationNotes ConversationNote[]
@@ -328,6 +349,34 @@ model OrgUser {
   @@index([orgId])
   @@index([email])
   @@map("org_users")
+}
+
+model AccountUnlockToken {
+  id          String   @id @default(cuid())
+  orgUserId   String
+  orgUser     OrgUser  @relation(fields: [orgUserId], references: [id], onDelete: Cascade)
+  hashedToken String   @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([orgUserId])
+  @@index([hashedToken])
+  @@map("account_unlock_tokens")
+}
+
+model LoginAttempt {
+  id         String   @id @default(cuid())
+  email      String
+  ipAddress  String
+  userAgent  String
+  success    Boolean
+  failReason String?
+  createdAt  DateTime @default(now())
+
+  @@index([email])
+  @@index([ipAddress])
+  @@map("login_attempts")
 }
 
 model PortalInvite {
@@ -362,11 +411,33 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+model PasswordResetAttempt {
+  id         String   @id @default(cuid())
+  email      String
+  ipAddress  String
+  userAgent  String?
+  success    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([email])
+  @@index([ipAddress])
+  @@index([createdAt])
+  @@map("password_reset_attempts")
+}
+
 model PortalSession {
   id          String    @id @default(cuid())
   orgUserId   String
   orgUser     OrgUser   @relation(fields: [orgUserId], references: [id], onDelete: Cascade)
   tokenHash   String    @unique
+  refreshToken String   @unique
+  accessExpiresAt DateTime
+  refreshExpiresAt DateTime
+  deviceFingerprint String?
+  deviceId     String?
+  deviceName   String?
+  loginCountry String?
+  loginCity    String?
   createdAt   DateTime  @default(now())
   lastSeenAt  DateTime  @default(now())
   revokedAt   DateTime?

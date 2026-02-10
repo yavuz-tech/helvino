@@ -29,6 +29,56 @@ import type {
 
 export async function orgCustomerRoutes(fastify: FastifyInstance) {
   /**
+   * GET /org/campaigns/active
+   *
+   * Return active premium campaign banner payload for org-app.
+   */
+  fastify.get("/org/campaigns/active", {
+    preHandler: [requireOrgUser],
+  }, async (request) => {
+    const orgUser = request.orgUser!;
+    const settings = await prisma.organizationSettings.findUnique({
+      where: { organizationId: orgUser.orgId },
+      select: { campaignsEnabled: true },
+    });
+
+    const now = new Date();
+    const promo = await prisma.promoCode.findFirst({
+      where: {
+        isActive: true,
+        validFrom: { lte: now },
+        AND: [
+          { OR: [{ validUntil: null }, { validUntil: { gte: now } }] },
+          {
+            OR: [
+              { isGlobal: true },
+              ...(settings?.campaignsEnabled ? [{ createdBy: orgUser.orgId, isGlobal: false }] : []),
+            ],
+          },
+        ],
+      },
+      orderBy: [{ createdAt: "desc" }],
+    });
+    if (!promo) return { active: null };
+    if (promo.maxUses !== null && promo.currentUses >= promo.maxUses) {
+      return { active: null };
+    }
+
+    return {
+      active: {
+        id: promo.id,
+        code: promo.code,
+        isGlobal: promo.isGlobal,
+        discountType: promo.discountType,
+        discountValue: promo.discountValue,
+        bannerTitle: promo.bannerTitle || null,
+        bannerSubtitle: promo.bannerSubtitle || null,
+        validUntil: promo.validUntil?.toISOString() || null,
+      },
+    };
+  });
+
+  /**
    * GET /org/conversations
    * 
    * List conversations for authenticated org user's organization

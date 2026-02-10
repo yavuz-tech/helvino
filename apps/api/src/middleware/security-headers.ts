@@ -7,17 +7,12 @@
  * - Referrer-Policy: strict-origin-when-cross-origin
  * - Permissions-Policy: restrictive defaults
  * - X-Request-Id: propagated from request context
- * - Strict-Transport-Security: in production
  *
- * Separate CSP policies for admin/portal vs. widget/embed endpoints
- * are handled at the Next.js (web) layer, not the API.
- * The API focuses on response-level hardening.
+ * HSTS + CSP are now handled by @fastify/helmet in index.ts.
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import fp from "fastify-plugin";
-
-const isProduction = process.env.NODE_ENV === "production";
 
 /**
  * Fastify plugin: security response headers.
@@ -49,21 +44,5 @@ export const securityHeadersPlugin = fp(async function securityHeadersPluginImpl
       reply.header("X-Request-Id", requestId);
     }
 
-    // ── Production-only headers ──
-
-    if (isProduction) {
-      // HSTS: enforce HTTPS for 1 year, include subdomains
-      reply.header(
-        "Strict-Transport-Security",
-        "max-age=31536000; includeSubDomains"
-      );
-    }
-
-    // ── Content-Security-Policy for API JSON responses ──
-    // API only returns JSON, so a very restrictive CSP is fine.
-    reply.header(
-      "Content-Security-Policy",
-      "default-src 'none'; frame-ancestors 'none'"
-    );
   });
 }, { name: "security-headers" });

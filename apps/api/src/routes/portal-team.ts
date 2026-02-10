@@ -22,8 +22,10 @@ import {
 import { requireStepUp } from "../middleware/require-step-up";
 import {
   PORTAL_SESSION_COOKIE,
-  createPortalSessionToken,
+  createPortalSessionWithLimit,
+  createPortalTokenPair,
   PORTAL_SESSION_TTL_MS,
+  PORTAL_REFRESH_TOKEN_TTL_MS,
 } from "../utils/portal-session";
 
 // ── Helpers ──
@@ -545,7 +547,13 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
       const pwCheck = validatePasswordPolicy(body.password);
       if (!pwCheck.valid) {
         reply.code(400);
-        return { error: pwCheck.message || "Password must be at least 8 characters and include a letter and a number" };
+        return {
+          error: {
+            code: pwCheck.code,
+            message: pwCheck.message || "Password policy validation failed",
+            requestId: request.requestId,
+          },
+        };
       }
 
       // When expires + sig are provided, verify signed link (prevents tampered URLs)
@@ -635,13 +643,24 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
         return { error: "SESSION_SECRET not configured" };
       }
 
-      const token = createPortalSessionToken(
+      const tokens = createPortalTokenPair(
         { userId: orgUser.id, orgId: orgUser.orgId, role: orgUser.role },
         secret
       );
 
+      await createPortalSessionWithLimit({
+        orgUserId: orgUser.id,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        accessExpiresAt: tokens.accessExpiresAt,
+        refreshExpiresAt: tokens.refreshExpiresAt,
+        ip: request.ip || null,
+        userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || null,
+        deviceName: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
+      });
+
       const isProduction = process.env.NODE_ENV === "production";
-      reply.setCookie(PORTAL_SESSION_COOKIE, token, {
+      reply.setCookie(PORTAL_SESSION_COOKIE, tokens.accessToken, {
         path: "/",
         httpOnly: true,
         sameSite: "lax",
@@ -652,6 +671,8 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
       reply.code(201);
       return {
         ok: true,
+        refreshToken: tokens.refreshToken,
+        refreshExpiresInSec: Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000),
         user: {
           id: orgUser.id,
           email: orgUser.email,

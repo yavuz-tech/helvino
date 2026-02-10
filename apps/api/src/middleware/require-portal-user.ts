@@ -42,30 +42,37 @@ export async function requirePortalUser(
     return reply.status(401).send({ error: "Authentication required" });
   }
 
-  const payload = verifyPortalSessionToken(token, secret);
+  const payload = verifyPortalSessionToken(token, secret, { ignoreExpiration: true });
   if (!payload) {
     reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
     return reply.status(401).send({ error: "Invalid session" });
   }
+  const now = Math.floor(Date.now() / 1000);
+  if (payload.exp && now > payload.exp) {
+    return reply.status(401).send({ error: { code: "TOKEN_EXPIRED", message: "token_expired" } });
+  }
 
   // Check session revocation in DB
   const tokenHash = hashToken(token);
-  const sessionRecord = await prisma.portalSession.findFirst({
+  const sessionRecord = await prisma.portalSession.findUnique({
     where: { tokenHash },
+    select: { id: true, orgUserId: true, revokedAt: true, accessExpiresAt: true },
   });
 
-  if (sessionRecord && sessionRecord.revokedAt) {
+  // Reject tokens that are not backed by a live DB session record.
+  if (!sessionRecord || sessionRecord.revokedAt || sessionRecord.orgUserId !== payload.userId) {
     reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
-    return reply.status(401).send({ error: "Session revoked" });
+    return reply.status(401).send({ error: "Invalid session" });
+  }
+  if (sessionRecord.accessExpiresAt <= new Date()) {
+    return reply.status(401).send({ error: { code: "TOKEN_EXPIRED", message: "token_expired" } });
   }
 
   // Update lastSeenAt (best-effort, don't block)
-  if (sessionRecord) {
-    prisma.portalSession.update({
-      where: { id: sessionRecord.id },
-      data: { lastSeenAt: new Date() },
-    }).catch(() => {/* ignore */});
-  }
+  prisma.portalSession.update({
+    where: { id: sessionRecord.id },
+    data: { lastSeenAt: new Date() },
+  }).catch(() => {/* ignore */});
 
   const orgUser = await prisma.orgUser.findUnique({
     where: { id: payload.userId },
@@ -74,6 +81,11 @@ export async function requirePortalUser(
   if (!orgUser) {
     reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
     return reply.status(401).send({ error: "User not found" });
+  }
+
+  if (orgUser.isActive === false) {
+    reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
+    return reply.status(403).send({ error: "Account is deactivated" });
   }
 
   if (orgUser.orgId !== payload.orgId) {

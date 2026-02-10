@@ -6,9 +6,11 @@ dotenv.config({ path: path.join(__dirname, "..", ".env") });
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
+import helmet from "@fastify/helmet";
 import session from "@fastify/session";
 import socketioServer from "fastify-socket.io";
 import type { Socket } from "socket.io";
+import cron from "node-cron";
 import { APP_NAME } from "@helvino/shared";
 import { store } from "./store";
 import { bootloaderRoutes } from "./routes/bootloader";
@@ -49,6 +51,9 @@ import { portalSlaRoutes } from "./routes/portal-sla";
 import { portalChatPageRoutes } from "./routes/portal-chat-page";
 import { portalTranslationRoutes } from "./routes/portal-translations";
 import { portalSettingsConsistencyRoutes } from "./routes/portal-settings-consistency";
+import { promoCodesRoutes } from "./routes/promo-codes";
+import { emailRoutes } from "./routes/emails";
+import { organizationSettingsRoutes } from "./routes/organization-settings";
 import { upsertVisitor } from "./utils/visitor";
 import { requestContextPlugin } from "./plugins/request-context";
 import { metricsTracker } from "./utils/metrics";
@@ -79,6 +84,7 @@ import {
   incrementAiUsage,
   type ConversationMessage,
 } from "./utils/ai-service";
+import { checkAbandonedCheckouts } from "./jobs/checkAbandonedCheckouts";
 import { prisma } from "./prisma";
 import { getOperatingHoursStatus } from "./utils/operating-hours";
 import { runWorkflowsForTrigger } from "./utils/workflow-engine";
@@ -200,7 +206,34 @@ fastify.register(session, {
 
 fastify.register(requestContextPlugin);
 fastify.register(hostTrustPlugin);
+fastify.register(helmet, {
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+  },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+    },
+  },
+  frameguard: { action: "deny" },
+  noSniff: true,
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+});
 fastify.register(securityHeadersPlugin);
+
+// Force HTTPS in production when behind a proxy/load balancer.
+fastify.addHook("onRequest", async (request, reply) => {
+  if (!isProduction) return;
+  const protoHeader = request.headers["x-forwarded-proto"];
+  const proto = Array.isArray(protoHeader) ? protoHeader[0] : protoHeader;
+  if (proto && proto !== "https") {
+    const host = request.headers.host;
+    if (!host) return;
+    return reply.redirect(`https://${host}${request.raw.url}`, 301);
+  }
+});
 const socketCorsOrigin = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL;
 let socketCorsWarned = false;
 fastify.register(socketioServer, {
@@ -273,6 +306,9 @@ fastify.register(portalSlaRoutes); // Portal settings: SLA
 fastify.register(portalChatPageRoutes); // Portal settings: chat page
 fastify.register(portalTranslationRoutes); // Portal settings: translation overrides
 fastify.register(portalSettingsConsistencyRoutes); // Portal settings: consistency guards
+fastify.register(promoCodesRoutes, { prefix: "/api/promo-codes" }); // Promo code API
+fastify.register(emailRoutes, { prefix: "/emails" }); // Email previews
+fastify.register(organizationSettingsRoutes); // Organization-level toggles
 
 // Root info
 fastify.get("/", async () => {
@@ -771,6 +807,15 @@ const start = async () => {
 
     // Start background jobs
     scheduleAiQuotaReset();
+    // Check abandoned checkouts every minute.
+    cron.schedule("* * * * *", async () => {
+      try {
+        await checkAbandonedCheckouts();
+      } catch (error) {
+        console.error("[checkout-abandoned] scheduler error:", error);
+      }
+    });
+    console.log("[checkout-abandoned] Cron scheduled: every minute");
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

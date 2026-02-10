@@ -14,6 +14,8 @@ const PUBLIC_PATHS = [
   "/portal/accept-invite",
   "/portal/verify-email",
   "/portal/recovery",
+  "/portal/mfa-setup",
+  "/portal/security-onboarding",
 ];
 
 function PortalShell({ children }: { children: React.ReactNode }) {

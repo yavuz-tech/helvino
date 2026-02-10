@@ -7,6 +7,7 @@ import ErrorBanner from "@/components/ErrorBanner";
 import { useI18n } from "@/i18n/I18nContext";
 import PasswordStrength from "@/components/PasswordStrength";
 import { designTokens } from "@/lib/designTokens";
+import { mapPasswordPolicyError } from "@/lib/password-errors";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -84,9 +85,10 @@ export default function SignupPage() {
       }
 
       if (!response.ok) {
+        const errorCode = typeof data?.error === "object" ? data.error?.code : undefined;
         const msg =
           typeof data?.error === "object"
-            ? data.error.message
+            ? mapPasswordPolicyError(t, errorCode, data.error.message || t("signup.error"))
             : data?.error || t("signup.error");
         setError(msg);
         setIsLoading(false);
@@ -268,10 +270,10 @@ export default function SignupPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t("signup.passwordPlaceholder")}
                     required
-                    minLength={8}
+                    minLength={12}
                     className={designTokens.inputs.base}
                   />
-                  <PasswordStrength password={password} minLength={8} />
+                  <PasswordStrength password={password} minLength={12} />
                 </div>
 
                 <button

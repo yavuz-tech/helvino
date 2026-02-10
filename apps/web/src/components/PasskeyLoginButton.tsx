@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Fingerprint } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
+import { storePortalRefreshToken } from "@/lib/portal-auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -11,6 +12,7 @@ interface PasskeyLoginButtonProps {
   email: string;
   onSuccess: () => void;
   onError: (msg: string) => void;
+  className?: string;
 }
 
 /**
@@ -21,6 +23,7 @@ export default function PasskeyLoginButton({
   email,
   onSuccess,
   onError,
+  className,
 }: PasskeyLoginButtonProps) {
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
@@ -105,6 +108,9 @@ export default function PasskeyLoginButton({
       if (verifyRes.ok) {
         const data = await verifyRes.json();
         if (data.ok) {
+          if (area === "portal" && data.refreshToken) {
+            storePortalRefreshToken(data.refreshToken);
+          }
           onSuccess();
           return;
         }
@@ -129,7 +135,7 @@ export default function PasskeyLoginButton({
       type="button"
       onClick={handlePasskeyLogin}
       disabled={loading || !email.trim()}
-      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+      className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${className || ""}`}
     >
       <Fingerprint size={18} />
       {loading ? t("passkeys.loginLoading") : t("passkeys.loginButton")}

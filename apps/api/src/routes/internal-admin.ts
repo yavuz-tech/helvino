@@ -392,8 +392,8 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        const url = await createCheckoutSession(org.id, returnUrl);
-        return { url };
+        const checkout = await createCheckoutSession(org.id, returnUrl);
+        return { url: checkout.url };
       } catch (err) {
         if (err instanceof StripeNotConfiguredError) {
           reply.code(400);

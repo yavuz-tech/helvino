@@ -6,9 +6,11 @@ import {
   createCheckoutSession,
   createCustomerPortalSession,
   isStripeConfigured,
+  PromoCodeInvalidError,
   listInvoices,
   StripeNotConfiguredError,
 } from "../utils/stripe";
+import { writeAuditLog } from "../utils/audit-log";
 import {
   getUsageForMonth,
   getPlanLimits,
@@ -271,6 +273,7 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
       const body = request.body as {
         planKey?: string;
         returnUrl?: string;
+        promoCode?: string;
       };
 
       if (!isStripeConfigured()) {
@@ -279,13 +282,26 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        const url = await createCheckoutSession(
+        const checkout = await createCheckoutSession(
           user.orgId,
           body.returnUrl,
-          body.planKey
+          body.planKey,
+          undefined,
+          body.promoCode
         );
-        return { url };
+        await writeAuditLog(user.orgId, user.email, "checkout_started", {
+          stripeCheckoutSessionId: checkout.sessionId,
+          planType: checkout.planType,
+          amount: checkout.amount,
+          email: checkout.email,
+          promoCode: body.promoCode ? body.promoCode.trim().toUpperCase() : null,
+        });
+        return { url: checkout.url };
       } catch (err) {
+        if (err instanceof PromoCodeInvalidError) {
+          reply.code(400);
+          return { error: err.message, code: err.code };
+        }
         if (err instanceof StripeNotConfiguredError) {
           reply.code(501);
           return { error: "Stripe is not configured on this server.", code: "STRIPE_NOT_CONFIGURED" };

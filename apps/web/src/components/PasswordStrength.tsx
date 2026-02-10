@@ -14,31 +14,34 @@ type Strength = "weak" | "ok" | "strong";
 
 function evaluate(pw: string, minLength: number) {
   const hasLength = pw.length >= minLength;
-  const hasLetter = /[a-zA-Z]/.test(pw);
+  const hasUppercase = /[A-Z]/.test(pw);
+  const hasLowercase = /[a-z]/.test(pw);
   const hasDigit = /\d/.test(pw);
+  const hasSpecial = /[!@#$%^&*]/.test(pw);
 
   const requirements: { key: TranslationKey; met: boolean }[] = [
     { key: "passwordReq.minLength", met: hasLength },
-    { key: "passwordReq.letter", met: hasLetter },
+    { key: "passwordReq.uppercase", met: hasUppercase },
+    { key: "passwordReq.lowercase", met: hasLowercase },
     { key: "passwordReq.number", met: hasDigit },
+    { key: "passwordReq.special", met: hasSpecial },
   ];
 
-  const score = [hasLength, hasLetter, hasDigit].filter(Boolean).length;
+  const score = [hasLength, hasUppercase, hasLowercase, hasDigit, hasSpecial].filter(Boolean).length;
 
   let strength: Strength;
-  if (score <= 1) strength = "weak";
-  else if (score === 2) strength = "ok";
+  if (score <= 2) strength = "weak";
+  else if (score <= 4) strength = "ok";
   else strength = "strong";
 
-  // bar percentage: 0, 33, 66, 100
-  const pct = score === 0 ? 0 : score === 1 ? 33 : score === 2 ? 66 : 100;
+  const pct = Math.round((score / 5) * 100);
 
   return { requirements, strength, score, pct };
 }
 
 const strengthStyle: Record<Strength, { bar: string; text: string; labelKey: TranslationKey }> = {
   weak: { bar: "bg-red-500", text: "text-red-600", labelKey: "passwordStrength.weak" },
-  ok: { bar: "bg-amber-500", text: "text-amber-600", labelKey: "passwordStrength.ok" },
+  ok: { bar: "bg-amber-500", text: "text-amber-600", labelKey: "passwordStrength.medium" },
   strong: { bar: "bg-emerald-500", text: "text-emerald-600", labelKey: "passwordStrength.strong" },
 };
 

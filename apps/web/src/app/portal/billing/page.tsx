@@ -6,6 +6,7 @@ import { portalApiFetch } from "@/lib/portal-auth";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { useI18n } from "@/i18n/I18nContext";
 import ErrorBanner from "@/components/ErrorBanner";
+import { premiumToast } from "@/components/PremiumToast";
 import type { TranslationKey } from "@/i18n/translations";
 import { useStepUp } from "@/contexts/StepUpContext";
 import PlanComparisonTable from "@/components/PlanComparisonTable";
@@ -99,6 +100,10 @@ export default function PortalBillingPage() {
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  const [applyingPromo, setApplyingPromo] = useState(false);
+  const [showPromoInput, setShowPromoInput] = useState(false);
   const { t } = useI18n();
   const { withStepUp } = useStepUp();
 
@@ -136,9 +141,85 @@ export default function PortalBillingPage() {
     })();
   }, [billing, t]);
 
+  useEffect(() => {
+    if (authLoading) return;
+    (async () => {
+      try {
+        const res = await portalApiFetch("/api/organization/settings");
+        if (!res.ok) return;
+        const data = (await res.json()) as { campaignsEnabled?: boolean };
+        setShowPromoInput(Boolean(data.campaignsEnabled));
+      } catch {
+        setShowPromoInput(false);
+      }
+    })();
+  }, [authLoading]);
+
+  useEffect(() => {
+    if (!showPromoInput) {
+      setAppliedCode(null);
+      setPromoCodeInput("");
+    }
+  }, [showPromoInput]);
+
+  const handleApplyCode = async () => {
+    const normalizedCode = promoCodeInput.trim().toUpperCase();
+    if (!normalizedCode) {
+      premiumToast.error({
+        title: t("billing.promoInvalidTitle"),
+        description: t("billing.promoInvalidDesc"),
+      });
+      return;
+    }
+
+    setApplyingPromo(true);
+    try {
+      const res = await portalApiFetch("/api/promo-codes/validate", {
+        method: "POST",
+        body: JSON.stringify({ code: normalizedCode }),
+      });
+      if (!res.ok) {
+        premiumToast.error({
+          title: t("billing.promoInvalidTitle"),
+          description: t("billing.promoInvalidDesc"),
+        });
+        return;
+      }
+      const data = (await res.json()) as { valid?: boolean; code?: string };
+      if (data.valid) {
+        const code = data.code || normalizedCode;
+        setAppliedCode(code);
+        setPromoCodeInput(code);
+        premiumToast.success({
+          title: t("billing.promoSavedTitle"),
+          description: t("billing.promoSavedDesc"),
+        });
+      } else {
+        premiumToast.error({
+          title: t("billing.promoInvalidTitle"),
+          description: t("billing.promoInvalidDesc"),
+        });
+      }
+    } catch {
+      premiumToast.error({
+        title: t("billing.promoInvalidTitle"),
+        description: t("billing.promoInvalidDesc"),
+      });
+    } finally {
+      setApplyingPromo(false);
+    }
+  };
+
   const handleCheckout = async (planKey: string) => {
     setCheckoutLoading(planKey);
-    const result = await withStepUp(() => portalApiFetch("/portal/billing/checkout", { method: "POST", body: JSON.stringify({ planKey, returnUrl: window.location.origin + "/portal/billing" }) }), "portal");
+    const result = await withStepUp(() => portalApiFetch("/portal/billing/checkout", {
+      method: "POST",
+      body: JSON.stringify({
+        planKey,
+        returnUrl: window.location.origin + "/portal/billing",
+        promoCode: appliedCode || undefined,
+      }),
+    }), "portal");
     if (result.cancelled) { setCheckoutLoading(null); return; }
     if (!result.ok) { setError((result.data as Record<string, string>)?.error || t("billing.checkoutFailed")); setCheckoutLoading(null); return; }
     const d = result.data as Record<string, string> | undefined;
@@ -373,7 +454,32 @@ export default function PortalBillingPage() {
               {billing.stripeConfigured && billing.availablePlans.length > 0 && (
                 <div id="plans-section" className="rounded-2xl border border-slate-200 bg-white shadow-sm">
                   <div className="flex items-center gap-3 border-b border-slate-100 px-8 py-5"><BarChart3 size={18} className="text-indigo-600" /><p className="text-base font-bold text-slate-900">{t("billing.availablePlans")}</p></div>
-                  <div className="p-8">
+                  <div className="space-y-4 p-8">
+                    {showPromoInput && (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("billing.promoCodeLabel")}</p>
+                        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                          <input
+                            value={promoCodeInput}
+                            onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                            placeholder={t("billing.promoCodePlaceholder")}
+                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                          />
+                          <button
+                            onClick={handleApplyCode}
+                            disabled={applyingPromo}
+                            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                          >
+                            {applyingPromo ? t("common.loading") : t("billing.applyPromoCode")}
+                          </button>
+                        </div>
+                        {appliedCode && (
+                          <p className="mt-2 text-sm font-medium text-emerald-700">
+                            {t("billing.promoSavedInline").replace("{code}", appliedCode)}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <PlanComparisonTable plans={billing.availablePlans} currentPlanKey={billing.plan.key} onUpgrade={handleCheckout} upgradeLoading={checkoutLoading} showBillingToggle mode="portal" recommendedPlan={billing.recommendedPlan} />
                   </div>
                 </div>

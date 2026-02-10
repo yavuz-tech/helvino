@@ -7,6 +7,7 @@ import { APP_NAME } from "@helvino/shared";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import CurrencySwitcher from "@/components/CurrencySwitcher";
+import CampaignTopBanner from "@/components/CampaignTopBanner";
 import { designTokens } from "@/lib/designTokens";
 import {
   MessageCircle,
@@ -458,6 +459,9 @@ export default function PublicLayout({
           </div>
         )}
       </header>
+
+      {/* ── Campaign banner (global campaigns visible on public website) ── */}
+      <CampaignTopBanner source="public" />
 
       {/* ── Main ── */}
       <main className="flex-1">{children}</main>

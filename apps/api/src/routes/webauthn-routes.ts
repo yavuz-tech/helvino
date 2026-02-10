@@ -20,6 +20,7 @@
 
 import crypto from "crypto";
 import { FastifyInstance } from "fastify";
+import geoip from "geoip-lite";
 import { prisma } from "../prisma";
 import { requireAdmin } from "../middleware/require-admin";
 import { requirePortalUser } from "../middleware/require-portal-user";
@@ -40,9 +41,15 @@ import {
 } from "../utils/webauthn";
 import {
   PORTAL_SESSION_COOKIE,
-  createPortalSessionToken,
+  createPortalTokenPair,
+  createPortalSessionWithLimit,
   PORTAL_SESSION_TTL_MS,
+  PORTAL_REFRESH_TOKEN_TTL_MS,
 } from "../utils/portal-session";
+import { createEmergencyLockToken } from "../utils/emergency-lock-token";
+import { getLoginNotificationEmail } from "../emails/login-notification";
+import { getSessionRevokedEmail } from "../emails/session-revoked";
+import { getDefaultFromAddress, sendEmailAsync } from "../utils/mailer";
 
 function hashToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -294,23 +301,29 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
           return reply.status(500).send({ error: "SESSION_SECRET not configured", requestId });
         }
 
-        const token = createPortalSessionToken(
+        const tokens = createPortalTokenPair(
           { userId: orgUser.id, orgId: orgUser.orgId, role: orgUser.role },
           secret
         );
 
-        const tokenHash = hashToken(token);
-        await prisma.portalSession.create({
-          data: {
-            orgUserId: orgUser.id,
-            tokenHash,
-            ip: request.ip || null,
-            userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || null,
-          },
+        const geo = request.ip ? geoip.lookup(request.ip) : null;
+        const loginCountry = geo?.country || null;
+        const loginCity = geo?.city || null;
+        const sessionResult = await createPortalSessionWithLimit({
+          orgUserId: orgUser.id,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          accessExpiresAt: tokens.accessExpiresAt,
+          refreshExpiresAt: tokens.refreshExpiresAt,
+          ip: request.ip || null,
+          userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || null,
+          deviceName: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
+          loginCountry,
+          loginCity,
         });
 
         const isProduction = process.env.NODE_ENV === "production";
-        reply.setCookie(PORTAL_SESSION_COOKIE, token, {
+        reply.setCookie(PORTAL_SESSION_COOKIE, tokens.accessToken, {
           path: "/",
           httpOnly: true,
           sameSite: "lax",
@@ -326,6 +339,43 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
           request.ip
         );
 
+        const appUrl = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+        const lockToken = createEmergencyLockToken(orgUser.id);
+        const lockUrl = `${appUrl}/portal/login?emergencyLockToken=${encodeURIComponent(lockToken)}`;
+        const locationLabel = [loginCity, loginCountry].filter(Boolean).join(", ") || "Unknown";
+        const loginNotification = getLoginNotificationEmail({
+          email: orgUser.email,
+          deviceName: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
+          location: locationLabel,
+          ip: request.ip || "unknown",
+          time: new Date().toISOString(),
+          lockUrl,
+        });
+        sendEmailAsync({
+          to: loginNotification.to,
+          from: getDefaultFromAddress(),
+          subject: loginNotification.subject,
+          html: loginNotification.html,
+          text: loginNotification.text,
+          tags: ["security", "login-notification"],
+        });
+
+        if (sessionResult.revokedSession) {
+          const revokedEmail = getSessionRevokedEmail({
+            email: orgUser.email,
+            deviceName: sessionResult.revokedSession.deviceName || "Unknown device",
+            sessionsUrl: `${appUrl}/portal/settings/sessions`,
+          });
+          sendEmailAsync({
+            to: revokedEmail.to,
+            from: getDefaultFromAddress(),
+            subject: revokedEmail.subject,
+            html: revokedEmail.html,
+            text: revokedEmail.text,
+            tags: ["security", "session-limit"],
+          });
+        }
+
         await writeAuditLog(
           orgUser.orgId,
           orgUser.email,
@@ -336,6 +386,8 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
 
         return {
           ok: true,
+          refreshToken: tokens.refreshToken,
+          refreshExpiresInSec: Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000),
           user: {
             id: orgUser.id,
             email: orgUser.email,

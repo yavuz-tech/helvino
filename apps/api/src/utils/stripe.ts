@@ -8,6 +8,155 @@ export class StripeNotConfiguredError extends Error {
   }
 }
 
+export class PromoCodeInvalidError extends Error {
+  code = "PROMO_CODE_INVALID";
+  constructor(message = "Promo code is invalid") {
+    super(message);
+  }
+}
+
+export interface CheckoutSessionResult {
+  url: string;
+  sessionId: string;
+  planType: string;
+  amount: number;
+  email: string;
+}
+
+export function extractPromoPercentFromCode(code: string): number | null {
+  const normalized = code.trim().toUpperCase();
+  const match = normalized.match(/(\d{1,3})$/);
+  if (!match) return null;
+  const percent = Number.parseInt(match[1], 10);
+  if (!Number.isFinite(percent) || percent < 1 || percent > 100) return null;
+  return percent;
+}
+
+export async function syncPromoCodeWithStripe(params: {
+  id: string;
+  code: string;
+  stripeCouponId?: string | null;
+  stripePromotionCodeId?: string | null;
+}) {
+  if (!isStripeConfigured()) {
+    throw new StripeNotConfiguredError();
+  }
+
+  const stripe = getStripeClient();
+  const code = params.code.trim().toUpperCase();
+  const percent = extractPromoPercentFromCode(code);
+  if (!percent) {
+    throw new PromoCodeInvalidError(
+      "Promo code must end with a number between 1 and 100 (e.g. WELCOME20)."
+    );
+  }
+
+  let couponId = params.stripeCouponId || null;
+  if (!couponId) {
+    const coupon = await stripe.coupons.create({
+      percent_off: percent,
+      duration: "once",
+      name: code,
+      metadata: {
+        promoCodeId: params.id,
+        code,
+      },
+    });
+    couponId = coupon.id;
+  }
+
+  let promotionCodeId = params.stripePromotionCodeId || null;
+  if (!promotionCodeId) {
+    const existing = await stripe.promotionCodes.list({
+      code,
+      active: true,
+      limit: 1,
+    });
+    if (existing.data.length > 0) {
+      promotionCodeId = existing.data[0].id;
+    } else {
+      const promotionCode = await stripe.promotionCodes.create({
+        coupon: couponId,
+        code,
+        active: true,
+        metadata: {
+          promoCodeId: params.id,
+          code,
+        },
+      });
+      promotionCodeId = promotionCode.id;
+    }
+  }
+
+  return {
+    code,
+    percent,
+    stripeCouponId: couponId,
+    stripePromotionCodeId: promotionCodeId,
+  };
+}
+
+async function resolvePromotionCodeForCheckout(
+  orgId: string,
+  promoInput: string
+): Promise<{ code: string; stripePromotionCodeId: string }> {
+  const code = promoInput.trim().toUpperCase();
+  const now = new Date();
+
+  const settings = await prisma.organizationSettings.findUnique({
+    where: { organizationId: orgId },
+    select: { campaignsEnabled: true },
+  });
+
+  const promo = await prisma.promoCode.findFirst({
+    where: {
+      code,
+      isActive: true,
+      validFrom: { lte: now },
+      AND: [
+        { OR: [{ validUntil: null }, { validUntil: { gte: now } }] },
+        {
+          OR: [
+            { isGlobal: true },
+            ...(settings?.campaignsEnabled ? [{ createdBy: orgId, isGlobal: false }] : []),
+            { createdBy: "system", isGlobal: false },
+            { createdBy: "system-abandoned-checkout", isGlobal: false },
+          ],
+        },
+      ],
+    },
+  });
+
+  if (!promo) {
+    throw new PromoCodeInvalidError("Promo code not found or inactive.");
+  }
+  if (promo.maxUses !== null && promo.currentUses >= promo.maxUses) {
+    throw new PromoCodeInvalidError("Promo code max usage reached.");
+  }
+
+  const synced = await syncPromoCodeWithStripe({
+    id: promo.id,
+    code: promo.code,
+    stripeCouponId: promo.stripeCouponId,
+    stripePromotionCodeId: promo.stripePromotionCodeId,
+  });
+
+  await prisma.promoCode.update({
+    where: { id: promo.id },
+    data: {
+      discountType: "percentage",
+      discountValue: synced.percent,
+      stripeCouponId: synced.stripeCouponId,
+      stripePromotionCodeId: synced.stripePromotionCodeId,
+    },
+  });
+
+  return {
+    code: synced.code,
+    stripePromotionCodeId: synced.stripePromotionCodeId,
+  };
+}
+
 export function isStripeConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY);
 }
@@ -151,8 +300,9 @@ export async function createCheckoutSession(
   orgId: string,
   returnUrl?: string,
   planKey?: string,
-  customerEmail?: string
-) {
+  customerEmail?: string,
+  promoCode?: string
+): Promise<CheckoutSessionResult> {
   if (!isStripeConfigured()) {
     throw new StripeNotConfiguredError();
   }
@@ -162,17 +312,36 @@ export async function createCheckoutSession(
 
   const { stripe, org, customerId } = await ensureStripeCustomer(orgId);
   const urls = getCheckoutUrls(returnUrl);
+  let resolvedPromoCode: string | null = null;
+  let promotionCodeId: string | null = null;
+  if (promoCode && promoCode.trim()) {
+    const resolved = await resolvePromotionCodeForCheckout(org.id, promoCode);
+    resolvedPromoCode = resolved.code;
+    promotionCodeId = resolved.stripePromotionCodeId;
+  }
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
     ...(customerEmail ? { customer_email: customerEmail } : {}),
     line_items: [{ price: priceId, quantity: 1 }],
+    allow_promotion_codes: true,
+    ...(promotionCodeId ? { discounts: [{ promotion_code: promotionCodeId }] } : {}),
     success_url: urls.successUrl,
     cancel_url: urls.cancelUrl,
-    metadata: { orgId: org.id, orgKey: org.key, planKey: targetPlan },
+    metadata: {
+      orgId: org.id,
+      orgKey: org.key,
+      planKey: targetPlan,
+      promoCode: resolvedPromoCode || "",
+    },
     subscription_data: {
-      metadata: { orgId: org.id, orgKey: org.key, planKey: targetPlan },
+      metadata: {
+        orgId: org.id,
+        orgKey: org.key,
+        planKey: targetPlan,
+        promoCode: resolvedPromoCode || "",
+      },
     },
   });
 
@@ -203,7 +372,13 @@ export async function createCheckoutSession(
     },
   });
 
-  return session.url!;
+  return {
+    url: session.url!,
+    sessionId: session.id,
+    planType: normalizePlanType(targetPlan),
+    amount,
+    email,
+  };
 }
 
 export async function createCustomerPortalSession(

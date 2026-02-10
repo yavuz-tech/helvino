@@ -710,3 +710,162 @@ export function getVerifyEmailContent(locale: string | undefined, link: string) 
     text: verifyEmailPlainText[l](link),
   };
 }
+
+// -- 7. Account Unlock Email --
+const unlockTemplates: Record<Locale, { subject: () => string; body: (token: string) => string; text: (token: string) => string }> = {
+  en: {
+    subject: () => "Your account was temporarily locked",
+    body: (token) => wrapHtml(`
+<h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Account locked for security</h2>
+<p style="color:#475569;font-size:14px;line-height:1.6;">
+  We detected too many failed login attempts and temporarily locked your account.
+</p>
+<p style="color:#475569;font-size:14px;line-height:1.6;">
+  Unlock token:
+</p>
+<div style="margin:16px 0;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+  <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:#0f172a;word-break:break-all;">${escapeHtml(token)}</code>
+</div>
+<p style="color:#94a3b8;font-size:12px;line-height:1.6;">
+  This token expires in 30 minutes and can be used once.
+</p>
+`, "#0F5C5C", "en"),
+    text: (token) =>
+      `Your account was temporarily locked due to too many failed login attempts.\n\nUnlock token:\n${token}\n\nThis token expires in 30 minutes and can be used once.`,
+  },
+  tr: {
+    subject: () => "Hesabiniz gecici olarak kilitlendi",
+    body: (token) => wrapHtml(`
+<h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Hesabiniz guvenlik nedeniyle kilitlendi</h2>
+<p style="color:#475569;font-size:14px;line-height:1.6;">
+  Cok fazla hatali giris denemesi algiladik ve hesabinizi gecici olarak kilitledik.
+</p>
+<p style="color:#475569;font-size:14px;line-height:1.6;">
+  Kilit acma tokeni:
+</p>
+<div style="margin:16px 0;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+  <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:#0f172a;word-break:break-all;">${escapeHtml(token)}</code>
+</div>
+<p style="color:#94a3b8;font-size:12px;line-height:1.6;">
+  Bu token 30 dakika gecerlidir ve tek kullanimliktir.
+</p>
+`, "#0F5C5C", "tr"),
+    text: (token) =>
+      `Cok fazla hatali giris denemesi nedeniyle hesabinizi gecici olarak kilitledik.\n\nKilit acma tokeni:\n${token}\n\nBu token 30 dakika gecerlidir ve tek kullanimliktir.`,
+  },
+  es: {
+    subject: () => "Tu cuenta fue bloqueada temporalmente",
+    body: (token) => wrapHtml(`
+<h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Cuenta bloqueada por seguridad</h2>
+<p style="color:#475569;font-size:14px;line-height:1.6;">
+  Detectamos demasiados intentos fallidos de inicio de sesion y bloqueamos temporalmente tu cuenta.
+</p>
+<p style="color:#475569;font-size:14px;line-height:1.6;">
+  Token de desbloqueo:
+</p>
+<div style="margin:16px 0;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+  <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:#0f172a;word-break:break-all;">${escapeHtml(token)}</code>
+</div>
+<p style="color:#94a3b8;font-size:12px;line-height:1.6;">
+  Este token expira en 30 minutos y es de un solo uso.
+</p>
+`, "#0F5C5C", "es"),
+    text: (token) =>
+      `Detectamos demasiados intentos fallidos y bloqueamos temporalmente tu cuenta.\n\nToken de desbloqueo:\n${token}\n\nEste token expira en 30 minutos y es de un solo uso.`,
+  },
+};
+
+export function getAccountUnlockEmail(locale: string | undefined, unlockToken: string) {
+  const l = resolveLocale(locale);
+  return {
+    subject: unlockTemplates[l].subject(),
+    html: unlockTemplates[l].body(unlockToken),
+    text: unlockTemplates[l].text(unlockToken),
+  };
+}
+
+// -- 8. Password Changed Notification --
+const passwordChangedTemplates: Record<
+  Locale,
+  {
+    subject: () => string;
+    body: (details: { time: string; ip: string; device: string; supportUrl: string }) => string;
+    text: (details: { time: string; ip: string; device: string; supportUrl: string }) => string;
+  }
+> = {
+  en: {
+    subject: () => "Your password was changed",
+    body: (d) =>
+      wrapHtml(
+        `
+<h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Password changed successfully</h2>
+<p style="color:#475569;font-size:14px;line-height:1.6;">Your portal password was changed.</p>
+<ul style="color:#334155;font-size:13px;line-height:1.7;padding-left:18px;">
+  <li><strong>Time:</strong> ${escapeHtml(d.time)}</li>
+  <li><strong>IP:</strong> ${escapeHtml(d.ip)}</li>
+  <li><strong>Device:</strong> ${escapeHtml(d.device)}</li>
+</ul>
+<p style="color:#475569;font-size:14px;line-height:1.6;">Wasn't you? Contact support immediately.</p>
+${buttonHtml(d.supportUrl, "Contact Support", "#0F5C5C")}
+`,
+        "#0F5C5C",
+        "en"
+      ),
+    text: (d) =>
+      `Your password was changed.\nTime: ${d.time}\nIP: ${d.ip}\nDevice: ${d.device}\nWasn't you? Contact support: ${d.supportUrl}`,
+  },
+  tr: {
+    subject: () => "Sifreniz degistirildi",
+    body: (d) =>
+      wrapHtml(
+        `
+<h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Sifreniz basariyla degistirildi</h2>
+<p style="color:#475569;font-size:14px;line-height:1.6;">Portal sifreniz degistirildi.</p>
+<ul style="color:#334155;font-size:13px;line-height:1.7;padding-left:18px;">
+  <li><strong>Zaman:</strong> ${escapeHtml(d.time)}</li>
+  <li><strong>IP:</strong> ${escapeHtml(d.ip)}</li>
+  <li><strong>Cihaz:</strong> ${escapeHtml(d.device)}</li>
+</ul>
+<p style="color:#475569;font-size:14px;line-height:1.6;">Bu islemi siz yapmadiysaniz hemen destekle iletisime gecin.</p>
+${buttonHtml(d.supportUrl, "Destek ile Iletisime Gec", "#0F5C5C")}
+`,
+        "#0F5C5C",
+        "tr"
+      ),
+    text: (d) =>
+      `Sifreniz degistirildi.\nZaman: ${d.time}\nIP: ${d.ip}\nCihaz: ${d.device}\nBu islemi siz yapmadiysaniz destek: ${d.supportUrl}`,
+  },
+  es: {
+    subject: () => "Tu contrasena fue cambiada",
+    body: (d) =>
+      wrapHtml(
+        `
+<h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">Contrasena cambiada correctamente</h2>
+<p style="color:#475569;font-size:14px;line-height:1.6;">La contrasena de tu portal fue cambiada.</p>
+<ul style="color:#334155;font-size:13px;line-height:1.7;padding-left:18px;">
+  <li><strong>Hora:</strong> ${escapeHtml(d.time)}</li>
+  <li><strong>IP:</strong> ${escapeHtml(d.ip)}</li>
+  <li><strong>Dispositivo:</strong> ${escapeHtml(d.device)}</li>
+</ul>
+<p style="color:#475569;font-size:14px;line-height:1.6;">Si no fuiste tu, contacta soporte de inmediato.</p>
+${buttonHtml(d.supportUrl, "Contactar Soporte", "#0F5C5C")}
+`,
+        "#0F5C5C",
+        "es"
+      ),
+    text: (d) =>
+      `Tu contrasena fue cambiada.\nHora: ${d.time}\nIP: ${d.ip}\nDispositivo: ${d.device}\nSi no fuiste tu: ${d.supportUrl}`,
+  },
+};
+
+export function getPasswordChangedEmail(
+  locale: string | undefined,
+  details: { time: string; ip: string; device: string; supportUrl: string }
+) {
+  const l = resolveLocale(locale);
+  return {
+    subject: passwordChangedTemplates[l].subject(),
+    html: passwordChangedTemplates[l].body(details),
+    text: passwordChangedTemplates[l].text(details),
+  };
+}

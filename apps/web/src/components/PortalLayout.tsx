@@ -27,6 +27,7 @@ import { useI18n } from "@/i18n/I18nContext";
 import type { TranslationKey } from "@/i18n/translations";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
+import CampaignTopBanner from "@/components/CampaignTopBanner";
 
 interface WidgetBubbleSettings {
   primaryColor: string;
@@ -40,6 +41,7 @@ interface NavItemDef {
   href: string;
   icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
   badge?: "unread"; // inbox only
+  roles?: Array<"owner" | "admin">;
 }
 
 interface NavSectionDef {
@@ -98,6 +100,7 @@ export default function PortalLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useI18n();
+  const userRole = user?.role?.toLowerCase() || "";
 
   const goToInbox = useCallback((unreadOnly: boolean) => {
     setBellOpen(false);
@@ -250,6 +253,7 @@ export default function PortalLayout({
           <div className="px-5 py-3 border-b border-slate-200/80 bg-white/60 shrink-0">
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t("portal.organization")}</div>
             <div className="text-[13px] font-semibold text-slate-800 truncate mt-0.5">{user.orgName}</div>
+            <div className="text-[11px] text-slate-500 truncate mt-0.5">{user.orgKey}</div>
           </div>
         )}
 
@@ -264,6 +268,9 @@ export default function PortalLayout({
               </div>
               <div className="space-y-0.5 px-3">
                 {section.items.map((item) => {
+                  if (item.roles && !item.roles.includes(userRole as "owner" | "admin")) {
+                    return null;
+                  }
                   const isActive = pathname === item.href;
                   const Icon = item.icon;
                   const showUnread = item.badge === "unread" && unreadCount > 0;
@@ -302,15 +309,20 @@ export default function PortalLayout({
 
       <div className="lg:pl-[260px]">
         {/* Top bar */}
-        <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 flex items-center justify-between px-5 sticky top-0 z-20 shadow-sm">
+        <header className="relative h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 flex items-center px-5 sticky top-0 z-20 shadow-sm">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden hover:bg-slate-100 rounded-lg p-2 transition-colors"
+            className="relative z-[2] lg:hidden hover:bg-slate-100 rounded-lg p-2 transition-colors"
           >
             <Menu size={20} strokeWidth={2} className="text-slate-400" />
           </button>
 
-          <div className="flex items-center gap-2 ml-auto">
+          {/* Campaign gradient — blends into header background */}
+          <div className="hidden lg:contents">
+            <CampaignTopBanner source="portal" variant="inline" />
+          </div>
+
+          <div className="relative z-[2] flex items-center gap-2 ml-auto">
             <div className="relative" ref={bellRef}>
               <button
                 type="button"
@@ -413,6 +425,10 @@ export default function PortalLayout({
             )}
           </div>
         </header>
+
+        <div className="lg:hidden">
+          <CampaignTopBanner source="portal" />
+        </div>
 
         {pathname === "/portal/inbox" ? (
           <>{children}</>

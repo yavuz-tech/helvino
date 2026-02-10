@@ -4,6 +4,8 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { storePortalRefreshToken } from "@/lib/portal-auth";
+import { mapPasswordPolicyError } from "@/lib/password-errors";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -36,10 +38,6 @@ function AcceptInviteForm() {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
-      setError(t("team.passwordHint"));
-      return;
-    }
     if (password !== confirmPw) {
       setError(t("team.passwordMismatch"));
       return;
@@ -54,13 +52,18 @@ function AcceptInviteForm() {
         body: JSON.stringify({ token, password, ...(expires && sig ? { expires, sig } : {}) }),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || t("team.failedAction"));
+        const code = typeof data?.error === "object" ? data.error?.code : undefined;
+        const message = typeof data?.error === "object" ? data.error?.message : data?.error;
+        setError(mapPasswordPolicyError(t, code, message || t("team.failedAction")));
         setLoading(false);
         return;
       }
 
+      if (data.refreshToken) {
+        storePortalRefreshToken(data.refreshToken);
+      }
       setSuccess(true);
       setTimeout(() => router.push("/portal"), 1500);
     } catch {
@@ -106,7 +109,7 @@ function AcceptInviteForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={8}
+                  minLength={12}
                   placeholder="••••••••"
                   disabled={loading}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:bg-slate-100"
@@ -124,7 +127,7 @@ function AcceptInviteForm() {
                   value={confirmPw}
                   onChange={(e) => setConfirmPw(e.target.value)}
                   required
-                  minLength={8}
+                  minLength={12}
                   placeholder="••••••••"
                   disabled={loading}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:bg-slate-100"

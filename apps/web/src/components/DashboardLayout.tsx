@@ -15,9 +15,11 @@ import {
   Plus,
   FileText,
   ShieldAlert,
+  Tag,
 } from "lucide-react";
 import { useOrg } from "@/contexts/OrgContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import CampaignTopBanner from "@/components/CampaignTopBanner";
 import { useI18n } from "@/i18n/I18nContext";
 import type { TranslationKey } from "@/i18n/translations";
 
@@ -31,6 +33,7 @@ const navItemDefs: NavItemDef[] = [
   { labelKey: "nav.overview", href: "/dashboard", icon: LayoutDashboard },
   { labelKey: "nav.organizations", href: "/dashboard/orgs", icon: Building2 },
   { labelKey: "nav.settings", href: "/dashboard/settings", icon: Settings },
+  { labelKey: "nav.campaigns", href: "/dashboard/campaigns", icon: Tag },
   { labelKey: "nav.security", href: "/dashboard/settings/security", icon: Shield },
   { labelKey: "nav.auditLog", href: "/dashboard/audit", icon: FileText },
   { labelKey: "nav.recovery", href: "/dashboard/recovery", icon: ShieldAlert },
@@ -217,15 +220,20 @@ export default function DashboardLayout({
       {/* Main Content */}
       <div className="lg:pl-[260px]">
         {/* Top Bar */}
-        <header className="h-16 bg-white/90 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-6 sticky top-0 z-20">
+        <header className="relative h-16 bg-white/90 backdrop-blur-md border-b border-slate-200/60 flex items-center px-6 sticky top-0 z-20">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden hover:bg-slate-100 rounded-lg p-2 transition-colors"
+            className="relative z-[2] lg:hidden hover:bg-slate-100 rounded-lg p-2 transition-colors"
           >
             <Menu size={20} strokeWidth={2} className="text-slate-500" />
           </button>
 
-          <div className="flex items-center gap-2 ml-auto">
+          {/* Campaign gradient — admin also sees global campaigns */}
+          <div className="hidden lg:contents">
+            <CampaignTopBanner source="admin" variant="inline" orgKey={selectedOrg?.key} />
+          </div>
+
+          <div className="relative z-[2] flex items-center gap-2 ml-auto">
             <LanguageSwitcher />
             {user && (
               <>
@@ -252,6 +260,11 @@ export default function DashboardLayout({
             )}
           </div>
         </header>
+
+        {/* Mobile campaign banner */}
+        <div className="lg:hidden">
+          <CampaignTopBanner source="admin" orgKey={selectedOrg?.key} />
+        </div>
 
         {/* Page Content */}
         <main className="p-5 sm:p-6">{children}</main>

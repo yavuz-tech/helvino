@@ -25,6 +25,7 @@ import MfaSetupSection from "@/components/MfaSetupSection";
 import PasskeySection from "@/components/PasskeySection";
 import { useStepUp } from "@/contexts/StepUpContext";
 import PasswordStrength from "@/components/PasswordStrength";
+import { mapPasswordPolicyError } from "@/lib/password-errors";
 
 interface SecuritySettings {
   siteId: string;
@@ -249,11 +250,6 @@ export default function PortalSecurityPage() {
     setError(null);
     setMessage(null);
 
-    if (newPassword.length < 8 || !/[a-zA-Z]/.test(newPassword) || !/\d/.test(newPassword)) {
-      setError(t("security.passwordMinLength"));
-      return;
-    }
-
     if (newPassword !== confirmNewPassword) {
       setError(t("security.passwordMismatch"));
       return;
@@ -272,8 +268,10 @@ export default function PortalSecurityPage() {
     if (result.cancelled) { setChangingPassword(false); return; }
 
     if (!result.ok) {
-      const data = result.data as Record<string, string> | undefined;
-      setError(data?.error || t("security.failedChangePassword"));
+      const data = result.data as Record<string, unknown> | undefined;
+      const nestedError = (data?.error && typeof data.error === "object") ? (data.error as Record<string, string>) : undefined;
+      const fallbackMessage = (typeof data?.error === "string" ? data.error : nestedError?.message) || t("security.failedChangePassword");
+      setError(mapPasswordPolicyError(t, nestedError?.code, fallbackMessage));
       setChangingPassword(false);
       return;
     }
@@ -503,10 +501,10 @@ export default function PortalSecurityPage() {
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-500"
                   required
-                  minLength={8}
+                  minLength={12}
                   disabled={changingPassword}
                 />
-                <PasswordStrength password={newPassword} minLength={8} />
+                <PasswordStrength password={newPassword} minLength={12} />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">{t("security.confirmNewPassword")}</label>
@@ -516,7 +514,7 @@ export default function PortalSecurityPage() {
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-500"
                   required
-                  minLength={8}
+                  minLength={12}
                   disabled={changingPassword}
                 />
               </div>

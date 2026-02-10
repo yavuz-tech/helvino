@@ -235,6 +235,25 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // Alias endpoint for clients using /register naming.
+  fastify.post<{ Body: SignupBody }>(
+    "/portal/auth/register",
+    {
+      preHandler: [signupRateLimit(), validateJsonContentType],
+    },
+    async (request, reply) => {
+      const baseUrl = `http://127.0.0.1:${process.env.PORT || "4000"}`;
+      const proxied = await fetch(`${baseUrl}/portal/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request.body),
+      });
+      const payload = await proxied.json().catch(() => ({ error: "Unable to process registration" }));
+      reply.code(proxied.status);
+      return payload;
+    }
+  );
+
   // ─── POST /portal/auth/resend-verification ────────────────
   fastify.post<{ Body: ResendBody }>(
     "/portal/auth/resend-verification",

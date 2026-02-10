@@ -31,21 +31,22 @@ export async function upsertDevice(
           userAgentHash: uaHash,
         },
       },
+      select: { id: true },
     });
 
-    if (existing) {
-      await prisma.trustedDevice.update({
-        where: { id: existing.id },
-        data: {
-          lastSeenAt: new Date(),
-          lastIp: ip?.substring(0, 45) || null,
+    const device = await prisma.trustedDevice.upsert({
+      where: {
+        userId_userType_userAgentHash: {
+          userId,
+          userType,
+          userAgentHash: uaHash,
         },
-      });
-      return { device: existing, isNew: false };
-    }
-
-    const device = await prisma.trustedDevice.create({
-      data: {
+      },
+      update: {
+        lastSeenAt: new Date(),
+        lastIp: ip?.substring(0, 45) || null,
+      },
+      create: {
         userId,
         userType,
         userAgentHash: uaHash,
@@ -54,7 +55,7 @@ export async function upsertDevice(
         trusted: false,
       },
     });
-    return { device, isNew: true };
+    return { device, isNew: !existing };
   } catch (err) {
     console.error("Device upsert error:", err);
     return { device: null, isNew: false };
