@@ -11,6 +11,7 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import {
   checkPortalAuth,
+  isPortalOnboardingDeferredForSession,
   portalLogout,
   type PortalUser,
 } from "@/lib/portal-auth";
@@ -47,6 +48,12 @@ const PUBLIC_PATHS = [
   "/portal/security-onboarding",
 ];
 
+const ONBOARDING_EXEMPT_PATHS = [
+  "/portal/security-onboarding",
+  "/portal/mfa-setup",
+  "/portal/login",
+];
+
 export function PortalAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PortalUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,11 +61,33 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   const isPublicPath = PUBLIC_PATHS.some((p) => pathname?.startsWith(p));
+  const isOnboardingExemptPath = ONBOARDING_EXEMPT_PATHS.some((p) => pathname?.startsWith(p));
+
+  const shouldForceSecurityOnboarding = useCallback(
+    (portalUser: PortalUser | null) =>
+      Boolean(portalUser?.showSecurityOnboarding) &&
+      !isPortalOnboardingDeferredForSession() &&
+      Boolean(pathname?.startsWith("/portal")) &&
+      !isOnboardingExemptPath,
+    [pathname, isOnboardingExemptPath]
+  );
+
+  const hardRedirectToOnboarding = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.location.replace("/portal/security-onboarding");
+      return;
+    }
+    router.replace("/portal/security-onboarding");
+  }, [router]);
 
   const verify = useCallback(async () => {
     try {
       const portalUser = await checkPortalAuth();
       setUser(portalUser);
+      if (shouldForceSecurityOnboarding(portalUser)) {
+        hardRedirectToOnboarding();
+        return;
+      }
       if (!portalUser && !isPublicPath) {
         router.push("/portal/login");
       }
@@ -70,11 +99,19 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [router, isPublicPath]);
+  }, [router, isPublicPath, shouldForceSecurityOnboarding, hardRedirectToOnboarding]);
 
   useEffect(() => {
     verify();
   }, [verify]);
+
+  // Global hard-guard: if onboarding is required, keep user on onboarding flow.
+  useEffect(() => {
+    if (loading) return;
+    if (shouldForceSecurityOnboarding(user)) {
+      hardRedirectToOnboarding();
+    }
+  }, [loading, user, router, shouldForceSecurityOnboarding, hardRedirectToOnboarding]);
 
   // Fail-safe: never keep portal UI in infinite loading state.
   useEffect(() => {

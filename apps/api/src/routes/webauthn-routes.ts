@@ -47,9 +47,14 @@ import {
   PORTAL_REFRESH_TOKEN_TTL_MS,
 } from "../utils/portal-session";
 import { createEmergencyLockToken } from "../utils/emergency-lock-token";
-import { getLoginNotificationEmail } from "../emails/login-notification";
-import { getSessionRevokedEmail } from "../emails/session-revoked";
+import {
+  getLoginNotificationEmailTemplate,
+  getSessionRevokedEmailTemplate,
+  extractLocaleCookie,
+  normalizeRequestLocale,
+} from "../utils/email-templates";
 import { getDefaultFromAddress, sendEmailAsync } from "../utils/mailer";
+import { getRealIP } from "../utils/get-real-ip";
 
 function hashToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -82,7 +87,7 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
       const challenge = await createChallengeDB(
         user.id,
         "portal",
-        request.ip,
+        getRealIP(request),
         request.headers["user-agent"] as string | undefined
       );
 
@@ -218,7 +223,7 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
       const challenge = await createChallengeDB(
         orgUser.id,
         "portal",
-        request.ip,
+        getRealIP(request),
         request.headers["user-agent"] as string | undefined
       );
 
@@ -262,7 +267,7 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
       // Find the user
       const orgUser = await prisma.orgUser.findUnique({
         where: { id: stored.userId },
-        include: { organization: { select: { id: true, key: true, name: true } } },
+        include: { organization: { select: { id: true, key: true, name: true, language: true } } },
       });
 
       if (!orgUser || !orgUser.isActive) {
@@ -306,17 +311,32 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
           secret
         );
 
-        const geo = request.ip ? geoip.lookup(request.ip) : null;
+        const requestIp = getRealIP(request);
+        const geo = requestIp !== "unknown" ? geoip.lookup(requestIp) : null;
         const loginCountry = geo?.country || null;
         const loginCity = geo?.city || null;
+        const requestUa = ((request.headers["user-agent"] as string) || "unknown").substring(0, 256);
+        const previousSession = await prisma.portalSession.findFirst({
+          where: { orgUserId: orgUser.id },
+          orderBy: { lastSeenAt: "desc" },
+          select: {
+            ip: true,
+            userAgent: true,
+          },
+        });
+        const sameIp = Boolean(previousSession?.ip) && requestIp !== "unknown" && previousSession?.ip === requestIp;
+        const sameDevice =
+          Boolean(previousSession?.userAgent) &&
+          previousSession?.userAgent === requestUa;
+        const shouldSendLoginNotification = !(sameDevice && sameIp);
         const sessionResult = await createPortalSessionWithLimit({
           orgUserId: orgUser.id,
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
           accessExpiresAt: tokens.accessExpiresAt,
           refreshExpiresAt: tokens.refreshExpiresAt,
-          ip: request.ip || null,
-          userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || null,
+          ip: requestIp !== "unknown" ? requestIp : null,
+          userAgent: requestUa,
           deviceName: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
           loginCountry,
           loginCity,
@@ -336,38 +356,45 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
           orgUser.id,
           "portal",
           request.headers["user-agent"] as string | undefined,
-          request.ip
+          requestIp
         );
 
         const appUrl = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
         const lockToken = createEmergencyLockToken(orgUser.id);
         const lockUrl = `${appUrl}/portal/login?emergencyLockToken=${encodeURIComponent(lockToken)}`;
         const locationLabel = [loginCity, loginCountry].filter(Boolean).join(", ") || "Unknown";
-        const loginNotification = getLoginNotificationEmail({
-          email: orgUser.email,
-          deviceName: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
-          location: locationLabel,
-          ip: request.ip || "unknown",
-          time: new Date().toISOString(),
-          lockUrl,
-        });
-        sendEmailAsync({
-          to: loginNotification.to,
-          from: getDefaultFromAddress(),
-          subject: loginNotification.subject,
-          html: loginNotification.html,
-          text: loginNotification.text,
-          tags: ["security", "login-notification"],
-        });
+        const cookieLang = extractLocaleCookie(request.headers.cookie as string);
+        const securityLocale = normalizeRequestLocale(
+          undefined,
+          cookieLang,
+          request.headers["accept-language"] as string,
+          orgUser.organization.language || undefined
+        );
+        if (shouldSendLoginNotification) {
+          const loginNotification = getLoginNotificationEmailTemplate(securityLocale, {
+            ip: requestIp,
+            time: new Date().toISOString(),
+            device: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
+            location: locationLabel,
+            securityUrl: lockUrl,
+          });
+          sendEmailAsync({
+            to: orgUser.email,
+            from: getDefaultFromAddress(),
+            subject: loginNotification.subject,
+            html: loginNotification.html,
+            text: loginNotification.text,
+            tags: ["security", "login-notification"],
+          });
+        }
 
         if (sessionResult.revokedSession) {
-          const revokedEmail = getSessionRevokedEmail({
-            email: orgUser.email,
+          const revokedEmail = getSessionRevokedEmailTemplate(securityLocale, {
             deviceName: sessionResult.revokedSession.deviceName || "Unknown device",
             sessionsUrl: `${appUrl}/portal/settings/sessions`,
           });
           sendEmailAsync({
-            to: revokedEmail.to,
+            to: orgUser.email,
             from: getDefaultFromAddress(),
             subject: revokedEmail.subject,
             html: revokedEmail.html,
@@ -386,6 +413,7 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
 
         return {
           ok: true,
+          showSecurityOnboarding: !orgUser.mfaEnabled && !orgUser.securityOnboardingDismissedAt,
           refreshToken: tokens.refreshToken,
           refreshExpiresInSec: Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000),
           user: {
@@ -570,7 +598,7 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
       const challenge = await createChallengeDB(
         admin.id,
         "admin",
-        request.ip,
+        getRealIP(request),
         request.headers["user-agent"] as string | undefined
       );
 
@@ -698,7 +726,7 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
       const challenge = await createChallengeDB(
         adminUser.id,
         "admin",
-        request.ip,
+        getRealIP(request),
         request.headers["user-agent"] as string | undefined
       );
 
@@ -777,7 +805,7 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
           adminUser.id,
           "admin",
           request.headers["user-agent"] as string | undefined,
-          request.ip
+          getRealIP(request)
         );
 
         await writeAuditLog(

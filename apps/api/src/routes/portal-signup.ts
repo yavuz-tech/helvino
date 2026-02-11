@@ -15,12 +15,15 @@ import { getVerifyEmailContent, normalizeRequestLocale, extractLocaleCookie } fr
 import { generateVerifyEmailLink, verifyEmailSignature } from "../utils/signed-links";
 import { writeAuditLog } from "../utils/audit-log";
 import {
-  signupRateLimit,
+  signupEmailRateLimit,
+  signupIpRateLimit,
   verifyEmailRateLimit,
   resendVerificationRateLimit,
 } from "../utils/rate-limit";
 import { validatePasswordPolicy } from "../utils/password-policy";
 import { validateJsonContentType } from "../middleware/validation";
+import { verifyHCaptchaToken } from "../utils/verify-captcha";
+import { getRealIP } from "../utils/get-real-ip";
 
 function generateOrgKey(orgName: string): string {
   // Create a URL-safe slug from org name + random suffix
@@ -42,6 +45,7 @@ interface SignupBody {
   email: string;
   password: string;
   locale?: string;
+  captchaToken?: string;
 }
 
 interface ResendBody {
@@ -49,15 +53,41 @@ interface ResendBody {
   locale?: string;
 }
 
+const DISPOSABLE_EMAIL_DOMAINS = new Set<string>([
+  "guerrillamail.com",
+  "tempmail.com",
+  "10minutemail.com",
+  "mailinator.com",
+  "yopmail.com",
+  "sharklasers.com",
+  "trashmail.com",
+  "getnada.com",
+  "temp-mail.org",
+  "maildrop.cc",
+  "dispostable.com",
+]);
+
+function isDisposableEmail(email: string): boolean {
+  const domain = email.split("@")[1]?.toLowerCase() || "";
+  if (!domain) return false;
+  if (DISPOSABLE_EMAIL_DOMAINS.has(domain)) return true;
+  for (const blocked of DISPOSABLE_EMAIL_DOMAINS) {
+    if (domain.endsWith(`.${blocked}`)) return true;
+  }
+  return false;
+}
+
 export async function portalSignupRoutes(fastify: FastifyInstance) {
   // ─── POST /portal/auth/signup ─────────────────────────────
   fastify.post<{ Body: SignupBody }>(
     "/portal/auth/signup",
     {
-      preHandler: [signupRateLimit(), validateJsonContentType],
+      preHandler: [signupIpRateLimit(), signupEmailRateLimit(), validateJsonContentType],
     },
     async (request, reply) => {
-      const { orgName, email, password, locale } = request.body;
+      const { orgName, email, password, locale, captchaToken } = request.body;
+      const cookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const requestedLocale = normalizeRequestLocale(locale, cookieLang, request.headers["accept-language"] as string);
       const requestId =
         (request as any).requestId ||
         (request.headers["x-request-id"] as string) ||
@@ -77,6 +107,30 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
 
       const trimmedEmail = email.toLowerCase().trim();
       const trimmedOrgName = orgName.trim();
+      const requestIp = getRealIP(request);
+
+      if (!captchaToken?.trim()) {
+        reply.code(400);
+        return {
+          error: {
+            code: "CAPTCHA_REQUIRED",
+            message: "CAPTCHA verification is required",
+            requestId,
+          },
+        };
+      }
+
+      const captchaValid = await verifyHCaptchaToken(captchaToken.trim(), requestIp);
+      if (!captchaValid) {
+        reply.code(400);
+        return {
+          error: {
+            code: "INVALID_CAPTCHA",
+            message: "CAPTCHA verification failed",
+            requestId,
+          },
+        };
+      }
 
       if (trimmedOrgName.length < 2 || trimmedOrgName.length > 100) {
         reply.code(400);
@@ -113,6 +167,17 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         };
       }
 
+      if (isDisposableEmail(trimmedEmail)) {
+        reply.code(400);
+        return {
+          error: {
+            code: "DISPOSABLE_EMAIL_NOT_ALLOWED",
+            message: "Disposable email addresses are not allowed",
+            requestId,
+          },
+        };
+      }
+
       // Check if email already exists
       const existing = await prisma.orgUser.findUnique({
         where: { email: trimmedEmail },
@@ -131,6 +196,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
 
       let targetOrgId: string;
       let targetEmail = trimmedEmail;
+      let targetLocale = requestedLocale;
 
       if (existing && !existing.emailVerifiedAt) {
         // ── Unverified account exists → update password & org name, resend verification ──
@@ -145,11 +211,12 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
           // Update org name
           await tx.organization.update({
             where: { id: existing.orgId },
-            data: { name: trimmedOrgName },
+            data: { name: trimmedOrgName, language: requestedLocale },
           });
         });
 
         targetOrgId = existing.orgId;
+        targetLocale = requestedLocale;
         console.log(`[signup] Unverified account updated for ${trimmedEmail} — resending verification`);
 
         writeAuditLog(
@@ -171,6 +238,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
               key: orgKey,
               siteId,
               name: trimmedOrgName,
+              language: requestedLocale,
               createdVia: "self_serve",
               isActive: true,
               planKey: "free",
@@ -199,6 +267,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         });
 
         targetOrgId = org.id;
+        targetLocale = requestedLocale;
 
         writeAuditLog(
           org.id,
@@ -209,13 +278,11 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         ).catch(() => {});
       }
 
-      // Generate verification link (24h expiry)
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      // Generate verification link (1h expiry)
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
       const verifyLink = generateVerifyEmailLink(targetEmail, expiresAt);
 
-      const cookieLang = extractLocaleCookie(request.headers.cookie as string);
-      const requestedLocale = normalizeRequestLocale(locale, cookieLang, request.headers["accept-language"] as string);
-      const emailContent = getVerifyEmailContent(requestedLocale, verifyLink);
+      const emailContent = getVerifyEmailContent(targetLocale, verifyLink);
 
       // Fire-and-forget: don't block signup response
       sendEmailAsync({
@@ -239,7 +306,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: SignupBody }>(
     "/portal/auth/register",
     {
-      preHandler: [signupRateLimit(), validateJsonContentType],
+      preHandler: [validateJsonContentType],
     },
     async (request, reply) => {
       const baseUrl = `http://127.0.0.1:${process.env.PORT || "4000"}`;
@@ -284,15 +351,26 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
       // Only actually send if user exists + not yet verified
       const user = await prisma.orgUser.findUnique({
         where: { email: trimmedEmail },
-        select: { id: true, emailVerifiedAt: true, orgId: true, isActive: true },
+        select: {
+          id: true,
+          emailVerifiedAt: true,
+          orgId: true,
+          isActive: true,
+          organization: { select: { language: true } },
+        },
       });
 
       if (user && !user.emailVerifiedAt && user.isActive) {
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
         const verifyLink = generateVerifyEmailLink(trimmedEmail, expiresAt);
 
         const cookieLang = extractLocaleCookie(request.headers.cookie as string);
-        const requestedLocale = normalizeRequestLocale(locale, cookieLang, request.headers["accept-language"] as string);
+        const requestedLocale = normalizeRequestLocale(
+          locale,
+          cookieLang,
+          request.headers["accept-language"] as string,
+          user.organization.language || undefined
+        );
         const emailContent = getVerifyEmailContent(requestedLocale, verifyLink);
 
         // Fire-and-forget: don't block resend response

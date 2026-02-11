@@ -22,16 +22,21 @@ import {
   PORTAL_REFRESH_TOKEN_TTL_MS,
 } from "../utils/portal-session";
 import { upsertDevice } from "../utils/device";
-import { getAccountUnlockEmail, extractLocaleCookie, normalizeRequestLocale } from "../utils/email-templates";
+import {
+  getAccountUnlockEmail,
+  extractLocaleCookie,
+  normalizeRequestLocale,
+  getLoginNotificationEmailTemplate,
+  getNewDeviceDetectedEmail,
+  getLocationChangeAlertEmailTemplate,
+  getSessionRevokedEmailTemplate,
+} from "../utils/email-templates";
 import { getDefaultFromAddress, sendEmailAsync } from "../utils/mailer";
 import { writeAuditLog } from "../utils/audit-log";
 import { verifyHCaptchaToken } from "../utils/verify-captcha";
 import { isKnownDeviceFingerprint } from "../utils/check-device-trust";
 import { createEmergencyLockToken, verifyEmergencyLockToken } from "../utils/emergency-lock-token";
-import { getLoginNotificationEmail } from "../emails/login-notification";
-import { getLocationChangeAlertEmail } from "../emails/location-change-alert";
-import { getNewDeviceLoginEmail } from "../emails/new-device-login";
-import { getSessionRevokedEmail } from "../emails/session-revoked";
+import { getRealIP } from "../utils/get-real-ip";
 
 function hashToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -112,8 +117,15 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       const requestedDeviceId = request.body?.deviceId?.trim();
       const requestedDeviceName = request.body?.deviceName?.trim();
       const normalizedEmail = (email || "").toLowerCase().trim();
-      const requestIp = request.ip || "unknown";
+      const requestIp = getRealIP(request);
       const requestUa = ((request.headers["user-agent"] as string) || "unknown").substring(0, 256);
+      const cookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const preferredLocale = normalizeRequestLocale(
+        locale,
+        cookieLang,
+        request.headers["accept-language"] as string,
+        undefined
+      );
       const requestId =
         (request as any).requestId ||
         (request.headers["x-request-id"] as string) ||
@@ -135,7 +147,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         where: { email: normalizedEmail },
         include: {
           organization: {
-            select: { id: true, key: true, name: true },
+            select: { id: true, key: true, name: true, language: true },
           },
         },
       });
@@ -219,11 +231,11 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
             },
           });
 
-          const cookieLang = extractLocaleCookie(request.headers.cookie as string);
           const requestedLocale = normalizeRequestLocale(
-            locale,
+            preferredLocale,
             cookieLang,
-            request.headers["accept-language"] as string
+            request.headers["accept-language"] as string,
+            orgUser.organization.language || undefined
           );
           const unlockEmail = getAccountUnlockEmail(requestedLocale, rawUnlockToken);
 
@@ -355,7 +367,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         };
       }
 
-      const geo = request.ip ? geoip.lookup(request.ip) : null;
+      const geo = requestIp !== "unknown" ? geoip.lookup(requestIp) : null;
       const loginCountry = geo?.country || null;
       const loginCity = geo?.city || null;
       const previousCountry = orgUser.lastLoginCountry || null;
@@ -368,6 +380,35 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       const seenBefore = deviceFingerprint
         ? await isKnownDeviceFingerprint(orgUser.id, deviceFingerprint)
         : true;
+      const previousSession = await prisma.portalSession.findFirst({
+        where: { orgUserId: orgUser.id },
+        orderBy: { lastSeenAt: "desc" },
+        select: {
+          ip: true,
+          deviceFingerprint: true,
+          deviceId: true,
+          userAgent: true,
+        },
+      });
+      const fingerprintMatch =
+        Boolean(deviceFingerprint) &&
+        Boolean(previousSession?.deviceFingerprint) &&
+        previousSession?.deviceFingerprint === deviceFingerprint;
+      const deviceIdMatch =
+        Boolean(deviceId) &&
+        Boolean(previousSession?.deviceId) &&
+        previousSession?.deviceId === deviceId;
+      const userAgentMatch =
+        Boolean(requestUa) &&
+        Boolean(previousSession?.userAgent) &&
+        previousSession?.userAgent === requestUa;
+      const sameDevice = fingerprintMatch || deviceIdMatch || (!deviceFingerprint && !deviceId && userAgentMatch);
+      const sameIp =
+        Boolean(previousSession?.ip) &&
+        requestIp !== "unknown" &&
+        previousSession?.ip === requestIp;
+      // Avoid spamming on routine sign-ins from the same device and IP.
+      const shouldSendLoginNotification = !(sameDevice && sameIp);
 
       // Update lastLoginAt
       await prisma.orgUser.update({
@@ -407,7 +448,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
           refreshToken: tokens.refreshToken,
           accessExpiresAt: tokens.accessExpiresAt,
           refreshExpiresAt: tokens.refreshExpiresAt,
-          ip: request.ip || null,
+          ip: requestIp !== "unknown" ? requestIp : null,
           userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || null,
           deviceFingerprint: deviceFingerprint || null,
           deviceId,
@@ -432,7 +473,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
             refreshToken: tokens.refreshToken,
             accessExpiresAt: tokens.accessExpiresAt,
             refreshExpiresAt: tokens.refreshExpiresAt,
-            ip: request.ip || null,
+            ip: requestIp !== "unknown" ? requestIp : null,
             userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || null,
             deviceFingerprint: deviceFingerprint || null,
             deviceId,
@@ -466,38 +507,49 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         orgUser.id,
         "portal",
         request.headers["user-agent"] as string | undefined,
-        request.ip
+        requestIp
       );
 
       // Security emails should not block login.
       const nowIso = new Date().toISOString();
-      const loginNotification = getLoginNotificationEmail({
-        email: orgUser.email,
-        deviceName,
-        location: locationLabel,
-        ip: requestIp,
-        time: nowIso,
-        lockUrl,
-      });
-      sendEmailAsync({
-        to: loginNotification.to,
-        from: getDefaultFromAddress(),
-        subject: loginNotification.subject,
-        html: loginNotification.html,
-        text: loginNotification.text,
-        tags: ["security", "login-notification"],
-      });
+      const securityLocale = normalizeRequestLocale(
+        preferredLocale,
+        cookieLang,
+        request.headers["accept-language"] as string,
+        orgUser.organization.language || undefined
+      );
+      if (shouldSendLoginNotification) {
+        const loginNotification = getLoginNotificationEmailTemplate(securityLocale, {
+          time: nowIso,
+          ip: requestIp,
+          device: deviceName,
+          location: locationLabel,
+          securityUrl: lockUrl,
+        });
+        const loginEmailHtml = loginNotification.html;
+        if (process.env.NODE_ENV !== "production") {
+          console.log("EMAIL HTML:", loginEmailHtml.substring(0, 500));
+        }
+        sendEmailAsync({
+          to: orgUser.email,
+          from: getDefaultFromAddress(),
+          subject: loginNotification.subject,
+          html: loginEmailHtml,
+          text: loginNotification.text,
+          tags: ["security", "login-notification"],
+        });
+      }
 
       if (!seenBefore && deviceFingerprint) {
-        const newDevice = getNewDeviceLoginEmail({
-          email: orgUser.email,
-          deviceName,
-          location: locationLabel,
-          ip: requestIp,
+        const newDevice = getNewDeviceDetectedEmail(securityLocale, {
           time: nowIso,
+          ip: requestIp,
+          device: deviceName,
+          location: locationLabel,
+          securityUrl: lockUrl,
         });
         sendEmailAsync({
-          to: newDevice.to,
+          to: orgUser.email,
           from: getDefaultFromAddress(),
           subject: newDevice.subject,
           html: newDevice.html,
@@ -507,14 +559,13 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       }
 
       if (previousCountry && loginCountry && previousCountry !== loginCountry) {
-        const locationAlert = getLocationChangeAlertEmail({
-          email: orgUser.email,
+        const locationAlert = getLocationChangeAlertEmailTemplate(securityLocale, {
           previousLocation: previousCountry,
           newLocation: locationLabel,
-          lockUrl,
+          securityUrl: lockUrl,
         });
         sendEmailAsync({
-          to: locationAlert.to,
+          to: orgUser.email,
           from: getDefaultFromAddress(),
           subject: locationAlert.subject,
           html: locationAlert.html,
@@ -524,13 +575,12 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       }
 
       if (sessionResult.revokedSession) {
-        const revokedEmail = getSessionRevokedEmail({
-          email: orgUser.email,
+        const revokedEmail = getSessionRevokedEmailTemplate(securityLocale, {
           deviceName: sessionResult.revokedSession.deviceName || "Unknown device",
           sessionsUrl: `${appUrl}/portal/settings/sessions`,
         });
         sendEmailAsync({
-          to: revokedEmail.to,
+          to: orgUser.email,
           from: getDefaultFromAddress(),
           subject: revokedEmail.subject,
           html: revokedEmail.html,
@@ -543,7 +593,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         ok: true,
         refreshToken: tokens.refreshToken,
         refreshExpiresInSec: Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000),
-        showSecurityOnboarding: !orgUser.mfaEnabled && !orgUser.securityOnboardingShown,
+        showSecurityOnboarding: !orgUser.mfaEnabled && !orgUser.securityOnboardingDismissedAt,
         user: {
           id: orgUser.id,
           email: orgUser.email,
@@ -639,7 +689,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       refreshToken: tokens.refreshToken,
       accessExpiresAt: tokens.accessExpiresAt,
       refreshExpiresAt: tokens.refreshExpiresAt,
-      ip: request.ip || null,
+      ip: getRealIP(request) !== "unknown" ? getRealIP(request) : null,
       userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || null,
       deviceName: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
       deviceId: null,
@@ -805,7 +855,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
           refreshToken: shouldRotateRefresh ? tokens.refreshToken : session.refreshToken,
           refreshExpiresAt: shouldRotateRefresh ? tokens.refreshExpiresAt : session.refreshExpiresAt,
           lastSeenAt: new Date(),
-          ip: request.ip || session.ip,
+          ip: getRealIP(request) !== "unknown" ? getRealIP(request) : session.ip,
           userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || session.userAgent,
         },
       });
@@ -823,6 +873,8 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         ok: true,
         refreshToken: shouldRotateRefresh ? tokens.refreshToken : session.refreshToken,
         refreshExpiresInSec: shouldRotateRefresh ? Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000) : undefined,
+        showSecurityOnboarding:
+          !session.orgUser.mfaEnabled && !session.orgUser.securityOnboardingDismissedAt,
         user: {
           id: session.orgUser.id,
           email: session.orgUser.email,
@@ -830,6 +882,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
           orgId: session.orgUser.orgId,
           orgKey: session.orgUser.organization.key,
           orgName: session.orgUser.organization.name,
+          mfaEnabled: session.orgUser.mfaEnabled || false,
         },
       };
     }
@@ -885,7 +938,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         user.orgId,
         user.email,
         "security.emergency_lock",
-        { ip: request.ip || "unknown" },
+        { ip: getRealIP(request) },
         request.requestId
       ).catch(() => {/* ignore */});
 
@@ -1071,6 +1124,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
 
     return {
       ok: true,
+      showSecurityOnboarding: !orgUser.mfaEnabled && !orgUser.securityOnboardingDismissedAt,
       user: {
         id: orgUser.id,
         email: orgUser.email,

@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import type { CheckoutSession } from "@prisma/client";
 import { prisma } from "../prisma";
 import { getDefaultFromAddress, sendEmail } from "../utils/mailer";
-import { renderAbandonedCheckoutEmail } from "./abandoned-checkout";
+import { getAbandonedCheckoutEmail } from "../utils/email-templates";
 
 function generatePromoCode(): string {
   const suffix = randomUUID().replace(/-/g, "").slice(0, 6).toUpperCase();
@@ -12,7 +12,9 @@ function generatePromoCode(): string {
 export async function sendAbandonedCheckoutEmail(session: CheckoutSession): Promise<{ sent: boolean; promoCode: string | null }> {
   const promoCode = generatePromoCode();
   const now = new Date();
-  const validUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const discountPercent = 20;
+  const expiresInHours = 48;
+  const validUntil = new Date(now.getTime() + expiresInHours * 60 * 60 * 1000);
 
   // Create a one-time promo code for this abandoned session.
   const promo = await prisma.promoCode.create({
@@ -20,7 +22,7 @@ export async function sendAbandonedCheckoutEmail(session: CheckoutSession): Prom
       id: randomUUID(),
       code: promoCode,
       discountType: "percentage",
-      discountValue: 20,
+      discountValue: discountPercent,
       maxUses: 1,
       currentUses: 0,
       validFrom: now,
@@ -37,19 +39,25 @@ export async function sendAbandonedCheckoutEmail(session: CheckoutSession): Prom
 
   const appUrl = process.env.APP_URL || process.env.APP_PUBLIC_URL || "http://localhost:3000";
   const checkoutUrl = `${appUrl}/portal/billing?resume=${encodeURIComponent(session.id)}&promo=${encodeURIComponent(promoCode)}`;
-  const html = renderAbandonedCheckoutEmail({
+  const org = await prisma.organization.findUnique({
+    where: { id: session.organizationId },
+    select: { language: true },
+  });
+  const emailContent = getAbandonedCheckoutEmail(org?.language, {
     name: session.email.split("@")[0] || "User",
     planName: session.planType,
     promoCode,
     checkoutUrl,
-    expiresInHours: 24,
+    expiresInHours,
+    discountPercent,
   });
 
   const result = await sendEmail({
     from: getDefaultFromAddress(),
     to: session.email,
-    subject: "Helvino planiniz sizi bekliyor! 🎁",
-    html,
+    subject: emailContent.subject,
+    html: emailContent.html,
+    text: emailContent.text,
     tags: ["checkout-abandoned", "promo"],
   });
 

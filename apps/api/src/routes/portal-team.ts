@@ -102,9 +102,6 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const actor = request.portalUser!;
       const body = request.body as { email?: string; role?: string; locale?: string };
-      const cookieLang = extractLocaleCookie(request.headers.cookie as string);
-      const requestedLocale = normalizeRequestLocale(body.locale, cookieLang, request.headers["accept-language"] as string);
-      console.log(`[team:invite] body.locale=${JSON.stringify(body.locale)} cookie=${cookieLang} → resolved=${requestedLocale}`);
 
       // Validate email
       const email = body.email?.toLowerCase().trim();
@@ -211,6 +208,13 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
         where: { id: actor.orgId },
         select: { name: true, language: true },
       });
+      const cookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const requestedLocale = normalizeRequestLocale(
+        body.locale,
+        cookieLang,
+        request.headers["accept-language"] as string,
+        org?.language || undefined
+      );
 
       const expiresInText = requestedLocale === "tr" ? "7 gün" : requestedLocale === "es" ? "7 días" : "7 days";
       const emailContent = getInviteEmail(
@@ -270,10 +274,6 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
         return { error: "inviteId is required" };
       }
 
-      const cookieLang = extractLocaleCookie(request.headers.cookie as string);
-      const resendLocale = normalizeRequestLocale(body.locale, cookieLang, request.headers["accept-language"] as string);
-      console.log(`[team:resend] body.locale=${JSON.stringify(body.locale)} cookie=${cookieLang} → resolved=${resendLocale}`);
-
       const invite = await prisma.portalInvite.findFirst({
         where: { id: body.inviteId, orgId: actor.orgId, acceptedAt: null },
       });
@@ -311,6 +311,13 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
         where: { id: actor.orgId },
         select: { name: true, language: true },
       });
+      const cookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const resendLocale = normalizeRequestLocale(
+        body.locale,
+        cookieLang,
+        request.headers["accept-language"] as string,
+        org?.language || undefined
+      );
 
       const resendExpiresIn = resendLocale === "tr" ? "7 gün" : resendLocale === "es" ? "7 días" : "7 days";
       const emailContent = getInviteEmail(

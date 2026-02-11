@@ -17,7 +17,7 @@ import { bootloaderRoutes } from "./routes/bootloader";
 import { orgAdminRoutes } from "./routes/org-admin";
 import { observabilityRoutes } from "./routes/observability";
 import { internalAdminRoutes } from "./routes/internal-admin";
-import { authRoutes } from "./routes/auth";
+import { authRoutes } from "./routes/admin-auth";
 import { securityRoutes } from "./routes/security";
 import { orgAuthRoutes } from "./routes/org-auth";
 import { orgCustomerRoutes } from "./routes/org-customer";
@@ -58,6 +58,7 @@ import { upsertVisitor } from "./utils/visitor";
 import { requestContextPlugin } from "./plugins/request-context";
 import { metricsTracker } from "./utils/metrics";
 import { createRateLimitMiddleware } from "./middleware/rate-limit";
+import { getRealIP } from "./utils/get-real-ip";
 import { validateOrgKey, validateVisitorId, validateJsonContentType, validateMessageContent } from "./middleware/validation";
 import { validateDomainAllowlist } from "./middleware/domain-allowlist";
 import { requireOrgToken } from "./middleware/require-org-token";
@@ -366,9 +367,7 @@ fastify.post<{
   let visitorId: string | undefined;
   if (visitorKey) {
     try {
-      const clientIp = (request.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
-        || request.headers["x-real-ip"] as string
-        || request.ip;
+      const clientIp = getRealIP(request);
       const visitor = await upsertVisitor(org.id, visitorKey, {
         userAgent,
         ip: clientIp || undefined,

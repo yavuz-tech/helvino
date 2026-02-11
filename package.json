@@ -10,11 +10,19 @@
     "lint": "pnpm -r lint",
     "clean": "pnpm -r clean && rm -rf node_modules"
   },
-  "keywords": ["monorepo", "helvino", "ai", "chat"],
+  "keywords": [
+    "monorepo",
+    "helvino",
+    "ai",
+    "chat"
+  ],
   "author": "Helvino Team",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
   }
 }

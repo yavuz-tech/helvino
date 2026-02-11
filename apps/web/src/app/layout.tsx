@@ -56,7 +56,23 @@ const I18N_BLOCKING_SCRIPT = `
 `;
 const CHUNK_LOAD_ERROR_RECOVERY = `
 (function(){
+  function isGenericEventReason(value) {
+    if (typeof value === 'string') {
+      var normalized = value.trim();
+      return normalized === '[object Event]' || normalized === '[object Object]' || normalized === 'Event';
+    }
+    if (!value || typeof value !== 'object') return false;
+    if (value instanceof Event) return true;
+    var msg = typeof value.message === 'string' ? value.message.trim() : '';
+    if (msg) return false;
+    return typeof value.type === 'string';
+  }
+
   window.addEventListener('error', function(e) {
+    if (isGenericEventReason(e.error) || isGenericEventReason(e.message)) {
+      e.preventDefault();
+      return;
+    }
     if (e.message && (e.message.indexOf('ChunkLoadError') !== -1 || e.message.indexOf('Loading chunk') !== -1)) {
       var key = 'helvino_chunk_retry_' + (location.pathname || '/');
       var retries = parseInt(sessionStorage.getItem(key) || '0', 10);
@@ -67,6 +83,10 @@ const CHUNK_LOAD_ERROR_RECOVERY = `
     }
   });
   window.addEventListener('unhandledrejection', function(e) {
+    if (isGenericEventReason(e.reason)) {
+      e.preventDefault();
+      return;
+    }
     var msg = (e.reason && (e.reason.message || String(e.reason))) || '';
     if (msg.indexOf('ChunkLoadError') !== -1 || msg.indexOf('Loading chunk') !== -1) {
       var key = 'helvino_chunk_retry_' + (location.pathname || '/');

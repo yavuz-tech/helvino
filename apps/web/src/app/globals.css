@@ -1,6 +1,30 @@
+@import url("https://api.fontshare.com/v2/css?f[]=satoshi@700,600,500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --font-heading: "Satoshi", -apple-system, sans-serif;
+  --font-body: "Manrope", -apple-system, sans-serif;
+  --primary: #1A1D23;
+  --accent: #F59E0B;
+  --highlight: #FB7185;
+  --bg-warm: #FFFBEB;
+  --bg-glass: rgba(255, 251, 235, 0.8);
+  --text-primary: #1A1D23;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+body, p, span, div, input, button, label {
+  font-family: var(--font-body);
+}
 
 /* ── Bell: wiggle on new message arrival ── */
 @keyframes bell-wiggle {
@@ -236,4 +260,11 @@
 
 .premium-palette-card:hover:not(:disabled) > .premium-palette-inner {
   background: #f8fafc;
+}
+
+/* Keep inbox layout aligned when desktop sidebar is collapsed */
+@media (min-width: 1024px) {
+  .portal-shell[data-sidebar-collapsed="1"] .portal-inbox-root {
+    left: 72px !important;
+  }
 }

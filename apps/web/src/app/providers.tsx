@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { DebugProvider } from "@/contexts/DebugContext";
 import { OrgProvider } from "@/contexts/OrgContext";
 import { StepUpProvider } from "@/contexts/StepUpContext";
@@ -18,6 +19,42 @@ function DebugGate() {
 }
 
 export default function Providers({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const isGenericEventPayload = (value: unknown): boolean => {
+      if (typeof value === "string") {
+        const normalized = value.trim();
+        return normalized === "[object Event]" || normalized === "[object Object]" || normalized === "Event";
+      }
+      if (!value || typeof value !== "object") return false;
+      if (value instanceof Event) return true;
+      const asRecord = value as { message?: unknown; type?: unknown };
+      // Real Error objects should not be swallowed.
+      if (typeof asRecord.message === "string" && asRecord.message.trim().length > 0) return false;
+      return typeof asRecord.type === "string";
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (isGenericEventPayload(event.reason)) {
+        event.preventDefault();
+        console.warn("[runtime] Suppressed generic Event rejection:", event.reason);
+      }
+    };
+
+    const handleWindowError = (event: ErrorEvent) => {
+      if (isGenericEventPayload(event.error) || isGenericEventPayload(event.message)) {
+        event.preventDefault();
+        console.warn("[runtime] Suppressed generic Event error:", event.error ?? event.message);
+      }
+    };
+
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    window.addEventListener("error", handleWindowError);
+    return () => {
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+      window.removeEventListener("error", handleWindowError);
+    };
+  }, []);
+
   return (
     <I18nProvider>
       <CurrencyProvider>

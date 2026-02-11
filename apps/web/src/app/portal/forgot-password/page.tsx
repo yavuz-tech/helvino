@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
+import { motion } from "framer-motion";
+import { ArrowLeft, CheckCircle2, Mail } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ErrorBanner from "@/components/ErrorBanner";
@@ -18,13 +20,23 @@ export default function ForgotPasswordPage() {
   const [resetLink, setResetLink] = useState<string | null>(null);
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [resendCountdown, setResendCountdown] = useState(0);
   const captchaSiteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "";
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (!resendCountdown) return;
+    const timer = window.setInterval(() => {
+      setResendCountdown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCountdown]);
+
+  const sendResetRequest = async () => {
     setError(null);
     setIsLoading(true);
-    setResetLink(null);
+    if (!success) {
+      setResetLink(null);
+    }
 
     try {
       const res = await fetch(`${API_URL}/portal/auth/forgot-password`, {
@@ -64,6 +76,7 @@ export default function ForgotPasswordPage() {
       }
 
       setSuccess(true);
+      setResendCountdown(30);
       if (data.resetLink) {
         setResetLink(data.resetLink);
       }
@@ -74,127 +87,156 @@ export default function ForgotPasswordPage() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await sendResetRequest();
+  };
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#060F25] px-4 py-8 sm:px-6 lg:px-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_18%,rgba(147,51,234,0.22),transparent_42%),radial-gradient(circle_at_88%_78%,rgba(34,211,238,0.2),transparent_44%),linear-gradient(130deg,#060F25_0%,#0A1C3F_46%,#0A2A3A_100%)]" />
-      <div className="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-violet-500/20 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 bottom-20 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
+    <motion.div
+      className="relative min-h-screen overflow-hidden px-4 py-8 sm:px-6 lg:px-8"
+      style={{
+        background:
+          "radial-gradient(circle at 20% 50%, rgba(245, 158, 11, 0.15), transparent 50%), radial-gradient(circle at 80% 80%, rgba(251, 113, 133, 0.15), transparent 50%), linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)",
+      }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
+      <div className="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-amber-300/25 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-20 h-72 w-72 rounded-full bg-rose-300/25 blur-3xl" />
 
       <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
         <LanguageSwitcher />
       </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-center py-8 lg:min-h-[calc(100vh-4rem)] lg:py-0">
-        <div className="grid w-full items-center gap-10 lg:grid-cols-2 lg:gap-14">
-          <section className="hidden text-white lg:block">
-            <div className="mb-6 inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold tracking-wide text-white/90 backdrop-blur-sm">
-              {t("security.forgotPasswordTitle")}
-            </div>
-            <h1 className="max-w-xl text-5xl font-bold leading-[1.05] tracking-tight">
-              {t("security.forgotPasswordTitle")}
-            </h1>
-            <p className="mt-4 max-w-lg text-base leading-relaxed text-slate-200">
-              {t("security.forgotPasswordDesc")}
-            </p>
-            <div className="mt-8 h-px w-72 bg-gradient-to-r from-cyan-300/70 via-white/50 to-transparent" />
-          </section>
+      <div className="relative z-10 mx-auto flex w-full max-w-xl items-center justify-center py-8 lg:min-h-[calc(100vh-4rem)] lg:py-0">
+        <motion.section
+          className="mx-auto w-full max-w-[440px]"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
+          <div className="rounded-3xl bg-gradient-to-br from-amber-300/55 via-rose-200/45 to-amber-100/65 p-[1px] shadow-[0_30px_80px_rgba(149,115,22,0.25)]">
+            <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl sm:p-8">
+              {error && <ErrorBanner message={error} onDismiss={() => setError(null)} className="mb-4" />}
 
-          <section className="mx-auto w-full max-w-[520px]">
-            <div className="mb-6 text-center text-white lg:hidden">
-              <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-white to-slate-100 shadow-[0_10px_30px_rgba(255,255,255,0.3)]">
-                <span className="text-2xl font-bold text-slate-900">H</span>
-              </div>
-              <h1 className="text-3xl font-bold tracking-tight">{t("security.forgotPasswordTitle")}</h1>
-              <p className="mt-2 text-sm text-slate-300">{t("security.forgotPasswordDesc")}</p>
-            </div>
+              {success ? (
+                <div className="space-y-4 text-center">
+                  <motion.div
+                    className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50"
+                    initial={{ scale: 0.75, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                  >
+                    <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                  </motion.div>
+                  <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+                    {t("security.resetLinkSentTitle")}
+                  </h2>
+                  <p className="text-sm text-[var(--text-secondary)]">{t("security.resetLinkSent")}</p>
 
-            <div className="rounded-3xl bg-gradient-to-br from-white/35 via-cyan-200/20 to-violet-200/20 p-[1px] shadow-[0_35px_90px_rgba(6,12,24,0.6)]">
-              <div className="rounded-3xl border border-white/15 bg-slate-900/55 p-7 backdrop-blur-2xl sm:p-8">
-                {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
-
-                {success ? (
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-emerald-300/40 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-                      {t("security.resetLinkSent")}
+                  {resetLink && (
+                    <div className="rounded-xl border border-amber-300/60 bg-amber-50/80 p-4 text-left">
+                      <p className="mb-1 text-xs font-medium text-amber-800">{t("security.resetLinkDev")}</p>
+                      <a
+                        href={resetLink}
+                        className="break-all font-mono text-xs text-amber-900 underline decoration-dotted underline-offset-2 hover:opacity-80"
+                      >
+                        {resetLink}
+                      </a>
                     </div>
-                    {resetLink && (
-                      <div className="rounded-xl border border-amber-300/40 bg-amber-500/10 p-4">
-                        <p className="mb-1 text-xs font-medium text-amber-100">{t("security.resetLinkDev")}</p>
-                        <a
-                          href={resetLink}
-                          className="break-all font-mono text-xs text-amber-50 underline decoration-dotted underline-offset-2 hover:text-white"
-                        >
-                          {resetLink}
-                        </a>
-                      </div>
-                    )}
-                    <Link
-                      href="/portal/login"
-                      className="block w-full rounded-xl bg-white/10 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-white/15"
-                    >
-                      {t("security.backToLogin")}
-                    </Link>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={sendResetRequest}
+                    disabled={isLoading || resendCountdown > 0}
+                    className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 px-4 py-3 text-sm font-semibold text-[var(--primary)] shadow-[0_12px_28px_rgba(245,158,11,0.35)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isLoading ? t("security.sendingResetLink") : t("security.resendResetLink")}
+                  </button>
+                  {resendCountdown > 0 ? (
+                    <p className="text-xs text-[var(--text-muted)]">
+                      {t("security.resendCountdown").replace("{seconds}", String(resendCountdown))}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="mb-2 text-center">
+                    <div className="mx-auto mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-rose-400 shadow-[0_10px_24px_rgba(245,158,11,0.35)]">
+                      <Mail className="h-7 w-7 text-[var(--primary)]" />
+                    </div>
+                    <h1 className="text-xl font-bold text-[var(--text-primary)]">{t("security.forgotPasswordTitle")}</h1>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">{t("security.forgotPasswordDesc")}</p>
                   </div>
-                ) : (
-                  <form onSubmit={handleSubmit} className="space-y-5">
-                    <div>
-                      <label htmlFor="email" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-300">
-                        {t("auth.email")}
-                      </label>
-                      <input
-                        type="email"
-                        id="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full rounded-xl border border-white/15 bg-white/10 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-400 outline-none transition-all focus:border-cyan-300/60 focus:bg-white/15 focus:ring-2 focus:ring-cyan-300/25 disabled:cursor-not-allowed disabled:opacity-60"
-                        placeholder={t("portalLogin.emailPlaceholder")}
-                        required
-                        disabled={isLoading}
-                      />
-                    </div>
 
-                    {showCaptcha && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                          {t("security.resetCaptchaLabel")}
-                        </p>
-                        {captchaSiteKey ? (
-                          <div className="overflow-hidden rounded-xl border border-white/15 bg-white/5 p-2">
-                            <HCaptcha
-                              sitekey={captchaSiteKey}
-                              onVerify={(token) => setCaptchaToken(token)}
-                              onExpire={() => setCaptchaToken(null)}
-                              onError={() => setCaptchaToken(null)}
-                            />
-                          </div>
-                        ) : (
-                          <div className="rounded-xl border border-amber-300/40 bg-amber-500/10 p-3 text-xs text-amber-100">
-                            {t("security.resetCaptchaMissingKey")}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_25px_rgba(6,182,212,0.35)] transition-all hover:brightness-110 hover:shadow-[0_12px_30px_rgba(6,182,212,0.45)] disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isLoading || (showCaptcha && (!captchaSiteKey || !captchaToken))}
+                  <div>
+                    <label
+                      htmlFor="email"
+                      className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]"
                     >
-                      {isLoading ? t("security.sendingResetLink") : t("security.sendResetLink")}
-                    </button>
-                  </form>
-                )}
-              </div>
-            </div>
+                      {t("auth.email")}
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all focus:border-amber-300 focus:ring-2 focus:ring-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+                      placeholder={t("portalLogin.emailPlaceholder")}
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
 
-            <div className="mt-6 text-center text-sm text-slate-300">
-              <Link href="/portal/login" className="font-medium text-white/95 transition hover:text-cyan-200">
-                {t("security.backToLogin")}
-              </Link>
+                  {showCaptcha && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+                        {t("security.resetCaptchaLabel")}
+                      </p>
+                      {captchaSiteKey ? (
+                        <div className="overflow-hidden rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] p-2">
+                          <HCaptcha
+                            sitekey={captchaSiteKey}
+                            onVerify={(token) => setCaptchaToken(token)}
+                            onExpire={() => setCaptchaToken(null)}
+                            onError={() => setCaptchaToken(null)}
+                            theme="light"
+                          />
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-amber-300/60 bg-amber-50/80 p-3 text-xs text-amber-800">
+                          {t("security.resetCaptchaMissingKey")}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 px-4 py-3 text-sm font-semibold text-[var(--primary)] shadow-[0_12px_28px_rgba(245,158,11,0.35)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isLoading || (showCaptcha && (!captchaSiteKey || !captchaToken))}
+                  >
+                    {isLoading ? t("security.sendingResetLink") : t("security.sendResetLink")}
+                  </button>
+                </form>
+              )}
             </div>
-          </section>
-        </div>
+          </div>
+
+          <div className="mt-6 text-center">
+            <Link
+              href="/portal/login"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--highlight)] transition-opacity hover:opacity-80"
+            >
+              <ArrowLeft size={14} />
+              <span>{t("security.backToLogin")}</span>
+            </Link>
+          </div>
+        </motion.section>
       </div>
-    </div>
+    </motion.div>
   );
 }

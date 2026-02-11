@@ -1,270 +1,183 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 import { useI18n } from "@/i18n/I18nContext";
 import { API_URL } from "@/lib/portal-auth";
 import ErrorBanner from "@/components/ErrorBanner";
-import { ShieldAlert, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
-
-interface RecoveryRequest {
-  id: string;
-  status: string;
-  reason: string;
-  requestedAt: string;
-  expiresAt: string;
-  resolvedAt: string | null;
-}
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { ArrowLeft, CheckCircle2, LockKeyhole } from "lucide-react";
 
 export default function PortalRecoveryPage() {
   const { t } = useI18n();
-  const [email, setEmail] = useState("");
-  const [reason, setReason] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [requests, setRequests] = useState<RecoveryRequest[]>([]);
-  const [statusEmail, setStatusEmail] = useState("");
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // Emergency token state
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [emergencyToken, setEmergencyToken] = useState("");
   const [usingToken, setUsingToken] = useState(false);
-  const [emergencyResult, setEmergencyResult] = useState<string | null>(null);
-  const [emergencyError, setEmergencyError] = useState<string | null>(null);
+  const [autoUnlocking, setAutoUnlocking] = useState(false);
 
-  const loadStatus = useCallback(async (checkEmail: string) => {
-    if (!checkEmail) return;
-    try {
-      const res = await fetch(
-        `${API_URL}/portal/recovery/status?email=${encodeURIComponent(checkEmail)}`,
-        { credentials: "include" }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setRequests(data.requests || []);
-      }
-    } catch {
-      // ignore
+  const tryUnlock = async (tokenValue: string) => {
+    if (!tokenValue.trim()) {
+      setError(t("portalLogin.unlockTokenRequired"));
+      return;
     }
-  }, []);
-
-  useEffect(() => {
-    if (statusEmail) loadStatus(statusEmail);
-  }, [statusEmail, loadStatus]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setSuccess(null);
-    setError(null);
-
-    try {
-      const res = await fetch(`${API_URL}/portal/recovery/request`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, reason }),
-      });
-
-      const data = await res.json();
-
-      if (res.status === 429) {
-        setError(t("recovery.tooMany"));
-      } else if (res.status === 409) {
-        setError(t("recovery.alreadyPending"));
-      } else if (!res.ok) {
-        setError(data.error || "Failed to submit");
-      } else {
-        setSuccess(t("recovery.submitted"));
-        setStatusEmail(email);
-        setReason("");
-      }
-    } catch {
-      setError("Network error");
-    }
-    setSubmitting(false);
-  };
-
-  const handleUseEmergency = async (e: React.FormEvent) => {
-    e.preventDefault();
     setUsingToken(true);
-    setEmergencyResult(null);
-    setEmergencyError(null);
+    setError(null);
 
     try {
       const res = await fetch(`${API_URL}/portal/emergency/use`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: emergencyToken }),
+        body: JSON.stringify({ token: tokenValue.trim() }),
       });
 
       const data = await res.json();
 
       if (res.status === 410) {
-        setEmergencyError(data.error?.includes("already") ? t("emergency.alreadyUsed") : t("emergency.invalidToken"));
+        setError(data.error?.includes("already") ? t("emergency.alreadyUsed") : t("emergency.invalidToken"));
       } else if (!res.ok) {
-        setEmergencyError(data.error || t("emergency.invalidToken"));
+        setError(data.error || t("emergency.invalidToken"));
       } else {
-        setEmergencyResult(t("emergency.success"));
+        setSuccess(true);
         setEmergencyToken("");
+        window.setTimeout(() => {
+          router.push("/portal/login");
+        }, 1600);
       }
     } catch {
-      setEmergencyError("Network error");
+      setError(t("common.networkError"));
     }
     setUsingToken(false);
   };
 
-  const statusBadge = (status: string) => {
-    const icons: Record<string, React.ReactNode> = {
-      pending: <Clock size={14} className="text-amber-500" />,
-      approved: <CheckCircle size={14} className="text-green-500" />,
-      rejected: <XCircle size={14} className="text-red-500" />,
-      expired: <AlertTriangle size={14} className="text-slate-400" />,
-    };
-    const colors: Record<string, string> = {
-      pending: "bg-amber-50 text-amber-800 border-amber-200",
-      approved: "bg-green-50 text-green-800 border-green-200",
-      rejected: "bg-red-50 text-red-800 border-red-200",
-      expired: "bg-slate-50 text-slate-600 border-slate-200",
-    };
-    const statusKey = `recovery.${status}` as Parameters<typeof t>[0];
-    return (
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${colors[status] || colors.expired}`}>
-        {icons[status]} {t(statusKey)}
-      </span>
-    );
+  useEffect(() => {
+    const tokenFromQuery = searchParams.get("token");
+    if (!tokenFromQuery) return;
+    setEmergencyToken(tokenFromQuery);
+    setAutoUnlocking(true);
+    void tryUnlock(tokenFromQuery).finally(() => setAutoUnlocking(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleUseEmergency = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await tryUnlock(emergencyToken);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="max-w-lg w-full space-y-6">
-        {/* Header */}
-        <div className="text-center">
-          <div className="mx-auto w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
-            <ShieldAlert size={24} className="text-slate-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">{t("recovery.title")}</h1>
-          <p className="text-sm text-slate-600 mt-1">{t("recovery.description")}</p>
-        </div>
+    <motion.div
+      className="relative min-h-screen overflow-hidden px-4 py-8 sm:px-6 lg:px-8"
+      style={{
+        background:
+          "radial-gradient(circle at 20% 50%, rgba(245, 158, 11, 0.15), transparent 50%), radial-gradient(circle at 80% 80%, rgba(251, 113, 133, 0.15), transparent 50%), linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)",
+      }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
+      <div className="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-amber-300/25 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-20 h-72 w-72 rounded-full bg-rose-300/25 blur-3xl" />
 
-        {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
-        {success && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-green-800 text-sm">
-            {success}
-          </div>
-        )}
-
-        {/* Recovery Request Form */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t("recovery.emailLabel")}
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setStatusEmail(e.target.value); }}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                {t("recovery.reasonLabel")}
-              </label>
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder={t("recovery.reasonPlaceholder")}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 min-h-[80px]"
-                required
-                minLength={10}
-                maxLength={1000}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={submitting || !email || reason.length < 10}
-              className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
-            >
-              {submitting ? t("recovery.submitting") : t("recovery.submit")}
-            </button>
-          </form>
-        </div>
-
-        {/* Previous Requests */}
-        {requests.length > 0 && (
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-3">{t("recovery.status")}</h2>
-            <div className="space-y-3">
-              {requests.map((req) => (
-                <div key={req.id} className="border border-slate-100 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    {statusBadge(req.status)}
-                    <span className="text-xs text-slate-500" suppressHydrationWarning>
-                      {new Date(req.requestedAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-700 mt-1">{req.reason}</p>
-                  {req.resolvedAt && (
-                    <p className="text-xs text-slate-500 mt-1" suppressHydrationWarning>
-                      {t("recovery.resolvedAt")}: {new Date(req.resolvedAt).toLocaleString()}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Emergency Token */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-1">{t("emergency.useToken")}</h2>
-          <p className="text-sm text-slate-600 mb-4">{t("emergency.description")}</p>
-
-          {emergencyResult && (
-            <div className="mb-3 bg-green-50 border border-green-200 rounded-lg p-3 text-green-800 text-sm">
-              {emergencyResult}
-            </div>
-          )}
-          {emergencyError && (
-            <div className="mb-3 bg-red-50 border border-red-200 rounded-lg p-3 text-red-800 text-sm">
-              {emergencyError}
-            </div>
-          )}
-
-          <form onSubmit={handleUseEmergency} className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">
-                {t("emergency.tokenLabel")}
-              </label>
-              <input
-                type="text"
-                value={emergencyToken}
-                onChange={(e) => setEmergencyToken(e.target.value)}
-                placeholder={t("emergency.tokenPlaceholder")}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 font-mono text-sm"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={usingToken || !emergencyToken}
-              className="w-full px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:bg-amber-300"
-            >
-              {usingToken ? t("emergency.using") : t("emergency.use")}
-            </button>
-          </form>
-        </div>
-
-        {/* Back to login */}
-        <div className="text-center">
-          <Link href="/portal/login" className="text-sm text-slate-600 hover:text-slate-900 underline">
-            {t("common.login")}
-          </Link>
-        </div>
+      <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+        <LanguageSwitcher />
       </div>
-    </div>
+
+      <div className="relative z-10 mx-auto flex w-full max-w-xl items-center justify-center py-8 lg:min-h-[calc(100vh-4rem)] lg:py-0">
+        <motion.section
+          className="mx-auto w-full max-w-[440px]"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
+          <div className="rounded-3xl bg-gradient-to-br from-amber-300/55 via-rose-200/45 to-amber-100/65 p-[1px] shadow-[0_30px_80px_rgba(149,115,22,0.25)]">
+            <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl sm:p-8">
+              {success ? (
+                <motion.div
+                  className="space-y-3 text-center"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                >
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50">
+                    <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                  </div>
+                  <h2 className="text-xl font-bold text-[var(--text-primary)]">{t("recovery.unlockTitle")}</h2>
+                  <p className="text-sm text-emerald-700">{t("recovery.unlockSuccess")}</p>
+                </motion.div>
+              ) : (
+                <>
+                  <div className="mb-4 text-center">
+                    <div className="mx-auto mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-rose-400 shadow-[0_10px_24px_rgba(245,158,11,0.35)]">
+                      <LockKeyhole className="h-7 w-7 text-[var(--primary)]" />
+                    </div>
+                    <h1 className="text-xl font-bold text-[var(--text-primary)]">{t("recovery.unlockTitle")}</h1>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">{t("recovery.unlockBody")}</p>
+                    {autoUnlocking ? (
+                      <p className="mt-2 text-xs text-[var(--text-muted)]">{t("recovery.autoUnlocking")}</p>
+                    ) : null}
+                  </div>
+
+                  {error ? (
+                    <ErrorBanner
+                      message={error}
+                      onDismiss={() => setError(null)}
+                      className="mb-4"
+                    />
+                  ) : null}
+
+                  <form onSubmit={handleUseEmergency} className="space-y-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+                        {t("emergency.tokenLabel")}
+                      </label>
+                      <input
+                        type="text"
+                        value={emergencyToken}
+                        onChange={(e) => setEmergencyToken(e.target.value)}
+                        placeholder={t("emergency.tokenPlaceholder")}
+                        className="w-full rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] px-3.5 py-2.5 font-mono text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all focus:border-amber-300 focus:ring-2 focus:ring-amber-200"
+                        disabled={usingToken}
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={usingToken || !emergencyToken}
+                      className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 px-4 py-3 text-sm font-semibold text-[var(--primary)] shadow-[0_12px_28px_rgba(245,158,11,0.35)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {usingToken ? t("recovery.unlocking") : t("recovery.unlockButton")}
+                    </button>
+                  </form>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-2 text-center">
+            <Link
+              href="/portal/login"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--highlight)] transition-opacity hover:opacity-80"
+            >
+              <ArrowLeft size={14} />
+              <span>{t("security.backToLogin")}</span>
+            </Link>
+            <div>
+              <Link
+                href="/contact"
+                className="text-sm font-medium text-[var(--text-secondary)] underline decoration-dotted underline-offset-2 hover:text-[var(--text-primary)]"
+              >
+                {t("recovery.contactSupportCta")}
+              </Link>
+            </div>
+          </div>
+        </motion.section>
+      </div>
+    </motion.div>
   );
 }

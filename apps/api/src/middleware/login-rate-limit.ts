@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { redis } from "../redis";
+import { getRealIP } from "../utils/get-real-ip";
 
 const isProduction = process.env.NODE_ENV === "production";
 const WINDOW_MS = isProduction ? 15 * 60 * 1000 : 60 * 1000; // prod: 15m, dev: 1m
@@ -21,7 +22,7 @@ export async function loginRateLimitMiddleware(
   reply: FastifyReply
 ) {
   const now = Date.now();
-  const ip = request.ip || "unknown";
+  const ip = getRealIP(request);
   let count = 0;
   let resetAt = now + WINDOW_MS;
 

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  isPortalOnboardingDeferredForSession,
   portalApiFetch,
   type PortalUser,
 } from "@/lib/portal-auth";
@@ -13,20 +14,16 @@ import OnboardingOverlay from "@/components/OnboardingOverlay";
 import TrialBanner from "@/components/TrialBanner";
 import UsageNudge from "@/components/UsageNudge";
 import UpgradeModal from "@/components/UpgradeModal";
-import Badge from "@/components/Badge";
+import FeatureCard from "@/components/portal/dashboard/FeatureCard";
+import StatCard from "@/components/portal/dashboard/StatCard";
 import {
-  MessageSquare, Bot, Sparkles, Zap, TrendingUp,
-  CheckCircle2, Users, BarChart3, Eye,
-  Shield, CreditCard,
-  Monitor, Smartphone, X, Lock, Crown,
-  Code, Palette, Settings, ChevronRight, Send,
+  MessageSquare, Bot, TrendingUp, CheckCircle2, Users, BarChart3, Eye,
+  Shield, CreditCard, Monitor, Smartphone, X, Lock, Crown,
+  Code, Palette, Settings, ChevronRight, Send, Zap,
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
-import PageHeader from "@/components/ui/PageHeader";
-import StatCard from "@/components/ui/StatCard";
 import { portalTheme } from "@/styles/theme";
 
-/* ── Types ── */
 interface WidgetAppearance {
   primaryColor: string;
   position: "right" | "left";
@@ -37,10 +34,17 @@ interface WidgetAppearance {
 }
 
 interface OrgInfo {
-  id: string; key: string; name: string; siteId: string;
-  allowLocalhost: boolean; allowedDomains: string[];
-  widgetEnabled: boolean; writeEnabled: boolean; aiEnabled: boolean;
-  messageRetentionDays: number; hardDeleteOnRetention: boolean;
+  id: string;
+  key: string;
+  name: string;
+  siteId: string;
+  allowLocalhost: boolean;
+  allowedDomains: string[];
+  widgetEnabled: boolean;
+  writeEnabled: boolean;
+  aiEnabled: boolean;
+  messageRetentionDays: number;
+  hardDeleteOnRetention: boolean;
 }
 
 interface DashboardStats {
@@ -53,10 +57,19 @@ interface DashboardStats {
 }
 
 interface LiveVisitor {
-  id: string; visitorKey: string; ip: string | null; country: string | null;
-  city: string | null; browser: string; os: string; device: string;
-  currentPage: string | null; referrer: string | null;
-  firstSeenAt: string; lastSeenAt: string; conversationCount: number;
+  id: string;
+  visitorKey: string;
+  ip: string | null;
+  country: string | null;
+  city: string | null;
+  browser: string;
+  os: string;
+  device: string;
+  currentPage: string | null;
+  referrer: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  conversationCount: number;
 }
 
 interface VisitorsData {
@@ -65,11 +78,10 @@ interface VisitorsData {
   counts: { live: number; today: number; total: number };
 }
 
-/* ── Country flag helper ── */
 function countryToFlag(code: string | null): string {
-  if (!code || code.length !== 2) return "\uD83C\uDF10"; // globe
+  if (!code || code.length !== 2) return "🌐";
   const offset = 127397;
-  return String.fromCodePoint(...[...code.toUpperCase()].map(c => c.charCodeAt(0) + offset));
+  return String.fromCodePoint(...[...code.toUpperCase()].map((c) => c.charCodeAt(0) + offset));
 }
 
 function timeAgo(dateStr: string, t: (key: string) => string): string {
@@ -81,10 +93,11 @@ function timeAgo(dateStr: string, t: (key: string) => string): string {
     const hrs = Math.floor(mins / 60);
     if (hrs < 24) return t("common.time.hoursAgo").replace("{n}", String(hrs));
     return t("common.time.daysAgo").replace("{n}", String(Math.floor(hrs / 24)));
-  } catch { return ""; }
+  } catch {
+    return "";
+  }
 }
 
-/* ═══════════════════════════════════════════════════ */
 export default function PortalOverviewPage() {
   const { user, loading: authLoading } = usePortalAuth();
   const { t } = useI18n();
@@ -96,10 +109,11 @@ export default function PortalOverviewPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [visitors, setVisitors] = useState<VisitorsData | null>(null);
   const [convCounts, setConvCounts] = useState({ unassigned: 0, myOpen: 0, solved: 0 });
-
   const [widgetAppearance, setWidgetAppearance] = useState<WidgetAppearance | null>(null);
   const [conversionSignals, setConversionSignals] = useState<{
-    firstConversationAt: string | null; firstWidgetEmbedAt: string | null; firstInviteSentAt: string | null;
+    firstConversationAt: string | null;
+    firstWidgetEmbedAt: string | null;
+    firstInviteSentAt: string | null;
   } | null>(null);
   const [trial, setTrial] = useState<{ daysLeft: number; isExpired: boolean; isTrialing: boolean; endsAt: string | null } | null>(null);
   const [usage, setUsage] = useState<{ usedConversations: number; limitConversations: number; usedMessages: number; limitMessages: number } | null>(null);
@@ -108,37 +122,66 @@ export default function PortalOverviewPage() {
     if (authLoading || !user) return;
 
     if (!(user as PortalUser & { mfaEnabled?: boolean }).mfaEnabled) {
-      portalApiFetch("/portal/security/mfa-policy").then(r => r.ok ? r.json() : null).then(d => { if (d?.portalMfaRecommended) setShowMfaBanner(true); }).catch(() => {});
+      portalApiFetch("/portal/security/mfa-policy")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d?.portalMfaRecommended) setShowMfaBanner(true); })
+        .catch(() => {});
     }
 
-    portalApiFetch("/portal/org/me").then(r => r.ok ? r.json() : null).then(d => { if (d?.org) setOrg(d.org); }).catch(() => {});
-    portalApiFetch("/portal/billing/status").then(r => r.ok ? r.json() : null).then(d => {
-      if (d?.conversionSignals) setConversionSignals(d.conversionSignals);
-      if (d?.trial) setTrial(d.trial);
-      if (d?.usage) setUsage(d.usage);
-    }).catch(() => {});
-    portalApiFetch("/portal/conversations/counts").then(r => r.ok ? r.json() : null).then(d => {
-      if (d) setConvCounts({ unassigned: d.unassigned ?? 0, myOpen: d.myOpen ?? 0, solved: d.solved ?? 0 });
-    }).catch(() => {});
-    portalApiFetch("/portal/dashboard/stats").then(r => r.ok ? r.json() : null).then(d => { if (d) setStats(d); }).catch(() => {});
-    portalApiFetch("/portal/dashboard/visitors").then(r => r.ok ? r.json() : null).then(d => { if (d) setVisitors(d); }).catch(() => {});
-    portalApiFetch("/portal/widget/settings").then(r => r.ok ? r.json() : null).then(d => { if (d?.settings) setWidgetAppearance(d.settings); }).catch(() => {});
+    portalApiFetch("/portal/org/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.org) setOrg(d.org); })
+      .catch(() => {});
+
+    portalApiFetch("/portal/billing/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.conversionSignals) setConversionSignals(d.conversionSignals);
+        if (d?.trial) setTrial(d.trial);
+        if (d?.usage) setUsage(d.usage);
+      })
+      .catch(() => {});
+
+    portalApiFetch("/portal/conversations/counts")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d) setConvCounts({ unassigned: d.unassigned ?? 0, myOpen: d.myOpen ?? 0, solved: d.solved ?? 0 });
+      })
+      .catch(() => {});
+
+    portalApiFetch("/portal/dashboard/stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setStats(d); })
+      .catch(() => {});
+
+    portalApiFetch("/portal/dashboard/visitors")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setVisitors(d); })
+      .catch(() => {});
+
+    portalApiFetch("/portal/widget/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.settings) setWidgetAppearance(d.settings); })
+      .catch(() => {});
   }, [authLoading, user]);
 
-  // Poll visitors every 30s
   useEffect(() => {
     if (authLoading || !user) return;
     const interval = setInterval(() => {
-      portalApiFetch("/portal/dashboard/visitors").then(r => r.ok ? r.json() : null).then(d => { if (d) setVisitors(d); }).catch(() => {});
+      portalApiFetch("/portal/dashboard/visitors")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d) setVisitors(d); })
+        .catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
   }, [authLoading, user]);
 
-  const widgetConnected = !!conversionSignals?.firstWidgetEmbedAt;
-  const domainsConfigured = !!org && ((org.allowedDomains?.length ?? 0) > 0 || org.allowLocalhost);
-  const userName = user?.email?.split("@")[0] || "";
-  const planKey = stats?.plan || "FREE";
-  const isPro = planKey === "PRO" || planKey === "ENTERPRISE";
+  useEffect(() => {
+    if (authLoading || !user) return;
+    if (user.showSecurityOnboarding && !isPortalOnboardingDeferredForSession()) {
+      router.replace("/portal/security-onboarding");
+    }
+  }, [authLoading, user, router]);
 
   const handleStartChat = useCallback(async (visitorId: string) => {
     setChatLoading(visitorId);
@@ -148,164 +191,172 @@ export default function PortalOverviewPage() {
         const data = await res.json();
         router.push(`/portal/inbox?c=${data.conversationId}`);
       }
-    } catch { /* ignore */ }
+    } catch {
+      // ignore
+    }
     setChatLoading(null);
   }, [router]);
 
   if (authLoading) {
-    return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-[#1A1A2E] animate-spin" /></div>;
+    return <div className="flex items-center justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#1A1A2E]" /></div>;
   }
 
+  if (user?.showSecurityOnboarding && !isPortalOnboardingDeferredForSession()) {
+    return <div className="flex items-center justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#1A1A2E]" /></div>;
+  }
+
+  const widgetConnected = !!conversionSignals?.firstWidgetEmbedAt;
+  const domainsConfigured = !!org && ((org.allowedDomains?.length ?? 0) > 0 || org.allowLocalhost);
+  const userName = user?.email?.split("@")[0] || "";
+  const planKey = stats?.plan || "FREE";
+  const isPro = planKey === "PRO" || planKey === "ENTERPRISE";
+
+  const totalConversations = stats?.conversations.total ?? 0;
+  const conversionRate = stats && stats.usage.visitorsReached > 0
+    ? `${Math.round((stats.usage.conversations / Math.max(stats.usage.visitorsReached, 1)) * 100)}%`
+    : "0%";
+  const activeUsers = convCounts.unassigned + convCounts.myOpen;
+  const customerSatisfaction = stats && stats.conversations.total > 0
+    ? `${Math.round((stats.conversations.closed / Math.max(stats.conversations.total, 1)) * 100)}%`
+    : "0%";
+  const aiResolution = stats && stats.usage.conversations > 0
+    ? `${Math.round((stats.ai.totalResponses / Math.max(stats.usage.conversations, 1)) * 100)}%`
+    : "0%";
+  const avgResponseTime = stats?.ai.avgResponseTimeMs
+    ? `${Math.max(1, Math.round(stats.ai.avgResponseTimeMs / 1000))}${t("dashboard.artifact.shortSecond")}`
+    : `0${t("dashboard.artifact.shortSecond")}`;
+  const retentionRate = stats && stats.conversations.total > 0
+    ? `${Math.round((stats.conversations.closed / Math.max(stats.conversations.total, 1)) * 100)}%`
+    : "0%";
+  const avgRating = stats && stats.conversations.total > 0
+    ? (Math.min(5, (stats.conversations.closed / Math.max(stats.conversations.total, 1)) * 5)).toFixed(1)
+    : "0.0";
+  const mobileSessions = (visitors?.live ?? []).filter((v) => v.device === "mobile").length
+    + (visitors?.recent ?? []).filter((v) => v.device === "mobile").length;
+
+  const mainStats = [
+    { emoji: "💬", value: String(totalConversations), label: t("dashboard.artifact.main.totalConversations"), gradient: "linear-gradient(135deg, #FDB462, #F59E0B)" },
+    { emoji: "📈", value: conversionRate, label: t("dashboard.artifact.main.conversionRate"), gradient: "linear-gradient(135deg, #A78BFA, #8B5CF6)" },
+    { emoji: "⚡", value: String(activeUsers), label: t("dashboard.artifact.main.activeUsers"), gradient: "linear-gradient(135deg, #6EE7B7, #10B981)" },
+    { emoji: "🎯", value: customerSatisfaction, label: t("dashboard.artifact.main.customerSatisfaction"), gradient: "linear-gradient(135deg, #FCA5A5, #F87171)" },
+  ];
+
+  const weeklyCards = [
+    { emoji: "👥", label: t("dashboard.artifact.weekly.newVisitors"), value: stats?.usage.visitorsReached ?? 0, gradient: "linear-gradient(135deg, #93C5FD, #60A5FA)" },
+    { emoji: "💌", label: t("dashboard.artifact.weekly.sentMessages"), value: stats?.messages.thisWeek ?? 0, gradient: "linear-gradient(135deg, #DDD6FE, #C4B5FD)" },
+    { emoji: "⏱️", label: t("dashboard.artifact.weekly.avgResponse"), value: avgResponseTime, gradient: "linear-gradient(135deg, #FED7AA, #FDBA74)" },
+  ];
+
   return (
-    <div className={`${portalTheme.page} space-y-6`}>
+    <div className={`${portalTheme.page} space-y-8`}>
       <OnboardingOverlay area="portal" />
 
-      {/* ═══ Alerts ═══ */}
       {(showMfaBanner || (trial && (trial.isTrialing || trial.isExpired)) || usage) && (
         <div className="space-y-3">
           {showMfaBanner && <MfaPolicyBanner blocking={false} securityUrl="/portal/security" />}
           {trial && (trial.isTrialing || trial.isExpired) && (
-            <TrialBanner daysLeft={trial.daysLeft} isExpired={trial.isExpired} isTrialing={trial.isTrialing} endsAt={trial.endsAt} />
+            <TrialBanner
+              daysLeft={trial.daysLeft}
+              isExpired={trial.isExpired}
+              isTrialing={trial.isTrialing}
+              endsAt={trial.endsAt}
+            />
           )}
-          {usage && <UsageNudge usedConversations={usage.usedConversations} limitConversations={usage.limitConversations} usedMessages={usage.usedMessages} limitMessages={usage.limitMessages} />}
+          {usage && (
+            <UsageNudge
+              usedConversations={usage.usedConversations}
+              limitConversations={usage.limitConversations}
+              usedMessages={usage.usedMessages}
+              limitMessages={usage.limitMessages}
+            />
+          )}
         </div>
       )}
 
-      <PageHeader
-        title={`${t("portalOnboarding.greeting")}${userName ? `, ${userName}` : ""}`}
-        subtitle={`${t("portalOnboarding.subtitle")}${org ? ` — ${org.name}` : ""}`}
-        action={
-          trial && trial.isTrialing ? (
-            <Link href="/portal/billing" className={portalTheme.primaryButton}>
-              <Crown size={14} />
-              {t("billing.upgrade")}
-            </Link>
-          ) : undefined
-        }
-      />
+      <section className="rounded-3xl border border-amber-200/70 bg-white/80 p-6 shadow-[0_10px_36px_rgba(245,158,11,0.12)] backdrop-blur-sm">
+        <p className="text-sm font-medium text-[var(--text-secondary)]">
+          {`${t("portalOnboarding.greeting")}${userName ? `, ${userName}` : ""}`}
+        </p>
+        <h1 className="mt-2 font-[var(--font-heading)] text-3xl font-bold text-[var(--text-primary)]">
+          {org ? `${org.name}` : "Helvion"}
+        </h1>
+        <p className="mt-2 max-w-3xl text-sm text-[var(--text-secondary)]">{t("portalOnboarding.subtitle")}</p>
+      </section>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <StatCard label={t("dashboard.performance.interactions")} value={String(stats?.messages.thisMonth ?? 0)} icon={MessageSquare} />
-        <StatCard
-          label={t("dashboard.performance.aiResolution")}
-          value={stats && stats.usage.conversations > 0 ? `${Math.round((stats.ai.totalResponses / Math.max(stats.usage.conversations, 1)) * 100)}%` : "0%"}
-          icon={Bot}
-        />
-        <StatCard label={t("dashboard.performance.leadsAcquired")} value={String(stats?.usage.visitorsReached ?? 0)} icon={TrendingUp} />
-      </div>
+      <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {mainStats.map((item) => (
+          <StatCard key={`${item.label}-${item.emoji}`} emoji={item.emoji} value={item.value} label={item.label} gradient={item.gradient} />
+        ))}
+      </section>
 
-      {/* ═══ MAIN LAYOUT: Content + Sidebar ═══ */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-
-        {/* ── LEFT COLUMN (3/4) ── */}
-        <div className="lg:col-span-3 space-y-6">
-
-          {/* Quick Actions Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Link href="/portal/inbox" className="group relative bg-gradient-to-br from-blue-50/60 to-indigo-50/30 rounded-2xl border border-blue-100/50 p-5 hover:shadow-lg hover:border-blue-200/60 transition-all duration-300">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mb-3 shadow-sm shadow-blue-500/20 group-hover:scale-105 transition-transform">
-                <MessageSquare size={20} className="text-white" />
-              </div>
-              <p className="text-sm font-bold text-slate-800">{t("dashboard.quickActions.liveConversations")}</p>
-              <p className="text-xs text-slate-400 mt-0.5">{t("dashboard.quickActions.liveConversationsDesc").replace("{count}", String(convCounts.unassigned))}</p>
-            </Link>
-
-            <Link href="/portal/ai" className="group relative bg-gradient-to-br from-violet-50/60 to-purple-50/30 rounded-2xl border border-violet-100/50 p-5 hover:shadow-lg hover:border-violet-200/60 transition-all duration-300">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-3 shadow-sm shadow-violet-500/20 group-hover:scale-105 transition-transform">
-                <Bot size={20} className="text-white" />
-              </div>
-              <p className="text-sm font-bold text-slate-800">{t("dashboard.quickActions.aiAgent")}</p>
-              <p className="text-xs text-slate-400 mt-0.5">{t("dashboard.quickActions.aiAgentDesc")}</p>
-            </Link>
-
-            <div className="group relative bg-gradient-to-br from-emerald-50/60 to-teal-50/30 rounded-2xl border border-emerald-100/50 p-5 hover:shadow-lg hover:border-emerald-200/60 transition-all duration-300 cursor-default">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-3 shadow-sm shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-                <Eye size={20} className="text-white" />
-              </div>
-              <p className="text-sm font-bold text-slate-800">{t("dashboard.quickActions.liveVisitors")}</p>
-              <p className="text-xs text-slate-400 mt-0.5">{t("dashboard.quickActions.liveVisitorsDesc").replace("{count}", String(visitors?.counts.live ?? 0))}</p>
-            </div>
-
-            <Link href="/portal/usage" className="group relative bg-gradient-to-br from-amber-50/60 to-orange-50/30 rounded-2xl border border-amber-100/50 p-5 hover:shadow-lg hover:border-amber-200/60 transition-all duration-300">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center mb-3 shadow-sm shadow-amber-500/20 group-hover:scale-105 transition-transform">
-                <BarChart3 size={20} className="text-white" />
-              </div>
-              <p className="text-sm font-bold text-slate-800">{t("portalOnboarding.quickActions.usage.title")}</p>
-              <p className="text-xs text-slate-400 mt-0.5">{stats?.messages.thisMonth ?? 0} {t("common.abbrev.messages")}</p>
-            </Link>
-          </div>
-
-          {/* Performance Section */}
-          <div className="space-y-4">
-
-            {/* Insight tip */}
-            <div className="flex items-center gap-3 px-5 py-3 bg-white border border-slate-200/80 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 rounded-lg text-[10px] font-bold text-blue-600 flex-shrink-0">
-                <Sparkles size={10} /> {t("dashboard.insight")}
-              </div>
-              <p className="text-[12px] text-slate-500 flex-1">{t("dashboard.insight.proactive")} <Link href="/portal/inbox" className="text-[#1A1A2E] hover:underline font-semibold">{t("dashboard.insight.chatWithVisitors")}</Link></p>
-            </div>
-
-            {/* 3 stat cards */}
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                {
-                  label: t("dashboard.performance.interactions"),
-                  value: stats?.messages.thisMonth ?? 0,
-                  icon: <MessageSquare size={16} />,
-                  iconBg: "bg-[#1A1A2E]",
-                  tint: "from-slate-50/80 to-blue-50/40",
-                  border: "border-slate-200/70",
-                },
-                {
-                  label: t("dashboard.performance.aiResolution"),
-                  value: stats && stats.usage.conversations > 0
-                    ? `${Math.round((stats.ai.totalResponses / Math.max(stats.usage.conversations, 1)) * 100)}%`
-                    : "0%",
-                  icon: <Bot size={16} />,
-                  iconBg: "bg-emerald-600",
-                  tint: "from-emerald-50/50 to-teal-50/30",
-                  border: "border-emerald-100/50",
-                },
-                {
-                  label: t("dashboard.performance.leadsAcquired"),
-                  value: stats?.usage.visitorsReached ?? 0,
-                  icon: <TrendingUp size={16} />,
-                  iconBg: "bg-amber-600",
-                  tint: "from-amber-50/50 to-orange-50/30",
-                  border: "border-amber-100/50",
-                },
-              ].map((card, i) => (
-                <div key={i} className={`bg-gradient-to-br ${card.tint} rounded-2xl border ${card.border} p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(26,26,46,0.06)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,26,46,0.08)] transition-shadow`}>
-                  <div className={`w-9 h-9 rounded-xl ${card.iconBg} flex items-center justify-center mb-4`}>
-                    <span className="text-white">{card.icon}</span>
-                  </div>
-                  <p className="text-3xl font-extrabold text-slate-900 leading-none tabular-nums mb-1.5">{card.value}</p>
-                  <p className="text-[11px] font-medium text-slate-400">{card.label}</p>
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 2xl:grid-cols-3 lg:col-span-2">
+          <FeatureCard
+            icon={<span className="leading-none">🤖</span>}
+            gradient="linear-gradient(135deg, #A78BFA, #8B5CF6)"
+            title={t("dashboard.artifact.features.aiAgent")}
+            description={t("dashboard.artifact.features.aiAgentDesc").replace("{ratio}", aiResolution)}
+            href="/portal/ai"
+          />
+          <FeatureCard
+            icon={<span className="leading-none">📊</span>}
+            gradient="linear-gradient(135deg, #93C5FD, #60A5FA)"
+            title={t("dashboard.artifact.features.liveAnalytics")}
+            description={t("dashboard.artifact.features.liveAnalyticsDesc").replace("{count}", String(stats?.usage.visitorsReached ?? 0))}
+            href="/portal/usage"
+          />
+          <FeatureCard
+            icon={<span className="leading-none">🎨</span>}
+            gradient="linear-gradient(135deg, #FED7AA, #FDBA74)"
+            title={t("dashboard.artifact.features.widgetCustomization")}
+            description={t("dashboard.artifact.features.widgetCustomizationDesc")}
+            href="/portal/widget-appearance"
+          />
+          <FeatureCard
+            icon={<span className="leading-none">💬</span>}
+            gradient="linear-gradient(135deg, #FDB462, #F59E0B)"
+            title={t("portalOnboarding.task.widget.title")}
+            description={t("portalOnboarding.task.widget.desc")}
+            href="/portal/widget"
+          />
+          <FeatureCard
+            icon={<span className="leading-none">🌐</span>}
+            gradient="linear-gradient(135deg, #6EE7B7, #10B981)"
+            title={t("dashboard.projectStatus.domains")}
+            description={t("dashboard.projectStatus.configureDomains")}
+            href="/portal/security"
+          />
+          <FeatureCard
+            icon={<span className="leading-none">🔐</span>}
+            gradient="linear-gradient(135deg, #FED7AA, #FDBA74)"
+            title={t("portalOnboarding.task.security.title")}
+            description={t("portalOnboarding.task.security.desc")}
+            href="/portal/security"
+          />
+        </div>
+        <div className="rounded-3xl border border-amber-200/70 bg-white p-6 shadow-[0_10px_30px_rgba(26,29,35,0.08)]">
+          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-[var(--text-primary)]">
+            {t("dashboard.artifact.weekly.title")}
+          </h2>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">{t("dashboard.artifact.weekly.subtitle")}</p>
+          <div className="mt-5 grid grid-cols-1 gap-3">
+            {weeklyCards.map((item) => (
+              <div key={item.label} className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-slate-600">{item.emoji} {item.label}</span>
+                  <span className="font-[var(--font-heading)] text-xl font-bold text-[var(--text-primary)] tabular-nums">{item.value}</span>
                 </div>
-              ))}
-            </div>
-
-            {/* Bottom metrics row */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)] grid grid-cols-4 divide-x divide-slate-100">
-              {[
-                { label: t("dashboard.performance.repliedLive"), value: stats?.usage.humanConversations ?? 0, dot: "bg-[#1A1A2E]" },
-                { label: t("dashboard.performance.aiConversations"), value: stats?.ai.totalResponses ?? 0, dot: "bg-emerald-500" },
-                { label: t("dashboard.currentUsage.visitorsReached"), value: stats?.usage.visitorsReached ?? 0, dot: "bg-amber-500" },
-                { label: t("dashboard.performance.interactions"), value: stats?.messages.today ?? 0, dot: "bg-blue-500" },
-              ].map((item, i) => (
-                <div key={i} className="px-5 py-4 flex items-center gap-3">
-                  <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${item.dot}`} />
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-medium text-slate-600 truncate">{item.label}</p>
-                    <p className="text-base font-semibold text-slate-800 tabular-nums mt-0.5">{item.value}</p>
-                  </div>
+                <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                  <div className="h-full rounded-full" style={{ width: "100%", background: item.gradient }} />
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
+        </div>
+      </section>
 
-          {/* ═══ Live Visitors Section ═══ */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+        <div className="space-y-6 lg:col-span-3">
           <LiveVisitorsPanel
             visitors={visitors}
             isPro={isPro}
@@ -315,11 +366,10 @@ export default function PortalOverviewPage() {
             t={t}
           />
 
-          {/* Setup Checklist (compact) */}
-          <div className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="overflow-hidden rounded-2xl border border-amber-200/70 bg-white">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-slate-800 to-slate-900">
                   <Zap size={16} className="text-white" />
                 </div>
                 <div>
@@ -327,49 +377,117 @@ export default function PortalOverviewPage() {
                   <p className="text-[11px] text-slate-400">{t("dashboard.setupBanner.desc")}</p>
                 </div>
               </div>
-              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg tabular-nums">
+              <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500 tabular-nums">
                 {[widgetConnected, domainsConfigured, false, false].filter(Boolean).length}/4
               </span>
             </div>
-            <div className="p-2">
+            <div className="bg-[#FEF3E2]/45 p-2">
               {[
-                { href: "/portal/widget", icon: Code, label: t("portalOnboarding.task.widget.title"), desc: t("portalOnboarding.task.widget.desc"), done: widgetConnected, gradient: "from-blue-500 to-blue-600" },
-                { href: "/portal/widget-appearance", icon: Palette, label: t("portalOnboarding.task.appearance.title"), desc: t("portalOnboarding.task.appearance.desc"), done: false, gradient: "from-pink-500 to-rose-600" },
-                { href: "/portal/security", icon: Shield, label: t("portalOnboarding.task.security.title"), desc: t("portalOnboarding.task.security.desc"), done: domainsConfigured, gradient: "from-emerald-500 to-teal-600" },
-                { href: "/portal/billing", icon: CreditCard, label: t("portalOnboarding.task.billing.title"), desc: t("portalOnboarding.task.billing.desc"), done: false, gradient: "from-violet-500 to-purple-600" },
-              ].map(task => {
-                const Icon = task.icon;
+                { href: "/portal/widget", icon: "💬", label: t("portalOnboarding.task.widget.title"), desc: t("portalOnboarding.task.widget.desc"), done: widgetConnected },
+                { href: "/portal/widget-appearance", icon: "🎨", label: t("portalOnboarding.task.appearance.title"), desc: t("portalOnboarding.task.appearance.desc"), done: false },
+                { href: "/portal/security", icon: "🔐", label: t("portalOnboarding.task.security.title"), desc: t("portalOnboarding.task.security.desc"), done: domainsConfigured },
+                { href: "/portal/billing", icon: "💳", label: t("portalOnboarding.task.billing.title"), desc: t("portalOnboarding.task.billing.desc"), done: false },
+              ].map((task) => {
                 return (
-                  <Link key={task.href} href={task.href} className="group flex items-center gap-4 px-4 py-3.5 rounded-xl hover:bg-slate-50/80 transition-all">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${task.done ? "bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-500/20" : `bg-gradient-to-br ${task.gradient}`}`}>
-                      {task.done ? <CheckCircle2 size={18} className="text-white" /> : <Icon size={18} className="text-white" />}
+                  <Link key={task.href} href={task.href} className="group flex items-center gap-4 rounded-xl px-4 py-3.5 transition-all hover:bg-white/80">
+                    <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl shadow-sm ${task.done ? "bg-gradient-to-br from-[#6EE7B7] to-[#10B981] shadow-emerald-500/20" : "bg-gradient-to-br from-[#FCA5A5] to-[#F87171] shadow-rose-500/20"}`}>
+                      {task.done ? <CheckCircle2 size={18} className="text-white" /> : <span className="text-[18px] leading-none text-white">{task.icon}</span>}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold ${task.done ? "text-emerald-700" : "text-slate-800"}`}>{task.label}</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">{task.desc}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className={`font-[var(--font-heading)] text-sm font-semibold ${task.done ? "text-emerald-700" : "text-slate-800"}`}>{task.label}</p>
+                      <p className="mt-0.5 font-[var(--font-body)] text-[11px] text-slate-500">{task.desc}</p>
                     </div>
                     {task.done ? (
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">{t("embed.completed")}</span>
+                      <span className="rounded-lg bg-emerald-50 px-2.5 py-1 font-[var(--font-body)] text-[10px] font-bold text-emerald-700">{t("embed.completed")}</span>
                     ) : (
-                      <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 flex-shrink-0" />
+                      <ChevronRight size={16} className="flex-shrink-0 text-slate-300 group-hover:text-slate-500" />
                     )}
                   </Link>
                 );
               })}
             </div>
           </div>
+
+          <section className="rounded-3xl border border-amber-100/70 bg-white/80 p-5 shadow-[0_10px_30px_rgba(26,29,35,0.06)] backdrop-blur-sm md:p-6">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {[
+                {
+                  key: "replied",
+                  emoji: "💬",
+                  label: t("dashboard.performance.repliedLive"),
+                  value: stats?.usage.humanConversations ?? 0,
+                  className: "border-white/50 text-slate-900 shadow-[0_10px_28px_rgba(245,158,11,0.14)]",
+                  labelClassName: "text-slate-700/85",
+                  background: "linear-gradient(135deg, #FFF3E0, #FFE7C2)",
+                },
+                {
+                  key: "aiConversations",
+                  emoji: "🤖",
+                  label: t("dashboard.performance.aiConversations"),
+                  value: stats?.ai.totalResponses ?? 0,
+                  className: "border-white/50 text-slate-900 shadow-[0_10px_28px_rgba(139,92,246,0.12)]",
+                  labelClassName: "text-slate-700/85",
+                  background: "linear-gradient(135deg, #F2ECFF, #E6DDFF)",
+                },
+                {
+                  key: "visitorsReached",
+                  emoji: "👥",
+                  label: t("dashboard.currentUsage.visitorsReached"),
+                  value: stats?.usage.visitorsReached ?? 0,
+                  className: "border-white/50 text-slate-900 shadow-[0_10px_28px_rgba(16,185,129,0.12)]",
+                  labelClassName: "text-slate-700/85",
+                  background: "linear-gradient(135deg, #E9FBF3, #D8F7EA)",
+                },
+                {
+                  key: "retention",
+                  emoji: "🔥",
+                  label: t("dashboard.artifact.performance.retentionRate"),
+                  value: retentionRate,
+                  className: "border-white/30 text-white shadow-[0_10px_30px_rgba(245,158,11,0.22)]",
+                  labelClassName: "text-white/90",
+                  background: "linear-gradient(135deg, #FDB462, #F59E0B)",
+                },
+                {
+                  key: "rating",
+                  emoji: "⭐",
+                  label: t("dashboard.artifact.performance.avgRating"),
+                  value: avgRating,
+                  className: "border-white/30 text-white shadow-[0_10px_30px_rgba(251,146,60,0.24)]",
+                  labelClassName: "text-white/90",
+                  background: "linear-gradient(135deg, #FDB462, #FB923C)",
+                },
+                {
+                  key: "mobile",
+                  emoji: "📱",
+                  label: t("dashboard.artifact.performance.mobileSessions"),
+                  value: mobileSessions,
+                  className: "border-white/30 text-white shadow-[0_10px_30px_rgba(16,185,129,0.22)]",
+                  labelClassName: "text-white/90",
+                  background: "linear-gradient(135deg, #6EE7B7, #10B981)",
+                },
+              ].map((item) => (
+                <div
+                  key={item.key}
+                  className={`rounded-2xl border px-5 py-5 transition-all duration-200 hover:-translate-y-0.5 ${item.className}`}
+                  style={item.background ? { background: item.background } : undefined}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className={`text-[11px] font-semibold uppercase tracking-wide ${item.labelClassName}`}>{item.label}</p>
+                    <span className="text-xl leading-none">{item.emoji}</span>
+                  </div>
+                  <p className="mt-2 font-[var(--font-heading)] text-4xl font-bold tabular-nums">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
 
-        {/* ── RIGHT SIDEBAR (1/4) ── */}
         <div className="space-y-5">
-
-          {/* Project Status */}
-          <div className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-100">
-              <h3 className="text-[13px] font-bold text-slate-900">{t("dashboard.projectStatus")}</h3>
+          <div className="overflow-hidden rounded-2xl border border-amber-200/70 bg-white">
+            <div className="border-b border-slate-100 px-5 py-3.5">
+              <h3 className="font-[var(--font-heading)] text-[13px] font-bold text-slate-900">{t("dashboard.projectStatus")}</h3>
             </div>
-            <div className="p-4 space-y-3.5">
-              {/* Chat Widget */}
+            <div className="space-y-3.5 p-4">
               <ProjectStatusItem
                 label={t("dashboard.projectStatus.chatWidget")}
                 status={widgetConnected}
@@ -377,7 +495,6 @@ export default function PortalOverviewPage() {
                 actionText={t("dashboard.projectStatus.installWidget")}
                 href="/portal/widget"
               />
-              {/* AI Agent */}
               <ProjectStatusItem
                 label={t("dashboard.projectStatus.aiAgent")}
                 status={!!stats?.ai.enabled}
@@ -385,7 +502,6 @@ export default function PortalOverviewPage() {
                 actionText={t("dashboard.projectStatus.setupAi")}
                 href="/portal/ai"
               />
-              {/* Domains */}
               <ProjectStatusItem
                 label={t("dashboard.projectStatus.domains")}
                 status={domainsConfigured}
@@ -393,168 +509,103 @@ export default function PortalOverviewPage() {
                 actionText={t("dashboard.projectStatus.configureDomains")}
                 href="/portal/security"
               />
-              {/* Channels */}
-              <div className="pt-2 border-t border-slate-50">
-                <p className="text-[11px] text-slate-400 mb-2">{t("dashboard.projectStatus.addChannel")}</p>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center cursor-default" title={t("channels.webWidget")}>
-                    <MessageSquare size={14} className="text-blue-500" />
-                  </div>
-                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center cursor-not-allowed opacity-40" title={t("channels.whatsappComingSoon")}>
-                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
-                  </div>
-                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center cursor-not-allowed opacity-40" title={t("channels.instagramComingSoon")}>
-                    <svg className="w-4 h-4 text-pink-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" /></svg>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* Widget Preview */}
-          <div className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-[13px] font-bold text-slate-900">{t("dashboard.widgetPreview")}</h3>
-              <Link href="/portal/widget-appearance" className="text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors">
+          <div className="overflow-hidden rounded-2xl border border-amber-200/70 bg-white">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+              <h3 className="font-[var(--font-heading)] text-[13px] font-bold text-slate-900">{t("dashboard.widgetPreview")}</h3>
+              <Link href="/portal/widget-appearance" className="text-[10px] font-bold text-amber-600 transition-colors hover:text-amber-700">
                 {t("dashboard.widgetPreview.customize")} →
               </Link>
             </div>
             <div className="p-4">
               {widgetAppearance ? (
                 <div className="space-y-3">
-                  {/* Mini widget preview */}
-                  <div className="relative bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl p-4 flex items-end justify-center min-h-[180px] overflow-hidden">
-                    {/* Mini chat window preview */}
-                    <div className="w-[200px] rounded-xl shadow-lg overflow-hidden border border-slate-200/80 bg-white transform scale-[0.85] origin-bottom">
-                      {/* Header */}
-                      <div className="px-3 py-2.5 flex items-center gap-2" style={{ background: `linear-gradient(135deg, ${widgetAppearance.primaryColor}, ${widgetAppearance.primaryColor}dd)` }}>
-                        <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-                          <MessageSquare size={10} className="text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[8px] font-bold text-white truncate">{widgetAppearance.welcomeTitle}</p>
-                          <p className="text-[6px] text-white/70 truncate">{widgetAppearance.welcomeMessage}</p>
+                  <div className="relative min-h-[180px] overflow-hidden rounded-xl border border-amber-100 bg-white p-4">
+                    <div className="origin-bottom scale-[0.85] overflow-hidden rounded-xl border border-amber-100 bg-white shadow-lg">
+                      <div className="flex items-center gap-2 px-3 py-2.5" style={{ background: `linear-gradient(135deg, ${widgetAppearance.primaryColor}, ${widgetAppearance.primaryColor}dd)` }}>
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20"><MessageSquare size={10} className="text-white" /></div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[8px] font-bold text-white">{widgetAppearance.welcomeTitle}</p>
+                          <p className="truncate text-[6px] text-white/70">{widgetAppearance.welcomeMessage}</p>
                         </div>
                         <X size={10} className="text-white/60" />
                       </div>
-                      {/* Body */}
-                      <div className="px-3 py-2 space-y-1.5">
-                        <div className="flex gap-1.5 items-end">
-                          <div className="w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-                            <Bot size={8} className="text-slate-400" />
-                          </div>
-                          <div className="bg-slate-100 rounded-lg rounded-bl-sm px-2 py-1 max-w-[130px]">
-                            <p className="text-[6px] text-slate-600">{t("dashboard.widgetPreview.title")}</p>
-                          </div>
+                      <div className="space-y-1.5 px-3 py-2">
+                        <div className="flex items-end gap-1.5">
+                          <div className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-100"><Bot size={8} className="text-slate-400" /></div>
+                          <div className="max-w-[130px] rounded-lg rounded-bl-sm bg-slate-100 px-2 py-1"><p className="text-[6px] text-slate-600">{t("dashboard.widgetPreview.title")}</p></div>
                         </div>
                       </div>
-                      {/* Input bar */}
-                      <div className="px-3 py-1.5 border-t border-slate-100 flex items-center gap-1.5">
-                        <div className="flex-1 h-4 bg-slate-50 rounded text-[6px] px-1.5 flex items-center text-slate-300">...</div>
-                        <div className="w-4 h-4 rounded flex items-center justify-center" style={{ backgroundColor: widgetAppearance.primaryColor }}>
-                          <Send size={6} className="text-white" />
-                        </div>
+                      <div className="flex items-center gap-1.5 border-t border-slate-100 px-3 py-1.5">
+                        <div className="flex h-4 flex-1 items-center rounded bg-[#FEF3E2] px-1.5 text-[6px] text-slate-300">...</div>
+                        <div className="flex h-4 w-4 items-center justify-center rounded" style={{ backgroundColor: widgetAppearance.primaryColor }}><Send size={6} className="text-white" /></div>
                       </div>
-                      {/* Branding */}
-                      {widgetAppearance.brandName && (
-                        <div className="px-3 py-1 text-center">
-                          <p className="text-[5px] text-slate-300">{widgetAppearance.brandName}</p>
-                        </div>
-                      )}
-                    </div>
-                    {/* Launcher bubble */}
-                    <div
-                      className={`absolute bottom-3 ${widgetAppearance.position === "left" ? "left-3" : "right-3"} w-10 h-10 rounded-full shadow-lg flex items-center justify-center`}
-                      style={{ backgroundColor: widgetAppearance.primaryColor }}
-                    >
-                      <MessageSquare size={16} className="text-white" />
                     </div>
                   </div>
-
-                  {/* Widget Metrics */}
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-slate-50 rounded-lg px-3 py-2">
-                      <p className="text-[9px] text-slate-400 font-medium">{t("dashboard.widgetPreview.totalLoads")}</p>
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <p className="text-[9px] font-medium text-slate-400">{t("dashboard.widgetPreview.totalLoads")}</p>
                       <p className="text-[15px] font-extrabold text-slate-800 tabular-nums">{(stats?.widget.totalLoads ?? 0).toLocaleString()}</p>
                     </div>
-                    <div className="bg-slate-50 rounded-lg px-3 py-2">
-                      <p className="text-[9px] text-slate-400 font-medium">{t("dashboard.widgetPreview.lastSeen")}</p>
-                      <p className="text-[11px] font-bold text-slate-700 tabular-nums mt-0.5">
-                        {stats?.widget.lastSeen ? timeAgo(stats.widget.lastSeen, t) : t("dashboard.widgetPreview.never")}
-                      </p>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg px-3 py-2">
-                      <p className="text-[9px] text-slate-400 font-medium">{t("dashboard.widgetPreview.position")}</p>
-                      <p className="text-[11px] font-bold text-slate-700 capitalize mt-0.5">
-                        {widgetAppearance.position === "right" ? t("dashboard.widgetPreview.position.right") : t("dashboard.widgetPreview.position.left")}
-                      </p>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg px-3 py-2">
-                      <p className="text-[9px] text-slate-400 font-medium">{t("dashboard.widgetPreview.style")}</p>
-                      <p className="text-[11px] font-bold text-slate-700 capitalize mt-0.5">{widgetAppearance.launcher}</p>
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <p className="text-[9px] font-medium text-slate-400">{t("dashboard.widgetPreview.lastSeen")}</p>
+                      <p className="mt-0.5 text-[11px] font-bold text-slate-700 tabular-nums">{stats?.widget.lastSeen ? timeAgo(stats.widget.lastSeen, t) : t("dashboard.widgetPreview.never")}</p>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-6">
-                  <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
-                    <MessageSquare size={20} className="text-slate-300" />
-                  </div>
-                  <p className="text-[12px] font-medium text-slate-500 mb-1">{t("dashboard.widgetPreview.notConfigured")}</p>
-                  <Link href="/portal/widget-appearance" className="text-[11px] font-bold text-blue-600 hover:text-blue-700">
-                    {t("dashboard.widgetPreview.setupNow")} →
-                  </Link>
+                <div className="py-6 text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50"><MessageSquare size={20} className="text-slate-300" /></div>
+                  <p className="mb-1 text-[12px] font-medium text-slate-500">{t("dashboard.widgetPreview.notConfigured")}</p>
+                  <Link href="/portal/widget-appearance" className="text-[11px] font-bold text-amber-600 hover:text-amber-700">{t("dashboard.widgetPreview.setupNow")} →</Link>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Current Usage */}
-          <div className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-100">
-              <h3 className="text-[13px] font-bold text-slate-900">{t("dashboard.currentUsage")}</h3>
+          <div className="overflow-hidden rounded-2xl border border-amber-200/70 bg-white">
+            <div className="border-b border-slate-100 px-5 py-3.5">
+              <h3 className="font-[var(--font-heading)] text-[13px] font-bold text-slate-900">{t("dashboard.currentUsage")}</h3>
             </div>
-            <div className="p-4 space-y-4">
-              {/* Customer Service */}
+            <div className="space-y-4 p-4">
               <div>
-                <div className="flex items-center justify-between mb-1.5">
+                <div className="mb-1.5 flex items-center justify-between">
                   <span className="text-[12px] font-bold text-slate-700">{t("dashboard.currentUsage.customerService")}</span>
-                  <span className="text-[10px] font-semibold text-slate-400 bg-slate-50 px-2 py-0.5 rounded">{planKey === "FREE" ? t("dashboard.currentUsage.freeTrial") : planKey}</span>
+                  <span className="rounded bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-400">{planKey === "FREE" ? t("dashboard.currentUsage.freeTrial") : planKey}</span>
                 </div>
                 <UsageBar label={t("dashboard.currentUsage.billableConversations")} used={stats?.usage.conversations ?? 0} limit={usage?.limitConversations ?? 100} />
               </div>
-
-              {/* AI */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
+                <div className="mb-1.5 flex items-center justify-between">
                   <span className="text-[12px] font-bold text-slate-700">{t("dashboard.quickActions.aiAgent")}</span>
                 </div>
                 <UsageBar label={t("dashboard.currentUsage.aiConversations")} used={stats?.ai.monthlyUsage ?? 0} limit={stats?.ai.monthlyLimit ?? 100} />
               </div>
-
-              {/* Visitors */}
-              <div>
-                <UsageBar label={t("dashboard.currentUsage.visitorsReached")} used={stats?.usage.visitorsReached ?? 0} limit={-1} />
-              </div>
-
-              <Link href="/portal/billing" className="flex items-center justify-center gap-2 w-full py-2.5 text-[12px] font-bold text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors">
+              <Link
+                href="/portal/billing"
+                className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-[var(--font-body)] text-[12px] font-bold text-white shadow-[0_8px_20px_rgba(245,158,11,0.28)] transition-all duration-200 hover:brightness-95"
+                style={{ background: "linear-gradient(135deg, #FDB462, #F59E0B)" }}
+              >
                 <Crown size={13} /> {t("dashboard.currentUsage.upgrade")}
               </Link>
             </div>
           </div>
 
-          {/* Quick Nav */}
-          <div className="bg-white rounded-2xl border border-slate-200/60 overflow-hidden">
+          <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white">
             <div className="p-2">
               {[
                 { href: "/portal/team", icon: Users, label: t("portalOnboarding.quickActions.team.title") },
                 { href: "/portal/settings", icon: Settings, label: t("portalOnboarding.quickActions.settings.title") },
                 { href: "/portal/audit", icon: Shield, label: t("nav.auditLogs") },
-              ].map(a => {
+              ].map((a) => {
                 const Icon = a.icon;
                 return (
-                  <Link key={a.href} href={a.href} className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-50 transition-colors text-[13px] font-medium text-slate-600 hover:text-slate-800">
-                    <Icon size={16} className="text-slate-400" /> {a.label} <ChevronRight size={14} className="text-slate-300 ml-auto" />
+                  <Link key={a.href} href={a.href} className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800">
+                    <Icon size={16} className="text-slate-400" />
+                    {a.label}
+                    <ChevronRight size={14} className="ml-auto text-slate-300" />
                   </Link>
                 );
               })}
@@ -568,13 +619,13 @@ export default function PortalOverviewPage() {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   LIVE VISITORS PANEL — Premium component
-   ═══════════════════════════════════════════════════════════════ */
 function LiveVisitorsPanel({ visitors, isPro, onStartChat, chatLoading, onUpgrade, t }: {
-  visitors: VisitorsData | null; isPro: boolean;
-  onStartChat: (id: string) => void; chatLoading: string | null;
-  onUpgrade: () => void; t: (key: string) => string;
+  visitors: VisitorsData | null;
+  isPro: boolean;
+  onStartChat: (id: string) => void;
+  chatLoading: string | null;
+  onUpgrade: () => void;
+  t: (key: string) => string;
 }) {
   const liveCount = visitors?.counts.live ?? 0;
   const allLive = visitors?.live ?? [];
@@ -582,172 +633,47 @@ function LiveVisitorsPanel({ visitors, isPro, onStartChat, chatLoading, onUpgrad
   const FREE_LIMIT = 3;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
-
-      {/* ── Header ── */}
-      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+    <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm shadow-emerald-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-sm shadow-emerald-500/20">
               <Eye size={18} className="text-white" />
             </div>
             {liveCount > 0 && (
               <>
-                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-400 rounded-full animate-ping" />
-                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white" />
+                <span className="absolute -right-1 -top-1 h-3.5 w-3.5 animate-ping rounded-full bg-emerald-400" />
+                <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" />
               </>
             )}
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-900">{t("dashboard.liveVisitors")}</h2>
-            <p className="text-[11px] text-slate-400 mt-0.5">{t("dashboard.liveVisitors.desc")}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {liveCount > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200/50 rounded-full">
-              <span className="relative flex h-2 w-2"><span className="animate-ping absolute h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative rounded-full h-2 w-2 bg-emerald-500" /></span>
-              <span className="text-[12px] font-bold text-emerald-700 tabular-nums">{liveCount} {t("dashboard.liveVisitors.online")}</span>
-            </div>
-          )}
-          <div className="px-3 py-1.5 bg-slate-50 border border-slate-200/50 rounded-full text-[11px] font-semibold text-slate-500 tabular-nums">
-            {visitors?.counts.today ?? 0} {t("dashboard.liveVisitors.todayCount")}
+            <p className="mt-0.5 text-[11px] text-slate-400">{t("dashboard.liveVisitors.desc")}</p>
           </div>
         </div>
       </div>
 
-      {/* ── Table header ── */}
-      {allLive.length > 0 && (
-        <div className="px-6 py-2 bg-slate-50/70 border-b border-slate-100 grid grid-cols-12 gap-3 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-          <div className="col-span-4">{t("dashboard.liveVisitors.visitor")}</div>
-          <div className="col-span-2">{t("common.table.ip")}</div>
-          <div className="col-span-2">{t("dashboard.liveVisitors.page")}</div>
-          <div className="col-span-2">{t("dashboard.liveVisitors.deviceCol")}</div>
-          <div className="col-span-2 text-right">{t("dashboard.liveVisitors.statusCol")}</div>
-        </div>
-      )}
-
-      {/* ── Body ── */}
       {allLive.length === 0 && allRecent.length === 0 ? (
         <div className="px-6 py-16 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center mx-auto mb-4 shadow-inner">
-            <Eye size={28} className="text-slate-300" />
-          </div>
-          <p className="text-sm font-bold text-slate-700 mb-1">{t("dashboard.liveVisitors.noVisitors")}</p>
-          <p className="text-xs text-slate-400 max-w-xs mx-auto">{t("dashboard.liveVisitors.noVisitorsDesc")}</p>
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 shadow-inner"><Eye size={28} className="text-slate-300" /></div>
+          <p className="mb-1 text-sm font-bold text-slate-700">{t("dashboard.liveVisitors.noVisitors")}</p>
+          <p className="mx-auto max-w-xs text-xs text-slate-400">{t("dashboard.liveVisitors.noVisitorsDesc")}</p>
         </div>
       ) : (
         <div>
-          {/* ── Clear rows (Free: first 3, Pro: all) ── */}
-          {allLive.slice(0, isPro ? 50 : FREE_LIMIT).map(v => (
+          {allLive.slice(0, isPro ? 50 : FREE_LIMIT).map((v) => (
             <VRow key={v.id} v={v} isLive onStartChat={onStartChat} chatLoading={chatLoading} t={t} />
           ))}
-
-          {/* ── Blurred rows (Free plan, 4th+ visitor) — tek ortada CTA ── */}
           {!isPro && allLive.length > FREE_LIMIT && (
             <div className="relative min-h-[120px]">
-              {allLive.slice(FREE_LIMIT).map((v, idx) => (
-                <div key={v.id} className="px-6 py-3.5 grid grid-cols-12 gap-3 items-center pointer-events-none" style={{ filter: `blur(${1.8 + idx * 0.35}px)` }}>
-                  <div className="col-span-4 flex items-center gap-3 min-w-0">
-                    <div className="relative flex-shrink-0">
-                      <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-[18px]">
-                        {countryToFlag(v.country)}
-                      </div>
-                      <span className="absolute -bottom-px -right-px w-3 h-3 bg-emerald-500 rounded-full border-[1.5px] border-white" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-semibold text-slate-800 truncate">{v.city || v.country || t("common.unknown")}</p>
-                      <p className="text-[10px] text-slate-400 truncate">{v.conversationCount > 0 ? t("dashboard.liveVisitors.returningVisitor") : t("dashboard.liveVisitors.newVisitor")}</p>
-                    </div>
-                  </div>
-                  <div className="col-span-2"><span className="text-[11px] font-mono text-slate-500">{v.ip || "—"}</span></div>
-                  <div className="col-span-2"><span className="text-[11px] text-slate-500 truncate block">{v.currentPage || "/"}</span></div>
-                  <div className="col-span-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-                    {v.device === "mobile" ? <Smartphone size={11} className="text-slate-400" /> : <Monitor size={11} className="text-slate-400" />}
-                    <span className="truncate">{v.browser}</span>
-                  </div>
-                  <div className="col-span-2 text-right"><span className="text-[10px] text-slate-400 tabular-nums">{timeAgo(v.lastSeenAt, t)}</span></div>
-                </div>
-              ))}
-              {/* Ortada sabit tek CTA — flu alanın üzerinde */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <button
-                  type="button"
-                  onClick={onUpgrade}
-                  className="pointer-events-auto inline-flex flex-col items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 text-white text-[13px] font-bold shadow-lg shadow-slate-900/25 border border-slate-700/50 hover:from-slate-700 hover:to-slate-800 transition-all duration-200"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Crown size={16} className="text-amber-400" />
-                    {t("dashboard.liveVisitors.upgradePro")}
-                  </span>
-                  <span className="text-[11px] font-medium text-slate-300">{t("dashboard.liveVisitors.upgradeHint")}</span>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <button onClick={onUpgrade} className="inline-flex items-center gap-2 rounded-xl border border-slate-700/50 bg-gradient-to-r from-slate-800 to-slate-900 px-5 py-2.5 text-[13px] font-bold text-white shadow-lg shadow-slate-900/25 transition-all duration-200 hover:from-slate-700 hover:to-slate-800">
+                  <Crown size={14} className="text-amber-400" />
+                  {t("dashboard.liveVisitors.upgradePro")}
                 </button>
               </div>
             </div>
-          )}
-
-          {/* ── Recent visitors ── */}
-          {allRecent.length > 0 && (
-            <>
-              <div className="px-6 py-2 bg-slate-50/70 border-t border-b border-slate-100 flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-slate-700">
-                  {t("dashboard.liveVisitors.recentVisitors")} — {t("dashboard.liveVisitors.recentDesc")}
-                </h3>
-                {/* PRO badge sadece canlı ziyaretçi ≤3 iken; >3 olduğunda üstteki canlı alan CTA’sı aktif */}
-                {!isPro && liveCount <= FREE_LIMIT && (
-                  <button
-                    type="button"
-                    onClick={onUpgrade}
-                    className="focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-1 rounded-full"
-                  >
-                    <Badge variant="premium" size="sm" className="cursor-pointer inline-flex items-center gap-1">
-                      <Lock size={12} className="shrink-0" />
-                      {t("common.badge.pro")}
-                    </Badge>
-                  </button>
-                )}
-              </div>
-              {isPro ? (
-                allRecent.slice(0, 10).map((v) => (
-                  <VRow key={v.id} v={v} isLive={false} onStartChat={onStartChat} chatLoading={chatLoading} t={t} />
-                ))
-              ) : (
-                <div className="relative min-h-[140px]">
-                  {/* Blurred rows */}
-                  {allRecent.slice(0, 3).map((v, idx) => (
-                    <div key={v.id} className="px-6 py-3.5 grid grid-cols-12 gap-3 items-center" style={{ filter: `blur(${1.7 + idx * 0.3}px)` }}>
-                      <div className="col-span-4 flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-[18px] flex-shrink-0">
-                          {countryToFlag(v.country)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-semibold text-slate-800 truncate">{v.city || v.country || t("common.unknown")}</p>
-                          <p className="text-[10px] text-slate-400">{t("dashboard.liveVisitors.browsingNow")}</p>
-                        </div>
-                      </div>
-                      <div className="col-span-2"><span className="text-[11px] font-mono text-slate-500">{v.ip || "—"}</span></div>
-                      <div className="col-span-2"><span className="text-[11px] text-slate-500">{v.currentPage || "/"}</span></div>
-                      <div className="col-span-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-                        {v.device === "mobile" ? <Smartphone size={11} /> : <Monitor size={11} />} {v.browser}
-                      </div>
-                      <div className="col-span-2 text-right"><span className="text-[10px] text-slate-400 tabular-nums">{timeAgo(v.lastSeenAt, t)}</span></div>
-                    </div>
-                  ))}
-                  {/* Alttaki CTA sadece canlı ≤3 iken; >3 iken sadece üstteki canlı alan CTA’sı açık (ikisi aynı anda görünmez) */}
-                  {liveCount <= FREE_LIMIT && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <button
-                        onClick={onUpgrade}
-                        className="pointer-events-auto inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 text-white text-[13px] font-bold shadow-lg shadow-slate-900/25 border border-slate-700/50 hover:from-slate-700 hover:to-slate-800 transition-all duration-200"
-                      >
-                        <Crown size={14} className="text-amber-400" />
-                        {t("dashboard.liveVisitors.upgradePro")}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
           )}
         </div>
       )}
@@ -755,64 +681,40 @@ function LiveVisitorsPanel({ visitors, isPro, onStartChat, chatLoading, onUpgrad
   );
 }
 
-/* ── Single clear visitor row (table-style) ── */
 function VRow({ v, isLive, onStartChat, chatLoading, t }: {
-  v: LiveVisitor; isLive: boolean;
-  onStartChat: (id: string) => void; chatLoading: string | null; t: (key: string) => string;
+  v: LiveVisitor;
+  isLive: boolean;
+  onStartChat: (id: string) => void;
+  chatLoading: string | null;
+  t: (key: string) => string;
 }) {
   const isLoading = chatLoading === v.id;
   return (
-    <div className="group px-6 py-3.5 grid grid-cols-12 gap-3 items-center hover:bg-blue-50/30 transition-colors cursor-pointer border-b border-slate-50 last:border-b-0" onClick={() => onStartChat(v.id)}>
-      {/* Visitor */}
-      <div className="col-span-4 flex items-center gap-3 min-w-0">
+    <div className="group grid grid-cols-12 items-center gap-3 border-b border-slate-50 px-6 py-3.5 transition-colors last:border-b-0 hover:bg-amber-50/30" onClick={() => onStartChat(v.id)}>
+      <div className="col-span-4 flex min-w-0 items-center gap-3">
         <div className="relative flex-shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-center text-[18px]">
-            {countryToFlag(v.country)}
-          </div>
-          {isLive && (
-            <>
-              <span className="absolute -bottom-px -right-px w-3 h-3 bg-emerald-500 rounded-full border-[1.5px] border-white" />
-              <span className="absolute -bottom-px -right-px w-3 h-3 bg-emerald-400 rounded-full border-[1.5px] border-white animate-ping" />
-            </>
-          )}
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/60 bg-slate-50 text-[18px]">{countryToFlag(v.country)}</div>
+          {isLive && <span className="absolute -bottom-px -right-px h-3 w-3 rounded-full border-[1.5px] border-white bg-emerald-500" />}
         </div>
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-slate-800 truncate">{v.city || v.country || t("common.visitor")}</p>
-          <p className="text-[10px] text-slate-400">
-            {v.conversationCount > 0 ? (
-              <span className="text-violet-500 font-semibold">{t("dashboard.liveVisitors.returningVisitor")} · {v.conversationCount} {t("dashboard.liveVisitors.conversations")}</span>
-            ) : (
-              <span className="text-emerald-500 font-semibold">{t("dashboard.liveVisitors.newVisitor")}</span>
-            )}
-          </p>
+          <p className="truncate text-[13px] font-semibold text-slate-800">{v.city || v.country || t("common.visitor")}</p>
+          <p className="text-[10px] text-slate-400">{v.conversationCount > 0 ? t("dashboard.liveVisitors.returningVisitor") : t("dashboard.liveVisitors.newVisitor")}</p>
         </div>
       </div>
-
-      {/* IP */}
-      <div className="col-span-2">
-        <span className="text-[11px] font-mono text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded">{v.ip || "—"}</span>
-      </div>
-
-      {/* Current page */}
-      <div className="col-span-2">
-        <span className="text-[11px] text-slate-500 truncate block">{v.currentPage || "/"}</span>
-      </div>
-
-      {/* Device */}
+      <div className="col-span-2"><span className="rounded bg-slate-50 px-1.5 py-0.5 text-[11px] font-mono text-slate-500">{v.ip || "—"}</span></div>
+      <div className="col-span-2"><span className="block truncate text-[11px] text-slate-500">{v.currentPage || "/"}</span></div>
       <div className="col-span-2 flex items-center gap-1.5 text-[11px] text-slate-500">
         {v.device === "mobile" ? <Smartphone size={12} className="text-slate-400" /> : <Monitor size={12} className="text-slate-400" />}
         <span className="truncate">{v.browser} / {v.os}</span>
       </div>
-
-      {/* Action */}
       <div className="col-span-2 flex items-center justify-end gap-2">
-        <span className="text-[10px] text-slate-400 tabular-nums group-hover:hidden">{timeAgo(v.lastSeenAt, t)}</span>
+        <span className="tabular-nums text-[10px] text-slate-400 group-hover:hidden">{timeAgo(v.lastSeenAt, t)}</span>
         <button
           onClick={(e) => { e.stopPropagation(); onStartChat(v.id); }}
           disabled={isLoading}
-          className="hidden group-hover:flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold rounded-lg transition-colors disabled:opacity-50"
+          className="hidden items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-amber-600 disabled:opacity-50 group-hover:flex"
         >
-          {isLoading ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send size={10} />}
+          {isLoading ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Send size={10} />}
           {t("dashboard.liveVisitors.startChat")}
         </button>
       </div>
@@ -820,43 +722,40 @@ function VRow({ v, isLive, onStartChat, chatLoading, t }: {
   );
 }
 
-/* ── Project Status Item ── */
 function ProjectStatusItem({ label, status, statusText, actionText, href }: {
-  label: string; status: boolean; statusText: string; actionText: string; href: string;
+  label: string;
+  status: boolean;
+  statusText: string;
+  actionText: string;
+  href: string;
 }) {
   return (
     <div className="flex items-start gap-3">
-      <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${status ? "bg-emerald-100" : "bg-red-100"}`}>
-        {status ? <CheckCircle2 size={12} className="text-emerald-600" /> : <X size={12} className="text-red-500" />}
+      <div className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${status ? "bg-[#D1FAE5]" : "bg-[#FEE2E2]"}`}>
+        {status ? <CheckCircle2 size={12} className="text-[#10B981]" /> : <X size={12} className="text-[#F87171]" />}
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-bold text-slate-800">{label}</p>
-        <p className={`text-[11px] ${status ? "text-emerald-600" : "text-red-500"}`}>{statusText}</p>
-        {!status && (
-          <Link href={href} className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 mt-0.5 inline-block">{actionText}</Link>
-        )}
+      <div className="min-w-0 flex-1">
+        <p className="font-[var(--font-heading)] text-[12px] font-bold text-slate-800">{label}</p>
+        <p className={`font-[var(--font-body)] text-[11px] ${status ? "text-[#10B981]" : "text-[#F87171]"}`}>{statusText}</p>
+        {!status && <Link href={href} className="mt-0.5 inline-block text-[11px] font-semibold text-amber-600 hover:text-amber-700">{actionText}</Link>}
       </div>
     </div>
   );
 }
 
-/* ── Usage Bar ── */
 function UsageBar({ label, used, limit }: { label: string; used: number; limit: number }) {
   const isUnlimited = limit < 0;
   const pct = isUnlimited ? 0 : Math.min(100, (used / Math.max(limit, 1)) * 100);
-  const isHigh = pct > 80;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[11px] text-slate-500">{label}</span>
-        <span className="text-[11px] font-bold text-slate-700 tabular-nums">
-          {used} / {isUnlimited ? "\u221E" : limit}
-        </span>
+      <div className="mb-1 flex items-center justify-between">
+        <span className="font-[var(--font-body)] text-[11px] text-slate-500">{label}</span>
+        <span className="font-[var(--font-heading)] tabular-nums text-[11px] font-bold text-slate-700">{used} / {isUnlimited ? "∞" : limit}</span>
       </div>
       {!isUnlimited && (
-        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-500 ${isHigh ? "bg-red-500" : "bg-blue-500"}`} style={{ width: `${pct}%` }} />
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#FEF3E2]">
+          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(135deg, #FDB462, #F59E0B)" }} />
         </div>
       )}
     </div>

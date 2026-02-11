@@ -9,13 +9,27 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "../prisma";
 import { verifyPassword } from "../utils/password";
-import { createRateLimitMiddleware } from "../middleware/rate-limit";
-import { upsertDevice } from "../utils/device";
+import { writeAuditLog } from "../utils/audit-log";
 import { validateJsonContentType } from "../middleware/validation";
+import { verifyHCaptchaToken } from "../utils/verify-captcha";
+import { getRealIP } from "../utils/get-real-ip";
+import { isAdminMfaRequired } from "../utils/device";
+import { upsertDevice } from "../utils/device";
+import {
+  adminRateLimitMiddleware,
+  clearFailedAdminLogin,
+  getAdminAccountLockState,
+  isAdminCaptchaRequired,
+  recordFailedAdminLogin,
+} from "../middleware/admin-rate-limit";
 
 interface LoginBody {
   email: string;
   password: string;
+  captchaToken?: string;
+  fingerprint?: string;
+  deviceId?: string;
+  deviceName?: string;
 }
 
 export async function authRoutes(fastify: FastifyInstance) {
@@ -44,11 +58,14 @@ export async function authRoutes(fastify: FastifyInstance) {
     Body: LoginBody;
   }>("/internal/auth/login", {
     preHandler: [
-      createRateLimitMiddleware({ limit: 10, windowMs: 60000 }), // 10 attempts per minute per IP
+      adminRateLimitMiddleware,
       validateJsonContentType,
     ],
   }, async (request, reply) => {
-    const { email, password } = request.body;
+    const { email, password, captchaToken, fingerprint, deviceId, deviceName } = request.body;
+    const normalizedEmail = (email || "").toLowerCase().trim();
+    const requestIp = getRealIP(request);
+    const requestUa = ((request.headers["user-agent"] as string) || "unknown").substring(0, 256);
 
     // CSRF Protection: Validate Origin header
     const origin = request.headers.origin as string | undefined;
@@ -68,21 +85,90 @@ export async function authRoutes(fastify: FastifyInstance) {
 
     // Validate input
     if (!email || !password) {
+      await writeAuditLog(
+        "system",
+        normalizedEmail || "unknown",
+        "admin.login.failed",
+        { reason: "validation_error", ip: requestIp },
+        request.requestId
+      ).catch(() => {});
       return reply.status(400).send({
-        error: "Email and password required",
+        error: { code: "VALIDATION_ERROR", message: "Email and password required" },
       });
+    }
+
+    const lockState = await getAdminAccountLockState(normalizedEmail);
+    if (lockState.locked) {
+      await writeAuditLog(
+        "system",
+        normalizedEmail,
+        "admin.login.blocked",
+        { reason: "account_locked", ip: requestIp, retryAfterSec: lockState.retryAfterSec },
+        request.requestId
+      ).catch(() => {});
+      reply.header("Retry-After", lockState.retryAfterSec);
+      return reply.status(423).send({
+        error: {
+          code: "ACCOUNT_LOCKED",
+          message: "Account is temporarily locked due to failed attempts",
+          retryAfterSec: lockState.retryAfterSec,
+        },
+      });
+    }
+
+    const captchaRequired = await isAdminCaptchaRequired(normalizedEmail);
+    if (captchaRequired) {
+      if (!captchaToken?.trim()) {
+        return reply.status(400).send({
+          error: {
+            code: "CAPTCHA_REQUIRED",
+            message: "CAPTCHA verification is required",
+          },
+        });
+      }
+      const captchaOk = await verifyHCaptchaToken(captchaToken.trim(), requestIp);
+      if (!captchaOk) {
+        return reply.status(400).send({
+          error: {
+            code: "INVALID_CAPTCHA",
+            message: "CAPTCHA verification failed",
+          },
+        });
+      }
     }
 
     // Find admin user
     const adminUser = await prisma.adminUser.findUnique({
-      where: { email: email.toLowerCase().trim() },
+      where: { email: normalizedEmail },
     });
 
     if (!adminUser) {
-      request.log.warn({ email }, "Login attempt: user not found");
+      const failed = await recordFailedAdminLogin(normalizedEmail);
+      request.log.warn({ email: normalizedEmail }, "Login attempt: user not found");
+      await writeAuditLog(
+        "system",
+        normalizedEmail,
+        "admin.login.failed",
+        { reason: "invalid_credentials", ip: requestIp, attempts: failed.failedAttempts },
+        request.requestId
+      ).catch(() => {});
+      if (failed.locked) {
+        reply.header("Retry-After", failed.retryAfterSec);
+        return reply.status(423).send({
+          error: {
+            code: "ACCOUNT_LOCKED",
+            message: "Account is temporarily locked due to failed attempts",
+            retryAfterSec: failed.retryAfterSec,
+          },
+        });
+      }
       // Use generic error message to prevent user enumeration
       return reply.status(401).send({
-        error: "Invalid credentials",
+        error: {
+          code: "INVALID_CREDENTIALS",
+          message: "Invalid credentials",
+          loginAttempts: failed.failedAttempts,
+        },
       });
     }
 
@@ -90,18 +176,79 @@ export async function authRoutes(fastify: FastifyInstance) {
     const isValid = await verifyPassword(adminUser.passwordHash, password);
 
     if (!isValid) {
-      request.log.warn({ email, userId: adminUser.id }, "Login attempt: invalid password");
+      const failed = await recordFailedAdminLogin(adminUser.email);
+      request.log.warn({ email: normalizedEmail, userId: adminUser.id }, "Login attempt: invalid password");
+      await writeAuditLog(
+        "system",
+        adminUser.email,
+        "admin.login.failed",
+        { reason: "invalid_credentials", ip: requestIp, attempts: failed.failedAttempts },
+        request.requestId
+      ).catch(() => {});
+      if (failed.locked) {
+        reply.header("Retry-After", failed.retryAfterSec);
+        return reply.status(423).send({
+          error: {
+            code: "ACCOUNT_LOCKED",
+            message: "Account is temporarily locked due to failed attempts",
+            retryAfterSec: failed.retryAfterSec,
+          },
+        });
+      }
       return reply.status(401).send({
-        error: "Invalid credentials",
+        error: {
+          code: "INVALID_CREDENTIALS",
+          message: "Invalid credentials",
+          loginAttempts: failed.failedAttempts,
+        },
       });
     }
 
-    // Check if MFA is enabled
-    if (adminUser.mfaEnabled && adminUser.mfaSecret) {
-      // Set partial session with MFA pending flag
+    const hasMfaConfigured = Boolean(adminUser.mfaEnabled && adminUser.mfaSecret);
+
+    // In production, admins must have MFA configured before login.
+    if (isAdminMfaRequired() && !hasMfaConfigured) {
+      await writeAuditLog(
+        "system",
+        adminUser.email,
+        "admin.login.blocked",
+        { reason: "mfa_not_enabled", ip: requestIp },
+        request.requestId
+      ).catch(() => {});
+      return reply.status(403).send({
+        error: {
+          code: "MFA_REQUIRED_ADMIN",
+          message: "MFA is required for all admin users",
+        },
+      });
+    }
+
+    await clearFailedAdminLogin(adminUser.email);
+
+    if (hasMfaConfigured) {
+      // Set partial session with MFA pending flag.
       request.session.adminUserId = adminUser.id;
       request.session.adminMfaPending = true;
-      // Do NOT set role/email until MFA passes
+      delete request.session.adminRole;
+      delete request.session.adminEmail;
+
+      request.log.info(
+        { userId: adminUser.id, email: adminUser.email, role: adminUser.role },
+        "Admin password verified, awaiting MFA"
+      );
+      await writeAuditLog(
+        "system",
+        adminUser.email,
+        "admin.login.mfa_pending",
+        {
+          ip: requestIp,
+          userAgent: requestUa,
+          fingerprint: fingerprint || null,
+          deviceId: deviceId || null,
+          deviceName: deviceName || null,
+        },
+        request.requestId
+      ).catch(() => {});
 
       return reply.send({
         ok: false,
@@ -109,23 +256,26 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
     }
 
-    // Set session
+    // Dev/local fallback: allow login without MFA setup.
     request.session.adminUserId = adminUser.id;
     request.session.adminRole = adminUser.role;
     request.session.adminEmail = adminUser.email;
+    delete request.session.adminMfaPending;
 
-    // Upsert device record
     await upsertDevice(
       adminUser.id,
       "admin",
       request.headers["user-agent"] as string | undefined,
-      request.ip
+      requestIp
     );
 
-    request.log.info(
-      { userId: adminUser.id, email: adminUser.email, role: adminUser.role },
-      "Admin login successful"
-    );
+    await writeAuditLog(
+      "system",
+      adminUser.email,
+      "admin.login.success",
+      { ip: requestIp, mfaConfigured: false },
+      request.requestId
+    ).catch(() => {});
 
     return reply.send({
       ok: true,

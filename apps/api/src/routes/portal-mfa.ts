@@ -31,9 +31,15 @@ import {
 } from "../utils/portal-session";
 import { upsertDevice } from "../utils/device";
 import { createEmergencyLockToken } from "../utils/emergency-lock-token";
-import { getLoginNotificationEmail } from "../emails/login-notification";
-import { getSessionRevokedEmail } from "../emails/session-revoked";
+import {
+  getLoginNotificationEmailTemplate,
+  getSessionRevokedEmailTemplate,
+  getMfaSetupSuccessEmail,
+  extractLocaleCookie,
+  normalizeRequestLocale,
+} from "../utils/email-templates";
 import { getDefaultFromAddress, sendEmailAsync } from "../utils/mailer";
+import { getRealIP } from "../utils/get-real-ip";
 
 const MFA_SETUP_COOKIE = "helvino_portal_mfa_setup";
 
@@ -107,14 +113,30 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
     if (request.portalUser) {
       return request.portalUser;
     }
+    // 1) Try regular portal session cookie
+    const sessionSecret = process.env.SESSION_SECRET;
+    const portalSessionToken = request.cookies[PORTAL_SESSION_COOKIE];
+    if (portalSessionToken && sessionSecret) {
+      const parsedSession = verifyPortalSessionToken(portalSessionToken, sessionSecret);
+      if (parsedSession) {
+        const sessionUser = await prisma.orgUser.findUnique({
+          where: { id: parsedSession.userId },
+          select: { id: true, orgId: true, email: true, role: true },
+        });
+        if (sessionUser) {
+          return sessionUser;
+        }
+      }
+    }
+
+    // 2) Fallback to MFA setup token (header/query/cookie/body)
     const headerTokenRaw = request.headers["x-mfa-setup-token"];
     const headerToken = Array.isArray(headerTokenRaw) ? headerTokenRaw[0] : headerTokenRaw;
     const queryToken = (request.query as { setupToken?: string } | undefined)?.setupToken;
     const cookieToken = request.cookies[MFA_SETUP_COOKIE];
     const token = (setupToken || headerToken || queryToken || cookieToken || "").trim();
-    const secret = process.env.SESSION_SECRET;
-    if (!token || !secret) return null;
-    const parsed = verifyPortalSessionToken(token, secret);
+    if (!token || !sessionSecret) return null;
+    const parsed = verifyPortalSessionToken(token, sessionSecret);
     if (!parsed) return null;
     const user = await prisma.orgUser.findUnique({
       where: { id: parsed.userId },
@@ -235,7 +257,7 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
       const user = await prisma.orgUser.findUnique({
         where: { id: actor.id },
         include: {
-          organization: { select: { key: true, name: true } },
+          organization: { select: { key: true, name: true, language: true } },
         },
       });
       if (!user || !user.mfaSecret) {
@@ -273,6 +295,26 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
       // Emit notification
       const { emitMfaEnabled } = await import("../utils/notifications");
       await emitMfaEnabled(actor.orgId, user.id, request.requestId);
+      const appUrl = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+      const setupCookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const setupLocale = normalizeRequestLocale(
+        undefined,
+        setupCookieLang,
+        request.headers["accept-language"] as string,
+        user.organization.language || undefined
+      );
+      const mfaSuccessEmail = getMfaSetupSuccessEmail(setupLocale, {
+        time: new Date().toISOString(),
+        securityUrl: `${appUrl}/portal/security`,
+      });
+      sendEmailAsync({
+        to: user.email,
+        from: getDefaultFromAddress(),
+        subject: mfaSuccessEmail.subject,
+        html: mfaSuccessEmail.html,
+        text: mfaSuccessEmail.text,
+        tags: ["security", "mfa-enabled"],
+      });
 
       if (!request.portalUser) {
         const secret = process.env.SESSION_SECRET;
@@ -289,7 +331,7 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
           refreshToken: tokens.refreshToken,
           accessExpiresAt: tokens.accessExpiresAt,
           refreshExpiresAt: tokens.refreshExpiresAt,
-          ip: request.ip || null,
+          ip: getRealIP(request) !== "unknown" ? getRealIP(request) : null,
           userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || null,
           deviceName: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
           deviceId: null,
@@ -540,7 +582,7 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
       const user = await prisma.orgUser.findUnique({
         where: { id: parsed.userId },
         include: {
-          organization: { select: { id: true, key: true, name: true } },
+          organization: { select: { id: true, key: true, name: true, language: true } },
         },
       });
 
@@ -582,17 +624,32 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
         secret
       );
 
-      const geo = request.ip ? geoip.lookup(request.ip) : null;
+      const requestIp = getRealIP(request);
+      const geo = requestIp !== "unknown" ? geoip.lookup(requestIp) : null;
       const loginCountry = geo?.country || null;
       const loginCity = geo?.city || null;
+      const requestUa = ((request.headers["user-agent"] as string) || "unknown").substring(0, 256);
+      const previousSession = await prisma.portalSession.findFirst({
+        where: { orgUserId: user.id },
+        orderBy: { lastSeenAt: "desc" },
+        select: {
+          ip: true,
+          userAgent: true,
+        },
+      });
+      const sameIp = Boolean(previousSession?.ip) && requestIp !== "unknown" && previousSession?.ip === requestIp;
+      const sameDevice =
+        Boolean(previousSession?.userAgent) &&
+        previousSession?.userAgent === requestUa;
+      const shouldSendLoginNotification = !(sameDevice && sameIp);
       const sessionResult = await createPortalSessionWithLimit({
         orgUserId: user.id,
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         accessExpiresAt: tokens.accessExpiresAt,
         refreshExpiresAt: tokens.refreshExpiresAt,
-        ip: request.ip || null,
-        userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || null,
+        ip: requestIp !== "unknown" ? requestIp : null,
+        userAgent: requestUa,
         deviceName: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
         deviceId: null,
         loginCountry,
@@ -626,38 +683,45 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
         user.id,
         "portal",
         request.headers["user-agent"] as string | undefined,
-        request.ip
+        requestIp
       );
 
       const appUrl = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
       const lockToken = createEmergencyLockToken(user.id);
       const lockUrl = `${appUrl}/portal/login?emergencyLockToken=${encodeURIComponent(lockToken)}`;
       const locationLabel = [loginCity, loginCountry].filter(Boolean).join(", ") || "Unknown";
-      const loginNotification = getLoginNotificationEmail({
-        email: user.email,
-        deviceName: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
-        location: locationLabel,
-        ip: request.ip || "unknown",
-        time: new Date().toISOString(),
-        lockUrl,
-      });
-      sendEmailAsync({
-        to: loginNotification.to,
-        from: getDefaultFromAddress(),
-        subject: loginNotification.subject,
-        html: loginNotification.html,
-        text: loginNotification.text,
-        tags: ["security", "login-notification"],
-      });
+      const loginCookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const securityLocale = normalizeRequestLocale(
+        undefined,
+        loginCookieLang,
+        request.headers["accept-language"] as string,
+        user.organization.language || undefined
+      );
+      if (shouldSendLoginNotification) {
+        const loginNotification = getLoginNotificationEmailTemplate(securityLocale, {
+          ip: requestIp,
+          time: new Date().toISOString(),
+          device: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
+          location: locationLabel,
+          securityUrl: lockUrl,
+        });
+        sendEmailAsync({
+          to: user.email,
+          from: getDefaultFromAddress(),
+          subject: loginNotification.subject,
+          html: loginNotification.html,
+          text: loginNotification.text,
+          tags: ["security", "login-notification"],
+        });
+      }
 
       if (sessionResult.revokedSession) {
-        const revokedEmail = getSessionRevokedEmail({
-          email: user.email,
+        const revokedEmail = getSessionRevokedEmailTemplate(securityLocale, {
           deviceName: sessionResult.revokedSession.deviceName || "Unknown device",
           sessionsUrl: `${appUrl}/portal/settings/sessions`,
         });
         sendEmailAsync({
-          to: revokedEmail.to,
+          to: user.email,
           from: getDefaultFromAddress(),
           subject: revokedEmail.subject,
           html: revokedEmail.html,

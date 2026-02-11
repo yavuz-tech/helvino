@@ -50,7 +50,7 @@ export default function Home() {
 
               {/* CTAs */}
               <div className="flex flex-col sm:flex-row items-start gap-3 mb-8">
-                <Link href="/portal/login" className={designTokens.buttons.primaryLg + " w-full sm:w-auto"}>
+                <Link href="/portal/login?reauth=1" className={designTokens.buttons.primaryLg + " w-full sm:w-auto"}>
                   {t("home.ctaStartFree")}
                 </Link>
                 <Link href="/pricing" className={designTokens.buttons.secondaryLg + " w-full sm:w-auto"}>

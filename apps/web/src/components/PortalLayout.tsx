@@ -4,21 +4,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Home,
   Inbox,
-  Settings,
-  Shield,
   LogOut,
   Menu,
   X,
-  CreditCard,
-  BarChart3,
-  Users,
-  Puzzle,
-  FileText,
   Bell,
-  Paintbrush,
-  Bot,
   CheckCheck,
   MessageCircle,
 } from "lucide-react";
@@ -39,7 +29,7 @@ interface WidgetBubbleSettings {
 interface NavItemDef {
   labelKey: TranslationKey;
   href: string;
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+  icon: React.ComponentType<{ className?: string }>;
   badge?: "unread"; // inbox only
   roles?: Array<"owner" | "admin">;
 }
@@ -49,38 +39,155 @@ interface NavSectionDef {
   items: NavItemDef[];
 }
 
+function OverviewIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <path d="M5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8" fill="var(--icon-bg)" />
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="var(--icon-stroke)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 22V12h6v10" stroke="var(--icon-stroke)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function InboxIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <path d="M2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11L2 12z" fill="var(--icon-bg)" />
+      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" stroke="var(--icon-stroke)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" stroke="var(--icon-stroke)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function AiBotIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="11" width="18" height="10" rx="2" fill="var(--icon-bg)" />
+      <rect x="3" y="11" width="18" height="10" rx="2" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+      <circle cx="12" cy="5" r="2" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+      <path d="M12 7v4" stroke="var(--icon-stroke)" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="8.5" cy="16" r="1.5" fill="var(--icon-stroke)" />
+      <circle cx="15.5" cy="16" r="1.5" fill="var(--icon-stroke)" />
+    </svg>
+  );
+}
+
+function WidgetIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="7.5" height="7.5" rx="2" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+      <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+      <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+      <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" fill="var(--icon-stroke)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function WidgetAppearanceIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+      <circle cx="8" cy="8" r="1.5" fill="var(--icon-stroke)" />
+      <circle cx="14" cy="7" r="1.5" fill="var(--icon-stroke)" />
+      <circle cx="17" cy="11" r="1.5" fill="var(--icon-stroke)" />
+      <circle cx="7" cy="13" r="1.5" fill="var(--icon-stroke)" />
+    </svg>
+  );
+}
+
+function UsageIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <rect x="4" y="13" width="4" height="8" rx="1" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+      <rect x="10" y="3" width="4" height="18" rx="1" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+      <rect x="16" y="8" width="4" height="13" rx="1" fill="var(--icon-stroke)" stroke="var(--icon-stroke)" strokeWidth="1.8" opacity="0.8" />
+    </svg>
+  );
+}
+
+function SettingsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="3" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="var(--icon-stroke)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SecurityIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points="9 12 11 14 15 10" stroke="var(--icon-stroke)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function TeamIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <circle cx="9" cy="7" r="4" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+      <path d="M1 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="17" cy="8" r="3" stroke="var(--icon-stroke)" strokeWidth="1.5" strokeDasharray="2 2" />
+      <path d="M21 21v-1.5a3 3 0 0 0-2-2.83" stroke="var(--icon-stroke)" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function AuditIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <rect x="4" y="4" width="16" height="18" rx="2" fill="var(--icon-bg)" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" stroke="var(--icon-stroke)" strokeWidth="1.8" strokeLinecap="round" />
+      <rect x="8" y="2" width="8" height="4" rx="1" fill="var(--icon-stroke)" stroke="var(--icon-stroke)" strokeWidth="1" />
+      <line x1="8" y1="12" x2="16" y2="12" stroke="var(--icon-stroke)" strokeWidth="1.8" strokeLinecap="round" />
+      <line x1="8" y1="16" x2="12" y2="16" stroke="var(--icon-stroke)" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BillingIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <rect x="1" y="4" width="22" height="16" rx="2" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+      <rect x="1" y="8" width="22" height="4" fill="var(--icon-stroke)" opacity="0.3" />
+      <line x1="1" y1="10" x2="23" y2="10" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
 const navSections: NavSectionDef[] = [
   {
     sectionKey: "nav.section.main",
     items: [
-      { labelKey: "nav.overview", href: "/portal", icon: Home },
-      { labelKey: "nav.inbox", href: "/portal/inbox", icon: Inbox, badge: "unread" },
-      { labelKey: "nav.ai", href: "/portal/ai", icon: Bot },
+      { labelKey: "nav.overview", href: "/portal", icon: OverviewIcon },
+      { labelKey: "nav.inbox", href: "/portal/inbox", icon: InboxIcon, badge: "unread" },
+      { labelKey: "nav.ai", href: "/portal/ai", icon: AiBotIcon },
     ],
   },
   {
     sectionKey: "nav.section.widget",
     items: [
-      { labelKey: "nav.widgetSettings", href: "/portal/widget", icon: Puzzle },
-      { labelKey: "widgetAppearance.title", href: "/portal/widget-appearance", icon: Paintbrush },
+      { labelKey: "nav.widgetSettings", href: "/portal/widget", icon: WidgetIcon },
+      { labelKey: "widgetAppearance.title", href: "/portal/widget-appearance", icon: WidgetAppearanceIcon },
     ],
   },
   {
     sectionKey: "nav.section.insights",
-    items: [{ labelKey: "nav.usage", href: "/portal/usage", icon: BarChart3 }],
+    items: [{ labelKey: "nav.usage", href: "/portal/usage", icon: UsageIcon }],
   },
   {
     sectionKey: "nav.section.general",
     items: [
-      { labelKey: "nav.settings", href: "/portal/settings", icon: Settings },
-      { labelKey: "nav.security", href: "/portal/security", icon: Shield },
-      { labelKey: "nav.team", href: "/portal/team", icon: Users },
-      { labelKey: "nav.auditLogs", href: "/portal/audit", icon: FileText },
+      { labelKey: "nav.settings", href: "/portal/settings", icon: SettingsIcon },
+      { labelKey: "nav.security", href: "/portal/security", icon: SecurityIcon },
+      { labelKey: "nav.team", href: "/portal/team", icon: TeamIcon },
+      { labelKey: "nav.auditLogs", href: "/portal/audit", icon: AuditIcon },
     ],
   },
   {
     sectionKey: "nav.section.account",
-    items: [{ labelKey: "nav.billing", href: "/portal/billing", icon: CreditCard }],
+    items: [{ labelKey: "nav.billing", href: "/portal/billing", icon: BillingIcon }],
   },
 ];
 
@@ -90,7 +197,8 @@ export default function PortalLayout({
   children: React.ReactNode;
 }) {
   const { user, logout } = usePortalAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [bellPulse, setBellPulse] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -101,6 +209,20 @@ export default function PortalLayout({
   const router = useRouter();
   const { t } = useI18n();
   const userRole = user?.role?.toLowerCase() || "";
+  const userAvatarUrl = (user as { avatarUrl?: string } | null)?.avatarUrl;
+  const userName = (user as { name?: string } | null)?.name;
+  const avatarLetter = (userName?.charAt(0) || user?.email?.charAt(0) || "U").toUpperCase();
+
+  const fetchWidgetSettings = useCallback(async () => {
+    try {
+      const res = await portalApiFetch(`/portal/widget/settings?_t=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.settings) setWidgetSettings(data.settings as WidgetBubbleSettings);
+    } catch {
+      // silent
+    }
+  }, []);
 
   const goToInbox = useCallback((unreadOnly: boolean) => {
     setBellOpen(false);
@@ -110,22 +232,32 @@ export default function PortalLayout({
   // Fetch widget appearance settings for the floating bubble
   useEffect(() => {
     if (!user) return;
-    portalApiFetch("/portal/widget/settings")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.settings) setWidgetSettings(d.settings); })
-      .catch(() => {});
-  }, [user]);
+    fetchWidgetSettings();
+  }, [user, fetchWidgetSettings]);
 
   // Refresh widget settings when user customizes them
   useEffect(() => {
-    const handler = () => {
-      portalApiFetch("/portal/widget/settings")
-        .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d?.settings) setWidgetSettings(d.settings); })
-        .catch(() => {});
+    const handler = (event: Event) => {
+      const custom = event as CustomEvent<{ settings?: WidgetBubbleSettings }>;
+      if (custom.detail?.settings) {
+        setWidgetSettings(custom.detail.settings);
+      }
+      fetchWidgetSettings();
     };
-    window.addEventListener("widget-settings-updated", handler);
-    return () => window.removeEventListener("widget-settings-updated", handler);
+    window.addEventListener("widget-settings-updated", handler as EventListener);
+    return () => window.removeEventListener("widget-settings-updated", handler as EventListener);
+  }, [fetchWidgetSettings]);
+
+  // Live preview sync from widget appearance editor (no API roundtrip)
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const custom = event as CustomEvent<{ settings?: WidgetBubbleSettings }>;
+      if (custom.detail?.settings) {
+        setWidgetSettings(custom.detail.settings);
+      }
+    };
+    window.addEventListener("widget-settings-live-preview", handler as EventListener);
+    return () => window.removeEventListener("widget-settings-live-preview", handler as EventListener);
   }, []);
 
   useEffect(() => {
@@ -184,6 +316,27 @@ export default function PortalLayout({
     };
   }, [user, pathname]);
 
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("sidebar-collapsed");
+      if (saved === "1") setSidebarOpen(false);
+    } catch {
+      // no-op
+    }
+  }, []);
+
+  const toggleSidebarOpen = useCallback(() => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem("sidebar-collapsed", next ? "0" : "1");
+      } catch {
+        // no-op
+      }
+      return next;
+    });
+  }, []);
+
   // Inbox sayfasına her girildiğinde badge’i hemen yenile
   useEffect(() => {
     if (pathname === "/portal/inbox" && user) {
@@ -217,56 +370,99 @@ export default function PortalLayout({
   }, [fetchUnreadCount]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {sidebarOpen && (
+    <div className="min-h-screen bg-slate-50 isolate">
+      {mobileSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setMobileSidebarOpen(false)}
         />
       )}
 
       <aside
-        className={`fixed top-0 left-0 z-50 h-full w-[260px] bg-slate-50/95 border-r border-slate-200/80 shadow-sm transform transition-transform duration-200 ease-in-out lg:translate-x-0 flex flex-col ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed top-0 left-0 z-[90] h-full overflow-hidden border-r border-black/10 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06),0_12px_32px_rgba(0,0,0,0.04)] transform transition-all duration-300 ease-in-out flex flex-col w-[260px] ${
+          mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } ${sidebarOpen ? "lg:w-[260px]" : "lg:w-[72px]"} lg:translate-x-0`}
+        style={{ transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)" }}
       >
-        {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-5 border-b border-slate-200/80 bg-white/80 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-gradient-to-br from-[#1A1A2E] to-[#2D2D44] rounded-xl flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-xs">H</span>
+        <div
+          className={`shrink-0 ${sidebarOpen ? "px-5 py-5" : "px-[15px] py-[15px]"}`}
+          style={{ background: "linear-gradient(135deg, #F59E0B 0%, #D97706 60%, #B45309 100%)" }}
+        >
+          {sidebarOpen ? (
+            <div className="flex w-full items-start justify-between gap-3">
+              <div className="min-w-0 flex items-center gap-3">
+                <div
+                  className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px] border"
+                  style={{
+                    background: "rgba(255,255,255,0.2)",
+                    borderColor: "rgba(255,255,255,0.15)",
+                    backdropFilter: "blur(8px)",
+                  }}
+                >
+                  <span className="font-[var(--font-heading)] text-[17px] font-extrabold text-white">H</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-[var(--font-heading)] text-[15px] font-bold text-white">{t("nav.customerPortal")}</p>
+                  <p className="truncate font-[var(--font-body)] text-[11.5px] text-white/70">{user?.orgName || t("portal.organization")}</p>
+                </div>
+              </div>
+              <button
+                onClick={toggleSidebarOpen}
+                className="hidden h-[30px] w-[30px] items-center justify-center rounded-lg bg-white/15 text-white transition-all duration-200 hover:scale-110 hover:bg-white/30 lg:inline-flex"
+                title={t("nav.closeMenu")}
+                aria-label={t("nav.closeMenu")}
+              >
+                <X size={14} strokeWidth={2.5} />
+              </button>
+              <button
+                onClick={() => setMobileSidebarOpen(false)}
+                className="rounded-lg bg-white/15 p-1.5 text-white/80 transition-colors hover:bg-white/25 hover:text-white lg:hidden"
+              >
+                <X size={18} strokeWidth={2} />
+              </button>
             </div>
-            <span className="font-semibold text-[13px] text-slate-900 tracking-tight">
-              {t("nav.customerPortal")}
-            </span>
-          </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden hover:bg-slate-100 rounded-lg p-1.5 transition-colors"
-          >
-            <X size={18} strokeWidth={2} className="text-slate-400" />
-          </button>
+          ) : (
+            <>
+              <button
+                onClick={toggleSidebarOpen}
+                className="mx-auto hidden h-[42px] w-[42px] items-center justify-center rounded-[10px] bg-white/15 transition-all duration-200 hover:scale-[1.08] hover:bg-white/30 lg:flex"
+                title={t("nav.openMenu")}
+                aria-label={t("nav.openMenu")}
+              >
+                <span className="flex flex-col gap-[5px]">
+                  <span className="h-[2.5px] w-5 rounded bg-white" />
+                  <span className="h-[2.5px] w-5 rounded bg-white" />
+                  <span className="h-[2.5px] w-5 rounded bg-white" />
+                </span>
+              </button>
+              <div className="flex w-full items-center justify-between lg:hidden">
+                <p className="truncate font-[var(--font-heading)] text-[15px] font-bold text-white">{t("nav.customerPortal")}</p>
+                <button
+                  onClick={() => setMobileSidebarOpen(false)}
+                  className="rounded-lg bg-white/15 p-1.5 text-white/80 transition-colors hover:bg-white/25 hover:text-white"
+                >
+                  <X size={18} strokeWidth={2} />
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Org info */}
-        {user && (
-          <div className="px-5 py-3 border-b border-slate-200/80 bg-white/60 shrink-0">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t("portal.organization")}</div>
-            <div className="text-[13px] font-semibold text-slate-800 truncate mt-0.5">{user.orgName}</div>
-            <div className="text-[11px] text-slate-500 truncate mt-0.5">{user.orgKey}</div>
-          </div>
-        )}
-
-        {/* Nav — gruplu, premium (rakip referans) */}
-        <nav className="flex-1 overflow-y-auto py-4" style={{ maxHeight: "calc(100vh - 140px)" }}>
+        <nav className={`flex-1 overflow-y-auto bg-white ${sidebarOpen ? "p-3" : "px-2 py-3"}`}>
           {navSections.map((section) => (
-            <div key={section.sectionKey} className="mb-6 last:mb-0">
-              <div className="px-5 mb-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  {t(section.sectionKey)}
-                </span>
-              </div>
-              <div className="space-y-0.5 px-3">
+            <div key={section.sectionKey} className="mb-4 last:mb-0">
+              {sidebarOpen ? (
+                <div className="px-[14px] pt-[10px] pb-1">
+                  <span className="font-[var(--font-heading)] text-[10px] font-bold uppercase tracking-[0.1em] text-[#D97706]">
+                    {t(section.sectionKey)}
+                  </span>
+                </div>
+              ) : (
+                <div className="px-2 py-2">
+                  <div className="h-px bg-black/5" />
+                </div>
+              )}
+              <div className="space-y-1">
                 {section.items.map((item) => {
                   if (item.roles && !item.roles.includes(userRole as "owner" | "admin")) {
                     return null;
@@ -274,30 +470,40 @@ export default function PortalLayout({
                   const isActive = pathname === item.href;
                   const Icon = item.icon;
                   const showUnread = item.badge === "unread" && unreadCount > 0;
+                  const iconToneClass = isActive
+                    ? "[--icon-stroke:#FFFFFF] [--icon-bg:rgba(255,255,255,0.3)]"
+                    : "[--icon-stroke:#64748B] [--icon-bg:rgba(245,158,11,0.12)] group-hover:[--icon-stroke:#92400E]";
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 ${
+                      className={`group relative flex rounded-[10px] transition-all duration-200 ${
                         isActive
-                          ? "bg-blue-50 text-blue-700 border-l-2 border-blue-500 -ml-px pl-[11px]"
-                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 border-l-2 border-transparent"
-                      }`}
-                      onClick={() => setSidebarOpen(false)}
+                          ? "bg-gradient-to-br from-[#F59E0B] to-[#D97706] text-white shadow-[0_3px_12px_rgba(245,158,11,0.25)]"
+                          : "bg-transparent text-[#52525B] hover:bg-[rgba(245,158,11,0.06)] hover:text-[#92400E]"
+                      } ${sidebarOpen ? "items-center gap-3 px-[14px] py-[9px]" : "items-center justify-center px-2 py-2.5"}`}
+                      onClick={() => setMobileSidebarOpen(false)}
                     >
                       <span className="relative flex-shrink-0">
-                        <Icon
-                          size={18}
-                          strokeWidth={isActive ? 2.5 : 2}
-                          className={isActive ? "text-blue-600" : "text-slate-500"}
-                        />
+                        <Icon className={`h-5 w-5 flex-shrink-0 ${iconToneClass}`} />
                         {showUnread && (
-                          <span className="absolute -top-1 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center px-0.5 text-[9px] font-bold text-white bg-gradient-to-br from-red-500 to-red-600 rounded-full shadow-sm shadow-red-200/60 ring-1.5 ring-white bell-dot">
-                            {unreadCount > 99 ? "99+" : unreadCount}
-                          </span>
+                          sidebarOpen ? (
+                            <span className={`absolute -top-1 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-[10px] px-[7px] text-[10.5px] font-[var(--font-heading)] font-bold ${isActive ? "bg-white/30 text-white" : "bg-[#EF4444] text-white"} bell-dot`}>
+                              {unreadCount > 99 ? "99+" : unreadCount}
+                            </span>
+                          ) : (
+                            <span className={`absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full border-2 ${isActive ? "border-white bg-white/85" : "border-white bg-[#EF4444]"} bell-dot`} />
+                          )
                         )}
                       </span>
-                      <span className="text-[13px] font-medium truncate">{t(item.labelKey)}</span>
+                      {sidebarOpen ? (
+                        <span className={`truncate font-[var(--font-body)] text-[13.5px] ${isActive ? "font-bold text-white" : "font-medium text-[#52525B] group-hover:text-[#92400E]"}`}>{t(item.labelKey)}</span>
+                      ) : (
+                        <span className="pointer-events-none absolute left-full top-1/2 z-40 ml-2 hidden -translate-y-1/2 whitespace-nowrap rounded-lg bg-[#1A1D23] px-3 py-1.5 font-[var(--font-body)] text-xs font-semibold text-white shadow-lg lg:group-hover:block">
+                          {t(item.labelKey)}
+                          <span className="absolute left-[-4px] top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 bg-[#1A1D23]" />
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
@@ -305,13 +511,46 @@ export default function PortalLayout({
             </div>
           ))}
         </nav>
+
+        {sidebarOpen && (
+        <div className="shrink-0 border-t border-black/5 bg-white px-4 pb-4 pt-3">
+          <div
+            className="rounded-xl border px-3.5 py-3"
+            style={{
+              background: "linear-gradient(135deg, #FFFBEB, #FEF3C7)",
+              borderColor: "rgba(245, 158, 11, 0.1)",
+            }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[18px] leading-none">🚀</span>
+                  <p className="truncate font-[var(--font-heading)] text-[12px] font-bold text-[#92400E]">{t("billing.upgradeNow")}</p>
+                </div>
+                <p className="mt-1 truncate font-[var(--font-body)] text-[10.5px] text-[#B45309]/70">{t("billing.subtitle")}</p>
+              </div>
+              <Link
+                href="/portal/billing"
+                className="inline-flex flex-shrink-0 items-center rounded-lg bg-gradient-to-br from-[#F59E0B] to-[#D97706] px-2.5 py-1.5 font-[var(--font-heading)] text-[11px] font-bold text-white shadow-[0_3px_10px_rgba(245,158,11,0.28)]"
+                onClick={() => setMobileSidebarOpen(false)}
+              >
+                {t("billing.upgrade")}
+              </Link>
+            </div>
+          </div>
+        </div>
+        )}
       </aside>
 
-      <div className="lg:pl-[260px]">
+      <div
+        className={`portal-shell relative z-0 ${sidebarOpen ? "lg:pl-[260px]" : "lg:pl-[72px]"} transition-[padding] duration-300`}
+        data-sidebar-collapsed={sidebarOpen ? "0" : "1"}
+        style={{ transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)" }}
+      >
         {/* Top bar */}
-        <header className="relative h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 flex items-center px-5 sticky top-0 z-20 shadow-sm">
+        <header className="relative h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 flex items-center px-5 sticky top-0 z-[100] shadow-sm pointer-events-auto">
           <button
-            onClick={() => setSidebarOpen(true)}
+            onClick={() => setMobileSidebarOpen(true)}
             className="relative z-[2] lg:hidden hover:bg-slate-100 rounded-lg p-2 transition-colors"
           >
             <Menu size={20} strokeWidth={2} className="text-slate-400" />
@@ -322,28 +561,19 @@ export default function PortalLayout({
             <CampaignTopBanner source="portal" variant="inline" />
           </div>
 
-          <div className="relative z-[2] flex items-center gap-2 ml-auto">
+          <div className="relative z-[2] ml-auto flex items-center gap-2">
             <div className="relative" ref={bellRef}>
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setBellOpen((o) => !o); }}
-                className={`relative p-2.5 rounded-xl transition-all duration-300 ${
-                  unreadCount > 0
-                    ? "bg-blue-50/80 hover:bg-blue-100/80"
-                    : "hover:bg-slate-100"
-                } ${bellPulse ? "bell-wiggle" : ""}`}
+                className={`group relative flex h-10 w-10 items-center justify-center rounded-xl border border-black/[0.06] bg-black/[0.03] transition-all duration-200 hover:scale-105 hover:bg-black/[0.06] ${bellPulse ? "bell-wiggle" : ""}`}
                 title={t("inbox.bell.recentMessages")}
                 aria-label={t("inbox.bell.recentMessages")}
                 aria-expanded={bellOpen}
               >
-                <Bell size={18} strokeWidth={2} className={`transition-colors duration-300 ${unreadCount > 0 ? "text-blue-600" : "text-slate-500"}`} />
+                <Bell size={18} strokeWidth={2} className="text-slate-500 transition-colors duration-200 group-hover:text-[#64748B]" />
                 {unreadCount > 0 && (
-                  <>
-                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-red-500 bell-dot" />
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center px-1 text-[10px] font-bold text-white bg-gradient-to-br from-red-500 to-red-600 rounded-full shadow-sm shadow-red-200/60 ring-2 ring-white">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  </>
+                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full border-2 border-white bg-[#EF4444] bell-dot" />
                 )}
               </button>
               {bellOpen && (
@@ -400,29 +630,40 @@ export default function PortalLayout({
               )}
             </div>
             <LanguageSwitcher />
-            {user && (
-              <>
+            {user ? (
+              <div className="ml-1 flex items-center gap-2">
                 <div className="hidden sm:block text-right mr-1">
                   <p className="text-[13px] font-semibold text-slate-800 leading-tight">
                     {user.email}
                   </p>
                   <p className="text-[11px] text-slate-500">{user.role}</p>
                 </div>
-                <div className="w-8 h-8 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg flex items-center justify-center shadow-sm">
-                  <span className="text-xs font-bold text-slate-600">
-                    {user.email.charAt(0).toUpperCase()}
-                  </span>
-                </div>
                 <button
-                  onClick={logout}
-                  className="flex items-center gap-1.5 px-2.5 py-2 text-[13px] text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-all duration-150"
-                  title={t("common.logout")}
+                  type="button"
+                  onClick={() => router.push("/portal/settings")}
+                  className="group flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border-2 border-white/80 shadow-[0_2px_8px_rgba(245,158,11,0.25)] transition-all duration-200 hover:scale-105 hover:shadow-[0_4px_12px_rgba(245,158,11,0.35)]"
+                  style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+                  title={t("nav.settings")}
+                  aria-label={t("nav.settings")}
                 >
-                  <LogOut size={15} strokeWidth={2} />
-                  <span className="hidden sm:inline font-medium">{t("common.logout")}</span>
+                  {userAvatarUrl ? (
+                    <img src={userAvatarUrl} alt={t("nav.settings")} className="h-full w-full rounded-[10px] object-cover" />
+                  ) : (
+                    <span className="font-[var(--font-heading)] text-[14px] font-bold text-white">
+                      {avatarLetter}
+                    </span>
+                  )}
                 </button>
-              </>
-            )}
+              </div>
+            ) : null}
+            <button
+              onClick={logout}
+              className="flex items-center gap-1.5 px-2.5 py-2 text-[13px] text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-all duration-150"
+              title={t("common.logout")}
+            >
+              <LogOut size={15} strokeWidth={2} />
+              <span className="hidden sm:inline font-medium">{t("common.logout")}</span>
+            </button>
           </div>
         </header>
 
@@ -433,7 +674,7 @@ export default function PortalLayout({
         {pathname === "/portal/inbox" ? (
           <>{children}</>
         ) : (
-          <main className="p-5 sm:p-6">{children}</main>
+          <main className="relative z-0 p-5 sm:p-6">{children}</main>
         )}
       </div>
 

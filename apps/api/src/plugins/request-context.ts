@@ -12,6 +12,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import fp from "fastify-plugin";
 import { randomUUID } from "crypto";
+import { getRealIP } from "../utils/get-real-ip";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -107,7 +108,7 @@ async function requestContextPluginImpl(fastify: FastifyInstance) {
       actorId: request.actorId,
       orgKey,
       siteId,
-      ip: request.ip,
+      ip: getRealIP(request),
     });
   });
 

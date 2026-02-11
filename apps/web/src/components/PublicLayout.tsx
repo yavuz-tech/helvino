@@ -378,7 +378,7 @@ export default function PublicLayout({
               {t("nav.contactSales")}
             </Link>
             <Link
-              href="/portal/login"
+              href="/portal/login?reauth=1"
               className="px-3.5 py-2 text-sm text-slate-600 hover:text-slate-900 transition-colors font-medium rounded-lg hover:bg-slate-50"
             >
               {t("common.login")}
@@ -449,7 +449,7 @@ export default function PublicLayout({
                 {t("nav.contactSales")}
               </Link>
               <Link
-                href="/portal/login"
+                href="/portal/login?reauth=1"
                 onClick={closeMobile}
                 className={designTokens.buttons.ghost + " w-full text-center"}
               >

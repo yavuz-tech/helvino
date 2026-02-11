@@ -4,6 +4,7 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const PORTAL_REFRESH_TOKEN_STORAGE_KEY = "helvino_portal_refresh_token";
+const PORTAL_ONBOARDING_DEFER_STORAGE_KEY = "helvino_portal_onboarding_deferred";
 const REQUEST_TIMEOUT_MS = 12000;
 
 let memoryRefreshToken: string | null = null;
@@ -20,6 +21,21 @@ function saveRefreshToken(token: string | null) {
 
 export function storePortalRefreshToken(token: string | null) {
   saveRefreshToken(token);
+}
+
+export function markPortalOnboardingDeferredForSession() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(PORTAL_ONBOARDING_DEFER_STORAGE_KEY, "1");
+}
+
+export function clearPortalOnboardingDeferredForSession() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(PORTAL_ONBOARDING_DEFER_STORAGE_KEY);
+}
+
+export function isPortalOnboardingDeferredForSession(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.sessionStorage.getItem(PORTAL_ONBOARDING_DEFER_STORAGE_KEY) === "1";
 }
 
 function readRefreshToken(): string | null {
@@ -40,6 +56,8 @@ export interface PortalUser {
   orgId: string;
   orgKey: string;
   orgName: string;
+  mfaEnabled?: boolean;
+  showSecurityOnboarding?: boolean;
 }
 
 async function fetchWithTimeout(
@@ -64,19 +82,25 @@ export async function checkPortalAuth(): Promise<PortalUser | null> {
     if (!response.ok) {
       const data = await response.json().catch(() => null);
       const code = typeof data?.error === "object" ? data.error?.code : undefined;
-      if (response.status === 401 && code === "TOKEN_EXPIRED") {
+      // Attempt refresh for any 401 auth miss. Some browsers may drop the short-lived
+      // cookie while refresh token is still valid in storage.
+      if (response.status === 401) {
         const refreshed = await portalRefreshAccessToken();
         if (!refreshed.ok) return null;
         response = await fetchWithTimeout(`${API_URL}/portal/auth/me`, {
           credentials: "include",
         });
         if (!response.ok) return null;
-      } else {
+      } else if (code !== "TOKEN_EXPIRED") {
         return null;
       }
     }
     const data = await response.json();
-    return data.user;
+    if (!data?.user) return null;
+    return {
+      ...data.user,
+      showSecurityOnboarding: Boolean(data.showSecurityOnboarding),
+    };
   } catch {
     return null;
   }
@@ -89,6 +113,8 @@ export async function portalLogin(
   device?: { fingerprint?: string; deviceId?: string; deviceName?: string }
 ): Promise<{ ok: boolean; user?: PortalUser; error?: string; errorCode?: string; statusCode?: number; mfaRequired?: boolean; mfaToken?: string; mfaSetupToken?: string; showSecurityOnboarding?: boolean; isRateLimited?: boolean; retryAfterSec?: number; requestId?: string; loginAttempts?: number; refreshToken?: string }> {
   try {
+    // New login should re-enable onboarding checks unless user chooses "later" again.
+    clearPortalOnboardingDeferredForSession();
     const response = await fetchWithTimeout(`${API_URL}/portal/auth/login`, {
       method: "POST",
       credentials: "include",
@@ -136,6 +162,7 @@ export async function portalLogin(
 export async function portalLogout(): Promise<void> {
   try {
     saveRefreshToken(null);
+    clearPortalOnboardingDeferredForSession();
     await fetchWithTimeout(`${API_URL}/portal/auth/logout`, {
       method: "POST",
       credentials: "include",
@@ -187,20 +214,16 @@ export async function portalApiFetch(
     },
   });
   if (response.status === 401) {
-    const data = await response.clone().json().catch(() => null);
-    const code = typeof data?.error === "object" ? data.error?.code : undefined;
-    if (code === "TOKEN_EXPIRED") {
-      const refreshed = await portalRefreshAccessToken();
-      if (refreshed.ok) {
-        response = await fetchWithTimeout(`${API_URL}${path}`, {
-          ...options,
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            ...options.headers,
-          },
-        });
-      }
+    const refreshed = await portalRefreshAccessToken();
+    if (refreshed.ok) {
+      response = await fetchWithTimeout(`${API_URL}${path}`, {
+        ...options,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      });
     }
   }
   return response;

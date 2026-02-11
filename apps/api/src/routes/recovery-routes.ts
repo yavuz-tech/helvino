@@ -713,7 +713,12 @@ export async function recoveryRoutes(fastify: FastifyInstance) {
       // User's org language → Accept-Language → "en"
       const org = await prisma.organization.findUnique({ where: { id: actor.orgId }, select: { language: true } });
       const emergencyCookieLang = extractLocaleCookie(request.headers.cookie as string);
-      const emergencyLocale = normalizeRequestLocale(org?.language ?? undefined, emergencyCookieLang, request.headers["accept-language"] as string);
+      const emergencyLocale = normalizeRequestLocale(
+        undefined,
+        emergencyCookieLang,
+        request.headers["accept-language"] as string,
+        org?.language ?? undefined
+      );
 
       const emergencyEmail = getEmergencyTokenEmail(emergencyLocale);
       sendEmailAsync({

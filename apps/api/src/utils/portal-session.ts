@@ -9,10 +9,27 @@ import crypto from "crypto";
 import { prisma } from "../prisma";
 
 export const PORTAL_SESSION_COOKIE = "helvino_portal_sid";
-export const PORTAL_ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const DEFAULT_PORTAL_ACCESS_TOKEN_TTL_MS = 60 * 60 * 1000; // 60 minutes
+const DEFAULT_MAX_ACTIVE_PORTAL_SESSIONS = 10;
+
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export const PORTAL_ACCESS_TOKEN_TTL_MS = readPositiveIntEnv(
+  "PORTAL_ACCESS_TOKEN_TTL_MS",
+  DEFAULT_PORTAL_ACCESS_TOKEN_TTL_MS
+);
 export const PORTAL_REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // Backward-compatible alias used across routes for cookie max-age.
 export const PORTAL_SESSION_TTL_MS = PORTAL_ACCESS_TOKEN_TTL_MS;
+const MAX_ACTIVE_PORTAL_SESSIONS = readPositiveIntEnv(
+  "PORTAL_MAX_ACTIVE_SESSIONS",
+  DEFAULT_MAX_ACTIVE_PORTAL_SESSIONS
+);
 
 interface PortalSessionPayload {
   userId: string;
@@ -50,6 +67,42 @@ export interface PortalSessionCreateResult {
     id: string;
     deviceName: string | null;
   } | null;
+}
+
+type ActivePortalSession = {
+  id: string;
+  deviceName: string | null;
+  deviceFingerprint: string | null;
+  deviceId: string | null;
+  userAgent: string | null;
+};
+
+function normalizeValue(value?: string | null): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function isSameDeviceSession(
+  session: ActivePortalSession,
+  input: PortalSessionCreateInput
+): boolean {
+  const inputFingerprint = normalizeValue(input.deviceFingerprint);
+  const inputDeviceId = normalizeValue(input.deviceId);
+  const inputUserAgent = normalizeValue(input.userAgent);
+  const sessionFingerprint = normalizeValue(session.deviceFingerprint);
+  const sessionDeviceId = normalizeValue(session.deviceId);
+  const sessionUserAgent = normalizeValue(session.userAgent);
+
+  if (inputFingerprint && sessionFingerprint) {
+    return inputFingerprint === sessionFingerprint;
+  }
+  if (inputDeviceId && sessionDeviceId) {
+    return inputDeviceId === sessionDeviceId;
+  }
+  if (!inputFingerprint && !inputDeviceId && inputUserAgent && sessionUserAgent) {
+    return inputUserAgent === sessionUserAgent;
+  }
+  return false;
 }
 
 function base64UrlEncode(input: Buffer): string {
@@ -144,11 +197,42 @@ export async function createPortalSessionWithLimit(
   const activeSessions = await prisma.portalSession.findMany({
     where: { orgUserId: input.orgUserId, revokedAt: null },
     orderBy: { lastSeenAt: "asc" },
-    select: { id: true, deviceName: true },
+    select: {
+      id: true,
+      deviceName: true,
+      deviceFingerprint: true,
+      deviceId: true,
+      userAgent: true,
+    },
   });
 
+  const existingSessionOnSameDevice = activeSessions.find((session) =>
+    isSameDeviceSession(session, input)
+  );
+  if (existingSessionOnSameDevice) {
+    await prisma.portalSession.update({
+      where: { id: existingSessionOnSameDevice.id },
+      data: {
+        tokenHash: crypto.createHash("sha256").update(input.accessToken).digest("hex"),
+        refreshToken: input.refreshToken,
+        accessExpiresAt: input.accessExpiresAt,
+        refreshExpiresAt: input.refreshExpiresAt,
+        ip: input.ip || null,
+        userAgent: input.userAgent || null,
+        deviceFingerprint: input.deviceFingerprint || null,
+        deviceId: input.deviceId || null,
+        deviceName: input.deviceName || null,
+        loginCountry: input.loginCountry || null,
+        loginCity: input.loginCity || null,
+        lastSeenAt: new Date(),
+        revokedAt: null,
+      },
+    });
+    return { revokedSession: null };
+  }
+
   let revokedSession: { id: string; deviceName: string | null } | null = null;
-  if (activeSessions.length >= 3) {
+  if (activeSessions.length >= MAX_ACTIVE_PORTAL_SESSIONS) {
     const oldest = activeSessions[0];
     await prisma.portalSession.update({
       where: { id: oldest.id },

@@ -15,6 +15,7 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { redis } from "../redis";
 import { writeAuditLog } from "../utils/audit-log";
+import { getRealIP } from "../utils/get-real-ip";
 
 interface RateLimitResult {
   allowed: boolean;
@@ -106,6 +107,7 @@ export function createRateLimitMiddleware(config: RateLimitConfig) {
   const shouldAudit = config.auditLog !== false;
 
   return async (request: FastifyRequest, reply: FastifyReply) => {
+    const realIp = getRealIP(request);
     // Skip rate limiting for authenticated internal admin session or internal key
     const internalKey = request.headers["x-internal-key"] as string | undefined;
     const adminUserId = request.session?.adminUserId;
@@ -117,13 +119,13 @@ export function createRateLimitMiddleware(config: RateLimitConfig) {
           || "unknown";
         const actor = (request as any).portalUser?.email
           || request.session?.adminEmail
-          || request.ip
+          || realIp
           || "anonymous";
         writeAuditLog(
           orgId,
           actor,
           "security.rate_limit_bypass",
-          { route, reason: internalKey ? "internal_key" : "admin_session", ip: request.ip },
+          { route, reason: internalKey ? "internal_key" : "admin_session", ip: realIp },
           request.requestId
         ).catch(() => { /* best-effort */ });
       }
@@ -136,7 +138,7 @@ export function createRateLimitMiddleware(config: RateLimitConfig) {
       rateLimitKey = config.keyBuilder(request);
     } else {
       const orgKey = request.headers["x-org-key"] as string || "anonymous";
-      const ip = request.ip;
+      const ip = realIp;
       rateLimitKey = `${orgKey}:${ip}`;
     }
 
@@ -161,13 +163,13 @@ export function createRateLimitMiddleware(config: RateLimitConfig) {
           || "unknown";
         const actor = (request as any).portalUser?.email
           || request.session?.adminEmail
-          || request.ip
+          || realIp
           || "anonymous";
         writeAuditLog(
           orgId,
           actor,
           "security.rate_limited",
-          { route, key: rateLimitKey, retryAfterSec, ip: request.ip },
+          { route, key: rateLimitKey, retryAfterSec, ip: realIp },
           request.requestId
         ).catch(() => { /* best-effort */ });
       }

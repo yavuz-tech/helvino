@@ -3,16 +3,50 @@
 import { useState } from "react";
 import { Fingerprint } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
-import { storePortalRefreshToken } from "@/lib/portal-auth";
+import {
+  clearPortalOnboardingDeferredForSession,
+  storePortalRefreshToken,
+} from "@/lib/portal-auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 interface PasskeyLoginButtonProps {
   area: "portal" | "admin";
   email: string;
-  onSuccess: () => void;
+  onSuccess: (result?: { showSecurityOnboarding?: boolean }) => void;
   onError: (msg: string) => void;
   className?: string;
+}
+
+function getErrorMessage(value: unknown, fallback: string): string {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return fallback;
+    if (trimmed === "[object Event]" || trimmed === "[object Object]") return fallback;
+    return trimmed;
+  }
+  if (value && typeof value === "object") {
+    const asRecord = value as { message?: unknown; error?: unknown };
+    if (typeof asRecord.message === "string" && asRecord.message.trim()) {
+      return asRecord.message.trim();
+    }
+    if (typeof asRecord.error === "string" && asRecord.error.trim()) {
+      return asRecord.error.trim();
+    }
+  }
+  return fallback;
+}
+
+function normalizePasskeyErrorMessage(raw: string, t: (key: string) => string): string {
+  const normalized = raw.trim().toLowerCase();
+  if (!normalized) return t("passkeys.loginFailed");
+  if (normalized.includes("no passkeys registered for this account")) {
+    return t("passkeys.noPasskeysForAccount");
+  }
+  if (normalized.includes("email is required")) {
+    return t("passkeys.emailRequired");
+  }
+  return raw;
 }
 
 /**
@@ -32,7 +66,7 @@ export default function PasskeyLoginButton({
 
   const handlePasskeyLogin = async () => {
     if (!email.trim()) {
-      onError(t("auth.email"));
+      onError(t("passkeys.emailRequired"));
       return;
     }
 
@@ -42,6 +76,9 @@ export default function PasskeyLoginButton({
     }
 
     setLoading(true);
+    if (area === "portal") {
+      clearPortalOnboardingDeferredForSession();
+    }
 
     try {
       // 1. Get login options
@@ -54,7 +91,12 @@ export default function PasskeyLoginButton({
 
       if (!optRes.ok) {
         const data = await optRes.json().catch(() => ({}));
-        onError(data.error || t("passkeys.noPasskeysForAccount"));
+        onError(
+          normalizePasskeyErrorMessage(
+            getErrorMessage(data?.error, t("passkeys.noPasskeysForAccount")),
+            t
+          )
+        );
         setLoading(false);
         return;
       }
@@ -111,13 +153,20 @@ export default function PasskeyLoginButton({
           if (area === "portal" && data.refreshToken) {
             storePortalRefreshToken(data.refreshToken);
           }
-          onSuccess();
+          onSuccess({
+            showSecurityOnboarding: area === "portal" ? Boolean(data.showSecurityOnboarding) : false,
+          });
           return;
         }
       }
 
       const errData = await verifyRes.json().catch(() => ({}));
-      onError(errData.error || t("passkeys.loginFailed"));
+      onError(
+        normalizePasskeyErrorMessage(
+          getErrorMessage(errData?.error, t("passkeys.loginFailed")),
+          t
+        )
+      );
     } catch (err) {
       // User cancelled the browser prompt
       if (err instanceof Error && (err.name === "AbortError" || err.name === "NotAllowedError")) {
@@ -134,7 +183,7 @@ export default function PasskeyLoginButton({
     <button
       type="button"
       onClick={handlePasskeyLogin}
-      disabled={loading || !email.trim()}
+      disabled={loading}
       className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${className || ""}`}
     >
       <Fingerprint size={18} />

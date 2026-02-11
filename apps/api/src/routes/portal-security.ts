@@ -32,6 +32,7 @@ import {
 } from "../utils/portal-session";
 import { validatePasswordPolicy } from "../utils/password-policy";
 import { verifyHCaptchaToken } from "../utils/verify-captcha";
+import { getRealIP } from "../utils/get-real-ip";
 
 // ── Helpers ──
 
@@ -82,8 +83,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
       const body = request.body as { email?: string; locale?: string; captchaToken?: string };
       const email = body.email?.toLowerCase().trim();
       const cookieLang = extractLocaleCookie(request.headers.cookie as string);
-      const requestedLocale = normalizeRequestLocale(body.locale, cookieLang, request.headers["accept-language"] as string);
-      const ipAddress = request.ip || "unknown";
+      const ipAddress = getRealIP(request);
       const userAgent = (request.headers["user-agent"] as string | undefined)?.substring(0, 256) ?? null;
 
       const genericMessage = "If an account with that email exists, a password reset link has been sent.";
@@ -186,6 +186,11 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
 
       const orgUser = await prisma.orgUser.findUnique({
         where: { email },
+        include: {
+          organization: {
+            select: { language: true },
+          },
+        },
       });
 
       if (!orgUser || !orgUser.isActive) {
@@ -226,12 +231,18 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
         request.requestId
       );
 
-      // Generate signed reset link + send email (use UI locale from request so mail matches page language)
+      // Generate signed reset link + send email in org/site language
       const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
       const resetLink = generateResetLink(rawToken, expiresAt);
+      const effectiveLocale = normalizeRequestLocale(
+        body.locale,
+        cookieLang,
+        request.headers["accept-language"] as string,
+        orgUser.organization.language || undefined
+      );
 
-      const expiresInText = requestedLocale === "tr" ? "60 dakika" : requestedLocale === "es" ? "60 minutos" : "60 minutes";
-      const emailContent = getResetEmail(requestedLocale, resetLink, expiresInText);
+      const expiresInText = effectiveLocale === "tr" ? "60 dakika" : effectiveLocale === "es" ? "60 minutos" : "60 minutes";
+      const emailContent = getResetEmail(effectiveLocale, resetLink, expiresInText);
 
       // Fire-and-forget: don't block API response for password reset email
       sendEmailAsync({
@@ -404,9 +415,16 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
       );
 
       const supportUrl = `${process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000"}/portal/forgot-password`;
-      const passwordChangedEmail = getPasswordChangedEmail(resetToken.orgUser.organization.language, {
+      const resetCookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const resetLocale = normalizeRequestLocale(
+        undefined,
+        resetCookieLang,
+        request.headers["accept-language"] as string,
+        resetToken.orgUser.organization.language || undefined
+      );
+      const passwordChangedEmail = getPasswordChangedEmail(resetLocale, {
         time: new Date().toISOString(),
-        ip: request.ip || "unknown",
+        ip: getRealIP(request),
         device: ((request.headers["user-agent"] as string) || "Unknown device").substring(0, 160),
         supportUrl,
       });
@@ -441,7 +459,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
         refreshToken: tokens.refreshToken,
         accessExpiresAt: tokens.accessExpiresAt,
         refreshExpiresAt: tokens.refreshExpiresAt,
-        ip: request.ip || null,
+        ip: getRealIP(request) !== "unknown" ? getRealIP(request) : null,
         userAgent: (request.headers["user-agent"] as string)?.substring(0, 256) || null,
         deviceName: ((request.headers["user-agent"] as string) || "Unknown").substring(0, 120),
       });

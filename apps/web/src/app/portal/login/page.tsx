@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { KeyRound, Lock, ShieldCheck, Sparkles } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { KeyRound, ShieldCheck, Sparkles } from "lucide-react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
-import { checkPortalAuth, portalLogin, storePortalRefreshToken } from "@/lib/portal-auth";
+import {
+  checkPortalAuth,
+  portalLogin,
+  portalLogout,
+  storePortalRefreshToken,
+} from "@/lib/portal-auth";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import PasskeyLoginButton from "@/components/PasskeyLoginButton";
@@ -18,7 +23,9 @@ const HCAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "";
 
 export default function PortalLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t, locale } = useI18n();
+  const reauthHandledRef = useRef(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -45,19 +52,32 @@ export default function PortalLoginPage() {
   const [captchaRenderNonce, setCaptchaRenderNonce] = useState(0);
 
   const premiumInput =
-    "w-full rounded-xl border border-white/15 bg-white/10 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-400 outline-none transition-all focus:border-cyan-300/60 focus:bg-white/15 focus:ring-2 focus:ring-cyan-300/25 disabled:cursor-not-allowed disabled:opacity-60";
-  const premiumLabel = "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-300";
+    "w-full rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all focus:border-amber-300 focus:ring-2 focus:ring-amber-200 disabled:cursor-not-allowed disabled:opacity-60";
+  const premiumLabel =
+    "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]";
   const premiumPrimaryBtn =
-    "w-full rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_25px_rgba(6,182,212,0.35)] transition-all hover:brightness-110 hover:shadow-[0_12px_30px_rgba(6,182,212,0.45)] disabled:cursor-not-allowed disabled:opacity-60";
-  const premiumSecondaryText = "text-sm text-slate-300 transition-colors hover:text-white";
+    "w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 px-4 py-3 text-sm font-semibold text-[var(--primary)] shadow-[0_12px_28px_rgba(245,158,11,0.35)] transition-all hover:brightness-105 hover:shadow-[0_14px_32px_rgba(245,158,11,0.42)] disabled:cursor-not-allowed disabled:opacity-60";
+  const premiumSecondaryText =
+    "text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--highlight)]";
 
   useEffect(() => {
     const verify = async () => {
+      const forceReauth = searchParams.get("reauth") === "1";
+      if (forceReauth && !reauthHandledRef.current) {
+        reauthHandledRef.current = true;
+        await portalLogout();
+        return;
+      }
       const user = await checkPortalAuth();
-      if (user) router.push("/portal");
+      if (!user) return;
+      if (user.showSecurityOnboarding) {
+        window.location.replace("/portal/security-onboarding");
+        return;
+      }
+      window.location.replace("/portal");
     };
     verify();
-  }, [router]);
+  }, [router, searchParams]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -112,11 +132,12 @@ export default function PortalLoginPage() {
     const result = await portalLogin(email, password, captchaToken || undefined, fingerprintPayload);
     if (result.ok) {
       if (result.showSecurityOnboarding) {
-        router.push("/portal/security-onboarding");
-      } else {
-        router.push("/portal");
+        // CRITICAL: No code after this line. router.refresh() was racing
+        // with window.location and cancelling the navigation.
+        window.location.href = "/portal/security-onboarding";
+        return;
       }
-      router.refresh();
+      window.location.href = "/portal";
       return;
     }
 
@@ -297,8 +318,7 @@ export default function PortalLoginPage() {
         if (data.refreshToken) {
           storePortalRefreshToken(data.refreshToken);
         }
-        router.push("/portal");
-        router.refresh();
+        window.location.href = "/portal";
         return;
       }
 
@@ -312,12 +332,12 @@ export default function PortalLoginPage() {
 
   const cardContent = emailVerificationRequired ? (
     <div className="text-center">
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50">
         <svg className="h-7 w-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
       </div>
-      <h2 className="mb-2 text-lg font-semibold text-slate-900">{t("verifyEmail.title")}</h2>
+      <h2 className="mb-2 text-lg font-semibold text-[var(--text-primary)]">{t("verifyEmail.title")}</h2>
 
       <ErrorBanner
         message={t("login.emailVerificationRequired")}
@@ -350,7 +370,7 @@ export default function PortalLoginPage() {
           setError(null);
           setVerificationResent(false);
         }}
-        className="mt-3 w-full text-center text-sm text-slate-300 transition-colors hover:text-white"
+        className="mt-3 w-full text-center text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--highlight)]"
       >
         {t("security.backToLogin")}
       </button>
@@ -358,12 +378,12 @@ export default function PortalLoginPage() {
   ) : mfaRequired ? (
     <>
       <div className="mb-5 flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
           <KeyRound size={16} />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-white">{t("mfa.loginRequired")}</h2>
-          <p className="text-sm text-slate-300">{t("mfa.loginDesc")}</p>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("mfa.loginRequired")}</h2>
+          <p className="text-sm text-[var(--text-secondary)]">{t("mfa.loginDesc")}</p>
         </div>
       </div>
 
@@ -394,7 +414,7 @@ export default function PortalLoginPage() {
           setMfaCode("");
           setError(null);
         }}
-        className="mt-3 w-full text-center text-sm text-slate-300 transition-colors hover:text-white"
+        className="mt-3 w-full text-center text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--highlight)]"
       >
         {t("security.backToLogin")}
       </button>
@@ -402,8 +422,8 @@ export default function PortalLoginPage() {
   ) : (
     <>
       <div className="mb-5">
-        <h2 className="text-lg font-semibold text-white">{t("auth.signIn")}</h2>
-        <p className="mt-1 text-sm text-slate-300">{t("portalLogin.formSubtitle")}</p>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("auth.signIn")}</h2>
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">{t("portalLogin.formSubtitle")}</p>
       </div>
 
       {error ? (
@@ -417,7 +437,7 @@ export default function PortalLoginPage() {
             className="mb-4"
           />
           {showNetworkHint ? (
-            <p className="mb-4 rounded-lg border border-white/15 bg-white/10 px-2.5 py-2 text-xs font-mono text-slate-300">
+            <p className="mb-4 rounded-lg border border-amber-200/70 bg-[var(--bg-glass)] px-2.5 py-2 text-xs font-mono text-[var(--text-secondary)]">
               {t("auth.networkErrorHint")}
             </p>
           ) : null}
@@ -463,7 +483,7 @@ export default function PortalLoginPage() {
         {showCaptcha ? (
           <div>
             <label className={premiumLabel}>{t("portalLogin.captchaLabel")}</label>
-            <div className="rounded-xl border border-white/15 bg-white/5 p-2.5">
+            <div className="rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] p-2.5">
               {HCAPTCHA_SITE_KEY ? (
                 <HCaptcha
                   key={captchaRenderNonce}
@@ -471,10 +491,10 @@ export default function PortalLoginPage() {
                   onVerify={(token) => setCaptchaToken(token)}
                   onExpire={() => setCaptchaToken(null)}
                   onError={() => setCaptchaToken(null)}
-                  theme="dark"
+                  theme="light"
                 />
               ) : (
-                <p className="text-xs text-amber-300">{t("portalLogin.captchaMissingKey")}</p>
+                <p className="text-xs text-amber-700">{t("portalLogin.captchaMissingKey")}</p>
               )}
             </div>
           </div>
@@ -490,12 +510,12 @@ export default function PortalLoginPage() {
       </form>
 
       {lockedAccount ? (
-        <div className="mt-4 rounded-xl border border-amber-300/40 bg-amber-500/10 px-3 py-3">
-          <p className="text-sm font-medium text-amber-100">{t("portalLogin.accountLocked")}</p>
+        <div className="mt-4 rounded-xl border border-amber-300/60 bg-amber-50/80 px-3 py-3">
+          <p className="text-sm font-medium text-amber-800">{t("portalLogin.accountLocked")}</p>
           <button
             type="button"
             onClick={() => setUnlockFormOpen((v) => !v)}
-            className="mt-1 text-xs font-semibold text-amber-200 underline decoration-dotted underline-offset-2 hover:text-amber-50"
+            className="mt-1 text-xs font-semibold text-amber-700 underline decoration-dotted underline-offset-2 hover:text-amber-900"
           >
             {t("portalLogin.unlockLink")}
           </button>
@@ -524,10 +544,10 @@ export default function PortalLoginPage() {
 
       <div className="relative my-5">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-white/20" />
+          <div className="w-full border-t border-amber-200/80" />
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="relative z-10 inline-flex items-center rounded-full border border-white/20 bg-slate-900/75 px-3.5 py-1 font-medium uppercase tracking-wide text-slate-200 backdrop-blur-sm">
+          <span className="relative z-10 inline-flex items-center rounded-full border border-amber-200/70 bg-[var(--bg-glass)] px-3.5 py-1 font-medium uppercase tracking-wide text-[var(--text-secondary)] backdrop-blur-sm">
             {t("passkeys.orDivider")}
           </span>
         </div>
@@ -536,16 +556,22 @@ export default function PortalLoginPage() {
       <PasskeyLoginButton
         area="portal"
         email={email}
-        className="border-white/20 bg-white/10 text-slate-100 hover:border-cyan-300/60 hover:bg-white/15"
-        onSuccess={() => {
-          router.push("/portal");
-          router.refresh();
+        className="border-amber-200/70 bg-[var(--bg-glass)] text-[var(--text-primary)] hover:border-amber-300 hover:bg-white/90"
+        onSuccess={(result) => {
+          if (result?.showSecurityOnboarding) {
+            window.location.href = "/portal/security-onboarding";
+            return;
+          }
+          window.location.href = "/portal";
         }}
         onError={(msg) => setError(msg)}
       />
 
       <div className="mt-5 space-y-2 text-center">
-        <Link href="/portal/forgot-password" className={`block ${premiumSecondaryText}`}>
+        <Link
+          href="/portal/forgot-password"
+          className="block text-sm font-semibold text-[var(--highlight)] transition-colors hover:opacity-80"
+        >
           {t("security.forgotPassword")}
         </Link>
         <Link href="/signup" className={`block ${premiumSecondaryText}`}>
@@ -556,56 +582,66 @@ export default function PortalLoginPage() {
   );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#071126] px-4 py-6 sm:px-6 lg:px-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_16%,rgba(124,58,237,0.26),transparent_44%),radial-gradient(circle_at_88%_82%,rgba(6,182,212,0.22),transparent_45%),linear-gradient(125deg,#08132A_0%,#0B1C3A_48%,#0D2D39_100%)]" />
-      <div className="pointer-events-none absolute -left-28 top-20 h-72 w-72 rounded-full bg-violet-500/20 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 bottom-24 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
+    <div
+      className="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8"
+      style={{
+        background:
+          "radial-gradient(circle at 20% 50%, rgba(245, 158, 11, 0.15), transparent 50%), radial-gradient(circle at 80% 80%, rgba(251, 113, 133, 0.15), transparent 50%), linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)",
+      }}
+    >
+      <div className="pointer-events-none absolute -left-28 top-20 h-72 w-72 rounded-full bg-amber-300/25 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-24 h-72 w-72 rounded-full bg-rose-300/25 blur-3xl" />
 
       <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
         <LanguageSwitcher />
       </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-center py-6 lg:min-h-[calc(100vh-3rem)] lg:py-0">
-        <div className="grid w-full items-center gap-8 lg:grid-cols-2 lg:gap-12">
-          <section className="hidden text-white lg:block">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white/90 backdrop-blur-sm">
-              <Sparkles size={14} className="text-amber-300" />
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-center py-6 lg:min-h-[calc(100vh-3rem)] lg:py-0">
+        <div className="grid w-full items-center gap-8 lg:grid-cols-5 lg:gap-12">
+          <section className="hidden lg:col-span-2 lg:block">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-200/80 bg-white/60 px-4 py-1.5 text-xs font-semibold text-[var(--text-secondary)] backdrop-blur-sm">
+              <Sparkles size={14} className="text-[var(--accent)]" />
               <span>{t("portalLogin.heroBadge")}</span>
             </div>
-            <h1 className="max-w-xl text-4xl font-bold leading-[1.1] tracking-tight">
+            <h1 className="max-w-xl text-4xl font-bold leading-[1.1] tracking-tight text-[var(--text-primary)]">
               {t("portalLogin.welcomeTitle")}
             </h1>
-            <p className="mt-4 max-w-lg text-base leading-relaxed text-slate-200">
+            <p className="mt-4 max-w-lg text-base leading-relaxed text-[var(--text-secondary)]">
               {t("portalLogin.welcomeSubtitle")}
             </p>
             <div className="mt-8 space-y-3">
-              {[t("portalLogin.benefitOne"), t("portalLogin.benefitTwo"), t("portalLogin.benefitThree")].map((item) => (
+              {[t("portalLogin.benefitOne"), t("portalLogin.benefitTwo"), t("portalLogin.benefitThree"), t("portalLogin.trustLine")].map((item) => (
                 <div
                   key={item}
-                  className="flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm"
+                  className="flex items-center gap-3 rounded-xl border border-amber-200/70 bg-white/65 px-4 py-3 backdrop-blur-sm"
                 >
-                  <ShieldCheck size={18} className="shrink-0 text-emerald-300" />
-                  <span className="text-sm text-white/90">{item}</span>
+                  <ShieldCheck size={18} className="shrink-0 text-[var(--accent)]" />
+                  <span className="text-sm text-[var(--text-primary)]">{item}</span>
                 </div>
               ))}
             </div>
-            <div className="mt-6 inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-xs text-white/80 backdrop-blur-sm">
-              <Lock size={14} />
-              <span>{t("portalLogin.trustLine")}</span>
-            </div>
           </section>
 
-          <section className="mx-auto w-full max-w-[460px]">
+          <section className="mx-auto w-full max-w-[560px] lg:col-span-3">
             <div className="mb-6 text-center lg:hidden">
-              <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0F5C5C] to-[#1E88A8] shadow-[0_8px_24px_rgba(15,92,92,0.4)]">
-                <span className="text-xl font-bold text-white">H</span>
+              <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-rose-400 shadow-[0_10px_26px_rgba(245,158,11,0.35)]">
+                <span className="text-xl font-bold text-[var(--primary)]">H</span>
               </div>
-              <h1 className="mb-1 text-2xl font-bold tracking-tight text-white">{t("nav.customerPortal")}</h1>
-              <p className="text-sm text-slate-300">{t("auth.tenantAccess")}</p>
+              <h1 className="mb-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t("nav.customerPortal")}</h1>
+              <p className="text-sm text-[var(--text-secondary)]">{t("auth.tenantAccess")}</p>
             </div>
 
-            <div className="rounded-3xl bg-gradient-to-br from-white/30 via-cyan-200/20 to-violet-200/20 p-[1px] shadow-[0_35px_90px_rgba(6,12,24,0.55)]">
-              <div className="rounded-3xl border border-white/10 bg-slate-900/55 p-7 backdrop-blur-2xl">
+            <div className="rounded-3xl bg-gradient-to-br from-amber-300/55 via-rose-200/45 to-amber-100/65 p-[1px] shadow-[0_30px_80px_rgba(149,115,22,0.25)]">
+              <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl">
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-rose-400 shadow-[0_10px_24px_rgba(245,158,11,0.35)]">
+                    <span className="font-bold text-[var(--primary)]">H</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">Helvion</p>
+                    <p className="text-xs text-[var(--text-secondary)]">{t("portalLogin.formSubtitle")}</p>
+                  </div>
+                </div>
                 {cardContent}
               </div>
             </div>

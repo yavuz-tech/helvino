@@ -253,7 +253,7 @@ export default function PlanComparisonTable({
                   </div>
                 ) : mode === "public" && plan.key === "free" ? (
                   <Link
-                    href="/portal/login"
+                    href="/portal/login?reauth=1"
                     className="block w-full px-6 py-3.5 text-center text-base font-semibold bg-slate-100 text-slate-700 rounded-2xl hover:bg-slate-200 transition-all duration-150"
                   >
                     {t("pricing.startFree")}
@@ -274,7 +274,7 @@ export default function PlanComparisonTable({
                   </button>
                 ) : mode === "public" && plan.key !== "free" ? (
                   <Link
-                    href="/portal/login"
+                    href="/portal/login?reauth=1"
                     className={`block w-full px-6 py-3.5 text-center text-base font-semibold rounded-2xl transition-all duration-150 ${
                       popular
                         ? "bg-[#1A1A2E] text-white hover:bg-[#15152A] shadow-xl hover:shadow-2xl"

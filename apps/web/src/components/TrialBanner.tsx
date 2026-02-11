@@ -1,8 +1,9 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/I18nContext";
-import { AlertTriangle, XCircle, ArrowRight, Sparkles } from "lucide-react";
+import { AlertTriangle, XCircle, ArrowRight, Sparkles, X } from "lucide-react";
 
 interface TrialBannerProps {
   daysLeft: number;
@@ -20,77 +21,73 @@ export default function TrialBanner({
   className = "",
 }: TrialBannerProps) {
   const { t } = useI18n();
+  const [dismissed, setDismissed] = useState(false);
 
-  if (!isTrialing && !isExpired) return null;
+  if (dismissed || (!isTrialing && !isExpired)) return null;
 
-  /* ── Expired ── */
-  if (isExpired) {
-    return (
-      <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-50 to-rose-50 border border-red-200/70 p-5 ${className}`}>
-        <div className="absolute -top-6 -right-6 w-24 h-24 bg-red-200/20 rounded-full" />
-        <div className="relative flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-red-500/20">
-            <XCircle size={22} className="text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[15px] font-bold text-red-900">{t("trial.expiredTitle")}</p>
-            <p className="text-sm text-red-700/80 mt-0.5">{t("trial.expiredDesc")}</p>
-          </div>
-          <Link href="/portal/billing"
-            className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-colors shadow-sm flex-shrink-0">
-            {t("trial.upgradeNow")} <ArrowRight size={14} />
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const progressPercent = useMemo(() => {
+    if (isExpired) return 0;
+    const assumedTrialDays = 14;
+    const pct = Math.round((daysLeft / assumedTrialDays) * 100);
+    return Math.max(0, Math.min(100, pct));
+  }, [daysLeft, isExpired]);
 
-  /* ── Warning: <= 3 days ── */
-  if (daysLeft <= 3) {
-    return (
-      <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200/70 p-5 ${className}`}>
-        <div className="absolute -top-6 -right-6 w-24 h-24 bg-amber-200/20 rounded-full" />
-        <div className="relative flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-amber-400/20">
-            <AlertTriangle size={22} className="text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[15px] font-bold text-amber-900">{t("trial.expiringTitle")}</p>
-            <p className="text-sm text-amber-700/80 mt-0.5">
-              {t("trial.expiringDesc").replace("{days}", String(daysLeft))}
-            </p>
-          </div>
-          <Link href="/portal/billing"
-            className="flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white text-sm font-semibold rounded-xl hover:bg-amber-700 transition-colors shadow-sm flex-shrink-0">
-            {t("trial.viewPlans")} <ArrowRight size={14} />
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const title = isExpired
+    ? t("trial.expiredTitle")
+    : daysLeft <= 3
+      ? t("trial.expiringTitle")
+      : t("trial.activeDesc").replace("{days}", String(daysLeft));
 
-  /* ── Active Trial ── */
+  const description = isExpired
+    ? t("trial.expiredDesc")
+    : daysLeft <= 3
+      ? t("trial.expiringDesc").replace("{days}", String(daysLeft))
+      : endsAt
+        ? `${t("trial.endsOn")} ${new Date(endsAt).toLocaleDateString()}`
+        : t("trial.viewPlans");
+
+  const ctaLabel = isExpired ? t("trial.upgradeNow") : t("trial.viewPlans");
+  const LeadingIcon = isExpired ? XCircle : daysLeft <= 3 ? AlertTriangle : Sparkles;
+
   return (
-    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/70 p-5 ${className}`}>
-      <div className="absolute -top-6 -right-6 w-24 h-24 bg-blue-200/20 rounded-full" />
-      <div className="relative flex items-center gap-4">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-blue-500/20">
-          <Sparkles size={22} className="text-white" />
+    <div
+      className={`relative min-h-[76px] overflow-hidden rounded-2xl px-5 py-4 shadow-[0_4px_24px_rgba(99,102,241,0.3)] ${className}`}
+      style={{ background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%)" }}
+    >
+      <div className="flex items-center gap-4">
+        <div
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
+          style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.1))" }}
+        >
+          <LeadingIcon size={20} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[15px] font-bold text-blue-900">
-            {t("trial.activeDesc").replace("{days}", String(daysLeft))}
-          </p>
-          {endsAt && (
-            <p className="text-sm text-blue-600/80 mt-0.5" suppressHydrationWarning>
-              {t("trial.endsOn")} {new Date(endsAt).toLocaleDateString()}
+          <p className="font-[var(--font-heading)] text-[14px] font-bold text-white">{title}</p>
+          <div className="mt-0.5 flex items-center gap-3">
+            <p className="min-w-0 truncate font-[var(--font-body)] text-[12.5px] font-medium text-white/75" suppressHydrationWarning>
+              {description}
             </p>
-          )}
+            <div className="h-1 w-[120px] flex-shrink-0 overflow-hidden rounded" style={{ background: "rgba(255,255,255,0.2)" }}>
+              <div
+                className="h-full rounded"
+                style={{ width: `${progressPercent}%`, background: "rgba(255,255,255,0.8)" }}
+              />
+            </div>
+          </div>
         </div>
-        <Link href="/portal/billing"
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm flex-shrink-0">
-          {t("trial.viewPlans")} <ArrowRight size={14} />
+        <Link
+          href="/portal/billing"
+          className="ml-auto inline-flex min-w-[220px] flex-shrink-0 items-center justify-center gap-2 rounded-[10px] bg-white/95 px-5 py-2.5 text-[13px] font-bold text-[#3730A3] transition-colors hover:bg-white"
+        >
+          {ctaLabel} <ArrowRight size={14} />
         </Link>
+
+        <button
+          onClick={() => setDismissed(true)}
+          className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/15 text-white/80 transition-colors hover:bg-white/25 hover:text-white"
+        >
+          <X size={16} />
+        </button>
       </div>
     </div>
   );

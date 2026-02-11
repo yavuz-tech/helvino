@@ -65,6 +65,18 @@ interface OrgInfo {
   name: string;
 }
 
+interface PromoCodeItem {
+  id: string;
+  code: string;
+  discountValue: number;
+  currentUses: number;
+  maxUses: number | null;
+  validUntil: string | null;
+  isActive: boolean;
+  isGlobal: boolean;
+  createdAt: string;
+}
+
 export default function SettingsPage() {
   const router = useRouter();
   const { t } = useI18n();
@@ -97,6 +109,14 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [billingMessage, setBillingMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [promoCodes, setPromoCodes] = useState<PromoCodeItem[]>([]);
+  const [promoLoading, setPromoLoading] = useState(true);
+  const [promoMessage, setPromoMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [promoCreateCode, setPromoCreateCode] = useState("");
+  const [promoCreateMaxUses, setPromoCreateMaxUses] = useState("");
+  const [promoCreateValidUntil, setPromoCreateValidUntil] = useState("");
+  const [promoCreating, setPromoCreating] = useState(false);
+  const [promoUpdatingId, setPromoUpdatingId] = useState<string | null>(null);
 
   // MFA state
   const [mfaEnabled, setMfaEnabled] = useState(false);
@@ -220,6 +240,34 @@ export default function SettingsPage() {
     };
 
     fetchBilling();
+  }, [API_URL, selectedOrg, authLoading, orgLoading]);
+
+  const fetchPromoCodes = async () => {
+    if (!selectedOrg) return;
+    setPromoLoading(true);
+    try {
+      const response = await fetch(
+        `${API_URL}/internal/promo-codes?orgKey=${encodeURIComponent(selectedOrg.key)}`,
+        {
+          credentials: "include",
+        }
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = (await response.json()) as { items?: PromoCodeItem[] };
+      setPromoCodes(data.items || []);
+    } catch (err) {
+      console.error("Failed to fetch promo codes:", err);
+      setPromoMessage({ type: "error", text: t("settings.promoLoadFailed") });
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (authLoading || orgLoading || !selectedOrg) return;
+    fetchPromoCodes();
   }, [API_URL, selectedOrg, authLoading, orgLoading]);
 
   // Save settings
@@ -502,6 +550,103 @@ export default function SettingsPage() {
     }
     setBillingMessage({ type: "success", text: t("settings.reconcileSuccess") });
     setReconciling(false);
+  };
+
+  const handleCreatePromoCode = async () => {
+    if (!selectedOrg) return;
+    const code = promoCreateCode.trim().toUpperCase();
+    if (!code) {
+      setPromoMessage({ type: "error", text: t("settings.promoCodeRequired") });
+      return;
+    }
+
+    setPromoCreating(true);
+    setPromoMessage(null);
+
+    const maxUsesValue =
+      promoCreateMaxUses.trim() === ""
+        ? null
+        : Math.max(1, parseInt(promoCreateMaxUses, 10) || 1);
+
+    const result = await withStepUp(
+      () =>
+        fetch(`${API_URL}/internal/promo-codes`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orgKey: selectedOrg.key,
+            code,
+            maxUses: maxUsesValue,
+            validUntil: promoCreateValidUntil
+              ? new Date(promoCreateValidUntil).toISOString()
+              : null,
+          }),
+        }),
+      "admin"
+    );
+
+    if (result.cancelled) {
+      setPromoCreating(false);
+      return;
+    }
+    if (!result.ok) {
+      const data = result.data as { error?: string } | undefined;
+      setPromoMessage({
+        type: "error",
+        text: data?.error || t("settings.promoCreateFailed"),
+      });
+      setPromoCreating(false);
+      return;
+    }
+
+    setPromoCreateCode("");
+    setPromoCreateMaxUses("");
+    setPromoCreateValidUntil("");
+    setPromoMessage({ type: "success", text: t("settings.promoCreateSuccess") });
+    await fetchPromoCodes();
+    setPromoCreating(false);
+  };
+
+  const handleTogglePromoCode = async (promo: PromoCodeItem) => {
+    if (!selectedOrg) return;
+    setPromoUpdatingId(promo.id);
+    setPromoMessage(null);
+
+    const result = await withStepUp(
+      () =>
+        fetch(`${API_URL}/internal/promo-codes/${promo.id}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orgKey: selectedOrg.key,
+            isActive: !promo.isActive,
+          }),
+        }),
+      "admin"
+    );
+
+    if (result.cancelled) {
+      setPromoUpdatingId(null);
+      return;
+    }
+    if (!result.ok) {
+      const data = result.data as { error?: string } | undefined;
+      setPromoMessage({
+        type: "error",
+        text: data?.error || t("settings.promoUpdateFailed"),
+      });
+      setPromoUpdatingId(null);
+      return;
+    }
+
+    setPromoMessage({
+      type: "success",
+      text: t("settings.promoUpdateSuccess"),
+    });
+    await fetchPromoCodes();
+    setPromoUpdatingId(null);
   };
 
   // Check if there are unsaved changes
@@ -1134,6 +1279,125 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Promo Codes Section */}
+        <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+            {t("settings.promoCodes")}
+          </h2>
+          <p className="text-xs text-slate-500 mb-4">
+            {t("settings.promoCodesDesc")}
+          </p>
+
+          {promoMessage && (
+            <div
+              className={`rounded-lg p-3 mb-4 ${
+                promoMessage.type === "success"
+                  ? "bg-green-50 border border-green-200 text-green-800"
+                  : "bg-red-50 border border-red-200 text-red-800"
+              }`}
+            >
+              {promoMessage.text}
+            </div>
+          )}
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <div>
+              <label className="block text-xs text-slate-600 mb-1">
+                {t("settings.promoCode")}
+              </label>
+              <input
+                type="text"
+                value={promoCreateCode}
+                onChange={(e) => setPromoCreateCode(e.target.value.toUpperCase())}
+                placeholder={t("settings.promoCodePlaceholder")}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-600 mb-1">
+                {t("settings.promoMaxUses")}
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={promoCreateMaxUses}
+                onChange={(e) => setPromoCreateMaxUses(e.target.value)}
+                placeholder={t("settings.promoUnlimitedPlaceholder")}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-600 mb-1">
+                {t("settings.promoValidUntil")}
+              </label>
+              <input
+                type="datetime-local"
+                value={promoCreateValidUntil}
+                onChange={(e) => setPromoCreateValidUntil(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={handleCreatePromoCode}
+            disabled={promoCreating}
+            className="mt-3 px-4 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-700 disabled:opacity-50"
+          >
+            {promoCreating ? t("settings.promoCreating") : t("settings.promoCreate")}
+          </button>
+
+          <div className="border-t border-slate-100 mt-5 pt-4">
+            {promoLoading ? (
+              <div className="text-sm text-slate-600">{t("settings.promoLoading")}</div>
+            ) : promoCodes.length === 0 ? (
+              <div className="text-sm text-slate-600">{t("settings.promoEmpty")}</div>
+            ) : (
+              <div className="space-y-2">
+                {promoCodes.map((promo) => (
+                  <div
+                    key={promo.id}
+                    className="rounded-lg border border-slate-200 p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+                  >
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">
+                        {promo.code} ({promo.discountValue}%)
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1" suppressHydrationWarning>
+                        {t("settings.promoUsage")}: {promo.currentUses}/
+                        {promo.maxUses ?? t("settings.promoUnlimited")}
+                        {" • "}
+                        {t("settings.promoStatus")}:{" "}
+                        {promo.isActive ? t("settings.promoActive") : t("settings.promoInactive")}
+                        {" • "}
+                        {t("settings.promoValidUntilLabel")}:{" "}
+                        {promo.validUntil
+                          ? new Date(promo.validUntil).toLocaleString()
+                          : t("settings.promoNoExpiry")}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleTogglePromoCode(promo)}
+                      disabled={promoUpdatingId === promo.id}
+                      className={`px-3 py-1.5 text-xs rounded-lg border ${
+                        promo.isActive
+                          ? "bg-red-50 border-red-200 text-red-800 hover:bg-red-100"
+                          : "bg-green-50 border-green-200 text-green-800 hover:bg-green-100"
+                      } disabled:opacity-50`}
+                    >
+                      {promoUpdatingId === promo.id
+                        ? t("settings.promoUpdating")
+                        : promo.isActive
+                          ? t("settings.promoDeactivate")
+                          : t("settings.promoActivate")}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Save Button */}

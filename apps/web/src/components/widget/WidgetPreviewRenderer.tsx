@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { MessageCircle, X, Send, ChevronDown, Home, HelpCircle, User } from "lucide-react";
+import { type MouseEvent as ReactMouseEvent, useEffect, useRef, useState } from "react";
+import { ChevronDown, HelpCircle, Home, Send, X } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 import { EMOJI_LIST } from "@helvino/shared";
 
@@ -26,9 +26,7 @@ interface SizeConfig {
 }
 
 interface AvatarConfig {
-  /** Resolved src for bot avatar (url or data-url) */
   botSrc?: string | null;
-  /** Resolved src list for agent avatars */
   agentSrcs?: (string | null)[];
 }
 
@@ -47,18 +45,34 @@ interface WidgetPreviewRendererProps {
 
 type WidgetState = "closed" | "open" | "welcome";
 
-export default function WidgetPreviewRenderer({ settings, theme, size, avatars, launcher }: WidgetPreviewRendererProps) {
+export default function WidgetPreviewRenderer({
+  settings,
+  theme,
+  size,
+  avatars,
+  launcher,
+}: WidgetPreviewRendererProps) {
   const { t } = useI18n();
   const [widgetState, setWidgetState] = useState<WidgetState>("welcome");
   const [messageInput, setMessageInput] = useState("");
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [widgetY, setWidgetY] = useState(0);
+  const [previewScale, setPreviewScale] = useState(1);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [reducedMotion, setReducedMotion] = useState(false);
   const previewInputRef = useRef<HTMLInputElement>(null);
+  const previewBodyRef = useRef<HTMLDivElement>(null);
+  const scaledWidgetRef = useRef<HTMLDivElement>(null);
 
   const RECENT_EMOJI_KEY = "helvino_recent_emojis_preview";
   const MAX_RECENT = 16;
   const [recentEmojis, setRecentEmojis] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
-    try { return JSON.parse(localStorage.getItem(RECENT_EMOJI_KEY) || "[]"); } catch { return []; }
+    try {
+      return JSON.parse(localStorage.getItem(RECENT_EMOJI_KEY) || "[]");
+    } catch {
+      return [];
+    }
   });
 
   const pickEmoji = (emoji: string) => {
@@ -72,354 +86,429 @@ export default function WidgetPreviewRenderer({ settings, theme, size, avatars, 
     }
     setRecentEmojis((prev) => {
       const updated = [emoji, ...prev.filter((e) => e !== emoji)].slice(0, MAX_RECENT);
-      try { localStorage.setItem(RECENT_EMOJI_KEY, JSON.stringify(updated)); } catch {}
+      try {
+        localStorage.setItem(RECENT_EMOJI_KEY, JSON.stringify(updated));
+      } catch {}
       return updated;
     });
     setEmojiOpen(false);
   };
 
-  const accent = theme?.accentColor || settings.primaryColor;
-  const surface = theme?.surfaceColor || "#F8FAFC";
-  const grad = theme?.gradient || { from: settings.primaryColor, to: settings.primaryColor, angle: 135 };
-  const headerBg = `linear-gradient(${grad.angle}deg, ${grad.from}, ${grad.to})`;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => setReducedMotion(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
 
-  // Resolve avatar sources for header display
-  const headerAvatarSrcs: string[] = [];
-  if (avatars?.agentSrcs) {
-    avatars.agentSrcs.forEach((s) => { if (s) headerAvatarSrcs.push(s); });
-  }
-  if (avatars?.botSrc) headerAvatarSrcs.push(avatars.botSrc);
-  const hasAvatars = headerAvatarSrcs.length > 0;
+  useEffect(() => {
+    if (reducedMotion) {
+      setWidgetY(0);
+      return;
+    }
+    let frame = 0;
+    let start: number | null = null;
+    const animate = (time: number) => {
+      if (start === null) start = time;
+      const elapsed = (time - start) / 1000;
+      setWidgetY(Math.sin(elapsed * 1.4) * 7);
+      frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [reducedMotion]);
 
-  const HeaderAvatarRow = () => (
-    <div className="flex -space-x-2">
-      {hasAvatars ? (
-        headerAvatarSrcs.slice(0, 3).map((src, i) => (
-          <img
-            key={i}
-            src={src}
-            alt=""
-            style={{ objectPosition: "50% 15%" }}
-            className="w-8 h-8 rounded-full object-cover border-2 border-white/80 shadow-sm"
-          />
-        ))
-      ) : (
-        <>
-          <div className="w-8 h-8 rounded-full bg-white/20 border-2 border-white flex items-center justify-center">
-            <User size={16} />
-          </div>
-          <div className="w-8 h-8 rounded-full bg-white/20 border-2 border-white flex items-center justify-center">
-            <User size={16} />
-          </div>
-        </>
-      )}
+  const grad = theme?.gradient || {
+    from: settings.primaryColor,
+    to: theme?.accentColor || settings.primaryColor,
+    angle: 135,
+  };
+  const effectiveLauncherStyle =
+    settings.launcher === "icon" ? "button" : settings.launcher === "bubble" ? "bubble" : (launcher?.style ?? "bubble");
+
+  const mapRange = (v: number, inMin: number, inMax: number, outMin: number, outMax: number) =>
+    Math.round(outMin + ((Math.min(Math.max(v, inMin), inMax) - inMin) / (inMax - inMin)) * (outMax - outMin));
+  const previewWidth = size ? mapRange(size.customWidth, 320, 520, 280, 360) : 320;
+  const previewHeight = size ? mapRange(size.customMaxHeight, 420, 900, 300, 460) : 360;
+  const previewFloatY = reducedMotion ? 0 : widgetY;
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (!previewBodyRef.current || !scaledWidgetRef.current) {
+        setPreviewScale(1);
+        return;
+      }
+      const containerRect = previewBodyRef.current.getBoundingClientRect();
+      const widgetRect = scaledWidgetRef.current.getBoundingClientRect();
+      const availableH = Math.max(1, containerRect.height - 24);
+      const availableW = Math.max(1, containerRect.width - 24);
+      const heightScale = availableH / widgetRect.height;
+      const widthScale = availableW / widgetRect.width;
+      const next = Math.min(1, heightScale, widthScale);
+      setPreviewScale(Math.max(0.55, next));
+    };
+
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, [previewWidth, previewHeight, widgetState, messageInput, emojiOpen, settings.welcomeMessage, settings.welcomeTitle]);
+
+  const handlePreviewMouseMove = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (reducedMotion || !previewBodyRef.current) return;
+    const rect = previewBodyRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const x = ((e.clientY - centerY) / rect.height) * 8;
+    const y = ((e.clientX - centerX) / rect.width) * -8;
+    setTilt({ x, y });
+  };
+
+  const handlePreviewMouseLeave = () => {
+    setTilt({ x: 0, y: 0 });
+  };
+
+  const toggleWidget = () => {
+    if (widgetState === "closed") setWidgetState("welcome");
+    else setWidgetState("closed");
+  };
+  const startChat = () => setWidgetState("open");
+
+  const stateButtons: { key: WidgetState; labelKey: string; emoji: string }[] = [
+    { key: "closed", labelKey: "widgetPreview.stateLauncher", emoji: "🚀" },
+    { key: "welcome", labelKey: "widgetPreview.stateWelcome", emoji: "👋" },
+    { key: "open", labelKey: "widgetPreview.stateChat", emoji: "💬" },
+  ];
+
+  const WidgetBrandFooter = () => (
+    <div
+      className="border-t px-[14px] py-[11px] text-center"
+      style={{
+        borderColor: "rgba(0,0,0,0.04)",
+        background: "linear-gradient(180deg, rgba(255,251,235,0.2), rgba(255,251,235,0.5))",
+      }}
+      role="contentinfo"
+    >
+      <span className="inline-flex items-center justify-center gap-[6px]">
+        <span
+          className="inline-flex h-[14px] w-[14px] items-center justify-center rounded"
+          style={{
+            background: "linear-gradient(135deg, #F59E0B, #D97706, #B45309)",
+            boxShadow: "0 1px 4px rgba(245,158,11,0.3)",
+          }}
+        >
+          <span style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 900, fontSize: 7, color: "#FFF" }}>H</span>
+        </span>
+        <span style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 600, fontSize: 11, color: "#92400E" }}>
+          {t("widgetPreview.poweredBy")}
+        </span>
+      </span>
     </div>
   );
 
-  /* ── Proportional scaling: map config values into preview-safe range ── */
-  const mapRange = (v: number, inMin: number, inMax: number, outMin: number, outMax: number) =>
-    Math.round(outMin + ((Math.min(Math.max(v, inMin), inMax) - inMin) / (inMax - inMin)) * (outMax - outMin));
-  // Width  320-520 → 300-440   |   Height 420-900 → 320-560
-  const previewWidth = size ? mapRange(size.customWidth, 320, 520, 300, 440) : 360;
-  const previewHeight = size ? mapRange(size.customMaxHeight, 420, 900, 320, 560) : 520;
-
-  const toggleWidget = () => {
-    if (widgetState === "closed") {
-      setWidgetState("welcome");
-    } else {
-      setWidgetState("closed");
-    }
-  };
-
-  const startChat = () => {
-    setWidgetState("open");
-  };
-
-  /* ── State selector buttons ── */
-  const stateButtons: { key: WidgetState; labelKey: string }[] = [
-    { key: "closed", labelKey: "widgetPreview.stateLauncher" },
-    { key: "welcome", labelKey: "widgetPreview.stateWelcome" },
-    { key: "open", labelKey: "widgetPreview.stateChat" },
-  ];
-
   return (
-    <div>
-      {/* State switcher */}
-      <div className="flex items-center gap-1 mb-4">
-        {stateButtons.map((btn) => (
-          <button
-            key={btn.key}
-            onClick={() => setWidgetState(btn.key)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              widgetState === btn.key
-                ? "bg-slate-900 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
+    <div className="overflow-hidden rounded-[20px] border border-black/[0.05] bg-white shadow-[0_8px_40px_rgba(0,0,0,0.06)]">
+      <div className="flex items-center justify-between border-b border-black/[0.04] px-[22px] py-4">
+        <div className="flex items-center gap-2">
+          <h3 style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 700, fontSize: 15, color: "#1A1D23" }}>
+            {t("widgetAppearance.preview")}
+          </h3>
+          <span
+            className="inline-flex items-center gap-[5px] rounded-[20px] bg-emerald-500/10 px-2.5 py-[3px]"
+            style={{ animation: "pulseGlow 2s ease infinite" }}
           >
-            {t(btn.labelKey)}
-          </button>
-        ))}
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 600, fontSize: 11, color: "#10B981" }}>
+              {t("widgetPreview.live")}
+            </span>
+          </span>
+        </div>
       </div>
 
-      <div className="relative rounded-2xl h-[600px] overflow-hidden border border-slate-200/80 shadow-sm" style={{ background: `linear-gradient(135deg, ${surface}ee, #f1f5f9)` }}>
-        {/* Simulated Website Background */}
-        <div className="absolute inset-0 p-8">
-          <div className="text-slate-400 text-sm mb-3">{t("widgetPreview.yourWebsite")}</div>
-          <div className="space-y-2">
-            <div className="h-4 bg-slate-200 rounded w-3/4 opacity-50" />
-            <div className="h-4 bg-slate-200 rounded w-1/2 opacity-50" />
-            <div className="h-4 bg-slate-200 rounded w-5/6 opacity-50" />
+      <div className="border-b border-black/[0.04] bg-black/[0.015] px-[18px] py-3">
+        <div className="flex gap-[3px] rounded-[10px] bg-black/[0.04] p-[3px]">
+          {stateButtons.map((btn) => (
+            <button
+              key={btn.key}
+              onClick={() => setWidgetState(btn.key)}
+              className="flex-1 rounded-lg px-3 py-2 text-center transition-all"
+              style={{
+                fontFamily: "'Satoshi', sans-serif",
+                fontWeight: 600,
+                fontSize: 12.5,
+                background: widgetState === btn.key ? "#FFF" : "transparent",
+                color: widgetState === btn.key ? "#1A1D23" : "#94A3B8",
+                boxShadow: widgetState === btn.key ? "0 1px 4px rgba(0,0,0,0.06)" : "none",
+              }}
+            >
+              {btn.emoji} {t(btn.labelKey)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div
+        ref={previewBodyRef}
+        className="relative overflow-y-auto p-5"
+        onMouseMove={handlePreviewMouseMove}
+        onMouseLeave={handlePreviewMouseLeave}
+        style={{
+          height: "clamp(400px, calc(100vh - 200px), 600px)",
+          minHeight: 400,
+          maxHeight: 600,
+          overflow: "hidden",
+          perspective: "800px",
+          perspectiveOrigin: "center center",
+          background: `linear-gradient(180deg, ${grad.from}24 0%, ${grad.from}14 24%, #FFFFFF 55%, #FFFFFF 100%)`,
+          transition: "background 0.6s ease",
+        }}
+      >
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-[42%]"
+          style={{
+            backgroundImage: `linear-gradient(135deg, ${grad.from}1A 0%, transparent 40%, ${grad.from}14 60%, transparent 100%)`,
+            backgroundSize: "300% 300%",
+            backgroundPosition: "300% center",
+            backgroundRepeat: "no-repeat",
+            animation: "diamondShimmer 10s linear infinite",
+            transition: "background-image 0.6s ease",
+            zIndex: 0,
+          }}
+        />
+
+        <div
+          className="relative h-[120px] overflow-hidden rounded-[14px] p-6"
+          style={{
+            zIndex: 1,
+            background: "linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.7))",
+            backdropFilter: "blur(8px)",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+            border: "1px solid rgba(255,255,255,0.6)",
+            transform: `rotateX(${tilt.x * 0.3}deg) rotateY(${tilt.y * 0.3}deg)`,
+            transformStyle: "preserve-3d",
+            transition: "transform 0.2s ease-out",
+          }}
+        >
+          <p style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 700, fontSize: 12, color: "#94A3B8" }}>
+            {(settings.brandName || t("widgetPreview.defaultTeam")).trim()}
+          </p>
+          <p className="mt-1" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 600, fontSize: 11, color: "#CBD5E1" }}>
+            {t("widgetPreview.yourWebsite")}
+          </p>
+          <div className="mt-3 flex flex-col gap-[7px]">
+            <div className="h-2 w-[85%] rounded" style={{ background: `${grad.from}33`, transition: "background 0.5s ease" }} />
+            <div className="h-2 w-[60%] rounded" style={{ background: `${grad.from}26`, transition: "background 0.5s ease" }} />
+            <div className="h-2 w-[72%] rounded" style={{ background: `${grad.from}1A`, transition: "background 0.5s ease" }} />
+            <div className="h-2 w-[45%] rounded" style={{ background: `${grad.from}14`, transition: "background 0.5s ease" }} />
           </div>
         </div>
 
-        {/* Widget Launcher */}
-        {widgetState === "closed" && (
-          <div className={`absolute bottom-6 flex items-end gap-2 ${
-            settings.position === "right" ? "right-6" : "left-6"
-          }`}>
-            {launcher?.label && (
+        {widgetState === "closed" ? (
+          <div className={`absolute bottom-5 ${settings.position === "right" ? "right-5" : "left-5"}`} style={{ zIndex: 2 }}>
+            {launcher?.label ? (
               <div
-                style={{ background: headerBg }}
-                className="px-4 py-2.5 rounded-2xl rounded-br-sm shadow-lg text-white text-sm font-medium max-w-[200px] truncate mb-1"
+                className="mb-2 max-w-[200px] truncate rounded-2xl rounded-br-sm px-3.5 py-2 text-white"
+                style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 600, fontSize: 12, background: `linear-gradient(135deg, ${grad.from}, ${grad.to})` }}
               >
                 {launcher.label}
               </div>
-            )}
+            ) : null}
             <button
               onClick={toggleWidget}
-              style={{ background: headerBg }}
-              className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white hover:scale-110 transition-all duration-200 group relative flex-shrink-0"
+              className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl"
+              style={{
+                background: `linear-gradient(135deg, ${grad.from}, ${grad.to})`,
+                boxShadow: `0 6px 24px ${grad.from}66`,
+                transition: "all 0.5s ease",
+              }}
               aria-label={t("widgetPreview.openChat")}
             >
-              {(launcher?.style ?? settings.launcher) === "bubble" ? (
-                <MessageCircle size={24} strokeWidth={2} className="group-hover:rotate-12 transition-transform" />
+              {effectiveLauncherStyle === "button" ? (
+                <HelpCircle size={22} color="#FFF" />
               ) : (
-                <HelpCircle size={24} strokeWidth={2} className="group-hover:rotate-12 transition-transform" />
+                <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth={2}>
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
               )}
-              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center text-white font-bold shadow-md" style={{ backgroundColor: accent }}>
-                2
-              </span>
             </button>
           </div>
-        )}
-
-        {/* Welcome State */}
-        {widgetState === "welcome" && (
-          <div
-            className={`absolute bottom-6 ${
-              settings.position === "right" ? "right-6" : "left-6"
-            } bg-white rounded-2xl shadow-2xl border border-slate-200/80 overflow-hidden`}
-            style={{ width: `${previewWidth}px` }}
-          >
-            {/* Header with gradient */}
+        ) : (
+          <div className={`absolute bottom-4 z-[2] flex ${settings.position === "right" ? "right-4 justify-end" : "left-4 justify-start"}`}>
             <div
-              style={{ background: headerBg }}
-              className="px-5 py-4 text-white flex items-center justify-between"
+              style={{
+                width: previewWidth,
+                transformOrigin: settings.position === "right" ? "bottom right" : "bottom left",
+                transform: `translateY(${previewFloatY}px) scale(${previewScale}) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
+                transition: "transform 0.15s ease-out",
+              }}
             >
-              <div className="flex items-center gap-3">
-                <HeaderAvatarRow />
-                <div>
-                  <div className="font-semibold text-sm">
-                    {settings.brandName || t("widgetPreview.defaultTeam")}
-                  </div>
-                  <div className="text-xs opacity-90 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                    {t("widgetPreview.online")}
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={toggleWidget}
-                className="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors"
-                aria-label={t("widgetPreview.closeWidget")}
+            <div ref={scaledWidgetRef}>
+            <div
+              className="overflow-hidden rounded-[18px] bg-white"
+              style={{
+                boxShadow: `${tilt.y * 2}px ${tilt.x * 2 + 12}px 40px rgba(0,0,0,0.12), ${tilt.y}px ${(tilt.x + 12) * 0.5}px 24px ${grad.from}26`,
+                transition: "box-shadow 0.5s ease",
+                transformStyle: "preserve-3d",
+              }}
+            >
+              <div
+                className="relative flex items-center justify-between overflow-hidden px-[18px] py-[18px]"
+                style={{
+                  background: `linear-gradient(135deg, ${grad.from}, ${grad.to})`,
+                  transition: "background 0.5s ease",
+                }}
               >
-                <ChevronDown size={20} />
-              </button>
-            </div>
-
-            {/* Welcome Content */}
-            <div className="p-6" style={{ backgroundColor: surface }}>
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full mb-3" style={{ background: `${accent}20` }}>
-                  <MessageCircle size={24} style={{ color: accent }} />
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                  {settings.welcomeTitle}
-                </h3>
-                <p className="text-sm text-slate-600 leading-relaxed">
-                  {settings.welcomeMessage}
-                </p>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="space-y-2 mb-4">
-                <button
-                  onClick={startChat}
-                  className="w-full px-4 py-3 bg-white hover:bg-slate-50 rounded-xl text-left transition-colors group border border-slate-200/50"
-                >
-                  <div className="flex items-center gap-3">
-                    <MessageCircle size={18} style={{ color: accent }} />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-slate-900">{t("widgetPreview.sendMessage")}</div>
-                      <div className="text-xs text-slate-500">{t("widgetPreview.replyTime")}</div>
-                    </div>
-                  </div>
-                </button>
-                <button className="w-full px-4 py-3 bg-white hover:bg-slate-50 rounded-xl text-left transition-colors group border border-slate-200/50">
-                  <div className="flex items-center gap-3">
-                    <HelpCircle size={18} style={{ color: accent }} />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-slate-900">{t("widgetPreview.searchHelp")}</div>
-                      <div className="text-xs text-slate-500">{t("widgetPreview.browseArticles")}</div>
-                    </div>
-                  </div>
-                </button>
-              </div>
-
-              <div className="text-center text-[0.7rem] tracking-wide leading-none py-1.5 select-none text-slate-500" role="contentinfo">
-                {t("widgetPreview.poweredByPrefix")}
-                <a href="https://helvion.io" target="_blank" rel="noopener noreferrer" className="helvino-brand-shimmer hover:opacity-85 transition-opacity">
-                  Helvion
-                </a>
-                {t("widgetPreview.poweredBySuffix")}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Open Chat State */}
-        {widgetState === "open" && (
-          <div
-            className={`absolute bottom-6 ${
-              settings.position === "right" ? "right-6" : "left-6"
-            } bg-white rounded-2xl shadow-2xl border border-slate-200/80 overflow-hidden flex flex-col`}
-            style={{
-              width: `${previewWidth}px`,
-              height: `${previewHeight}px`,
-            }}
-          >
-            {/* Header with gradient */}
-            <div
-              style={{ background: headerBg }}
-              className="px-5 py-4 text-white flex items-center justify-between flex-shrink-0"
-            >
-              <div className="flex items-center gap-3">
-                <HeaderAvatarRow />
-                <div>
-                  <div className="font-semibold text-sm">
-                    {settings.brandName || t("widgetPreview.defaultTeam")}
-                  </div>
-                  <div className="text-xs opacity-90 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                    {t("widgetPreview.online")}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setWidgetState("welcome")}
-                  className="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors"
-                  aria-label={t("widgetPreview.backToHome")}
-                >
-                  <Home size={18} />
-                </button>
-                <button
-                  onClick={toggleWidget}
-                  className="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors"
-                  aria-label={t("widgetPreview.closeWidget")}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: surface }}>
-              {/* Bot Welcome Message */}
-              <div className="flex items-start gap-3">
-                {avatars?.botSrc ? (
-                  <img src={avatars.botSrc} alt="Bot" style={{ objectPosition: "50% 15%" }} className="w-8 h-8 rounded-full object-cover flex-shrink-0 shadow-sm" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ background: `linear-gradient(135deg, ${accent}, ${settings.primaryColor})` }}>
-                    AI
-                  </div>
-                )}
-                <div className="flex-1">
-                  <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm border border-slate-200/80">
-                    <p className="text-sm text-slate-800 leading-relaxed">
-                      {t("widgetPreview.botGreeting")}
-                    </p>
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1 px-1">{t("widgetPreview.justNow")}</div>
-                </div>
-              </div>
-
-              {/* User Message */}
-              <div className="flex items-start gap-3 justify-end">
-                <div className="flex-1 flex flex-col items-end">
+                <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 80% 20%, rgba(255,255,255,0.12), transparent 60%)" }} />
+                <div className="relative flex items-center gap-2.5">
                   <div
-                    style={{ background: headerBg }}
-                    className="rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm max-w-[80%]"
+                    className="flex h-[38px] w-[38px] items-center justify-center rounded-[10px] text-[17px]"
+                    style={{
+                      background: "rgba(255,255,255,0.2)",
+                      backdropFilter: "blur(4px)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                    }}
                   >
-                    <p className="text-sm text-white leading-relaxed">
-                      {t("widgetPreview.userMessage")}
+                    💬
+                  </div>
+                  <div>
+                    <p style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 700, fontSize: 14, color: "#FFF" }}>
+                      {settings.brandName || t("widgetPreview.defaultTeam")}
+                    </p>
+                    <p className="mt-0.5 flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#4ADE80]" style={{ boxShadow: "0 0 6px #4ADE8080" }} />
+                      <span style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 500, fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+                        {t("widgetPreview.online")}
+                      </span>
                     </p>
                   </div>
-                  <div className="text-xs text-slate-500 mt-1 px-1">{t("widgetPreview.timeAgo")}</div>
+                </div>
+                <div className="relative flex items-center gap-1">
+                  {widgetState === "open" ? (
+                    <button onClick={() => setWidgetState("welcome")} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white/10" aria-label={t("widgetPreview.backToHome")}>
+                      <Home size={16} color="#FFF" />
+                    </button>
+                  ) : null}
+                  <button onClick={toggleWidget} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white/10" aria-label={t("widgetPreview.closeWidget")}>
+                    {widgetState === "welcome" ? <ChevronDown size={18} color="#FFF" /> : <X size={16} color="#FFF" />}
+                  </button>
                 </div>
               </div>
-            </div>
 
-            {/* Message Composer */}
-            <div className="px-4 py-3 bg-white border-t border-slate-200/80 flex-shrink-0">
-              <div className="flex gap-2 items-center relative">
-                <button
-                  type="button"
-                  onClick={() => setEmojiOpen((v) => !v)}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 border border-slate-300 flex-shrink-0 transition-colors"
-                  aria-label={t("widgetPreview.emojiBtn")}
-                >
-                  <span className="text-lg" aria-hidden>😀</span>
-                </button>
-                {emojiOpen && (
-                  <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-[180px] overflow-y-auto grid grid-cols-8 gap-0.5 p-2 z-10">
-                    {recentEmojis.length > 0 && recentEmojis.map((e, i) => (
-                      <button key={`r-${i}`} type="button" onClick={() => pickEmoji(e)} className="text-lg p-1 rounded-lg hover:bg-slate-100 transition-colors text-center">{e}</button>
-                    ))}
-                    {EMOJI_LIST.map((e, i) => (
-                      <button key={i} type="button" onClick={() => pickEmoji(e)} className="text-lg p-1 rounded-lg hover:bg-slate-100 transition-colors text-center">{e}</button>
-                    ))}
+              {widgetState === "welcome" ? (
+                <>
+                  <div className="px-[18px] pb-0 pt-[22px] text-center">
+                    <div className="mx-auto mb-2.5 flex h-[46px] w-[46px] items-center justify-center rounded-[12px] text-[21px]" style={{ background: `${grad.from}1F`, transition: "background 0.5s ease" }}>
+                      💬
+                    </div>
+                    <h4 style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 700, fontSize: 18, color: "#1A1D23", marginBottom: 4 }}>{settings.welcomeTitle}</h4>
+                    <p style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 500, fontSize: 13, color: "#94A3B8" }}>{settings.welcomeMessage}</p>
                   </div>
-                )}
-                <input
-                  ref={previewInputRef}
-                  type="text"
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder={t("widgetPreview.typePlaceholder")}
-                  className="flex-1 px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all"
-                />
-                <button
-                  style={{ background: headerBg }}
-                  disabled={!messageInput.trim()}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-white hover:opacity-90 disabled:opacity-40 transition-all flex-shrink-0"
-                  aria-label={t("widgetPreview.sendBtn")}
-                >
-                  <Send size={18} />
-                </button>
-              </div>
-              {/* Branding – always visible in preview (server-enforced in production) */}
-              <div className="text-center text-[0.7rem] tracking-wide leading-none pt-2.5 pb-0.5 select-none text-slate-500" role="contentinfo">
-                {t("widgetPreview.poweredByPrefix")}
-                <a href="https://helvion.io" target="_blank" rel="noopener noreferrer" className="helvino-brand-shimmer hover:opacity-85 transition-opacity">
-                  Helvion
-                </a>
-                {t("widgetPreview.poweredBySuffix")}
-              </div>
+                  <div className="flex flex-col gap-1.5 px-3.5 pb-3.5 pt-3">
+                    <button onClick={startChat} className="flex items-center gap-2.5 rounded-xl border border-black/[0.05] px-3 py-[11px] text-left">
+                      <span className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-[9px] text-[14px]" style={{ background: `${grad.from}14`, transition: "background 0.5s ease" }}>💬</span>
+                      <span>
+                        <span style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 600, fontSize: 12.5, color: "#1A1D23" }}>{t("widgetPreview.sendMessage")}</span>
+                        <span className="block" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 500, fontSize: 10.5, color: "#B0B0B0" }}>{t("widgetPreview.replyTime")}</span>
+                      </span>
+                    </button>
+                    <button className="flex items-center gap-2.5 rounded-xl border border-black/[0.05] px-3 py-[11px] text-left">
+                      <span className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-[9px] text-[14px]" style={{ background: `${grad.from}14`, transition: "background 0.5s ease" }}>📚</span>
+                      <span>
+                        <span style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 600, fontSize: 12.5, color: "#1A1D23" }}>{t("widgetPreview.searchHelp")}</span>
+                        <span className="block" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 500, fontSize: 10.5, color: "#B0B0B0" }}>{t("widgetPreview.browseArticles")}</span>
+                      </span>
+                    </button>
+                  </div>
+                  <WidgetBrandFooter />
+                </>
+              ) : (
+                <>
+                  <div className="space-y-3 overflow-y-auto bg-[#FAFAF8] px-3.5 py-3.5" style={{ height: previewHeight }}>
+                    <div className="flex items-start gap-2.5">
+                      {avatars?.botSrc ? (
+                        <img src={avatars.botSrc} alt="Bot" className="h-8 w-8 flex-shrink-0 rounded-full object-cover shadow-sm" />
+                      ) : (
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: `linear-gradient(135deg, ${grad.from}, ${grad.to})` }}>
+                          AI
+                        </div>
+                      )}
+                      <div className="rounded-2xl rounded-tl-sm border border-black/[0.04] bg-white px-3 py-2 shadow-sm">
+                        <p style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 500, fontSize: 12.5, color: "#334155" }}>{t("widgetPreview.botGreeting")}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <div className="max-w-[80%] rounded-2xl rounded-tr-sm px-3 py-2 shadow-sm" style={{ background: `linear-gradient(135deg, ${grad.from}, ${grad.to})` }}>
+                        <p style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 500, fontSize: 12.5, color: "#FFF" }}>{t("widgetPreview.userMessage")}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="border-t border-black/[0.04] bg-white px-3.5 py-3">
+                    <div className="relative flex items-center gap-2">
+                      <button type="button" onClick={() => setEmojiOpen((v) => !v)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/[0.08] text-[18px] hover:bg-black/[0.03]" aria-label={t("widgetPreview.emojiBtn")}>😀</button>
+                      {emojiOpen ? (
+                        <div className="absolute bottom-full left-0 right-0 mb-1 grid max-h-[160px] grid-cols-8 gap-0.5 overflow-y-auto rounded-xl border border-black/[0.08] bg-white p-2 shadow-lg">
+                          {recentEmojis.length > 0 && recentEmojis.map((e, i) => (
+                            <button key={`r-${i}`} type="button" onClick={() => pickEmoji(e)} className="rounded-md p-1 text-center text-lg hover:bg-black/[0.03]">{e}</button>
+                          ))}
+                          {EMOJI_LIST.map((e, i) => (
+                            <button key={i} type="button" onClick={() => pickEmoji(e)} className="rounded-md p-1 text-center text-lg hover:bg-black/[0.03]">{e}</button>
+                          ))}
+                        </div>
+                      ) : null}
+                      <input
+                        ref={previewInputRef}
+                        type="text"
+                        value={messageInput}
+                        onChange={(e) => setMessageInput(e.target.value)}
+                        placeholder={t("widgetPreview.typePlaceholder")}
+                        className="flex-1 rounded-lg border border-black/[0.08] bg-[#FAFAF8] px-3 py-2.5"
+                        style={{ fontFamily: "'Manrope', sans-serif", fontSize: 12.5, color: "#1A1D23" }}
+                      />
+                      <button style={{ background: `linear-gradient(135deg, ${grad.from}, ${grad.to})` }} disabled={!messageInput.trim()} className="flex h-9 w-9 items-center justify-center rounded-lg text-white hover:opacity-90 disabled:opacity-40" aria-label={t("widgetPreview.sendBtn")}>
+                        <Send size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <WidgetBrandFooter />
+                </>
+              )}
+            </div>
+            </div>
             </div>
           </div>
         )}
       </div>
+
+      <div className="flex items-center justify-center gap-1.5 border-t border-black/[0.04] px-[18px] py-2.5">
+        <span className="h-1.5 w-1.5 rounded-full" style={{ background: grad.from, transition: "background 0.5s ease" }} />
+        <span style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 500, fontSize: 11.5, color: "#94A3B8" }}>
+          {previewScale < 0.999
+            ? t("widgetPreview.previewScaled", { percent: String(Math.round(previewScale * 100)) })
+            : t("widgetAppearance.preview")}
+        </span>
+      </div>
+
+      <style jsx>{`
+        .helvino-diamond-text {
+          animation: diamondShimmer 6s linear infinite;
+        }
+        @keyframes diamondShimmer {
+          0% { background-position: 300% center; }
+          100% { background-position: -300% center; }
+        }
+        @keyframes pulseGlow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.3); }
+          50% { box-shadow: 0 0 0 4px rgba(16,185,129,0.1); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          * {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -84,6 +84,15 @@ export default function PremiumToastProvider() {
     if (timer) { clearTimeout(timer); timersRef.current.delete(id); }
   }, []);
 
+  const safeStr = (v: unknown): string | undefined => {
+    if (typeof v === "string" && v.trim()) {
+      const t = v.trim();
+      if (t === "[object Event]" || t === "[object Object]") return undefined;
+      return t;
+    }
+    return undefined;
+  };
+
   const showToast = useCallback(
     (opts: { title: string; description?: string; variant?: ToastVariant; duration?: number }) => {
       const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -91,7 +100,7 @@ export default function PremiumToastProvider() {
       const toast: ToastItem = {
         id,
         title: opts.title,
-        description: opts.description,
+        description: safeStr(opts.description),
         variant: opts.variant ?? "success",
         duration,
       };

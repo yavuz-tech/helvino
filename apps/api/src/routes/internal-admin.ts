@@ -14,7 +14,10 @@ import crypto from "crypto";
 import {
   createCheckoutSession,
   createCustomerPortalSession,
+  extractPromoPercentFromCode,
   isStripeConfigured,
+  PromoCodeInvalidError,
+  syncPromoCodeWithStripe,
   StripeNotConfiguredError,
 } from "../utils/stripe";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
@@ -86,6 +89,14 @@ function generateSiteId(): string {
     chars[Math.floor(Math.random() * chars.length)]
   ).join('');
   return `site_${randomPart}`;
+}
+
+function normalizePromoCode(code: string): string {
+  return code.trim().toUpperCase();
+}
+
+function isValidPromoCode(code: string): boolean {
+  return /^[A-Z0-9]{4,20}$/.test(code);
 }
 
 export async function internalAdminRoutes(fastify: FastifyInstance) {
@@ -523,6 +534,215 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
         errors,
         results,
       };
+    }
+  );
+
+  // ────────────────────────────────────────────────
+  // Promo code management (admin)
+  // GET /internal/promo-codes?orgKey=...
+  // POST /internal/promo-codes
+  // PATCH /internal/promo-codes/:id
+  // ────────────────────────────────────────────────
+  fastify.get<{ Querystring: { orgKey?: string } }>(
+    "/internal/promo-codes",
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const orgKey = request.query.orgKey?.trim();
+      if (!orgKey) {
+        reply.code(400);
+        return { error: "orgKey is required" };
+      }
+
+      const org = await prisma.organization.findUnique({
+        where: { key: orgKey },
+        select: { id: true },
+      });
+      if (!org) {
+        reply.code(404);
+        return { error: "Organization not found" };
+      }
+
+      const items = await prisma.promoCode.findMany({
+        where: {
+          OR: [{ createdBy: org.id }, { isGlobal: true }],
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      return { items };
+    }
+  );
+
+  fastify.post<{
+    Body: {
+      orgKey?: string;
+      code?: string;
+      maxUses?: number | null;
+      validUntil?: string | null;
+      isGlobal?: boolean;
+    };
+  }>(
+    "/internal/promo-codes",
+    { preHandler: [requireAdmin, requireStepUp("admin")] },
+    async (request, reply) => {
+      const body = request.body || {};
+      const orgKey = body.orgKey?.trim();
+      if (!orgKey) {
+        reply.code(400);
+        return { error: "orgKey is required" };
+      }
+
+      const org = await prisma.organization.findUnique({
+        where: { key: orgKey },
+        select: { id: true },
+      });
+      if (!org) {
+        reply.code(404);
+        return { error: "Organization not found" };
+      }
+
+      if (!body.code || typeof body.code !== "string") {
+        reply.code(400);
+        return { error: "code is required" };
+      }
+      const code = normalizePromoCode(body.code);
+      if (!isValidPromoCode(code)) {
+        reply.code(400);
+        return { error: "code must be 4-20 characters and alphanumeric" };
+      }
+
+      const parsedPercent = extractPromoPercentFromCode(code);
+      if (!parsedPercent) {
+        reply.code(400);
+        return {
+          error:
+            "Promo code must end with a percentage number (e.g. WELCOME20).",
+        };
+      }
+
+      if (
+        body.maxUses !== undefined &&
+        body.maxUses !== null &&
+        (!Number.isInteger(body.maxUses) || body.maxUses <= 0)
+      ) {
+        reply.code(400);
+        return { error: "maxUses must be a positive integer or null" };
+      }
+
+      let validUntil: Date | null = null;
+      if (body.validUntil) {
+        validUntil = new Date(body.validUntil);
+        if (Number.isNaN(validUntil.getTime())) {
+          reply.code(400);
+          return { error: "validUntil must be a valid date" };
+        }
+      }
+
+      try {
+        const created = await prisma.promoCode.create({
+          data: {
+            id: crypto.randomUUID(),
+            code,
+            discountType: "percentage",
+            discountValue: parsedPercent,
+            maxUses: body.maxUses ?? null,
+            currentUses: 0,
+            validFrom: new Date(),
+            validUntil,
+            isActive: true,
+            isGlobal: body.isGlobal === true,
+            createdBy: org.id,
+          },
+        });
+
+        if (isStripeConfigured()) {
+          try {
+            const synced = await syncPromoCodeWithStripe({
+              id: created.id,
+              code: created.code,
+              stripeCouponId: created.stripeCouponId,
+              stripePromotionCodeId: created.stripePromotionCodeId,
+            });
+            const updated = await prisma.promoCode.update({
+              where: { id: created.id },
+              data: {
+                discountType: "percentage",
+                discountValue: synced.percent,
+                stripeCouponId: synced.stripeCouponId,
+                stripePromotionCodeId: synced.stripePromotionCodeId,
+              },
+            });
+            return { ok: true, promoCode: updated };
+          } catch (syncError) {
+            if (syncError instanceof PromoCodeInvalidError) {
+              reply.code(400);
+              return { error: syncError.message };
+            }
+            request.log.error(syncError, "promo code stripe sync failed");
+          }
+        }
+
+        return { ok: true, promoCode: created };
+      } catch (error) {
+        if (
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          (error as { code?: string }).code === "P2002"
+        ) {
+          reply.code(409);
+          return { error: "Promo code already exists" };
+        }
+        request.log.error(error, "promo code create failed");
+        reply.code(500);
+        return { error: "Promo code create failed" };
+      }
+    }
+  );
+
+  fastify.patch<{
+    Params: { id: string };
+    Body: { orgKey?: string; isActive?: boolean };
+  }>(
+    "/internal/promo-codes/:id",
+    { preHandler: [requireAdmin, requireStepUp("admin")] },
+    async (request, reply) => {
+      const orgKey = request.body.orgKey?.trim();
+      if (!orgKey) {
+        reply.code(400);
+        return { error: "orgKey is required" };
+      }
+      if (typeof request.body.isActive !== "boolean") {
+        reply.code(400);
+        return { error: "isActive must be boolean" };
+      }
+
+      const org = await prisma.organization.findUnique({
+        where: { key: orgKey },
+        select: { id: true },
+      });
+      if (!org) {
+        reply.code(404);
+        return { error: "Organization not found" };
+      }
+
+      const owned = await prisma.promoCode.findFirst({
+        where: {
+          id: request.params.id,
+          OR: [{ createdBy: org.id }, { isGlobal: true }],
+        },
+        select: { id: true },
+      });
+      if (!owned) {
+        reply.code(404);
+        return { error: "Promo code not found" };
+      }
+
+      const updated = await prisma.promoCode.update({
+        where: { id: request.params.id },
+        data: { isActive: request.body.isActive },
+      });
+
+      return { ok: true, promoCode: updated };
     }
   );
 

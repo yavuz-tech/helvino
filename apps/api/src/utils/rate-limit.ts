@@ -17,19 +17,20 @@
 
 import { FastifyRequest } from "fastify";
 import { createRateLimitMiddleware, RateLimitConfig } from "../middleware/rate-limit";
+import { getRealIP } from "./get-real-ip";
 
 // ── Key builders ──
 
 /** Per-IP key */
 function ipKey(request: FastifyRequest): string {
-  return `ip:${request.ip}`;
+  return `ip:${getRealIP(request)}`;
 }
 
 /** Per-IP + email key (for login/forgot-password) */
 function ipEmailKey(request: FastifyRequest): string {
   const body = request.body as Record<string, unknown> | null;
   const email = body?.email ? String(body.email).toLowerCase().substring(0, 128) : "anon";
-  return `ip_email:${request.ip}:${email}`;
+  return `ip_email:${getRealIP(request)}:${email}`;
 }
 
 /** Per-email only key (for resend verification — rate limit per customer) */
@@ -46,7 +47,7 @@ function ipUserKey(request: FastifyRequest): string {
     || request.session?.adminUserId
     || request.session?.orgUserId
     || "anon";
-  return `ip_user:${request.ip}:${userId}`;
+  return `ip_user:${getRealIP(request)}:${userId}`;
 }
 
 /** Per-org key (for team/invite endpoints) */
@@ -164,6 +165,26 @@ export function signupRateLimit(routeName?: string) {
     windowMs: 60_000,
     keyBuilder: ipEmailKey,
     routeName: routeName || "signup",
+  });
+}
+
+/** Signup strict IP rule: 3 signups per hour */
+export function signupIpRateLimit(routeName?: string) {
+  return createRateLimitMiddleware({
+    limit: 3,
+    windowMs: 3_600_000,
+    keyBuilder: ipKey,
+    routeName: routeName || "signup-ip",
+  });
+}
+
+/** Signup strict email rule: 1 signup per 24h per email */
+export function signupEmailRateLimit(routeName?: string) {
+  return createRateLimitMiddleware({
+    limit: 1,
+    windowMs: 86_400_000,
+    keyBuilder: emailOnlyKey,
+    routeName: routeName || "signup-email",
   });
 }
 

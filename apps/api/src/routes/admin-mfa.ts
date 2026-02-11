@@ -5,11 +5,12 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import geoip from "geoip-lite";
 import { prisma } from "../prisma";
 import { writeAuditLog } from "../utils/audit-log";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { requireAdmin } from "../middleware/require-admin";
-import { upsertDevice } from "../utils/device";
+import { hashUserAgent, upsertDevice } from "../utils/device";
 import {
   generateTotpSecret,
   getTotpUri,
@@ -18,6 +19,13 @@ import {
   tryConsumeBackupCode,
   STEP_UP_TTL_MS,
 } from "../utils/totp";
+import { getDefaultFromAddress, sendEmailAsync } from "../utils/mailer";
+import {
+  extractLocaleCookie,
+  getLoginNotificationEmailTemplate,
+  normalizeRequestLocale,
+} from "../utils/email-templates";
+import { getRealIP } from "../utils/get-real-ip";
 
 // ── Admin Step-up middleware ──
 
@@ -371,6 +379,41 @@ export async function adminMfaRoutes(fastify: FastifyInstance) {
         return { error: "Invalid verification code" };
       }
 
+      const requestIp = getRealIP(request);
+      const requestUa = ((request.headers["user-agent"] as string) || "unknown").substring(0, 256);
+      const uaHash = hashUserAgent(requestUa);
+      const existingDevice = await prisma.trustedDevice.findUnique({
+        where: {
+          userId_userType_userAgentHash: {
+            userId: user.id,
+            userType: "admin",
+            userAgentHash: uaHash,
+          },
+        },
+        select: { id: true, lastIp: true },
+      });
+      const knownDeviceCount = await prisma.trustedDevice.count({
+        where: { userId: user.id, userType: "admin" },
+      });
+
+      // Strict admin policy: allow at most 2 devices.
+      if (!existingDevice && knownDeviceCount >= 2) {
+        await writeAuditLog(
+          "system",
+          user.email,
+          "admin.login.blocked",
+          { reason: "device_limit_reached", ip: requestIp, maxDevices: 2 },
+          request.requestId
+        );
+        reply.code(403);
+        return {
+          error: {
+            code: "DEVICE_LIMIT_REACHED",
+            message: "Maximum 2 admin devices are allowed",
+          },
+        };
+      }
+
       // Clear MFA pending flag, complete login
       delete request.session.adminMfaPending;
       request.session.adminRole = user.role;
@@ -381,14 +424,48 @@ export async function adminMfaRoutes(fastify: FastifyInstance) {
         user.id,
         "admin",
         request.headers["user-agent"] as string | undefined,
-        request.ip
+        requestIp
       );
+
+      const sameIp =
+        Boolean(existingDevice?.lastIp) &&
+        requestIp !== "unknown" &&
+        existingDevice?.lastIp === requestIp;
+      const shouldSendLoginNotification = !sameIp || !existingDevice;
+      const geo = requestIp !== "unknown" ? geoip.lookup(requestIp) : null;
+      const loginCountry = geo?.country || null;
+      const loginCity = geo?.city || null;
+      const locationLabel = [loginCity, loginCountry].filter(Boolean).join(", ") || "Unknown";
+      if (shouldSendLoginNotification) {
+        const appUrl = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000";
+        const cookieLang = extractLocaleCookie(request.headers.cookie as string);
+        const securityLocale = normalizeRequestLocale(
+          undefined,
+          cookieLang,
+          request.headers["accept-language"] as string
+        );
+        const loginNotification = getLoginNotificationEmailTemplate(securityLocale, {
+          time: new Date().toISOString(),
+          ip: requestIp,
+          device: requestUa.substring(0, 120),
+          location: locationLabel,
+          securityUrl: `${appUrl}/dashboard/settings/security`,
+        });
+        sendEmailAsync({
+          to: user.email,
+          from: getDefaultFromAddress(),
+          subject: loginNotification.subject,
+          html: loginNotification.html,
+          text: loginNotification.text,
+          tags: ["security", "login-notification", "admin"],
+        });
+      }
 
       await writeAuditLog(
         "system",
         user.email,
         "mfa_challenge_passed",
-        { userType: "admin", context: "login" },
+        { userType: "admin", context: "login", ip: requestIp, location: locationLabel },
         request.requestId
       );
 
