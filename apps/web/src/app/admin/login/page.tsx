@@ -2,16 +2,16 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import HCaptcha from "@hcaptcha/react-hcaptcha";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ErrorBanner from "@/components/ErrorBanner";
 import PasskeyLoginButton from "@/components/PasskeyLoginButton";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-const HCAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "";
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 function readErrorPayload(data: unknown): { code: string | null; message: string | null; retryAfterSec: number | null } {
   if (!data || typeof data !== "object") return { code: null, message: null, retryAfterSec: null };
@@ -313,14 +313,13 @@ export default function AdminLoginPage() {
                             {t("portalLogin.captchaLabel")}
                           </label>
                           <div className="rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] p-2.5">
-                            {HCAPTCHA_SITE_KEY ? (
-                              <HCaptcha
+                            {TURNSTILE_SITE_KEY ? (
+                              <TurnstileWidget
                                 key={captchaRenderNonce}
-                                sitekey={HCAPTCHA_SITE_KEY}
+                                siteKey={TURNSTILE_SITE_KEY}
                                 onVerify={(token) => setCaptchaToken(token)}
                                 onExpire={() => setCaptchaToken(null)}
                                 onError={() => setCaptchaToken(null)}
-                                theme="light"
                               />
                             ) : (
                               <p className="text-xs text-amber-700">{t("portalLogin.captchaMissingKey")}</p>

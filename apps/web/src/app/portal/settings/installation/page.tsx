@@ -37,12 +37,16 @@ export default function PortalSettingsInstallationPage() {
   };
 
   return (
-    <div className={p.sectionGap}>
+    <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
       <PageHeader
         title={t("settingsPortal.installation")}
         subtitle={t("settingsPortal.installationSubtitle")}
         action={
-          <Link href="/portal/widget" className={p.btnPrimary}>
+          <Link
+            href="/portal/widget"
+            className="inline-flex items-center gap-1.5 rounded-[10px] px-4 py-2.5 text-[12px] font-semibold text-white transition-all hover:scale-[1.02]"
+            style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+          >
             {t("settingsPortal.openInstallationCenter")}
             <ArrowUpRight size={14} />
           </Link>
@@ -71,7 +75,7 @@ export default function PortalSettingsInstallationPage() {
       </div>
 
       {/* ── Embed Snippet ── */}
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className={`${p.iconSm} ${p.iconIndigo}`}>
@@ -79,18 +83,23 @@ export default function PortalSettingsInstallationPage() {
             </div>
             <h3 className={p.h3}>{t("widgetAppearance.preview")}</h3>
           </div>
-          <button type="button" onClick={copySnippet} className={p.btnSecondary}>
+          <button
+            type="button"
+            onClick={copySnippet}
+            className="inline-flex items-center gap-1.5 rounded-[10px] px-3.5 py-2 text-[12px] font-semibold text-white transition-all hover:scale-[1.02]"
+            style={{ background: "#F59E0B" }}
+          >
             {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
             {copied ? t("common.copied") : t("common.copy")}
           </button>
         </div>
-        <pre className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950 p-4 text-[12px] leading-relaxed text-emerald-400 font-mono">
+        <pre className="overflow-x-auto rounded-xl border p-4 text-[12px] leading-relaxed font-mono" style={{ borderColor: "#1A1D23", background: "#1A1D23", color: "#FCD34D" }}>
           {config?.embedSnippet?.html ?? ""}
         </pre>
       </Card>
 
       {/* ── Allowed Domains ── */}
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
         <div className="mb-4 flex items-center gap-2.5">
           <div className={`${p.iconSm} ${p.iconEmerald}`}>
             <Globe size={14} />
@@ -101,7 +110,7 @@ export default function PortalSettingsInstallationPage() {
           {(config?.allowedDomains ?? []).map((domain) => (
             <span
               key={domain}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-slate-600"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] px-3 py-1.5 text-[12px] font-medium text-[#64748B]"
             >
               <Globe size={12} />
               {domain}

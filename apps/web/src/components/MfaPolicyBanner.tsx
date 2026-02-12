@@ -19,19 +19,19 @@ export default function MfaPolicyBanner({ blocking, securityUrl }: MfaPolicyBann
   /* ── Blocking Modal ── */
   if (blocking) {
     return (
-      <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-10 max-w-md w-full shadow-2xl text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center mx-auto mb-5 shadow-sm">
-            <Lock size={28} className="text-amber-600" />
+      <div className="fixed inset-0 z-50 bg-[#1A1D23]/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl border border-emerald-200 p-10 max-w-md w-full shadow-2xl text-center">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-50 flex items-center justify-center mx-auto mb-5 shadow-sm">
+            <Lock size={28} className="text-emerald-700" />
           </div>
-          <h2 className="text-2xl font-extrabold text-slate-900 mb-3">
+          <h2 className="text-2xl font-extrabold text-emerald-900 mb-3">
             {t("mfaPolicy.adminRequired")}
           </h2>
-          <p className="text-sm text-slate-500 mb-8 leading-relaxed max-w-xs mx-auto">
+          <p className="text-sm text-emerald-700 mb-8 leading-relaxed max-w-xs mx-auto">
             {t("mfaPolicy.adminRequiredDesc")}
           </p>
           <Link href={securityUrl}
-            className="inline-flex items-center gap-2 px-8 py-3.5 bg-slate-900 text-white rounded-xl hover:bg-slate-700 transition-colors font-semibold text-sm shadow-lg shadow-slate-900/20">
+            className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl hover:from-teal-700 hover:to-emerald-700 transition-colors font-semibold text-sm shadow-lg shadow-emerald-500/20">
             {t("mfaPolicy.enableNow")} <ArrowRight size={16} />
           </Link>
         </div>
@@ -42,8 +42,8 @@ export default function MfaPolicyBanner({ blocking, securityUrl }: MfaPolicyBann
   /* ── Recommendation Banner ── */
   return (
     <div
-      className="relative min-h-[76px] overflow-hidden rounded-2xl px-5 py-4 shadow-[0_4px_24px_rgba(245,158,11,0.3)]"
-      style={{ background: "linear-gradient(135deg, #F59E0B 0%, #D97706 50%, #B45309 100%)" }}
+      className="relative min-h-[76px] overflow-hidden rounded-2xl px-5 py-4 shadow-[0_2px_8px_rgba(5,150,105,0.12)]"
+      style={{ background: "linear-gradient(135deg, #0D9488 0%, #059669 100%)" }}
     >
       <div className="flex items-center gap-4">
         <div
@@ -60,7 +60,7 @@ export default function MfaPolicyBanner({ blocking, securityUrl }: MfaPolicyBann
 
         <Link
           href={securityUrl}
-          className="ml-auto inline-flex min-w-[220px] flex-shrink-0 items-center justify-center gap-2 rounded-[10px] bg-white/95 px-5 py-2.5 text-[13px] font-bold text-[#92400E] transition-colors hover:bg-white"
+          className="ml-auto inline-flex min-w-[220px] flex-shrink-0 items-center justify-center gap-2 rounded-[10px] bg-white px-5 py-2.5 text-[13px] font-bold text-emerald-700 transition-colors hover:bg-emerald-50"
         >
           {t("mfaPolicy.goToSecurity")} <ArrowRight size={14} />
         </Link>

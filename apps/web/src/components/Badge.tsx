@@ -19,12 +19,12 @@ export default function Badge({
   className = "",
 }: BadgeProps) {
   const variantClasses = {
-    default: "bg-slate-100 text-slate-700 border-slate-200/80",
+    default: "bg-amber-50/70 text-[#334155] border-[#F3E8D8]",
     success: "bg-emerald-50 text-emerald-700 border-emerald-200/80",
     warning: "bg-amber-50 text-amber-700 border-amber-200/80",
     danger: "bg-red-50 text-red-700 border-red-200/80",
-    info: "bg-sky-50 text-sky-700 border-sky-200/80",
-    premium: "bg-gradient-to-r from-[#1A1A2E] to-[#2D2D44] text-white border-transparent",
+    info: "bg-amber-50 text-amber-700 border-amber-200/80",
+    premium: "bg-gradient-to-r from-amber-500 to-amber-600 text-white border-transparent",
   };
 
   const sizeClasses = {

@@ -53,26 +53,26 @@ class ConsoleEmailProvider implements EmailProvider {
   async send(payload: EmailPayload): Promise<EmailResult> {
     const messageId = `console-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-    console.log("╔══════════════════════════════════════════════════╗");
-    console.log("║  📧 EMAIL (console provider — dev mode)          ║");
-    console.log("╚══════════════════════════════════════════════════╝");
-    console.log(`  To:      ${payload.to}`);
-    console.log(`  From:    ${payload.from || getDefaultFrom()}`);
-    console.log(`  Subject: ${payload.subject}`);
+    console.info("╔══════════════════════════════════════════════════╗");
+    console.info("║  📧 EMAIL (console provider — dev mode)          ║");
+    console.info("╚══════════════════════════════════════════════════╝");
+    console.info(`  To:      ${payload.to}`);
+    console.info(`  From:    ${payload.from || getDefaultFrom()}`);
+    console.info(`  Subject: ${payload.subject}`);
     if (payload.tags?.length) {
-      console.log(`  Tags:    ${payload.tags.join(", ")}`);
+      console.info(`  Tags:    ${payload.tags.join(", ")}`);
     }
-    console.log(`  ID:      ${messageId}`);
+    console.info(`  ID:      ${messageId}`);
     const link = extractFirstLink(payload.html);
     if (link && payload.tags?.includes("invite")) {
-      console.log(`  📎 Invite link (dev): ${link}`);
+      console.info(`  📎 Invite link (dev): ${link}`);
     } else if (link && (payload.tags?.includes("reset") || payload.tags?.includes("password-reset") || payload.tags?.includes("verify-email") || payload.tags?.includes("recovery"))) {
-      console.log(`  📎 Link (dev): ${link}`);
+      console.info(`  📎 Link (dev): ${link}`);
     }
-    console.log("──────────────────────────────────────────────────");
+    console.info("──────────────────────────────────────────────────");
     const preview = payload.text || payload.html.replace(/<[^>]*>/g, "").substring(0, 500);
-    console.log(`  Body:    ${preview}`);
-    console.log("══════════════════════════════════════════════════");
+    console.info(`  Body:    ${preview}`);
+    console.info("══════════════════════════════════════════════════");
 
     return { success: true, messageId, provider: this.name };
   }
@@ -170,7 +170,7 @@ function getProviderChain(): EmailProvider[] {
   }
 
   _cachedProviders = providers;
-  console.log(`[mailer] Provider chain initialized: ${providers.map((p) => p.name).join(" → ")}`);
+  console.info(`[mailer] Provider chain initialized: ${providers.map((p) => p.name).join(" → ")}`);
   return providers;
 }
 
@@ -201,14 +201,14 @@ export async function sendEmail(payload: EmailPayload): Promise<EmailResult> {
 
   for (const provider of providers) {
     const t0 = Date.now();
-    console.log(`[mailer] Sending email via ${provider.name} to=${payload.to} subject="${payload.subject}"`);
+    console.info(`[mailer] Sending email via ${provider.name} to=${payload.to} subject="${payload.subject}"`);
 
     try {
       const result = await provider.send(payload);
       const elapsed = Date.now() - t0;
 
       if (result.success) {
-        console.log(`[mailer] Email sent via ${provider.name} in ${elapsed}ms messageId=${result.messageId}`);
+        console.info(`[mailer] Email sent via ${provider.name} in ${elapsed}ms messageId=${result.messageId}`);
         return result;
       }
 

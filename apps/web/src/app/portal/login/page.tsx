@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { KeyRound, ShieldCheck, Sparkles } from "lucide-react";
-import HCaptcha from "@hcaptcha/react-hcaptcha";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import {
   checkPortalAuth,
@@ -17,15 +16,20 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import PasskeyLoginButton from "@/components/PasskeyLoginButton";
 import ErrorBanner from "@/components/ErrorBanner";
 import { premiumToast } from "@/components/PremiumToast";
+import TurnstileWidget from "@/components/TurnstileWidget";
+import {
+  mountPublicWidgetScript,
+  resolvePublicWidgetIdentity,
+} from "@/lib/public-widget";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-const HCAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "";
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 export default function PortalLoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { t, locale } = useI18n();
   const reauthHandledRef = useRef(false);
+  const widgetLoadedRef = useRef(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +66,7 @@ export default function PortalLoginPage() {
 
   useEffect(() => {
     const verify = async () => {
-      const forceReauth = searchParams.get("reauth") === "1";
+      const forceReauth = new URLSearchParams(window.location.search).get("reauth") === "1";
       if (forceReauth && !reauthHandledRef.current) {
         reauthHandledRef.current = true;
         await portalLogout();
@@ -77,7 +81,7 @@ export default function PortalLoginPage() {
       window.location.replace("/portal");
     };
     verify();
-  }, [router, searchParams]);
+  }, [router]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -108,6 +112,17 @@ export default function PortalLoginPage() {
         });
       });
   }, [t]);
+
+  useEffect(() => {
+    if (widgetLoadedRef.current) return;
+    widgetLoadedRef.current = true;
+    (window as unknown as { HELVINO_WIDGET_CONTEXT?: string }).HELVINO_WIDGET_CONTEXT = "portal-login";
+    const identity = resolvePublicWidgetIdentity();
+    mountPublicWidgetScript(identity);
+    return () => {
+      (window as unknown as { HELVINO_WIDGET_CONTEXT?: string }).HELVINO_WIDGET_CONTEXT = undefined;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -484,14 +499,13 @@ export default function PortalLoginPage() {
           <div>
             <label className={premiumLabel}>{t("portalLogin.captchaLabel")}</label>
             <div className="rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] p-2.5">
-              {HCAPTCHA_SITE_KEY ? (
-                <HCaptcha
+              {TURNSTILE_SITE_KEY ? (
+                <TurnstileWidget
                   key={captchaRenderNonce}
-                  sitekey={HCAPTCHA_SITE_KEY}
+                  siteKey={TURNSTILE_SITE_KEY}
                   onVerify={(token) => setCaptchaToken(token)}
                   onExpire={() => setCaptchaToken(null)}
                   onError={() => setCaptchaToken(null)}
-                  theme="light"
                 />
               ) : (
                 <p className="text-xs text-amber-700">{t("portalLogin.captchaMissingKey")}</p>
@@ -586,19 +600,19 @@ export default function PortalLoginPage() {
       className="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8"
       style={{
         background:
-          "radial-gradient(circle at 20% 50%, rgba(245, 158, 11, 0.15), transparent 50%), radial-gradient(circle at 80% 80%, rgba(251, 113, 133, 0.15), transparent 50%), linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)",
+          "linear-gradient(135deg, #FFFBF5 0%, #FFF7ED 50%, #FEF3E2 100%)",
       }}
     >
-      <div className="pointer-events-none absolute -left-28 top-20 h-72 w-72 rounded-full bg-amber-300/25 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 bottom-24 h-72 w-72 rounded-full bg-rose-300/25 blur-3xl" />
+      <div className="pointer-events-none absolute -left-28 top-20 h-72 w-72 rounded-full bg-amber-200/30 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-24 h-72 w-72 rounded-full bg-orange-200/30 blur-3xl" />
 
       <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
         <LanguageSwitcher />
       </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-center py-6 lg:min-h-[calc(100vh-3rem)] lg:py-0">
-        <div className="grid w-full items-center gap-8 lg:grid-cols-5 lg:gap-12">
-          <section className="hidden lg:col-span-2 lg:block">
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-center py-6 md:min-h-[calc(100vh-3rem)] md:py-0">
+        <div className="flex w-full items-center gap-8 md:flex-row md:justify-between md:gap-12">
+          <section className="hidden w-1/2 md:block">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-200/80 bg-white/60 px-4 py-1.5 text-xs font-semibold text-[var(--text-secondary)] backdrop-blur-sm">
               <Sparkles size={14} className="text-[var(--accent)]" />
               <span>{t("portalLogin.heroBadge")}</span>
@@ -622,8 +636,8 @@ export default function PortalLoginPage() {
             </div>
           </section>
 
-          <section className="mx-auto w-full max-w-[560px] lg:col-span-3">
-            <div className="mb-6 text-center lg:hidden">
+          <section className="mx-auto w-full max-w-[560px] md:w-1/2">
+            <div className="mb-6 text-center md:hidden">
               <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-rose-400 shadow-[0_10px_26px_rgba(245,158,11,0.35)]">
                 <span className="text-xl font-bold text-[var(--primary)]">H</span>
               </div>

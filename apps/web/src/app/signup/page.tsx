@@ -4,14 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Check, ShieldCheck, Sparkles, Users } from "lucide-react";
-import HCaptcha from "@hcaptcha/react-hcaptcha";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { mapPasswordPolicyError } from "@/lib/password-errors";
+import { sanitizePlainText } from "@/utils/sanitize";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-const HCAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "";
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 export default function SignupPage() {
   const { t, locale } = useI18n();
@@ -75,7 +76,8 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      if (!fullName.trim()) {
+      const sanitizedFullName = sanitizePlainText(fullName).trim();
+      if (!sanitizedFullName) {
         setError(t("signup.fullNameRequired"));
         setIsLoading(false);
         return;
@@ -87,7 +89,7 @@ export default function SignupPage() {
         return;
       }
 
-      const trimmedWebsite = orgName.trim();
+      const trimmedWebsite = sanitizePlainText(orgName).trim();
       if (!websitePattern.test(trimmedWebsite)) {
         setError(t("validation.website"));
         setIsLoading(false);
@@ -487,14 +489,13 @@ export default function SignupPage() {
                           {t("portalLogin.captchaLabel")}
                         </label>
                         <div className="rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] p-2.5">
-                          {HCAPTCHA_SITE_KEY ? (
-                            <HCaptcha
+                          {TURNSTILE_SITE_KEY ? (
+                            <TurnstileWidget
                               key={captchaRenderNonce}
-                              sitekey={HCAPTCHA_SITE_KEY}
+                              siteKey={TURNSTILE_SITE_KEY}
                               onVerify={(token) => setCaptchaToken(token)}
                               onExpire={() => setCaptchaToken(null)}
                               onError={() => setCaptchaToken(null)}
-                              theme="light"
                             />
                           ) : (
                             <p className="text-xs text-amber-700">{t("portalLogin.captchaMissingKey")}</p>

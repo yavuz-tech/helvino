@@ -20,6 +20,9 @@ import {
 } from "../utils/entitlements";
 import { isBillingWriteBlocked } from "../utils/billing-enforcement";
 import { buildHistogramUpdateSql } from "../utils/widget-histogram";
+import { validateBody } from "../utils/validate";
+import { widgetSendMessageSchema } from "../utils/schemas";
+import { sanitizeHTML, sanitizePlainText } from "../utils/sanitize";
 import type {
   Conversation,
   ConversationDetail,
@@ -155,18 +158,14 @@ export async function orgCustomerRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const msgStartMs = Date.now();
       const { id } = request.params;
-      const { role, content } = request.body;
+      const parsedBody = validateBody(widgetSendMessageSchema, request.body, reply);
+      if (!parsedBody) return;
+      const { role, content } = parsedBody;
       const orgUser = request.orgUser!;
-
-      // Validate input
-      if (!role || !content) {
+      const sanitizedContent = sanitizeHTML(content).trim();
+      if (!sanitizedContent) {
         reply.code(400);
-        return { error: "Missing required fields: role, content" };
-      }
-
-      if (role !== "user" && role !== "assistant") {
-        reply.code(400);
-        return { error: "Invalid role. Must be 'user' or 'assistant'" };
+        return { error: "Message content is required" };
       }
 
       // Check writeEnabled flag for this org
@@ -224,7 +223,7 @@ export async function orgCustomerRoutes(fastify: FastifyInstance) {
         }
       }
 
-      const message = await store.addMessage(id, orgUser.orgId, role, content);
+      const message = await store.addMessage(id, orgUser.orgId, role, sanitizedContent);
 
       if (!message) {
         reply.code(404);
@@ -245,6 +244,7 @@ export async function orgCustomerRoutes(fastify: FastifyInstance) {
       // Widget response-time histogram (fire-and-forget, best-effort)
       const msgDurationMs = Date.now() - msgStartMs;
       const { sql: histSql, params: histParams } = buildHistogramUpdateSql(orgUser.orgId, msgDurationMs);
+      // SQL-safe: parameterized query (built with placeholders in buildHistogramUpdateSql)
       prisma.$executeRawUnsafe(histSql, histParams[0], histParams[1]).catch(() => {});
 
       reply.code(201);
@@ -337,11 +337,11 @@ export async function orgCustomerRoutes(fastify: FastifyInstance) {
       // Build update data
       const updateData: any = {};
 
-      if (updates.widgetName !== undefined) updateData.widgetName = updates.widgetName;
-      if (updates.widgetSubtitle !== undefined) updateData.widgetSubtitle = updates.widgetSubtitle;
+      if (updates.widgetName !== undefined) updateData.widgetName = sanitizePlainText(String(updates.widgetName));
+      if (updates.widgetSubtitle !== undefined) updateData.widgetSubtitle = sanitizePlainText(String(updates.widgetSubtitle));
       if (updates.primaryColor !== undefined) updateData.primaryColor = updates.primaryColor;
       if (updates.language !== undefined) updateData.language = updates.language;
-      if (updates.launcherText !== undefined) updateData.launcherText = updates.launcherText;
+      if (updates.launcherText !== undefined) updateData.launcherText = sanitizePlainText(String(updates.launcherText));
       if (updates.position !== undefined) updateData.position = updates.position;
 
       // Note: Critical settings (widgetEnabled, writeEnabled, aiEnabled, retention)

@@ -1,0 +1,4 @@
+{
+  "backgroundColor": "rgb(6, 95, 70)",
+  "boxShadow": "rgba(6, 95, 70, 0.25) 0px 8px 25px 0px, rgba(6, 95, 70, 0.19) 0px 4px 10px 0px"
+}

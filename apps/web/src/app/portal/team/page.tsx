@@ -9,6 +9,7 @@ import { useStepUp } from "@/contexts/StepUpContext";
 import EmptyState from "@/components/EmptyState";
 import { premiumToast } from "@/components/PremiumToast";
 import { p } from "@/styles/theme";
+import { colors, fonts } from "@/lib/design-tokens";
 import {
   ChevronLeft,
   Users,
@@ -41,6 +42,8 @@ interface PendingInvite {
 }
 
 export default function PortalTeamPage() {
+  void colors;
+  void fonts;
   const { user, loading: authLoading } = usePortalAuth();
   const { t, locale } = useI18n();
   const { withStepUp } = useStepUp();
@@ -266,9 +269,9 @@ export default function PortalTeamPage() {
 
   const roleBadge = (role: string) => {
     const colors: Record<string, string> = {
-      owner: "bg-violet-100 text-violet-800",
-      admin: "bg-blue-100 text-blue-800",
-      agent: "bg-slate-100 text-slate-700",
+      owner: "bg-amber-100 text-amber-800",
+      admin: "bg-amber-100 text-amber-800",
+      agent: "bg-[#F1F5F9] text-[#334155]",
     };
     const labels: Record<string, string> = {
       owner: t("team.owner"),
@@ -288,23 +291,23 @@ export default function PortalTeamPage() {
   const activeUsers = users.filter((u) => u.isActive).length;
 
   if (loading) {
-    return <div className="py-10 text-slate-600">{t("common.loading")}</div>;
+    return <div className="py-10 text-[#475569]">{t("common.loading")}</div>;
   }
 
   return (
     <div className="space-y-7">
-      <section className="overflow-hidden rounded-3xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50 via-white to-fuchsia-50 p-6 shadow-[0_16px_45px_rgba(76,29,149,0.14)]">
+      <section className="overflow-hidden rounded-3xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-[#FFFBF5] p-6 shadow-[0_16px_45px_rgba(217,119,6,0.14)]">
         <Link
           href="/portal"
-          className="group mb-4 inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-sm font-semibold text-indigo-700 transition-colors hover:text-indigo-800"
+          className="group mb-4 inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-sm font-semibold text-amber-700 transition-colors hover:text-amber-900"
         >
           <ChevronLeft size={16} className="transition-transform group-hover:-translate-x-0.5" />
           {t("portalOnboarding.backToDashboard")}
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-[28px] font-bold tracking-tight text-slate-900">{t("team.title")}</h1>
-            <p className="mt-1 text-sm text-slate-600">{t("team.members")} • {t("team.pendingInvites")}</p>
+            <h1 className="text-[28px] font-bold tracking-tight text-[#1A1D23]">{t("team.title")}</h1>
+            <p className="mt-1 text-sm text-[#475569]">{t("team.members")} • {t("team.pendingInvites")}</p>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
             <ShieldCheck size={13} />
@@ -314,25 +317,25 @@ export default function PortalTeamPage() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-indigo-200/70 bg-white p-5 shadow-[0_8px_26px_rgba(79,70,229,0.08)]">
-          <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700"><Users size={16} /></div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("team.members")}</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{users.length}</p>
+        <div className="rounded-2xl border border-amber-200/70 bg-white p-5 shadow-[0_8px_26px_rgba(217,119,6,0.08)]">
+          <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><Users size={16} /></div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">{t("team.members")}</p>
+          <p className="mt-1 text-2xl font-semibold text-[#1A1D23]">{users.length}</p>
         </div>
         <div className="rounded-2xl border border-emerald-200/70 bg-white p-5 shadow-[0_8px_26px_rgba(5,150,105,0.08)]">
           <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><CheckCircle2 size={16} /></div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("team.active")}</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{activeUsers}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">{t("team.active")}</p>
+          <p className="mt-1 text-2xl font-semibold text-[#1A1D23]">{activeUsers}</p>
         </div>
         <div className="rounded-2xl border border-amber-200/70 bg-white p-5 shadow-[0_8px_26px_rgba(217,119,6,0.08)]">
           <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><Clock3 size={16} /></div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("team.pendingInvites")}</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{invites.length}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">{t("team.pendingInvites")}</p>
+          <p className="mt-1 text-2xl font-semibold text-[#1A1D23]">{invites.length}</p>
         </div>
-        <div className="rounded-2xl border border-fuchsia-200/70 bg-white p-5 shadow-[0_8px_26px_rgba(192,38,211,0.08)]">
-          <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-fuchsia-100 text-fuchsia-700"><UserPlus size={16} /></div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("team.inviteMember")}</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{isOwnerOrAdmin ? t("common.enabled") : t("common.disabled")}</p>
+        <div className="rounded-2xl border border-amber-200/70 bg-white p-5 shadow-[0_8px_26px_rgba(217,119,6,0.08)]">
+          <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><UserPlus size={16} /></div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">{t("team.inviteMember")}</p>
+          <p className="mt-1 text-sm font-semibold text-[#1A1D23]">{isOwnerOrAdmin ? t("common.enabled") : t("common.disabled")}</p>
         </div>
       </section>
 
@@ -348,7 +351,7 @@ export default function PortalTeamPage() {
       )}
 
       {isOwnerOrAdmin && (
-        <section className="rounded-2xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_rgba(2,6,23,0.06)]">
+        <section className="rounded-2xl border border-[#F3E8D8] bg-white p-6 shadow-[0_8px_30px_rgba(2,6,23,0.06)]">
           <div className="mb-4 flex items-center gap-2.5">
             <span className={`${p.iconSm} ${p.iconBlue}`}><Mail size={15} /></span>
             <h2 className={p.h2}>{t("team.inviteMember")}</h2>
@@ -372,15 +375,15 @@ export default function PortalTeamPage() {
           </form>
 
           {inviteLimitState && (
-            <div className="mt-4 rounded-2xl border border-violet-200/80 bg-gradient-to-r from-violet-50 via-fuchsia-50 to-indigo-50 p-4 shadow-[0_8px_24px_rgba(109,40,217,0.10)]">
+            <div className="mt-4 rounded-2xl border border-amber-200/80 bg-gradient-to-r from-amber-50 via-[#FFFBF5] to-[#FEF3C7] p-4 shadow-[0_8px_24px_rgba(217,119,6,0.10)]">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-violet-800">
+                  <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-800">
                     <Crown size={14} />
                     {t("team.agentLimitReachedTitle")}
                   </p>
-                  <p className="mt-1 text-sm text-slate-600">{t("team.agentLimitReachedDesc")}</p>
-                  <p className="mt-2 text-xs font-semibold text-violet-700">
+                  <p className="mt-1 text-sm text-[#475569]">{t("team.agentLimitReachedDesc")}</p>
+                  <p className="mt-2 text-xs font-semibold text-amber-700">
                     {t("team.agentLimitUsage")}: {inviteLimitState.current}/{inviteLimitState.maxAgents}
                   </p>
                 </div>
@@ -393,9 +396,9 @@ export default function PortalTeamPage() {
           )}
 
           {invLink && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-              <span className="text-xs text-slate-500">{t("team.inviteLink")}:</span>
-              <code className="max-w-md truncate rounded bg-white px-2 py-1 font-mono text-xs text-slate-700">{invLink}</code>
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-[#F3E8D8] bg-[#FFFBF5] px-3 py-2.5">
+              <span className="text-xs text-[#64748B]">{t("team.inviteLink")}:</span>
+              <code className="max-w-md truncate rounded bg-white px-2 py-1 font-mono text-xs text-[#334155]">{invLink}</code>
               <button type="button" onClick={() => copyToClipboard(invLink)} className={p.btnSecondary}>
                 <Link2 size={13} />
                 {copied ? t("team.copied") : t("team.copyLink")}
@@ -405,8 +408,8 @@ export default function PortalTeamPage() {
         </section>
       )}
 
-      <section className="rounded-2xl border border-slate-200/70 bg-white shadow-[0_8px_30px_rgba(2,6,23,0.06)]">
-        <div className="border-b border-slate-100 px-6 py-4">
+      <section className="rounded-2xl border border-[#F3E8D8] bg-white shadow-[0_8px_30px_rgba(2,6,23,0.06)]">
+        <div className="border-b border-[#F3E8D8] px-6 py-4">
           <h2 className={p.h2}>{t("team.members")}</h2>
         </div>
         {users.length === 0 ? (
@@ -415,7 +418,7 @@ export default function PortalTeamPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-sm">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-[#F3E8D8] bg-[#FFFBF5] text-left text-[12px] font-semibold uppercase tracking-wide text-[#64748B]">
                   <th className="px-6 py-3">{t("team.email")}</th>
                   <th className="px-6 py-3">{t("team.role")}</th>
                   <th className="px-6 py-3">{t("team.status")}</th>
@@ -423,10 +426,10 @@ export default function PortalTeamPage() {
                   {isOwnerOrAdmin && <th className="px-6 py-3">{t("team.actions")}</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#F3E8D8]">
                 {users.map((u) => (
-                  <tr key={u.id} className="transition-colors hover:bg-slate-50">
-                    <td className="px-6 py-3.5 font-medium text-slate-900">{u.email}</td>
+                  <tr key={u.id} className="transition-colors hover:bg-[#FFFBF5]">
+                    <td className="px-6 py-3.5 font-medium text-[#1A1D23]">{u.email}</td>
                     <td className="px-6 py-3.5">
                       {roleUserId === u.id ? (
                         <select
@@ -462,7 +465,7 @@ export default function PortalTeamPage() {
                         {u.isActive ? t("team.active") : t("team.inactive")}
                       </span>
                     </td>
-                    <td className="px-6 py-3.5 text-xs text-slate-500" suppressHydrationWarning>
+                    <td className="px-6 py-3.5 text-xs text-[#64748B]" suppressHydrationWarning>
                       {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : t("team.never")}
                     </td>
                     {isOwnerOrAdmin && (
@@ -486,8 +489,8 @@ export default function PortalTeamPage() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-slate-200/70 bg-white shadow-[0_8px_30px_rgba(2,6,23,0.06)]">
-        <div className="border-b border-slate-100 px-6 py-4">
+      <section className="rounded-2xl border border-[#F3E8D8] bg-white shadow-[0_8px_30px_rgba(2,6,23,0.06)]">
+        <div className="border-b border-[#F3E8D8] px-6 py-4">
           <h2 className={p.h2}>{t("team.pendingInvites")}</h2>
         </div>
         {invites.length === 0 ? (
@@ -496,19 +499,19 @@ export default function PortalTeamPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-sm">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/70 text-left text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-[#F3E8D8] bg-[#FFFBF5] text-left text-[12px] font-semibold uppercase tracking-wide text-[#64748B]">
                   <th className="px-6 py-3">{t("team.email")}</th>
                   <th className="px-6 py-3">{t("team.role")}</th>
                   <th className="px-6 py-3">{t("team.expiresAt")}</th>
                   {isOwnerOrAdmin && <th className="px-6 py-3">{t("team.actions")}</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#F3E8D8]">
                 {invites.map((inv) => (
-                  <tr key={inv.id} className="transition-colors hover:bg-slate-50">
-                    <td className="px-6 py-3.5 font-medium text-slate-900">{inv.email}</td>
+                  <tr key={inv.id} className="transition-colors hover:bg-[#FFFBF5]">
+                    <td className="px-6 py-3.5 font-medium text-[#1A1D23]">{inv.email}</td>
                     <td className="px-6 py-3.5">{roleBadge(inv.role)}</td>
-                    <td className="px-6 py-3.5 text-xs text-slate-500" suppressHydrationWarning>
+                    <td className="px-6 py-3.5 text-xs text-[#64748B]" suppressHydrationWarning>
                       {new Date(inv.expiresAt).toLocaleDateString()}
                     </td>
                     {isOwnerOrAdmin && (

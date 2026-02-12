@@ -43,7 +43,7 @@ export async function resetExpiredAiQuotas(): Promise<{ resetCount: number }> {
     }
   }
 
-  console.log(`[AI Quota Reset] Reset ${resetCount}/${expiredOrgs.length} organizations`);
+  console.info(`[AI Quota Reset] Reset ${resetCount}/${expiredOrgs.length} organizations`);
   return { resetCount };
 }
 
@@ -53,15 +53,15 @@ export function scheduleAiQuotaReset(): void {
 
   // Run once on startup (deferred)
   setTimeout(async () => {
-    console.log("[AI Quota Reset] Running initial check...");
+    console.info("[AI Quota Reset] Running initial check...");
     await resetExpiredAiQuotas();
   }, 5000);
 
   // Then run every 24 hours
   setInterval(async () => {
-    console.log("[AI Quota Reset] Running scheduled check...");
+    console.info("[AI Quota Reset] Running scheduled check...");
     await resetExpiredAiQuotas();
   }, TWENTY_FOUR_HOURS);
 
-  console.log("[AI Quota Reset] Scheduled daily reset job");
+  console.info("[AI Quota Reset] Scheduled daily reset job");
 }

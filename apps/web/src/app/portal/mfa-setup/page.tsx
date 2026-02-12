@@ -196,7 +196,7 @@ function PortalMfaSetupInner() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "helvino-mfa-backup-codes.txt";
+    link.download = "helvion-mfa-backup-codes.txt";
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -277,7 +277,7 @@ function PortalMfaSetupInner() {
               <h1 className="font-[var(--font-heading)] text-2xl font-semibold tracking-tight text-[var(--mfa-primary)] sm:text-3xl">
                 {t("mfa.setupFlowTitle")}
               </h1>
-              <p className="mt-2 text-sm leading-relaxed text-slate-700">{t("mfa.setupFlowSubtitle")}</p>
+              <p className="mt-2 text-sm leading-relaxed text-[#475569]">{t("mfa.setupFlowSubtitle")}</p>
             </motion.div>
 
             <motion.div
@@ -290,7 +290,7 @@ function PortalMfaSetupInner() {
                 <div
                   key={id}
                   className={`rounded-md px-2 py-1.5 text-center text-[11px] font-semibold transition ${
-                    step === id ? "bg-amber-100 text-amber-800" : "text-slate-600"
+                    step === id ? "bg-amber-100 text-amber-800" : "text-[#64748B]"
                   }`}
                 >
                   <div className="mb-1 flex justify-center">
@@ -318,12 +318,12 @@ function PortalMfaSetupInner() {
                 <div className="space-y-3">
                   <div>
                     <h2 className="font-[var(--font-heading)] text-lg font-semibold text-[var(--mfa-primary)]">{t("mfa.stepScan")}</h2>
-                    <p className="mt-1 text-sm text-slate-700">{t("mfa.scanStepHint")}</p>
+                    <p className="mt-1 text-sm text-[#475569]">{t("mfa.scanStepHint")}</p>
                   </div>
 
                   {loadingSetup ? (
                     <div className="flex h-48 items-center justify-center rounded-lg border border-amber-200/70 bg-amber-50/60">
-                      <div className="inline-flex items-center gap-2 text-sm text-slate-700">
+                      <div className="inline-flex items-center gap-2 text-sm text-[#475569]">
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-amber-500/70 border-t-transparent" />
                         {t("mfa.qrLoading")}
                       </div>
@@ -360,7 +360,7 @@ function PortalMfaSetupInner() {
                       {showManualSecret ? t("mfa.hideManualKey") : t("mfa.manualKey")}
                     </button>
                     {showManualSecret && setup?.secret ? (
-                      <code className="block rounded-md border border-white/15 bg-slate-900/35 px-3 py-2 text-center text-sm tracking-wide text-slate-100">
+                      <code className="block rounded-md border border-white/15 bg-[#1A1D23]/35 px-3 py-2 text-center text-sm tracking-wide text-[#E2E8F0]">
                         {setup.secret}
                       </code>
                     ) : null}
@@ -381,14 +381,14 @@ function PortalMfaSetupInner() {
                       {skipping ? t("mfa.skippingForNow") : t("mfa.skipForNow")}
                     </button>
                     <div className="rounded-lg border border-amber-200/70 bg-white/70 px-3 py-2.5">
-                      <label className="inline-flex items-start gap-3 text-sm leading-5 text-slate-700">
+                      <label className="inline-flex items-start gap-3 text-sm leading-5 text-[#475569]">
                         <input
                           type="checkbox"
                           checked={dontShowAgain}
                           onChange={(event) => setDontShowAgain(event.target.checked)}
                           className="mt-0.5 h-5 w-5 shrink-0 rounded border-amber-300 bg-white text-amber-500 focus:ring-amber-300/50"
                         />
-                        <span className="text-slate-700">{t("mfa.dontShowAgain")}</span>
+                        <span className="text-[#475569]">{t("mfa.dontShowAgain")}</span>
                       </label>
                     </div>
                     {!setup?.qrCodeDataUrl ? (
@@ -409,7 +409,7 @@ function PortalMfaSetupInner() {
                 <div className="space-y-3">
                   <div>
                     <h2 className="font-[var(--font-heading)] text-lg font-semibold text-[var(--mfa-primary)]">{t("mfa.stepVerify")}</h2>
-                    <p className="mt-1 text-sm text-slate-700">{t("mfa.verifyStepHint")}</p>
+                    <p className="mt-1 text-sm text-[#475569]">{t("mfa.verifyStepHint")}</p>
                   </div>
 
                   <div className="flex items-center justify-center gap-2 sm:gap-3">
@@ -432,7 +432,7 @@ function PortalMfaSetupInner() {
                     ))}
                   </div>
 
-                  <p className="text-center text-xs text-slate-600">{t("mfa.codePlaceholder")}</p>
+                  <p className="text-center text-xs text-[#64748B]">{t("mfa.codePlaceholder")}</p>
 
                   <div className="flex flex-col gap-3 sm:flex-row">
                     <button
@@ -458,7 +458,7 @@ function PortalMfaSetupInner() {
                 <div className="space-y-3">
                   <div>
                     <h2 className="font-[var(--font-heading)] text-lg font-semibold text-[var(--mfa-primary)]">{t("mfa.stepBackup")}</h2>
-                    <p className="mt-1 text-sm text-slate-700">{t("mfa.backupStepHint")}</p>
+                    <p className="mt-1 text-sm text-[#475569]">{t("mfa.backupStepHint")}</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 rounded-lg border border-amber-200/70 bg-amber-50/65 p-2 sm:gap-3">

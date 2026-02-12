@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ErrorBanner from "@/components/ErrorBanner";
@@ -24,7 +24,7 @@ interface WidgetConfig {
   requestId?: string;
 }
 
-export default function PortalWidgetPage() {
+function PortalWidgetContent() {
   const { user, loading: authLoading } = usePortalAuth();
   const { t } = useI18n();
   const searchParams = useSearchParams();
@@ -229,7 +229,7 @@ export default function PortalWidgetPage() {
       ) : config ? (
         <div className="space-y-5">
           {/* Widget Status + Toggle */}
-          <div className="widget-card rounded-2xl border border-gray-100 bg-white p-6 shadow-sm widget-stagger" style={{ ["--index" as string]: 0 }}>
+          <div className="widget-card rounded-2xl border border-[#F3E8D8] bg-white p-6 shadow-sm widget-stagger" style={{ ["--index" as string]: 0 }}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 {config.widgetEnabled ? (
@@ -286,7 +286,7 @@ export default function PortalWidgetPage() {
                   {config.lastWidgetSeenAt ? new Date(config.lastWidgetSeenAt).toLocaleDateString() : "—"}
                 </div>
               </div>
-              <div className="group border-x border-gray-100 text-center">
+              <div className="group border-x border-[#F3E8D8] text-center">
                 <div className="font-[var(--font-body)] text-[12px] font-medium text-[#94A3B8]">{t("widgetSettings.failures")}</div>
                 <div className={`mt-1 font-[var(--font-heading)] text-[18px] font-bold transition-colors duration-300 group-hover:text-[#F59E0B] ${
                   config.health.failuresTotal > 0 ? "text-red-600" : "text-slate-800"
@@ -306,7 +306,7 @@ export default function PortalWidgetPage() {
           </div>
 
           {/* Embed Snippet */}
-          <div className="widget-card rounded-2xl border border-gray-100 bg-white p-6 shadow-sm widget-stagger" style={{ ["--index" as string]: 1 }}>
+          <div className="widget-card rounded-2xl border border-[#F3E8D8] bg-white p-6 shadow-sm widget-stagger" style={{ ["--index" as string]: 1 }}>
             <h2 className="mb-1 font-[var(--font-heading)] text-[16px] font-bold leading-tight text-[#1A1D23]">{t("widgetSettings.embedSnippet")}</h2>
             <p className="mb-4 font-[var(--font-body)] text-[13px] text-[#64748B]">{t("widgetSettings.embedHint")}</p>
             <div className="relative rounded-xl bg-[#1A1D23] p-4 shadow-sm">
@@ -324,7 +324,7 @@ export default function PortalWidgetPage() {
           </div>
 
           {/* Domain Allowlist */}
-          <div className="widget-card rounded-2xl border border-gray-100 bg-white p-6 shadow-sm widget-stagger" style={{ ["--index" as string]: 2 }}>
+          <div className="widget-card rounded-2xl border border-[#F3E8D8] bg-white p-6 shadow-sm widget-stagger" style={{ ["--index" as string]: 2 }}>
             <h2 className="mb-1 font-[var(--font-heading)] text-[16px] font-bold leading-tight text-[#1A1D23]">{t("domainAllowlist.title")}</h2>
             <p className="mb-4 font-[var(--font-body)] text-[13px] text-[#64748B]">{t("domainAllowlist.subtitle")}</p>
 
@@ -530,5 +530,19 @@ export default function PortalWidgetPage() {
         }
       `}</style>
     </>
+  );
+}
+
+export default function PortalWidgetPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="text-slate-600">Loading...</div>
+        </div>
+      }
+    >
+      <PortalWidgetContent />
+    </Suspense>
   );
 }

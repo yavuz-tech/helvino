@@ -172,6 +172,14 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
       );
 
       if (!result.ok) {
+        if (result.code === "RATE_LIMITED") {
+          reply.code(429);
+          return { error: result.error, code: "RATE_LIMITED" };
+        }
+        if (result.code === "QUOTA_EXCEEDED") {
+          reply.code(402);
+          return { error: result.error, code: "QUOTA_EXCEEDED" };
+        }
         reply.code(500);
         return { error: result.error, code: result.code };
       }

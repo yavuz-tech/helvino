@@ -29,5 +29,5 @@ redis.on("error", (err) => {
 });
 
 redis.on("connect", () => {
-  console.log("✅ Redis connected");
+  console.info("✅ Redis connected");
 });

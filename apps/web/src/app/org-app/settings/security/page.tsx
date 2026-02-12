@@ -165,8 +165,8 @@ export default function OrgSecurityPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">{t("common.checkingAuth")}</div>
+      <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+        <div className="text-[#475569]">{t("common.checkingAuth")}</div>
       </div>
     );
   }
@@ -174,7 +174,7 @@ export default function OrgSecurityPage() {
   if (loading) {
     return (
       <OrgPortalLayout user={user} onLogout={handleLogout}>
-        <div className="text-center py-12 text-slate-500">
+        <div className="text-center py-12 text-[#64748B]">
           {t("security.loadingSettings")}
         </div>
       </OrgPortalLayout>
@@ -194,8 +194,8 @@ export default function OrgSecurityPage() {
   return (
     <OrgPortalLayout user={user} onLogout={handleLogout}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">{t("app.securitySettings")}</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="text-2xl font-bold text-[#1A1D23]">{t("app.securitySettings")}</h1>
+        <p className="text-sm text-[#64748B] mt-1">
           {t("app.securitySubtitle")}
         </p>
       </div>
@@ -215,18 +215,18 @@ export default function OrgSecurityPage() {
       )}
 
       <div className="space-y-6">
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">{t("security.siteId")}</h2>
-          <p className="text-sm text-slate-600 mb-4">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
+          <h2 className="text-lg font-semibold text-[#1A1D23] mb-4">{t("security.siteId")}</h2>
+          <p className="text-sm text-[#475569] mb-4">
             {t("app.siteIdDesc")}
           </p>
           <div className="flex gap-2">
-            <code className="flex-1 px-4 py-2 bg-slate-50 rounded border border-slate-200 text-sm font-mono">
+            <code className="flex-1 px-4 py-2 bg-amber-50/50 rounded border border-[#F3E8D8] text-sm font-mono">
               {security.siteId}
             </code>
             <button
               onClick={copySiteId}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors"
             >
               {copied ? (
                 <>
@@ -243,15 +243,15 @@ export default function OrgSecurityPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">{t("security.allowedDomains")}</h2>
-          <p className="text-sm text-slate-600 mb-4">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
+          <h2 className="text-lg font-semibold text-[#1A1D23] mb-4">{t("security.allowedDomains")}</h2>
+          <p className="text-sm text-[#475569] mb-4">
             {t("app.allowedDomainsDesc")}
           </p>
 
           <div className="space-y-2 mb-4">
             {security.allowedDomains.length === 0 ? (
-              <div className="text-sm text-slate-500 text-center py-4">
+              <div className="text-sm text-[#64748B] text-center py-4">
                 {t("app.noDomains")}
               </div>
             ) : (
@@ -262,7 +262,7 @@ export default function OrgSecurityPage() {
                     value={domain}
                     onChange={(e) => handleDomainChange(index, e.target.value)}
                     placeholder="example.com or *.example.com"
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 font-mono text-sm"
+                    className="flex-1 px-4 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-mono text-sm"
                   />
                   <button
                     onClick={() => handleRemoveDomain(index)}
@@ -277,20 +277,20 @@ export default function OrgSecurityPage() {
 
           <button
             onClick={handleAddDomain}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-900 rounded-lg hover:bg-slate-200 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-900 rounded-lg hover:bg-amber-200 transition-colors"
           >
             <Plus size={16} />
             {t("app.addDomain")}
           </button>
         </div>
 
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900 mb-1">
+              <h3 className="text-sm font-semibold text-[#1A1D23] mb-1">
                 {t("security.allowLocalhost")}
               </h3>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-[#475569]">
                 {t("app.allowLocalhostDesc")}
               </p>
             </div>
@@ -298,7 +298,7 @@ export default function OrgSecurityPage() {
               type="checkbox"
               checked={security.allowLocalhost}
               onChange={(e) => setSecurity({ ...security, allowLocalhost: e.target.checked })}
-              className="w-12 h-6 rounded-full appearance-none bg-slate-200 relative cursor-pointer transition-colors checked:bg-green-500"
+              className="w-12 h-6 rounded-full appearance-none bg-amber-200 relative cursor-pointer transition-colors checked:bg-green-500"
               style={{
                 WebkitAppearance: "none",
               }}
@@ -310,7 +310,7 @@ export default function OrgSecurityPage() {
           <button
             onClick={handleSave}
             disabled={saving || !hasChanges}
-            className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
+            className="w-full px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors disabled:from-amber-300 disabled:to-amber-300"
           >
             {saving ? t("common.saving") : hasChanges ? t("app.saveSecuritySettings") : t("common.noChanges")}
           </button>

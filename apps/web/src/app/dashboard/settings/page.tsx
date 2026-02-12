@@ -9,6 +9,7 @@ import { useI18n } from "@/i18n/I18nContext";
 import MfaSetupSection from "@/components/MfaSetupSection";
 import PasskeySection from "@/components/PasskeySection";
 import { useStepUp } from "@/contexts/StepUpContext";
+import { colors, fonts } from "@/lib/design-tokens";
 
 interface OrgSettings {
   widgetEnabled: boolean;
@@ -78,6 +79,8 @@ interface PromoCodeItem {
 }
 
 export default function SettingsPage() {
+  void colors;
+  void fonts;
   const router = useRouter();
   const { t } = useI18n();
   const { withStepUp } = useStepUp();
@@ -672,8 +675,8 @@ export default function SettingsPage() {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">{t("common.checkingAuth")}</div>
+      <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+        <div className="text-[#475569]">{t("common.checkingAuth")}</div>
       </div>
     );
   }
@@ -681,7 +684,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <DashboardLayout user={user} onLogout={handleLogout}>
-        <div className="text-center py-12 text-slate-500">
+        <div className="text-center py-12 text-[#64748B] text-sm">
           {t("settings.loadingSettings")}
         </div>
       </DashboardLayout>
@@ -702,8 +705,8 @@ export default function SettingsPage() {
     <DashboardLayout user={user} onLogout={handleLogout}>
       {/* Page Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">{t("settings.orgSettings")}</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="text-2xl font-bold text-[#1A1D23]">{t("settings.orgSettings")}</h1>
+        <p className="text-sm text-[#64748B] mt-1">
           {orgInfo.name} ({orgInfo.key})
         </p>
       </div>
@@ -726,31 +729,31 @@ export default function SettingsPage() {
       {/* Settings Form */}
       <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
         {/* Navigation Tabs */}
-        <div className="flex gap-4 border-b border-slate-200 pb-4">
-          <div className="px-4 py-2 border-b-2 border-slate-900 text-slate-900 font-medium">
+        <div className="flex gap-4 border-b border-[#F3E8D8] pb-4">
+          <div className="px-4 py-2 border-b-2 border-amber-600 text-[#1A1D23] font-medium font-heading">
             {t("nav.generalSettings")}
           </div>
           <a
             href="/dashboard/settings/security"
-            className="px-4 py-2 text-slate-600 hover:text-slate-900 transition-colors"
+            className="px-4 py-2 text-[#475569] hover:text-amber-800 transition-colors"
           >
             🔒 {t("nav.security")}
           </a>
         </div>
 
         {/* Kill Switches Section */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
+          <h2 className="text-lg font-semibold text-[#1A1D23] font-heading mb-4">
             {t("settings.killSwitches")}
           </h2>
           <div className="space-y-4">
             {/* Widget Enabled */}
-            <div className="flex items-center justify-between py-3 border-b border-slate-100">
+            <div className="flex items-center justify-between py-3 border-b border-amber-100">
               <div className="flex-1">
-                <label className="text-sm font-medium text-slate-900">
+                <label className="text-sm font-medium text-[#1A1D23]">
                   {t("settings.widgetEnabled")}
                 </label>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-[#64748B] mt-1">
                   {t("settings.widgetEnabledDesc")}
                 </p>
               </div>
@@ -759,7 +762,7 @@ export default function SettingsPage() {
                   setSettings({ ...settings, widgetEnabled: !settings.widgetEnabled })
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.widgetEnabled ? "bg-green-600" : "bg-slate-300"
+                  settings.widgetEnabled ? "bg-green-600" : "bg-amber-200"
                 }`}
               >
                 <span
@@ -771,12 +774,12 @@ export default function SettingsPage() {
             </div>
 
             {/* Write Enabled */}
-            <div className="flex items-center justify-between py-3 border-b border-slate-100">
+            <div className="flex items-center justify-between py-3 border-b border-amber-100">
               <div className="flex-1">
-                <label className="text-sm font-medium text-slate-900">
+                <label className="text-sm font-medium text-[#1A1D23]">
                   {t("settings.writeEnabled")}
                 </label>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-[#64748B] mt-1">
                   {t("settings.writeEnabledDesc")}
                 </p>
                 {!settings.writeEnabled && (
@@ -790,7 +793,7 @@ export default function SettingsPage() {
                   setSettings({ ...settings, writeEnabled: !settings.writeEnabled })
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.writeEnabled ? "bg-green-600" : "bg-slate-300"
+                  settings.writeEnabled ? "bg-green-600" : "bg-amber-200"
                 }`}
               >
                 <span
@@ -804,10 +807,10 @@ export default function SettingsPage() {
             {/* AI Enabled */}
             <div className="flex items-center justify-between py-3">
               <div className="flex-1">
-                <label className="text-sm font-medium text-slate-900">
+                <label className="text-sm font-medium text-[#1A1D23]">
                   {t("settings.aiEnabled")}
                 </label>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-[#64748B] mt-1">
                   {t("settings.aiEnabledDesc")}
                 </p>
               </div>
@@ -816,7 +819,7 @@ export default function SettingsPage() {
                   setSettings({ ...settings, aiEnabled: !settings.aiEnabled })
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.aiEnabled ? "bg-green-600" : "bg-slate-300"
+                  settings.aiEnabled ? "bg-green-600" : "bg-amber-200"
                 }`}
               >
                 <span
@@ -830,17 +833,17 @@ export default function SettingsPage() {
         </div>
 
         {/* Data Retention Section */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
+          <h2 className="text-lg font-semibold text-[#1A1D23] font-heading mb-4">
             {t("settings.dataRetention")}
           </h2>
           <div className="space-y-4">
             {/* Retention Days */}
-            <div className="py-3 border-b border-slate-100">
-              <label className="block text-sm font-medium text-slate-900 mb-2">
+            <div className="py-3 border-b border-amber-100">
+              <label className="block text-sm font-medium text-[#1A1D23] mb-2">
                 {t("settings.retentionDays")}
               </label>
-              <p className="text-xs text-slate-500 mb-3">
+              <p className="text-xs text-[#64748B] mb-3">
                 {t("settings.retentionDaysDesc")}
               </p>
               <input
@@ -854,22 +857,22 @@ export default function SettingsPage() {
                     messageRetentionDays: parseInt(e.target.value) || 1,
                   })
                 }
-                className="w-full max-w-xs px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="w-full max-w-xs px-4 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
-              <p className="text-xs text-slate-500 mt-2">
+              <p className="text-xs text-[#64748B] mt-2">
                 {t("settings.currentRetention")} {settings.messageRetentionDays} {t("settings.retentionDays2")} (~
                 {Math.floor(settings.messageRetentionDays / 365)} {t("settings.retentionYears")})
               </p>
             </div>
 
             {/* Hard Delete */}
-            <div className="py-3 border-b border-slate-100">
+            <div className="py-3 border-b border-amber-100">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <label className="text-sm font-medium text-slate-900">
+                  <label className="text-sm font-medium text-[#1A1D23]">
                     {t("settings.hardDelete")}
                   </label>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-[#64748B] mt-1">
                     {t("settings.hardDeleteDesc")}<br />
                     {t("settings.softDeleteDesc")}
                   </p>
@@ -887,7 +890,7 @@ export default function SettingsPage() {
                     })
                   }
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.hardDeleteOnRetention ? "bg-red-600" : "bg-slate-300"
+                    settings.hardDeleteOnRetention ? "bg-red-600" : "bg-amber-200"
                   }`}
                 >
                   <span
@@ -901,16 +904,16 @@ export default function SettingsPage() {
 
             {/* Last Retention Run (Read-only) */}
             <div className="py-3">
-              <label className="block text-sm font-medium text-slate-900 mb-2">
+              <label className="block text-sm font-medium text-[#1A1D23] mb-2">
                 {t("settings.lastRetentionRun")}
               </label>
-              <p className="text-sm text-slate-600" suppressHydrationWarning>
+              <p className="text-sm text-[#475569]" suppressHydrationWarning>
                 {settings.lastRetentionRunAt
                   ? new Date(settings.lastRetentionRunAt).toLocaleString()
                   : t("common.never")}
               </p>
               {settings.lastRetentionRunAt && (
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-[#64748B] mt-1">
                   {t("settings.retentionJobDesc")}
                 </p>
               )}
@@ -919,8 +922,8 @@ export default function SettingsPage() {
         </div>
 
         {/* Usage & Overrides Section */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
+          <h2 className="text-lg font-semibold text-[#1A1D23] font-heading mb-4">
             {t("settings.usageOverrides")}
           </h2>
 
@@ -937,39 +940,39 @@ export default function SettingsPage() {
           )}
 
           {usageLoading || !usageInfo ? (
-            <div className="text-slate-600 text-sm">{t("settings.loadingUsage")}</div>
+            <div className="text-[#475569] text-sm">{t("settings.loadingUsage")}</div>
           ) : (
             <div className="space-y-5">
               {/* Current Month Usage */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">
+                  <span className="text-xs text-[#64748B] uppercase tracking-wider font-medium">
                     {t("settings.currentMonth")} {usageInfo.usage.monthKey}
                   </span>
-                  <span className="text-xs text-slate-500" suppressHydrationWarning>
+                  <span className="text-xs text-[#64748B]" suppressHydrationWarning>
                     {t("settings.nextResetLabel")} {new Date(usageInfo.usage.nextResetDate).toLocaleDateString()}
                   </span>
                 </div>
                 {usageInfo.limits && (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                      <div className="text-xs text-slate-500">{t("settings.conversations")}</div>
-                      <div className="text-lg font-semibold text-slate-900">
+                    <div className="bg-amber-50/50 rounded-lg p-3 border border-amber-100">
+                      <div className="text-xs text-[#64748B]">{t("settings.conversations")}</div>
+                      <div className="text-lg font-semibold text-[#1A1D23]">
                         {usageInfo.usage.conversationsCreated} / {usageInfo.limits.maxConversationsPerMonth}
                       </div>
-                      <div className="w-full bg-slate-200 rounded-full h-1.5 mt-1.5">
+                      <div className="w-full bg-amber-200 rounded-full h-1.5 mt-1.5">
                         <div
                           className={`h-1.5 rounded-full ${usageInfo.usage.conversationsCreated >= usageInfo.limits.maxConversationsPerMonth ? 'bg-red-500' : 'bg-emerald-500'}`}
                           style={{ width: `${Math.min((usageInfo.usage.conversationsCreated / usageInfo.limits.maxConversationsPerMonth) * 100, 100)}%` }}
                         />
                       </div>
                     </div>
-                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                      <div className="text-xs text-slate-500">{t("settings.messages")}</div>
-                      <div className="text-lg font-semibold text-slate-900">
+                    <div className="bg-amber-50/50 rounded-lg p-3 border border-amber-100">
+                      <div className="text-xs text-[#64748B]">{t("settings.messages")}</div>
+                      <div className="text-lg font-semibold text-[#1A1D23]">
                         {usageInfo.usage.messagesSent} / {usageInfo.limits.maxMessagesPerMonth}
                       </div>
-                      <div className="w-full bg-slate-200 rounded-full h-1.5 mt-1.5">
+                      <div className="w-full bg-amber-200 rounded-full h-1.5 mt-1.5">
                         <div
                           className={`h-1.5 rounded-full ${usageInfo.usage.messagesSent >= usageInfo.limits.maxMessagesPerMonth ? 'bg-red-500' : 'bg-emerald-500'}`}
                           style={{ width: `${Math.min((usageInfo.usage.messagesSent / usageInfo.limits.maxMessagesPerMonth) * 100, 100)}%` }}
@@ -981,11 +984,11 @@ export default function SettingsPage() {
               </div>
 
               {/* Reset Usage */}
-              <div className="border-t border-slate-100 pt-4">
+              <div className="border-t border-amber-100 pt-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-900">{t("settings.resetUsage")}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-sm font-medium text-[#1A1D23]">{t("settings.resetUsage")}</p>
+                    <p className="text-xs text-[#64748B] mt-0.5">
                       {t("settings.resetUsageDesc")}
                     </p>
                   </div>
@@ -1000,46 +1003,46 @@ export default function SettingsPage() {
               </div>
 
               {/* Grant Extra Quota */}
-              <div className="border-t border-slate-100 pt-4">
-                <p className="text-sm font-medium text-slate-900 mb-1">{t("settings.grantQuota")}</p>
-                <p className="text-xs text-slate-500 mb-3">
+              <div className="border-t border-amber-100 pt-4">
+                <p className="text-sm font-medium text-[#1A1D23] mb-1">{t("settings.grantQuota")}</p>
+                <p className="text-xs text-[#64748B] mb-3">
                   {t("settings.grantQuotaDesc")}
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="block text-xs text-slate-600 mb-1">{t("settings.extraConversations")}</label>
+                    <label className="block text-xs text-[#475569] mb-1">{t("settings.extraConversations")}</label>
                     <input
                       type="number"
                       min="0"
                       value={extraConvInput}
                       onChange={(e) => setExtraConvInput(Math.max(0, parseInt(e.target.value) || 0))}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-600 mb-1">{t("settings.extraMessages")}</label>
+                    <label className="block text-xs text-[#475569] mb-1">{t("settings.extraMessages")}</label>
                     <input
                       type="number"
                       min="0"
                       value={extraMsgInput}
                       onChange={(e) => setExtraMsgInput(Math.max(0, parseInt(e.target.value) || 0))}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                     />
                   </div>
                 </div>
                 <button
                   onClick={handleGrantQuota}
                   disabled={grantingQuota}
-                  className="mt-3 px-4 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-700 disabled:opacity-50"
+                  className="mt-3 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm rounded-lg hover:opacity-90 disabled:opacity-50"
                 >
                   {grantingQuota ? t("common.saving") : t("settings.updateQuota")}
                 </button>
               </div>
 
               {/* Manual Billing Lock/Unlock */}
-              <div className="border-t border-slate-100 pt-4">
-                <p className="text-sm font-medium text-slate-900 mb-1">{t("settings.manualBillingLock")}</p>
-                <p className="text-xs text-slate-500 mb-3">
+              <div className="border-t border-amber-100 pt-4">
+                <p className="text-sm font-medium text-[#1A1D23] mb-1">{t("settings.manualBillingLock")}</p>
+                <p className="text-xs text-[#64748B] mb-3">
                   {t("settings.manualLockDesc")}
                 </p>
                 <div className="flex gap-3">
@@ -1125,8 +1128,8 @@ export default function SettingsPage() {
         <PasskeySection area="admin" />
 
         {/* Billing Section */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
+          <h2 className="text-lg font-semibold text-[#1A1D23] font-heading mb-4">
             {t("settings.billing")}
           </h2>
 
@@ -1143,7 +1146,7 @@ export default function SettingsPage() {
           )}
 
           {billingLoading || !billingInfo ? (
-            <div className="text-slate-600">{t("settings.loadingBilling")}</div>
+            <div className="text-[#475569]">{t("settings.loadingBilling")}</div>
           ) : (
             <div className="space-y-4">
               {!billingInfo.stripeConfigured && (
@@ -1153,24 +1156,24 @@ export default function SettingsPage() {
               )}
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                  <div className="text-xs text-slate-500">{t("settings.billingStatus")}</div>
-                  <div className="text-lg font-semibold text-slate-900 capitalize">
+                <div className="bg-amber-50/50 rounded-lg border border-amber-200/70 p-4">
+                  <div className="text-xs text-[#64748B]">{t("settings.billingStatus")}</div>
+                  <div className="text-lg font-semibold text-[#1A1D23] capitalize">
                     {billingInfo.billing.billingStatus}
                   </div>
-                  <div className="text-xs text-slate-500 mt-2">
+                  <div className="text-xs text-[#64748B] mt-2">
                     {t("settings.cancelAtPeriodEnd")}{" "}
                     {billingInfo.billing.cancelAtPeriodEnd ? t("common.yes") : t("common.no")}
                   </div>
                 </div>
-                <div className="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                  <div className="text-xs text-slate-500">{t("settings.currentPeriodEnd")}</div>
-                  <div className="text-sm font-semibold text-slate-900" suppressHydrationWarning>
+                <div className="bg-amber-50/50 rounded-lg border border-amber-200/70 p-4">
+                  <div className="text-xs text-[#64748B]">{t("settings.currentPeriodEnd")}</div>
+                  <div className="text-sm font-semibold text-[#1A1D23]" suppressHydrationWarning>
                     {billingInfo.billing.currentPeriodEnd
                       ? new Date(billingInfo.billing.currentPeriodEnd).toLocaleString()
                       : "-"}
                   </div>
-                  <div className="text-xs text-slate-500 mt-2">
+                  <div className="text-xs text-[#64748B] mt-2">
                     {t("settings.priceId")} {billingInfo.billing.stripePriceId || "-"}
                   </div>
                 </div>
@@ -1179,34 +1182,34 @@ export default function SettingsPage() {
               <div className="flex gap-3">
                 <button
                   onClick={handleStartSubscription}
-                  className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:opacity-90 disabled:opacity-50"
                   disabled={!billingInfo.stripeConfigured}
                 >
                   {t("settings.startSubscription")}
                 </button>
                 <button
                   onClick={handleManageBilling}
-                  className="px-4 py-2 bg-slate-100 text-slate-900 rounded-lg hover:bg-slate-200 disabled:opacity-50"
+                  className="px-4 py-2 bg-amber-50 text-amber-900 rounded-lg hover:bg-amber-100 disabled:opacity-50 border border-amber-200"
                   disabled={!billingInfo.stripeConfigured}
                 >
                   {t("settings.manageBilling")}
                 </button>
                 <button
                   onClick={handleBillingReconcile}
-                  className="px-4 py-2 bg-blue-50 text-blue-900 rounded-lg hover:bg-blue-100 disabled:opacity-50"
+                  className="px-4 py-2 bg-amber-50 text-amber-900 rounded-lg hover:bg-amber-100 disabled:opacity-50 border border-amber-200"
                   disabled={reconciling}
                 >
                   {reconciling ? t("settings.reconciling") : t("settings.reconcileBilling")}
                 </button>
               </div>
 
-              <div className="border-t border-slate-100 pt-4">
+              <div className="border-t border-amber-100 pt-4">
                 <div className="flex items-center justify-between py-3">
                   <div className="flex-1">
-                    <label className="text-sm font-medium text-slate-900">
+                    <label className="text-sm font-medium text-[#1A1D23]">
                       {t("settings.enforceBilling")}
                     </label>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-xs text-[#64748B] mt-1">
                       {t("settings.enforceBillingDesc")}
                     </p>
                   </div>
@@ -1221,7 +1224,7 @@ export default function SettingsPage() {
                       })
                     }
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      billingInfo.billing.billingEnforced ? "bg-green-600" : "bg-slate-300"
+                      billingInfo.billing.billingEnforced ? "bg-green-600" : "bg-amber-200"
                     }`}
                   >
                     <span
@@ -1233,7 +1236,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="py-3">
-                  <label className="block text-sm font-medium text-slate-900 mb-2">
+                  <label className="block text-sm font-medium text-[#1A1D23] mb-2">
                     {t("settings.graceDays")}
                   </label>
                   <input
@@ -1250,12 +1253,12 @@ export default function SettingsPage() {
                         },
                       })
                     }
-                    className="w-full max-w-xs px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full max-w-xs px-4 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-slate-600">
+                  <div className="text-sm text-[#475569]">
                     {hasBillingChanges ? (
                       <span className="text-orange-600 font-medium">
                         ⚠️ {t("settings.unsavedBilling")}
@@ -1269,8 +1272,8 @@ export default function SettingsPage() {
                     disabled={!hasBillingChanges || billingSaving}
                     className={`px-6 py-2 rounded-lg font-medium transition-colors ${
                       hasBillingChanges && !billingSaving
-                        ? "bg-slate-900 text-white hover:bg-slate-700"
-                        : "bg-slate-300 text-slate-500 cursor-not-allowed"
+                        ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:opacity-90"
+                        : "bg-amber-200 text-[#64748B] cursor-not-allowed"
                     }`}
                   >
                     {billingSaving ? t("common.saving") : t("settings.saveBilling")}
@@ -1282,11 +1285,11 @@ export default function SettingsPage() {
         </div>
 
         {/* Promo Codes Section */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
+          <h2 className="text-lg font-semibold text-[#1A1D23] font-heading mb-4">
             {t("settings.promoCodes")}
           </h2>
-          <p className="text-xs text-slate-500 mb-4">
+          <p className="text-xs text-[#64748B] mb-4">
             {t("settings.promoCodesDesc")}
           </p>
 
@@ -1304,7 +1307,7 @@ export default function SettingsPage() {
 
           <div className="grid gap-3 md:grid-cols-3">
             <div>
-              <label className="block text-xs text-slate-600 mb-1">
+              <label className="block text-xs text-[#475569] mb-1">
                 {t("settings.promoCode")}
               </label>
               <input
@@ -1312,11 +1315,11 @@ export default function SettingsPage() {
                 value={promoCreateCode}
                 onChange={(e) => setPromoCreateCode(e.target.value.toUpperCase())}
                 placeholder={t("settings.promoCodePlaceholder")}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-600 mb-1">
+              <label className="block text-xs text-[#475569] mb-1">
                 {t("settings.promoMaxUses")}
               </label>
               <input
@@ -1325,18 +1328,18 @@ export default function SettingsPage() {
                 value={promoCreateMaxUses}
                 onChange={(e) => setPromoCreateMaxUses(e.target.value)}
                 placeholder={t("settings.promoUnlimitedPlaceholder")}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-600 mb-1">
+              <label className="block text-xs text-[#475569] mb-1">
                 {t("settings.promoValidUntil")}
               </label>
               <input
                 type="datetime-local"
                 value={promoCreateValidUntil}
                 onChange={(e) => setPromoCreateValidUntil(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
             </div>
           </div>
@@ -1344,28 +1347,28 @@ export default function SettingsPage() {
           <button
             onClick={handleCreatePromoCode}
             disabled={promoCreating}
-            className="mt-3 px-4 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-700 disabled:opacity-50"
+            className="mt-3 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm rounded-lg hover:opacity-90 disabled:opacity-50"
           >
             {promoCreating ? t("settings.promoCreating") : t("settings.promoCreate")}
           </button>
 
-          <div className="border-t border-slate-100 mt-5 pt-4">
+          <div className="border-t border-amber-100 mt-5 pt-4">
             {promoLoading ? (
-              <div className="text-sm text-slate-600">{t("settings.promoLoading")}</div>
+              <div className="text-sm text-[#475569]">{t("settings.promoLoading")}</div>
             ) : promoCodes.length === 0 ? (
-              <div className="text-sm text-slate-600">{t("settings.promoEmpty")}</div>
+              <div className="text-sm text-[#475569]">{t("settings.promoEmpty")}</div>
             ) : (
               <div className="space-y-2">
                 {promoCodes.map((promo) => (
                   <div
                     key={promo.id}
-                    className="rounded-lg border border-slate-200 p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+                    className="rounded-lg border border-amber-200/70 p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
                   >
                     <div>
-                      <div className="text-sm font-semibold text-slate-900">
+                      <div className="text-sm font-semibold text-[#1A1D23]">
                         {promo.code} ({promo.discountValue}%)
                       </div>
-                      <div className="text-xs text-slate-500 mt-1" suppressHydrationWarning>
+                      <div className="text-xs text-[#64748B] mt-1" suppressHydrationWarning>
                         {t("settings.promoUsage")}: {promo.currentUses}/
                         {promo.maxUses ?? t("settings.promoUnlimited")}
                         {" • "}
@@ -1401,8 +1404,8 @@ export default function SettingsPage() {
         </div>
 
         {/* Save Button */}
-        <div className="flex items-center justify-between bg-white rounded-lg border border-slate-200 p-6">
-          <div className="text-sm text-slate-600">
+          <div className="flex items-center justify-between bg-white rounded-lg border border-[#F3E8D8] p-6">
+          <div className="text-sm text-[#475569]">
             {hasChanges ? (
               <span className="text-orange-600 font-medium">
                 ⚠️ {t("common.unsavedChanges")}
@@ -1416,8 +1419,8 @@ export default function SettingsPage() {
             disabled={!hasChanges || saving}
             className={`px-6 py-2 rounded-lg font-medium transition-colors ${
               hasChanges && !saving
-                ? "bg-slate-900 text-white hover:bg-slate-700"
-                : "bg-slate-300 text-slate-500 cursor-not-allowed"
+                ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:opacity-90"
+                : "bg-amber-200 text-[#64748B] cursor-not-allowed"
             }`}
           >
             {saving ? t("common.saving") : t("common.saveChanges")}
@@ -1425,11 +1428,11 @@ export default function SettingsPage() {
         </div>
 
         {/* Info Section */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-blue-900 mb-2">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-amber-900 font-heading mb-2">
             ℹ️ {t("settings.importantNotes")}
           </h3>
-          <ul className="text-xs text-blue-800 space-y-1">
+          <ul className="text-xs text-amber-800 space-y-1">
             <li>
               • {t("settings.note1")}
             </li>

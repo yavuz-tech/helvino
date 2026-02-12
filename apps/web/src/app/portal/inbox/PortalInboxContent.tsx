@@ -10,16 +10,26 @@ import ErrorBanner from "@/components/ErrorBanner";
 import { useHydrated } from "@/hooks/useHydrated";
 import { usePortalInboxNotification } from "@/contexts/PortalInboxNotificationContext";
 import Link from "next/link";
+import { colors, fonts } from "@/lib/design-tokens";
 import {
   Search, Send, User,
   MessageSquare, Paperclip, Smile,
   ArrowLeft, PanelRightOpen, PanelRightClose,
   Copy, CheckCircle, Bot, Sparkles,
-  Lock, Wand2, FileText, CheckSquare, Square, X,
+  Lock, FileText, CheckSquare, Square, X,
   AlertCircle, Star, Tag,
 } from "lucide-react";
-import UpgradeModal from "@/components/UpgradeModal";
 import { premiumToast } from "@/components/PremiumToast";
+import { sanitizePlainText } from "@/utils/sanitize";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import {
+  formatDateTime,
+  formatRelativeTime,
+  formatTime,
+  getAvatarColor,
+  getInitials,
+  sanitizeConversationMessage as sanitizeConversationMsg,
+} from "./inbox-utils";
 
 /* ─── types ─── */
 interface ConversationListItem {
@@ -45,6 +55,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  isAIGenerated?: boolean;
 }
 
 interface ConversationDetail {
@@ -74,49 +85,59 @@ interface TeamMember {
 
 type MobileView = "list" | "chat" | "details";
 
-/* ─── helpers ─── */
-function getInitials(str: string): string {
-  const parts = str.split(/[@.\s]+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return str.substring(0, 2).toUpperCase();
-}
+const inboxSimulateButtonGradient = `linear-gradient(135deg, #FDB462, ${colors.brand.primary})`;
+const WARM_BORDER = "#F3E8D8";
 
-const AVATAR_GRADIENTS = [
-  "from-teal-500 to-emerald-600",
-  "from-blue-500 to-indigo-600",
-  "from-violet-500 to-purple-600",
-  "from-rose-500 to-pink-600",
-  "from-amber-500 to-orange-600",
-  "from-cyan-500 to-blue-600",
-  "from-fuchsia-500 to-pink-600",
-  "from-emerald-500 to-teal-600",
-  "from-indigo-500 to-violet-600",
-  "from-sky-500 to-cyan-600",
-];
-function getAvatarColor(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  return `bg-gradient-to-br ${AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length]}`;
-}
+const CANNED_RESPONSES: Record<string, string[]> = {
+  greeting: [
+    "inbox.canned.reply.greeting.1",
+    "inbox.canned.reply.greeting.2",
+  ],
+  pricing: [
+    "inbox.canned.reply.pricing.1",
+    "inbox.canned.reply.pricing.2",
+  ],
+  technical: [
+    "inbox.canned.reply.technical.1",
+    "inbox.canned.reply.technical.2",
+  ],
+  closing: [
+    "inbox.canned.reply.closing.1",
+    "inbox.canned.reply.closing.2",
+  ],
+};
 
-function formatTime(dateStr: string, hydrated: boolean): string {
-  if (!hydrated) return dateStr.replace("T", " ").slice(11, 16);
-  try { return new Date(dateStr).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
-  catch { return dateStr.slice(11, 16); }
-}
-
-function formatDateTime(dateStr: string, hydrated: boolean): string {
-  if (!hydrated) return dateStr.replace("T", " ").slice(0, 16);
-  try {
-    const d = new Date(dateStr);
-    const mo = d.toLocaleString("en", { month: "short" });
-    return `${mo} ${d.getDate()}, ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  } catch { return dateStr.slice(0, 16); }
-}
+const EMOJIS = ["😊","👋","🎯","🔧","📋","✅","❤️","🚀","💡","👍","🙏","😄","🎉","💪","⭐","🔥","💬","✨","🤝","😉","👀","💯","🏆","🙌"];
 
 function displayName(conv: ConversationListItem, t: (key: string) => string): string {
-  if (conv.preview?.from && conv.preview.from !== "assistant") return conv.preview.from;
+  // preview.from contains role ("user"/"assistant"), NOT a display name — always use generated name
   return t("common.visitorNumber").replace("{id}", conv.id.substring(0, 6));
+}
+
+/** Strip HTML tags and [system]/[note] prefixes from preview text */
+function cleanPreviewText(text: string): string {
+  return text
+    .replace(/^\[(system|note)\]\s*/i, "")
+    .replace(/<[^>]*>/g, "")
+    .slice(0, 80);
+}
+
+/** Translate structured system message keys to localized text */
+function translateSystemMessage(raw: string, t: (key: string) => string): string {
+  const content = raw.replace(/^\[system\]\s*/i, "").trim();
+  // Format: KEY:param or just KEY
+  const [key, param] = content.split(":");
+  switch (key) {
+    case "conversation_closed":
+      return `✅ ${t("inbox.system.conversationClosed" as never).replace("{actor}", param || "Agent")}`;
+    case "ai_handoff":
+      return `🤖 ${t("inbox.system.aiHandoff" as never)}`;
+    case "agent_joined":
+      return `🔄 ${t("inbox.system.agentJoined" as never).replace("{actor}", param || "Agent")}`;
+    default:
+      // Legacy messages (before structured format) — show as-is
+      return content;
+  }
 }
 
 /** Sort conversations: unread first, then by updatedAt descending */
@@ -131,28 +152,19 @@ function sortConversations(list: ConversationListItem[]): ConversationListItem[]
   });
 }
 
-function formatRelativeTime(dateStr: string, t: (key: string) => string): string {
-  try {
-    const now = Date.now();
-    const then = new Date(dateStr).getTime();
-    const diff = Math.max(0, now - then);
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return t("common.time.now");
-    if (mins < 60) return `${mins}${t("common.time.minuteShort")}`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}${t("common.time.hourShort")}`;
-    const days = Math.floor(hrs / 24);
-    if (days < 7) return `${days}${t("common.time.dayShort")}`;
-    const weeks = Math.floor(days / 7);
-    return `${weeks}${t("common.time.weekShort")}`;
-  } catch { return ""; }
+function sanitizeConversationDetail(detail: ConversationDetail): ConversationDetail {
+  return {
+    ...detail,
+    messages: (detail.messages || []).map((message) => sanitizeConversationMsg(message)),
+  };
 }
 
 /* ═══════════════════════════════════════════════════════════════ */
 export default function PortalInboxContent() {
+  void fonts;
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const hydrated = useHydrated();
   const { user, loading: authLoading } = usePortalAuth();
 
@@ -171,8 +183,10 @@ export default function PortalInboxContent() {
 
   // Selected
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const selectedConversationIdRef = useRef<string | null>(null);
   const [conversationDetail, setConversationDetail] = useState<ConversationDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const fetchDetailAbortRef = useRef<AbortController | null>(null);
 
   // Notes
   const [notes, setNotes] = useState<Note[]>([]);
@@ -181,6 +195,8 @@ export default function PortalInboxContent() {
 
   // Reply (agent message)
   const [replyBody, setReplyBody] = useState("");
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [noteMode, setNoteMode] = useState(false);
   const [isSendingReply, setIsSendingReply] = useState(false);
 
   // Team
@@ -191,17 +207,32 @@ export default function PortalInboxContent() {
   const [mobileView, setMobileView] = useState<MobileView>("list");
   const [showRightPanel, setShowRightPanel] = useState(true);
   const [detailTab, setDetailTab] = useState<"details" | "notes">("details");
+  const [sidebarNoteText, setSidebarNoteText] = useState("");
 
   // LIVE CONVERSATIONS counts (Unassigned / My open / Solved) — from API
   const [viewCounts, setViewCounts] = useState({ unassigned: 0, myOpen: 0, solved: 0 });
 
   // Plan info
   const [planKey, setPlanKey] = useState<string>("free");
-  const isPro = planKey === "pro" || planKey === "business" || planKey === "PRO" || planKey === "BUSINESS";
+  const normalizedPlanKey = String(planKey || "free").trim().toLowerCase();
+  const planRank = normalizedPlanKey === "enterprise"
+    ? 4
+    : normalizedPlanKey === "business"
+      ? 3
+      : normalizedPlanKey === "pro"
+        ? 3
+        : normalizedPlanKey === "starter"
+          ? 2
+          : 1;
+  const isPro = planRank >= 3;
   const isProPlus = isPro; // Pro+ features (AI assist, smart filters)
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [upgradeReason, setUpgradeReason] = useState<"quota" | "plan">("plan");
-  const [upgradeRequiredPlan, setUpgradeRequiredPlan] = useState<string>("pro");
+  const [upgradeModal, setUpgradeModal] = useState<{ show: boolean; feature: string; minPlan: string } | null>(null);
+  const maxTagsForPlan = planRank >= 4 ? Infinity : planRank >= 3 ? 50 : planRank >= 2 ? 10 : 2;
+  const canUseAiSuggest = planRank >= 3;
+  const canUseInternalNotes = planRank >= 2;
+  const canUseFileUpload = planRank >= 2;
+  const canUseFileAttach = canUseFileUpload;
+  const canUseTakeover = planRank >= 2;
 
   // Bulk select
   const [bulkMode, setBulkMode] = useState(false);
@@ -209,16 +240,30 @@ export default function PortalInboxContent() {
   const [isBulkActing, setIsBulkActing] = useState(false);
 
   // AI Actions
-  const [aiSuggestions, setAiSuggestions] = useState<string[] | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState("");
+  const [aiSuggestionLoading, setAiSuggestionLoading] = useState(false);
+  const [showAiSuggestionPanel, setShowAiSuggestionPanel] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState<"suggest" | "summarize" | "translate" | null>(null);
 
   // Smart filters (PRO+)
   const [smartFilter, setSmartFilter] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showCannedPicker, setShowCannedPicker] = useState(false);
+  const [selectedCannedCategory, setSelectedCannedCategory] = useState<keyof typeof CANNED_RESPONSES>("greeting");
+  const [showTagBar, setShowTagBar] = useState(false);
+  const [tagInput, setTagInput] = useState("");
+  const [conversationTags, setConversationTags] = useState<Record<string, string[]>>({});
 
   // Toast (now uses premium toast, keep showToast for compatibility)
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const showToast = useCallback((msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 2500); }, []);
+  const openUpgradeForPlan = useCallback((minPlan: string, feature?: string) => {
+    setUpgradeModal({ show: true, feature: feature || minPlan, minPlan });
+  }, []);
+
+  // Keep ref in sync with state for use in event handlers (avoids stale closures)
+  useEffect(() => { selectedConversationIdRef.current = selectedConversationId; }, [selectedConversationId]);
 
   // Typing indicator
   const {
@@ -233,6 +278,8 @@ export default function PortalInboxContent() {
   const userTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Sync unread filter from URL (?unread=1 → okunmamış mesajlara tek tık)
   useEffect(() => {
@@ -245,6 +292,14 @@ export default function PortalInboxContent() {
     debounceRef.current = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (typeof document === "undefined" || document.getElementById("ai-spin-style")) return;
+    const style = document.createElement("style");
+    style.id = "ai-spin-style";
+    style.textContent = "@keyframes spin { to { transform: rotate(360deg); } }";
+    document.head.appendChild(style);
+  }, []);
 
   // Team
   const fetchTeamMembers = useCallback(async () => {
@@ -274,33 +329,63 @@ export default function PortalInboxContent() {
 
   // Helper: handle 402 quota exceeded from any AI endpoint
   const handleAiQuotaError = useCallback(() => {
-    setUpgradeReason("quota");
-    setUpgradeRequiredPlan("pro");
-    setShowUpgradeModal(true);
-  }, []);
+    openUpgradeForPlan("pro", "aiQuota");
+  }, [openUpgradeForPlan]);
+  const handleAiRateLimited = useCallback(() => {
+    premiumToast.error({ title: t("inbox.ai.rateLimited" as TranslationKey) });
+  }, [t]);
+
+  const fetchAiSuggestion = useCallback(async () => {
+    if (!selectedConversationId) return;
+    setAiSuggestionLoading(true);
+    setAiSuggestion("");
+    try {
+      const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/ai-suggest`, {
+        method: "POST",
+        body: JSON.stringify({ locale }),
+      });
+      const d = await res.json();
+      if (res.status === 402) {
+        handleAiQuotaError();
+        setShowAiSuggestionPanel(false);
+        return;
+      }
+      if (res.status === 429 || d?.code === "RATE_LIMITED") {
+        handleAiRateLimited();
+        setShowAiSuggestionPanel(false);
+        return;
+      }
+      if (res.ok && d.success && d.suggestion) {
+        setAiSuggestion(d.suggestion);
+      } else {
+        premiumToast.error({ title: d.error || t("inbox.ai.error" as TranslationKey) });
+        setShowAiSuggestionPanel(false);
+      }
+    } catch {
+      premiumToast.error({ title: t("inbox.ai.error" as TranslationKey) });
+      setShowAiSuggestionPanel(false);
+    } finally {
+      setAiSuggestionLoading(false);
+    }
+  }, [selectedConversationId, locale, handleAiQuotaError, handleAiRateLimited, t]);
 
   const handleAiSuggest = useCallback(async () => {
-    if (!selectedConversationId || aiLoading || isLoadingDetail) return;
-    if (!isProPlus) { setUpgradeReason("plan"); setUpgradeRequiredPlan("pro"); setShowUpgradeModal(true); return; }
-    if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet") }); return; }
-    setAiLoading("suggest");
-    setAiSuggestions(null);
-    try {
-      const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/ai-suggest`, { method: "POST" });
-      const d = await res.json();
-      if (res.status === 402) { handleAiQuotaError(); return; }
-      if (res.ok && d.ok) {
-        setAiSuggestions(d.suggestions);
-      } else {
-        premiumToast.error({ title: d.error || t("common.error") });
-      }
-    } catch { premiumToast.error({ title: t("common.error") }); }
-    finally { setAiLoading(null); }
-  }, [selectedConversationId, aiLoading, isLoadingDetail, isProPlus, conversationDetail, handleAiQuotaError, t]);
+    if (!selectedConversationId || aiSuggestionLoading || isLoadingDetail) return;
+    if (!canUseAiSuggest) {
+      openUpgradeForPlan("pro", "aiSuggestion");
+      return;
+    }
+    if (!conversationDetail?.messages?.length) {
+      premiumToast.error({ title: t("inbox.ai.noMessagesYet") });
+      return;
+    }
+    setShowAiSuggestionPanel(true);
+    await fetchAiSuggestion();
+  }, [selectedConversationId, aiSuggestionLoading, isLoadingDetail, canUseAiSuggest, conversationDetail, openUpgradeForPlan, t, fetchAiSuggestion]);
 
   const handleAiSummarize = useCallback(async () => {
     if (!selectedConversationId || aiLoading || isLoadingDetail) return;
-    if (!isProPlus) { setUpgradeReason("plan"); setUpgradeRequiredPlan("pro"); setShowUpgradeModal(true); return; }
+    if (!canUseAiSuggest) { openUpgradeForPlan("pro"); return; }
     if (!conversationDetail?.messages?.length) { premiumToast.error({ title: t("inbox.ai.noMessagesYet") }); return; }
     setAiLoading("summarize");
     setAiSummary(null);
@@ -308,14 +393,15 @@ export default function PortalInboxContent() {
       const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/ai-summarize`, { method: "POST" });
       const d = await res.json();
       if (res.status === 402) { handleAiQuotaError(); return; }
+      if (res.status === 429 || d?.code === "RATE_LIMITED") { handleAiRateLimited(); return; }
       if (res.ok && d.ok) {
         setAiSummary(d.summary);
       } else {
-        premiumToast.error({ title: d.error || t("common.error") });
+        premiumToast.error({ title: d.error || t("inbox.ai.error" as TranslationKey) });
       }
-    } catch { premiumToast.error({ title: t("common.error") }); }
+    } catch { premiumToast.error({ title: t("inbox.ai.error" as TranslationKey) }); }
     finally { setAiLoading(null); }
-  }, [selectedConversationId, aiLoading, isLoadingDetail, isProPlus, conversationDetail, handleAiQuotaError, t]);
+  }, [selectedConversationId, aiLoading, isLoadingDetail, canUseAiSuggest, conversationDetail, handleAiQuotaError, handleAiRateLimited, openUpgradeForPlan, t]);
 
   // FREE: AI Sentiment Analysis
   const handleAiSentiment = useCallback(async () => {
@@ -327,14 +413,15 @@ export default function PortalInboxContent() {
       const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/ai-sentiment`, { method: "POST" });
       const d = await res.json();
       if (res.status === 402) { handleAiQuotaError(); return; }
+      if (res.status === 429 || d?.code === "RATE_LIMITED") { handleAiRateLimited(); return; }
       if (res.ok && d.ok) {
         setAiSentiment({ sentiment: d.sentiment, summary: d.summary, detectedLanguage: d.detectedLanguage, topics: d.topics });
       } else {
-        premiumToast.error({ title: d.error || t("common.error") });
+        premiumToast.error({ title: d.error || t("inbox.ai.error" as TranslationKey) });
       }
-    } catch { premiumToast.error({ title: t("common.error") }); }
+    } catch { premiumToast.error({ title: t("inbox.ai.error" as TranslationKey) }); }
     finally { setAiLoading(null); }
-  }, [selectedConversationId, aiLoading, isLoadingDetail, conversationDetail, handleAiQuotaError, t]);
+  }, [selectedConversationId, aiLoading, isLoadingDetail, conversationDetail, handleAiQuotaError, handleAiRateLimited, t]);
 
   // FREE: AI Quick Reply (single contextual reply)
   const handleAiQuickReply = useCallback(async () => {
@@ -345,15 +432,16 @@ export default function PortalInboxContent() {
       const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/ai-quick-reply`, { method: "POST" });
       const d = await res.json();
       if (res.status === 402) { handleAiQuotaError(); return; }
+      if (res.status === 429 || d?.code === "RATE_LIMITED") { handleAiRateLimited(); return; }
       if (res.ok && d.ok) {
         setReplyBody(d.reply);
         premiumToast.success({ title: t("inbox.ai.quickReplyGenerated") });
       } else {
-        premiumToast.error({ title: d.error || t("common.error") });
+        premiumToast.error({ title: d.error || t("inbox.ai.error" as TranslationKey) });
       }
-    } catch { premiumToast.error({ title: t("common.error") }); }
+    } catch { premiumToast.error({ title: t("inbox.ai.error" as TranslationKey) }); }
     finally { setAiLoading(null); }
-  }, [selectedConversationId, aiLoading, isLoadingDetail, conversationDetail, t, handleAiQuotaError]);
+  }, [selectedConversationId, aiLoading, isLoadingDetail, conversationDetail, t, handleAiQuotaError, handleAiRateLimited]);
 
   // ── Bulk Actions ──
   const toggleBulkSelect = useCallback((id: string) => {
@@ -431,7 +519,21 @@ export default function PortalInboxContent() {
 
   // Detail + notes
   const fetchConversationDetail = useCallback(async (id: string) => {
-    try { setIsLoadingDetail(true); const res = await portalApiFetch(`/portal/conversations/${id}`); if (!res.ok) throw new Error(); setConversationDetail(await res.json()); }
+    // Cancel any in-flight detail fetch to prevent race conditions
+    fetchDetailAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchDetailAbortRef.current = controller;
+    try {
+      setIsLoadingDetail(true);
+      const res = await portalApiFetch(`/portal/conversations/${id}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (!res.ok) throw new Error();
+      const detail = await res.json();
+      if (controller.signal.aborted) return;
+      setConversationDetail(sanitizeConversationDetail(detail));
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+    }
     finally { setIsLoadingDetail(false); }
   }, []);
   const fetchNotes = useCallback(async (id: string) => {
@@ -534,20 +636,32 @@ export default function PortalInboxContent() {
   }, [socketStatus, selectedConversationId, fetchConversations, fetchConversationDetail]);
 
   // If a new message arrives:
-  // - active convo: mark read immediately
+  // - active convo: mark read immediately + refetch detail
   // - other convo: mark unread so badge shows
+  // Uses ref for selectedConversationId to avoid stale closure
   useEffect(() => {
     const onMessageNew = (event: Event) => {
-      const detail = (event as CustomEvent<{ conversationId?: string; content?: string }>).detail;
+      const detail = (event as CustomEvent<{ conversationId?: string; content?: string; role?: string }>).detail;
       const conversationId = detail?.conversationId;
       if (!conversationId) return;
+      const role = detail?.role || "assistant";
+      const isVisitorMessage = role === "user";
 
       const nowIso = new Date().toISOString();
-      const previewText = (detail?.content || "").slice(0, 80);
+      const previewText = cleanPreviewText(detail?.content || "");
+      const currentSelectedId = selectedConversationIdRef.current;
 
-      if (conversationId === selectedConversationId) {
+      if (conversationId === currentSelectedId) {
         setConversations(prev => sortConversations(prev.map(c => c.id === conversationId
-          ? { ...c, hasUnreadMessages: false, messageCount: c.messageCount + 1, updatedAt: nowIso, preview: c.preview ? { ...c.preview, text: previewText } : { text: previewText, from: "user" } }
+          ? {
+              ...c,
+              hasUnreadMessages: false,
+              messageCount: c.messageCount + 1,
+              updatedAt: nowIso,
+              preview: c.preview
+                ? { ...c.preview, text: previewText }
+                : { text: previewText, from: role },
+            }
           : c
         )));
         fetchConversationDetail(conversationId).then(() => {
@@ -559,14 +673,22 @@ export default function PortalInboxContent() {
       }
 
       setConversations(prev => sortConversations(prev.map(c => c.id === conversationId
-        ? { ...c, hasUnreadMessages: true, messageCount: c.messageCount + 1, updatedAt: nowIso, preview: c.preview ? { ...c.preview, text: previewText } : { text: previewText, from: "user" } }
+        ? {
+            ...c,
+            hasUnreadMessages: isVisitorMessage ? true : c.hasUnreadMessages,
+            messageCount: c.messageCount + 1,
+            updatedAt: nowIso,
+            preview: c.preview
+              ? { ...c.preview, text: previewText }
+              : { text: previewText, from: role },
+          }
         : c
       )));
       fetchConversations();
     };
     window.addEventListener("portal-inbox-message-new", onMessageNew as EventListener);
     return () => window.removeEventListener("portal-inbox-message-new", onMessageNew as EventListener);
-  }, [selectedConversationId, fetchConversationDetail, fetchConversations]);
+  }, [fetchConversationDetail, fetchConversations]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [conversationDetail?.messages]);
 
@@ -601,6 +723,10 @@ export default function PortalInboxContent() {
 
   const handleAssignmentChange = async (userId: string | null) => {
     if (!selectedConversationId || !conversationDetail) return;
+    if (!canUseTakeover) {
+      openUpgradeForPlan("starter");
+      return;
+    }
     setIsUpdating(true);
     try {
       const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}`, { method: "PATCH", body: JSON.stringify({ assignedToUserId: userId }) });
@@ -614,6 +740,10 @@ export default function PortalInboxContent() {
   };
 
   const handleAddNote = async () => {
+    if (!canUseInternalNotes) {
+      openUpgradeForPlan("starter");
+      return;
+    }
     if (!selectedConversationId || !noteBody.trim()) return;
     setIsSubmittingNote(true);
     try {
@@ -629,12 +759,26 @@ export default function PortalInboxContent() {
   };
 
   const handleSendReply = async () => {
-    if (!selectedConversationId || !conversationDetail || !replyBody.trim() || isSendingReply) return;
+    if (!selectedConversationId || !conversationDetail || (!replyBody.trim() && !selectedFileName) || isSendingReply) return;
     setIsSendingReply(true);
     try {
+      const cleanedReply = sanitizePlainText(replyBody).trim();
+      const messagePayload = selectedFileName
+        ? `📎 ${selectedFileName}${cleanedReply ? `\n${cleanedReply}` : ""}`
+        : cleanedReply;
+      if (!cleanedReply) {
+        if (!selectedFileName) {
+          showToast(t("common.error"));
+          return;
+        }
+      }
+      if (selectedFileName && !canUseFileUpload) {
+        openUpgradeForPlan("starter");
+        return;
+      }
       const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/messages`, {
         method: "POST",
-        body: JSON.stringify({ content: replyBody.trim() }),
+        body: JSON.stringify({ content: messagePayload }),
       });
       if (res.ok) {
         const d = await res.json();
@@ -642,14 +786,15 @@ export default function PortalInboxContent() {
           id: d.id,
           conversationId: selectedConversationId,
           role: "assistant" as const,
-          content: d.content,
+          content: sanitizeConversationMsg({ content: d.content || "" }).content,
           timestamp: d.timestamp,
         };
-        setConversationDetail({
-          ...conversationDetail,
-          messages: [...conversationDetail.messages, newMsg],
+        setConversationDetail(prev => {
+          if (!prev) return prev;
+          return { ...prev, messages: [...prev.messages, newMsg] };
         });
         setReplyBody("");
+        setSelectedFileName(null);
         showToast(t("inbox.chat.replySent"));
       } else {
         const err = await res.json().catch(() => ({}));
@@ -667,10 +812,180 @@ export default function PortalInboxContent() {
     }
   };
 
+  const handleSendAiSuggestion = useCallback(async () => {
+    if (!selectedConversationId || !conversationDetail || !aiSuggestion.trim() || isSendingReply) return;
+    setIsSendingReply(true);
+    try {
+      const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ content: aiSuggestion.trim() }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        const newMsg = {
+          id: d.id,
+          conversationId: selectedConversationId,
+          role: "assistant" as const,
+          content: sanitizeConversationMsg({ content: d.content || "" }).content,
+          timestamp: d.timestamp,
+        };
+        setConversationDetail(prev => {
+          if (!prev) return prev;
+          return { ...prev, messages: [...prev.messages, newMsg] };
+        });
+        setReplyBody("");
+        setShowAiSuggestionPanel(false);
+        setAiSuggestion("");
+        showToast(t("inbox.chat.replySent"));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        const msg = typeof err?.error === "object" && err?.error?.message
+          ? err.error.message
+          : typeof err?.error === "string"
+            ? err.error
+            : t("common.error");
+        showToast(msg);
+      }
+    } catch {
+      showToast(t("common.error"));
+    } finally {
+      setIsSendingReply(false);
+    }
+  }, [selectedConversationId, conversationDetail, aiSuggestion, isSendingReply, showToast, t]);
+
+  const handleComposerSend = useCallback(async () => {
+    if (noteMode) {
+      if (!canUseInternalNotes) {
+        openUpgradeForPlan("starter");
+        return;
+      }
+      if (!selectedConversationId || !replyBody.trim()) return;
+      const noteText = sanitizePlainText(replyBody).trim();
+      if (!noteText) return;
+      setIsSendingReply(true);
+      try {
+        const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/notes`, {
+          method: "POST",
+          body: JSON.stringify({ body: noteText }),
+        });
+        if (res.ok) {
+          const d = await res.json();
+          setNotes((prev) => [d.note, ...prev]);
+          setConversationDetail((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              messages: [
+                ...prev.messages,
+                {
+                  id: `note-${d.note?.id || Date.now()}`,
+                  conversationId: selectedConversationId,
+                  role: "assistant",
+                  content: `[note] ${noteText}`,
+                  timestamp: d.note?.createdAt || new Date().toISOString(),
+                },
+              ],
+            };
+          });
+          setReplyBody("");
+          setNoteMode(false);
+          showToast(t("inbox.noteSubmit"));
+          return;
+        }
+      } catch {
+        showToast(t("common.error"));
+      } finally {
+        setIsSendingReply(false);
+      }
+      return;
+    }
+    await handleSendReply();
+  }, [noteMode, canUseInternalNotes, openUpgradeForPlan, selectedConversationId, replyBody, showToast, t, handleSendReply]);
+
+  const handleSendNote = useCallback(async (rawText: string) => {
+    if (!canUseInternalNotes) {
+      openUpgradeForPlan("starter");
+      return;
+    }
+    if (!selectedConversationId) return;
+    const noteText = sanitizePlainText(rawText).trim();
+    if (!noteText) return;
+    setIsSendingReply(true);
+    try {
+      const res = await portalApiFetch(`/portal/conversations/${selectedConversationId}/notes`, {
+        method: "POST",
+        body: JSON.stringify({ body: noteText }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setNotes((prev) => [d.note, ...prev]);
+        setConversations((prev) => prev.map((c) => c.id === selectedConversationId ? { ...c, noteCount: c.noteCount + 1 } : c));
+        setConversationDetail((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            messages: [
+              ...prev.messages,
+              {
+                id: `note-${d.note?.id || Date.now()}`,
+                conversationId: selectedConversationId,
+                role: "assistant",
+                content: `[note] ${noteText}`,
+                timestamp: d.note?.createdAt || new Date().toISOString(),
+              },
+            ],
+          };
+        });
+        showToast(t("inbox.noteSubmit"));
+      } else {
+        showToast(t("common.error"));
+      }
+    } catch {
+      showToast(t("common.error"));
+    } finally {
+      setIsSendingReply(false);
+    }
+  }, [canUseInternalNotes, openUpgradeForPlan, selectedConversationId, showToast, t]);
+
   // Derived
   const selectedConv = conversations.find(c => c.id === selectedConversationId);
   const currentStatus = conversationDetail?.status || "OPEN";
   const isOpen = currentStatus === "OPEN";
+  const isOnline = isOpen;
+  const selectedConvExtra = selectedConv as (ConversationListItem & {
+    channel?: string;
+    recipientId?: string;
+    country?: string;
+    browser?: string;
+    currentPage?: string;
+    timeOnSite?: string;
+    visitCount?: number;
+  }) | undefined;
+  const selectedTags = selectedConversationId ? (conversationTags[selectedConversationId] || []) : [];
+
+  const handleAddTag = useCallback(() => {
+    if (!selectedConversationId) return;
+    const nextTag = tagInput.trim();
+    if (!nextTag) return;
+    if (selectedTags.includes(nextTag)) return;
+    if (selectedTags.length >= maxTagsForPlan) {
+      openUpgradeForPlan("starter");
+      return;
+    }
+    setConversationTags((prev) => ({
+      ...prev,
+      [selectedConversationId]: [...(prev[selectedConversationId] || []), nextTag],
+    }));
+    setTagInput("");
+  }, [selectedConversationId, tagInput, selectedTags, maxTagsForPlan, openUpgradeForPlan]);
+
+  const handleRemoveTag = useCallback((tag: string) => {
+    if (!selectedConversationId) return;
+    setConversationTags((prev) => ({
+      ...prev,
+      [selectedConversationId]: (prev[selectedConversationId] || []).filter((item) => item !== tag),
+    }));
+  }, [selectedConversationId]);
 
   // Current view label for list header (Tidio: "My open" above list)
   const currentViewLabel =
@@ -696,18 +1011,18 @@ export default function PortalInboxContent() {
   void _totalOpen;
 
   return (
-    <div className="portal-inbox-root fixed inset-0 top-16 lg:left-[260px] flex overflow-hidden bg-[#f8f9fb] z-10">
+    <div className="portal-inbox-root fixed inset-0 top-16 lg:left-[260px] flex overflow-hidden bg-[#FFFBF5] z-10">
 
       {/* ═══ PANEL 1: LEFT SIDEBAR ═══ */}
-      <div className={`w-full sm:w-[320px] lg:w-[340px] flex-shrink-0 border-r border-slate-200/80 flex flex-col bg-white ${mobileView !== "list" ? "hidden sm:flex" : "flex"}`}>
+      <div className={`w-full sm:w-[320px] lg:w-[340px] flex-shrink-0 border-r flex flex-col bg-white ${mobileView !== "list" ? "hidden sm:flex" : "flex"}`} style={{ borderColor: WARM_BORDER }}>
 
         {/* Search */}
         <div className="px-4 py-3 flex-shrink-0">
           <div className="relative group">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
+            <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
             <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
               placeholder={t("inbox.sidebar.search")}
-              className="w-full pl-10 pr-4 py-2.5 font-[var(--font-body)] text-[13px] border border-amber-200/70 rounded-xl bg-[#FFFBF5] placeholder:text-slate-400 focus:outline-none focus:border-[#FDB462] focus:ring-4 focus:ring-amber-100 focus:bg-white transition-all shadow-sm" />
+              className="w-full pl-10 pr-[14px] py-[10px] font-[var(--font-body)] text-[14px] border border-amber-200/70 rounded-xl bg-[#FFFBF5] placeholder:text-slate-400 focus:outline-none focus:border-[#FDB462] focus:ring-4 focus:ring-amber-100 focus:bg-white transition-all shadow-sm" />
           </div>
         </div>
 
@@ -731,34 +1046,34 @@ export default function PortalInboxContent() {
         <div className="px-4 pb-3 flex-shrink-0">
           <div className="flex rounded-xl bg-amber-50/70 p-1 gap-0.5 border border-amber-100/70">
             <button onClick={() => { setStatusFilter("OPEN"); setAssignedFilter("unassigned"); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg font-[var(--font-body)] text-[12px] font-semibold transition-all duration-200 ${
+              className={`flex-1 flex items-center justify-center gap-1.5 px-[6px] py-[8px] rounded-lg font-[var(--font-body)] text-[13px] font-semibold transition-all duration-200 ${
                 statusFilter === "OPEN" && assignedFilter === "unassigned" ? "bg-white text-amber-800 shadow-sm ring-1 ring-amber-200" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
               }`}>
               {t("inbox.filterUnassigned")}
               {viewCounts.unassigned > 0 && (
-                <span className={`min-w-[20px] h-[20px] px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center transition-colors ${
+                <span className={`min-w-[20px] h-[20px] px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center transition-colors ${
                   statusFilter === "OPEN" && assignedFilter === "unassigned" ? "bg-amber-500 text-white shadow-sm shadow-amber-500/30" : "bg-slate-200/80 text-slate-600"
                 }`}>{viewCounts.unassigned > 99 ? "99+" : viewCounts.unassigned}</span>
               )}
             </button>
             <button onClick={() => { setStatusFilter("OPEN"); setAssignedFilter("me"); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg font-[var(--font-body)] text-[12px] font-semibold transition-all duration-200 ${
+              className={`flex-1 flex items-center justify-center gap-1.5 px-[6px] py-[8px] rounded-lg font-[var(--font-body)] text-[13px] font-semibold transition-all duration-200 ${
                 statusFilter === "OPEN" && assignedFilter === "me" ? "bg-white text-sky-700 shadow-sm ring-1 ring-sky-200" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
               }`}>
               {t("inbox.filterMyOpen")}
               {viewCounts.myOpen > 0 && (
-                <span className={`min-w-[20px] h-[20px] px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center transition-colors ${
+                <span className={`min-w-[20px] h-[20px] px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center transition-colors ${
                   statusFilter === "OPEN" && assignedFilter === "me" ? "bg-sky-500 text-white shadow-sm shadow-sky-500/30" : "bg-slate-200/80 text-slate-600"
                 }`}>{viewCounts.myOpen}</span>
               )}
             </button>
             <button onClick={() => { setStatusFilter("CLOSED"); setAssignedFilter("any"); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg font-[var(--font-body)] text-[12px] font-semibold transition-all duration-200 ${
+              className={`flex-1 flex items-center justify-center gap-1.5 px-[6px] py-[8px] rounded-lg font-[var(--font-body)] text-[13px] font-semibold transition-all duration-200 ${
                 statusFilter === "CLOSED" ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
               }`}>
               {t("inbox.filterSolved")}
               {viewCounts.solved > 0 && (
-                <span className={`min-w-[20px] h-[20px] px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center transition-colors ${
+                <span className={`min-w-[20px] h-[20px] px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center transition-colors ${
                   statusFilter === "CLOSED" ? "bg-emerald-500 text-white shadow-sm shadow-emerald-500/30" : "bg-slate-200/80 text-slate-600"
                 }`}>{viewCounts.solved}</span>
               )}
@@ -785,11 +1100,11 @@ export default function PortalInboxContent() {
                 <button
                   key={f.key}
                   onClick={() => {
-                    if (locked) { setUpgradeReason("plan"); setUpgradeRequiredPlan("pro"); setShowUpgradeModal(true); return; }
+                    if (locked) { openUpgradeForPlan("pro", `smartFilter.${f.key}`); return; }
                     setSmartFilter(active ? null : f.key);
                   }}
                   title={t(tooltipKey as TranslationKey)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-semibold border rounded-lg transition-all ${
+                  className={`inline-flex items-center gap-1.5 px-[12px] py-[5px] text-[12px] font-semibold border rounded-lg transition-all ${
                     active
                       ? f.color + " ring-1 ring-current/20"
                       : locked
@@ -821,7 +1136,7 @@ export default function PortalInboxContent() {
               </button>
             ) : (
               <button
-                onClick={() => { setUpgradeReason("plan"); setUpgradeRequiredPlan("pro"); setShowUpgradeModal(true); }}
+                onClick={() => { openUpgradeForPlan("pro", "bulkActions"); }}
                 className="p-1 text-slate-300 hover:text-slate-400 rounded transition-colors"
                 title={t("inbox.ai.proFeature")}
               >
@@ -889,7 +1204,7 @@ export default function PortalInboxContent() {
             return (
               <div key={conv.id} onClick={() => selectConversation(conv.id)} role="button" tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectConversation(conv.id); } }}
-                className={`group relative mx-2 my-1 px-3 py-3 cursor-pointer rounded-xl transition-all duration-200 ${
+                className={`group relative mx-2 my-1 px-[14px] py-[13px] cursor-pointer rounded-xl transition-all duration-200 ${
                   active
                     ? "bg-blue-50/80 ring-1 ring-blue-200/60 shadow-sm"
                     : hasUnread
@@ -911,7 +1226,7 @@ export default function PortalInboxContent() {
                   )}
                   {/* Avatar */}
                   <div className="relative flex-shrink-0 mt-0.5">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-[11px] font-bold text-white shadow-sm ${getAvatarColor(conv.id)}`}>
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-bold text-white shadow-sm ${getAvatarColor(conv.id)}`}>
                       {getInitials(name)}
                     </div>
                     {hasUnread && (
@@ -922,14 +1237,14 @@ export default function PortalInboxContent() {
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <span className={`text-[13px] truncate ${hasUnread ? "font-bold text-slate-900" : "font-semibold text-slate-700"}`}>{name}</span>
-                      <span className="text-[10px] text-slate-400 flex-shrink-0 tabular-nums font-medium" suppressHydrationWarning>{hydrated ? formatRelativeTime(conv.updatedAt, t) : formatTime(conv.updatedAt, hydrated)}</span>
+                      <span className={`text-[14px] truncate ${hasUnread ? "font-bold text-slate-900" : "font-semibold text-slate-700"}`}>{name}</span>
+                      <span className="text-[12px] text-slate-400 flex-shrink-0 tabular-nums font-medium" suppressHydrationWarning>{hydrated ? formatRelativeTime(conv.updatedAt, t) : formatTime(conv.updatedAt, hydrated)}</span>
                     </div>
-                    {conv.preview && <p className={`text-[12px] leading-snug truncate mb-1.5 ${hasUnread ? "text-slate-700 font-medium" : "text-slate-500"}`}>{conv.preview.text}</p>}
+                    {conv.preview && <p className={`text-[13px] leading-snug truncate mb-1.5 ${hasUnread ? "text-slate-700 font-medium" : "text-slate-500"}`}>{cleanPreviewText(conv.preview.text)}</p>}
                     <div className="flex items-center gap-1.5">
                       {conv.slaStatus && (
                         <span
-                          className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-semibold ${
+                          className={`inline-flex items-center gap-1 text-[12px] px-2 py-0.5 rounded-md font-semibold ${
                             conv.slaStatus === "breached"
                               ? "text-red-700 bg-red-50"
                               : conv.slaStatus === "warning"
@@ -945,16 +1260,16 @@ export default function PortalInboxContent() {
                         </span>
                       )}
                       {conv.assignedTo && (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100/80 px-2 py-0.5 rounded-md font-medium">
+                        <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-100/80 px-2 py-0.5 rounded-md font-medium">
                           <User size={9} className="text-slate-400" />{conv.assignedTo.email.split("@")[0]}
                         </span>
                       )}
                       {conv.status === "CLOSED" && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
                           <CheckCircle size={9} />{t("inbox.statusClosed")}
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-300 tabular-nums font-medium">{conv.messageCount} {t("common.abbrev.messages")}</span>
+                      <span className="text-[11px] text-slate-300 tabular-nums font-medium">{conv.messageCount} {t("common.abbrev.messages")}</span>
                     </div>
                   </div>
 
@@ -978,10 +1293,11 @@ export default function PortalInboxContent() {
       </div>
 
       {/* ═══ PANEL 2: CENTER — Chat or Rich Empty State ═══ */}
+      <ErrorBoundary>
       <div className={`flex-1 flex flex-col min-w-0 ${mobileView !== "chat" && mobileView !== "list" ? "hidden sm:flex" : mobileView === "list" ? "hidden sm:flex" : "flex"}`}>
         {!selectedConversationId ? (
           /* ── Design 1: Bold stats + clean list card ── */
-          <div className="flex-1 overflow-y-auto bg-[#f8f9fb] px-6 py-6">
+          <div className="flex-1 overflow-y-auto bg-[#FFFBF5] px-6 py-6">
             <div className="mb-5">
               <h1 className="font-[var(--font-heading)] text-[32px] font-extrabold leading-tight text-[#1A1D23]">
                 {t("inbox.design1.pageTitle")}
@@ -1040,7 +1356,7 @@ export default function PortalInboxContent() {
                 <Link
                   href="/demo-chat"
                   className="mt-6 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 font-[var(--font-body)] text-[13px] font-semibold text-white shadow-[0_8px_20px_rgba(245,158,11,0.28)] transition-all duration-200 hover:brightness-95"
-                  style={{ background: "linear-gradient(135deg, #FDB462, #F59E0B)" }}
+                  style={{ background: inboxSimulateButtonGradient }}
                 >
                   <MessageSquare size={14} />
                   {t("inbox.simulateConversation")}
@@ -1051,112 +1367,197 @@ export default function PortalInboxContent() {
         ) : (
           <>
             {/* ── Chat header ── */}
-            <div className="px-5 py-3 bg-white border-b border-slate-200/60 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-3.5">
-                <button onClick={closePanel} className="sm:hidden text-slate-500 hover:text-slate-700"><ArrowLeft size={18} /></button>
-                <div className="relative">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold text-white shadow-sm ${getAvatarColor(selectedConversationId)}`}>
-                    {selectedConv ? getInitials(displayName(selectedConv, t)) : "?"}
+            <div className="bg-white px-5 py-3" style={{ borderBottom: `1px solid ${WARM_BORDER}` }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <button onClick={closePanel} className="sm:hidden text-slate-500 hover:text-slate-700"><ArrowLeft size={18} /></button>
+                  <div
+                    style={{
+                      width: "42px",
+                      height: "42px",
+                      borderRadius: "11px",
+                      background: isOpen ? "linear-gradient(135deg,#22C55E,#16A34A)" : "#E2E8F0",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <span style={{ fontSize: "14px", fontWeight: 700, color: isOpen ? "#fff" : "#94A3B8" }}>Z#</span>
                   </div>
-                  <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${isOpen ? "bg-emerald-400 shadow-sm shadow-emerald-400/40" : "bg-slate-300"}`} />
-                </div>
-                <div>
-                  <div className="text-[14px] font-bold text-slate-900">{selectedConv ? displayName(selectedConv, t) : ""}</div>
-                  {userTypingConvId === selectedConversationId ? (
-                    <div className="flex items-center gap-1 text-[11px] text-blue-500 font-medium">
-                      <span className="inline-flex gap-0.5">
-                        <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <div>
+                    <div style={{ fontSize: "16px", fontWeight: 700, color: "#1A1D23" }}>
+                      {selectedConv ? displayName(selectedConv, t) : ""}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: isOpen ? "#22C55E" : "#94A3B8" }} />
+                      <span style={{ fontSize: "13px", color: "#94A3B8" }}>
+                        {isOpen ? t("inbox.online" as TranslationKey) : t("inbox.offline" as TranslationKey)} · {conversationDetail?.messages?.length || 0} {t("inbox.messages" as TranslationKey)}
                       </span>
-                      {t("inbox.typing.userTyping")}
                     </div>
-                  ) : (
-                    <div className="text-[11px] text-slate-400">
-                      {isOpen ? t("inbox.sidebar.online") : t("inbox.sidebar.offline")}
-                      {conversationDetail?.messages?.length ? ` \u00B7 ${conversationDetail.messages.length} messages` : ""}
-                    </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {/* FREE AI: Quick Reply */}
-                <button
-                  onClick={handleAiQuickReply}
-                  disabled={!!aiLoading || isLoadingDetail}
-                  title={t("inbox.ai.quickReplyTooltip")}
-                  className="relative p-2 rounded-lg transition-all text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {aiLoading ? <span className="w-4 h-4 rounded-full border-2 border-indigo-200 border-t-indigo-500 animate-spin block" /> : <Sparkles size={15} />}
-                </button>
-                {/* FREE AI: Sentiment */}
-                <button
-                  onClick={handleAiSentiment}
-                  disabled={!!aiLoading || isLoadingDetail}
-                  title={t("inbox.ai.sentimentTooltip")}
-                  className="relative p-2 rounded-lg transition-all text-violet-500 hover:text-violet-700 hover:bg-violet-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Smile size={15} />
-                </button>
-
-                <div className="w-px h-5 bg-slate-200 mx-0.5" />
-
-                {/* PRO AI: Suggest 3 Replies */}
-                <button
-                  onClick={handleAiSuggest}
-                  disabled={!!aiLoading || isLoadingDetail}
-                  title={isProPlus ? t("inbox.ai.suggestReplyTooltip") : t("inbox.ai.suggestReplyLockedTooltip")}
-                  className={`relative p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                    isProPlus
-                      ? "text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                      : "text-slate-300 hover:text-slate-400 cursor-not-allowed"
-                  }`}
-                >
-                  {aiLoading === "suggest" ? <span className="w-4 h-4 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin block" /> : <Wand2 size={15} />}
-                  {!isProPlus && <Lock size={7} className="absolute -top-0.5 -right-0.5 text-slate-400" />}
-                </button>
-                {/* PRO AI: Summarize */}
-                <button
-                  onClick={handleAiSummarize}
-                  disabled={!!aiLoading || isLoadingDetail}
-                  title={isProPlus ? t("inbox.ai.summarizeTooltip") : t("inbox.ai.summarizeLockedTooltip")}
-                  className={`relative p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                    isProPlus
-                      ? "text-purple-600 hover:text-purple-800 hover:bg-purple-50"
-                      : "text-slate-300 hover:text-slate-400 cursor-not-allowed"
-                  }`}
-                >
-                  {aiLoading === "summarize" ? <span className="w-4 h-4 rounded-full border-2 border-purple-200 border-t-purple-600 animate-spin block" /> : <FileText size={15} />}
-                  {!isProPlus && <Lock size={7} className="absolute -top-0.5 -right-0.5 text-slate-400" />}
-                </button>
-
-                <div className="w-px h-5 bg-slate-200 mx-0.5" />
-
-                <button onClick={copyLink} title={t("inbox.detail.copyLink")}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"><Copy size={15} /></button>
-                {isOpen ? (
-                  <button onClick={() => handleStatusChange("CLOSED")} disabled={isUpdating}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 disabled:opacity-50 transition-colors">
-                    <CheckCircle size={13} />{t("inbox.chat.close")}
+                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <button
+                    onClick={() => { if (!canUseAiSuggest) { openUpgradeForPlan("pro", "aiSuggestion"); return; } handleAiSuggest(); }}
+                    title={t("inbox.ai.suggestReplyTooltip")}
+                    style={{ width: "40px", height: "40px", borderRadius: "10px", border: "1px solid #F3E8D8", background: "#fff", cursor: "pointer", fontSize: "18px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", opacity: canUseAiSuggest ? 1 : 0.45, position: "relative" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#FFFBF5"; e.currentTarget.style.borderColor = "#F59E0B"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#F3E8D8"; }}
+                  >
+                    🤖
+                    {!canUseAiSuggest && <span style={{ position: "absolute", right: -2, top: -3, fontSize: 9 }}>🔒</span>}
                   </button>
-                ) : (
-                  <button onClick={() => handleStatusChange("OPEN")} disabled={isUpdating}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors">
-                    {t("inbox.reopenConversation")}
+                  <button
+                    onClick={() => setShowCannedPicker((prev) => !prev)}
+                    title={t("inbox.canned.toggle" as TranslationKey)}
+                    style={{ width: "40px", height: "40px", borderRadius: "10px", border: "1px solid #F3E8D8", background: "#fff", cursor: "pointer", fontSize: "18px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#FFFBF5"; e.currentTarget.style.borderColor = "#F59E0B"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#F3E8D8"; }}
+                  >
+                    📋
                   </button>
-                )}
-                <select value={conversationDetail?.assignedTo?.id || ""} onChange={e => handleAssignmentChange(e.target.value || null)}
-                  disabled={isUpdating} className="hidden lg:block px-2.5 py-1.5 text-[12px] font-medium border border-slate-200 rounded-lg bg-white text-slate-600 focus:outline-none focus:border-blue-400 disabled:opacity-50">
-                  <option value="">{t("inbox.chat.assign")}</option>
-                  {teamMembers.filter(m => m.isActive).map(m => <option key={m.id} value={m.id}>{m.email.split("@")[0]}</option>)}
-                </select>
-                <button onClick={() => setShowRightPanel(!showRightPanel)} title={showRightPanel ? t("inbox.detail.closePanel") : t("inbox.detail.details")}
-                  className="hidden lg:flex p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                  {showRightPanel ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
-                </button>
-                <button onClick={() => setMobileView("details")} className="lg:hidden p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"><User size={15} /></button>
+                  <button
+                    onClick={() => { if (!canUseInternalNotes) { openUpgradeForPlan("starter", "internalNotes"); return; } setNoteMode(true); }}
+                    title={t("inbox.notes.title")}
+                    style={{ width: "40px", height: "40px", borderRadius: "10px", border: "1px solid #F3E8D8", background: noteMode ? "#FEF3C7" : "#fff", cursor: "pointer", fontSize: "18px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", opacity: canUseInternalNotes ? 1 : 0.45, position: "relative" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#FFFBF5"; e.currentTarget.style.borderColor = "#F59E0B"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = noteMode ? "#FEF3C7" : "#fff"; e.currentTarget.style.borderColor = "#F3E8D8"; }}
+                  >
+                    📝
+                    {!canUseInternalNotes && <span style={{ position: "absolute", right: -2, top: -3, fontSize: 9 }}>🔒</span>}
+                  </button>
+                  <button
+                    onClick={() => setShowTagBar((prev) => !prev)}
+                    title={t("inbox.tags.manage" as TranslationKey)}
+                    style={{ width: "40px", height: "40px", borderRadius: "10px", border: "1px solid #F3E8D8", background: "#fff", cursor: "pointer", fontSize: "18px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#FFFBF5"; e.currentTarget.style.borderColor = "#F59E0B"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#F3E8D8"; }}
+                  >
+                    🏷️
+                  </button>
+
+                  <div style={{ width: "1px", height: "20px", background: "#F3E8D8", margin: "0 1px" }} />
+
+                  <select
+                    value={conversationDetail?.assignedTo?.id || ""}
+                    onChange={(e) => handleAssignmentChange(e.target.value || null)}
+                    disabled={isUpdating || !canUseTakeover}
+                    style={{ height: "40px", borderRadius: "8px", border: "1px solid #F3E8D8", background: "#fff", fontSize: "13px", fontWeight: 600, color: "#64748B", padding: "0 12px", opacity: canUseTakeover ? 1 : 0.45 }}
+                  >
+                    <option value="">👤 {t("inbox.chat.assign")}</option>
+                    {teamMembers.filter((m) => m.isActive).map((m) => <option key={m.id} value={m.id}>{m.email.split("@")[0]}</option>)}
+                  </select>
+
+                  <button
+                    onClick={() => handleStatusChange(isOpen ? "CLOSED" : "OPEN")}
+                    style={{
+                      padding: "7px 16px",
+                      borderRadius: "10px",
+                      background: isOpen ? "linear-gradient(135deg,#22C55E,#16A34A)" : "#E2E8F0",
+                      color: isOpen ? "#fff" : "#94A3B8",
+                      border: "none",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      cursor: isOpen ? "pointer" : "default",
+                    }}
+                  >
+                    {isOpen ? t("inbox.close" as TranslationKey) : t("inbox.resolved" as TranslationKey)}
+                  </button>
+
+                  <button
+                    onClick={() => setShowRightPanel(!showRightPanel)}
+                    title={showRightPanel ? t("inbox.detail.closePanel") : t("inbox.detail.details")}
+                    style={{ width: "40px", height: "40px", borderRadius: "10px", border: "1px solid #F3E8D8", background: showRightPanel ? "#FFFBF5" : "#fff", cursor: "pointer", fontSize: "18px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#FFFBF5"; e.currentTarget.style.borderColor = "#F59E0B"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = showRightPanel ? "#FFFBF5" : "#fff"; e.currentTarget.style.borderColor = "#F3E8D8"; }}
+                  >
+                    ℹ️
+                  </button>
+                </div>
               </div>
             </div>
+
+            {showTagBar && (
+              <div className="mx-5 mt-3 rounded-xl border bg-[#FFFBF5] px-3 py-2" style={{ borderColor: WARM_BORDER }}>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[14px] font-semibold text-slate-600">{t("inbox.tags.manage" as TranslationKey)}</span>
+                  <span className="text-[11px] text-slate-400">
+                    {Number.isFinite(maxTagsForPlan) ? `${selectedTags.length}/${maxTagsForPlan}` : t("inbox.tags.unlimited" as TranslationKey)}
+                  </span>
+                </div>
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {selectedTags.map((tag) => (
+                    <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-[8px] py-[3px] text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                      {tag}
+                      <button type="button" onClick={() => handleRemoveTag(tag)} className="text-amber-700 hover:text-amber-900">×</button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
+                    placeholder={t("inbox.tags.placeholder" as TranslationKey)}
+                    className="h-8 flex-1 rounded-lg border border-amber-100 bg-white px-2.5 text-[13px] outline-none focus:border-amber-300"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddTag}
+                    className="h-8 rounded-lg bg-gradient-to-r from-[#F59E0B] to-[#D97706] px-3 text-[13px] font-semibold text-white"
+                  >
+                    {t("common.add")}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {showCannedPicker && (
+              <div className="mx-5 mt-3 rounded-xl border bg-white p-3" style={{ borderColor: WARM_BORDER }}>
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {(["greeting", "pricing", "technical", "closing"] as const).map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setSelectedCannedCategory(category)}
+                    className={`rounded-lg px-[14px] py-[7px] text-[13px] font-semibold ${
+                        selectedCannedCategory === category
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-slate-50 text-slate-500"
+                      }`}
+                    >
+                      {t(`inbox.canned.category.${category}` as TranslationKey)}
+                    </button>
+                  ))}
+                </div>
+                <div className="space-y-1">
+                  {CANNED_RESPONSES[selectedCannedCategory].map((key, idx) => (
+                    <button
+                      key={`${selectedCannedCategory}-${idx}`}
+                      type="button"
+                      onClick={() => {
+                        setReplyBody(t(key as TranslationKey));
+                        setShowCannedPicker(false);
+                      }}
+                      className="block w-full rounded-lg px-[12px] py-[9px] text-left text-[14px] text-slate-700 hover:bg-[#FFFBF5]"
+                    >
+                      {t(key as TranslationKey)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {detailTab === "notes" && canUseInternalNotes && (
+              <div className="mx-5 mt-3 rounded-xl border border-dashed bg-[#FEF3C7] px-3 py-2 text-[11px] font-semibold text-[#92400E]" style={{ borderColor: "#FCD34D" }}>
+                📝 {t("inbox.notes.mode" as TranslationKey)}
+              </div>
+            )}
 
             {/* ── AI Sentiment Panel (FREE) ── */}
             {aiSentiment && (
@@ -1170,7 +1571,7 @@ export default function PortalInboxContent() {
                     }`}>
                       <Smile size={12} className="text-white" />
                     </div>
-                    <span className="text-[12px] font-bold text-violet-800">{t("inbox.ai.sentimentTitle")}</span>
+                    <span className="text-[14px] font-bold text-violet-800">{t("inbox.ai.sentimentTitle")}</span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                       aiSentiment.sentiment === "positive" ? "bg-emerald-100 text-emerald-700"
                       : aiSentiment.sentiment === "negative" || aiSentiment.sentiment === "frustrated" ? "bg-red-100 text-red-700"
@@ -1182,7 +1583,7 @@ export default function PortalInboxContent() {
                   </div>
                   <button onClick={() => setAiSentiment(null)} className="p-1 text-violet-400 hover:text-violet-600 rounded transition-colors"><X size={14} /></button>
                 </div>
-                <p className="text-[12px] text-slate-600 leading-relaxed">{aiSentiment.summary}</p>
+                <p className="text-[15px] text-slate-600 leading-relaxed">{aiSentiment.summary}</p>
                 {aiSentiment.topics.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {aiSentiment.topics.map((topic, i) => (
@@ -1201,40 +1602,171 @@ export default function PortalInboxContent() {
                     <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-fuchsia-500 flex items-center justify-center">
                       <FileText size={12} className="text-white" />
                     </div>
-                    <span className="text-[12px] font-bold text-purple-800">{t("inbox.ai.summaryTitle")}</span>
+                    <span className="text-[14px] font-bold text-purple-800">{t("inbox.ai.summaryTitle")}</span>
                   </div>
                   <button onClick={() => setAiSummary(null)} className="p-1 text-purple-400 hover:text-purple-600 rounded transition-colors"><X size={14} /></button>
                 </div>
-                <p className="text-[13px] text-slate-700 leading-relaxed">{aiSummary}</p>
+                <p className="text-[15px] text-slate-700 leading-relaxed">{aiSummary}</p>
               </div>
             )}
 
-            {/* ── AI Suggestions Panel ── */}
-            {aiSuggestions && (
-              <div className="mx-5 mt-3 p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 animate-in slide-in-from-top-2">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                      <Wand2 size={12} className="text-white" />
-                    </div>
-                    <span className="text-[12px] font-bold text-blue-800">{t("inbox.ai.suggestionsTitle")}</span>
+            {/* ── AI Suggestion Panel ── */}
+            {showAiSuggestionPanel && (
+              <div
+                style={{
+                  margin: "0 16px 8px",
+                  padding: "14px",
+                  borderRadius: "14px",
+                  background: "linear-gradient(135deg, #EFF6FF, #F0F7FF)",
+                  border: "1px solid #BFDBFE",
+                  position: "relative",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ fontSize: "16px" }}>🤖</span>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#1E3A5F" }}>
+                      {t("inbox.ai.suggestionTitle" as TranslationKey)}
+                    </span>
                   </div>
-                  <button onClick={() => setAiSuggestions(null)} className="p-1 text-blue-400 hover:text-blue-600 rounded transition-colors"><X size={14} /></button>
+                  <button
+                    onClick={() => setShowAiSuggestionPanel(false)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      color: "#94A3B8",
+                      padding: "2px",
+                    }}
+                  >
+                    ✕
+                  </button>
                 </div>
-                <div className="space-y-2">
-                  {aiSuggestions.map((suggestion, i) => (
+
+                {aiSuggestionLoading ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "10px 0",
+                      color: "#3B82F6",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: "14px",
+                        height: "14px",
+                        border: "2px solid #BFDBFE",
+                        borderTopColor: "#3B82F6",
+                        borderRadius: "50%",
+                        animation: "spin 0.8s linear infinite",
+                      }}
+                    />
+                    {t("inbox.ai.generating" as TranslationKey)}
+                  </div>
+                ) : (
+                  <p
+                    style={{
+                      fontSize: "14px",
+                      color: "#1E3A5F",
+                      lineHeight: 1.6,
+                      margin: "0 0 12px",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {aiSuggestion}
+                  </p>
+                )}
+
+                {!aiSuggestionLoading && aiSuggestion && (
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                     <button
-                      key={i}
-                      onClick={() => { setReplyBody(suggestion); setAiSuggestions(null); premiumToast.info({ title: t("inbox.ai.useSuggestion") }); }}
-                      className="w-full text-left p-3 rounded-xl bg-white/80 border border-blue-100 hover:border-blue-300 hover:bg-white hover:shadow-sm transition-all group"
+                      onClick={handleSendAiSuggestion}
+                      style={{
+                        padding: "7px 16px",
+                        borderRadius: "9px",
+                        background: "linear-gradient(135deg, #3B82F6, #2563EB)",
+                        color: "#fff",
+                        border: "none",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        boxShadow: "0 2px 8px rgba(59,130,246,0.2)",
+                      }}
                     >
-                      <p className="text-[12px] text-slate-700 leading-relaxed">{suggestion}</p>
-                      <span className="text-[10px] text-blue-600 font-semibold mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                        <Send size={9} /> {t("inbox.ai.useSuggestion")}
-                      </span>
+                      ✓ {t("inbox.ai.send" as TranslationKey)}
                     </button>
-                  ))}
-                </div>
+
+                    <button
+                      onClick={() => {
+                        setReplyBody(aiSuggestion);
+                        setShowAiSuggestionPanel(false);
+                        setAiSuggestion("");
+                        setTimeout(() => {
+                          inputRef.current?.focus();
+                        }, 100);
+                      }}
+                      style={{
+                        padding: "7px 16px",
+                        borderRadius: "9px",
+                        background: "#fff",
+                        color: "#1E3A5F",
+                        border: "1px solid #BFDBFE",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✏️ {t("inbox.ai.edit" as TranslationKey)}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowAiSuggestionPanel(false);
+                        setAiSuggestion("");
+                      }}
+                      style={{
+                        padding: "7px 16px",
+                        borderRadius: "9px",
+                        background: "#fff",
+                        color: "#94A3B8",
+                        border: "1px solid #E2E8F0",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✕ {t("inbox.ai.reject" as TranslationKey)}
+                    </button>
+
+                    <button
+                      onClick={fetchAiSuggestion}
+                      style={{
+                        padding: "7px 16px",
+                        borderRadius: "9px",
+                        background: "#fff",
+                        color: "#3B82F6",
+                        border: "1px solid #BFDBFE",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      🔄 {t("inbox.ai.regenerate" as TranslationKey)}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1247,7 +1779,7 @@ export default function PortalInboxContent() {
             )}
 
             {/* ── Messages ── */}
-            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-3 bg-[#f8f9fb]">
+            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-3 bg-[#FFFBF5]">
               {isLoadingDetail ? (
                 <div className="flex items-center justify-center py-12"><div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" /></div>
               ) : conversationDetail?.messages.length === 0 ? (
@@ -1255,82 +1787,415 @@ export default function PortalInboxContent() {
                   <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-2"><MessageSquare size={16} className="text-slate-400" /></div>
                   <p className="text-sm text-slate-400">{t("inbox.chat.noMessages")}</p>
                 </div>
-              ) : conversationDetail?.messages.map(msg => (
-                <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-start" : "justify-end"} group/msg`}>
-                  {msg.role === "user" && (
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 mr-2.5 mt-1 shadow-sm ${getAvatarColor(selectedConversationId || "")}`}>
-                      {selectedConv ? getInitials(displayName(selectedConv, t)) : "?"}
-                    </div>
-                  )}
-                  <div className={`max-w-[65%] ${
-                    msg.role === "user"
-                      ? "bg-white border border-slate-200/60 text-slate-800 rounded-2xl rounded-tl-md shadow-sm hover:shadow-md px-4 py-3 transition-shadow"
-                      : "bg-gradient-to-br from-indigo-600 via-blue-600 to-blue-500 text-white rounded-2xl rounded-tr-md shadow-md shadow-blue-500/15 px-4 py-3"
-                  }`}>
-                    {msg.role === "assistant" && (
-                      <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-white/10">
-                        <div className="w-4 h-4 rounded bg-white/15 flex items-center justify-center">
-                          <Bot size={10} className="text-white/80" />
+              ) : conversationDetail?.messages.map((msg) => {
+                const senderType: "visitor" | "agent" | "ai" | "system" | "note" =
+                  msg.role === "user"
+                    ? "visitor"
+                    : /^\[system\]/i.test(msg.content)
+                      ? "system"
+                      : /^\[note\]/i.test(msg.content)
+                        ? "note"
+                        : msg.isAIGenerated
+                          ? "ai"
+                          : "agent";
+                const message = {
+                  senderType,
+                  senderName:
+                    senderType === "visitor"
+                      ? (selectedConv ? displayName(selectedConv, t) : t("dashboard.liveVisitors.visitor"))
+                      : senderType === "ai"
+                        ? "AI Assistant"
+                        : user?.email?.split("@")[0] || "Agent",
+                  content: senderType === "system"
+                    ? translateSystemMessage(msg.content, t)
+                    : msg.content.replace(/^\[(system|note)\]\s*/i, ""),
+                  time: formatTime(msg.timestamp, hydrated),
+                };
+
+                switch (message.senderType) {
+                  case "visitor":
+                    return (
+                      <div key={msg.id} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                        <div
+                          style={{
+                            width: "42px",
+                            height: "42px",
+                            borderRadius: "12px",
+                            background: "#E2E8F0",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <span style={{ fontSize: "13px", fontWeight: 700, color: "#64748B" }}>Z</span>
                         </div>
-                        <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest">AI Assistant</span>
-                        <Sparkles size={9} className="text-blue-300/50" />
+                        <div style={{ maxWidth: "75%" }}>
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: 600,
+                              color: "#94A3B8",
+                              marginBottom: "3px",
+                              display: "block",
+                            }}
+                          >
+                            {message.senderName}
+                          </span>
+                          <div style={{ padding: "12px 18px", borderRadius: "16px 16px 16px 4px", background: "#F1F5F9" }}>
+                            <p style={{ fontSize: "15px", margin: 0, lineHeight: 1.6, color: "#1A1D23", whiteSpace: "pre-wrap" }}>
+                              {message.content}
+                            </p>
+                          </div>
+                          <span style={{ fontSize: "12px", color: "#CBD5E1", marginTop: "3px", display: "block" }}>
+                            {message.time}
+                          </span>
+                        </div>
                       </div>
-                    )}
-                    <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                    <div className={`text-[10px] mt-1.5 text-right font-medium ${msg.role === "user" ? "text-slate-400" : "text-white/50"}`} suppressHydrationWarning>
-                      {formatTime(msg.timestamp, hydrated)}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                    );
+                  case "agent":
+                    return (
+                      <div key={msg.id} style={{ display: "flex", alignItems: "flex-start", gap: "10px", flexDirection: "row-reverse" }}>
+                        <div
+                          style={{
+                            width: "42px",
+                            height: "42px",
+                            borderRadius: "12px",
+                            background: "linear-gradient(135deg, #F59E0B, #D97706)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <span style={{ fontSize: "12px", fontWeight: 700, color: "#fff" }}>{message.senderName?.[0] || "A"}</span>
+                        </div>
+                        <div style={{ maxWidth: "75%", textAlign: "right" }}>
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: 600,
+                              color: "#94A3B8",
+                              marginBottom: "3px",
+                              display: "block",
+                            }}
+                          >
+                            {message.senderName}
+                          </span>
+                          <div
+                            style={{
+                              padding: "12px 18px",
+                              borderRadius: "16px 16px 4px 16px",
+                              background: "linear-gradient(135deg, #F59E0B, #D97706)",
+                              boxShadow: "0 2px 8px rgba(245,158,11,0.15)",
+                            }}
+                          >
+                            <p
+                              style={{
+                                fontSize: "15px",
+                                margin: 0,
+                                lineHeight: 1.6,
+                                color: "#fff",
+                                whiteSpace: "pre-wrap",
+                                textAlign: "left",
+                              }}
+                            >
+                              {message.content}
+                            </p>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", justifyContent: "flex-end", marginTop: "3px" }}>
+                            <span style={{ fontSize: "12px", color: "#CBD5E1" }}>{message.time}</span>
+                            <span style={{ fontSize: "12px", color: "#94A3B8" }}>✓✓</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  case "ai":
+                    return (
+                      <div key={msg.id} style={{ display: "flex", alignItems: "flex-start", gap: "10px", flexDirection: "row-reverse" }}>
+                        <div
+                          style={{
+                            width: "42px",
+                            height: "42px",
+                            borderRadius: "12px",
+                            background: "linear-gradient(135deg, #3B82F6, #2563EB)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
+                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                          </svg>
+                        </div>
+                        <div style={{ maxWidth: "75%", textAlign: "right" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", justifyContent: "flex-end", marginBottom: "3px" }}>
+                            <span style={{ fontSize: "13px", fontWeight: 600, color: "#94A3B8" }}>{message.senderName}</span>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                color: "#3B82F6",
+                                background: "#EFF6FF",
+                                padding: "3px 9px",
+                                borderRadius: "10px",
+                                border: "1px solid #BFDBFE",
+                              }}
+                            >
+                              🤖 AI
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              padding: "12px 18px",
+                              borderRadius: "16px 16px 4px 16px",
+                              background: "#EFF6FF",
+                              border: "1px solid #BFDBFE",
+                            }}
+                          >
+                            <p
+                              style={{
+                                fontSize: "15px",
+                                margin: 0,
+                                lineHeight: 1.6,
+                                color: "#1E3A5F",
+                                whiteSpace: "pre-wrap",
+                                textAlign: "left",
+                              }}
+                            >
+                              {message.content}
+                            </p>
+                          </div>
+                          <span style={{ fontSize: "12px", color: "#CBD5E1", marginTop: "3px", display: "block" }}>{message.time}</span>
+                        </div>
+                      </div>
+                    );
+                  case "system":
+                    return (
+                      <div key={msg.id} style={{ display: "flex", justifyContent: "center", margin: "2px 0" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "4px 14px",
+                            borderRadius: "20px",
+                            background: "rgba(148,163,184,0.08)",
+                            border: "1px solid rgba(148,163,184,0.1)",
+                          }}
+                        >
+                          <span style={{ fontSize: "14px", color: "#94A3B8", fontStyle: "italic" }}>{message.content}</span>
+                          <span style={{ fontSize: "12px", color: "#CBD5E1" }}>{message.time}</span>
+                        </div>
+                      </div>
+                    );
+                  case "note":
+                    return (
+                      <div key={msg.id} style={{ display: "flex", justifyContent: "center", margin: "2px 0" }}>
+                        <div
+                          style={{
+                            maxWidth: "85%",
+                            padding: "10px 14px",
+                            borderRadius: "12px",
+                            background: "#FEF3C7",
+                            border: "1px dashed #FCD34D",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#92400E" }}>
+                              📝 {t("inbox.internalNote" as TranslationKey)} — {message.senderName}
+                            </span>
+                            <span style={{ fontSize: "12px", color: "#B45309" }}>{message.time}</span>
+                          </div>
+                          <p style={{ fontSize: "14px", color: "#78350F", margin: 0, lineHeight: 1.6, fontStyle: "italic" }}>
+                            {message.content}
+                          </p>
+                          <div style={{ fontSize: "11px", color: "#D97706", marginTop: "3px" }}>
+                            👁 {t("inbox.teamOnly" as TranslationKey)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  default:
+                    return null;
+                }
+              })}
               <div ref={messagesEndRef} />
             </div>
 
             {/* ── Quick Replies ── */}
-            <div className="px-4 py-2 bg-white border-t border-slate-100 flex items-center gap-1.5 flex-wrap flex-shrink-0">
+            <div className="bg-white px-5 pt-2" style={{ borderTop: `1px solid ${WARM_BORDER}` }}>
+              <div style={{ display: "flex", gap: "4px", marginBottom: "5px", flexWrap: "wrap" }}>
               {[
-                { key: "inbox.quickReply.thanks", text: t("inbox.quickReply.thanks") },
-                { key: "inbox.quickReply.followUp", text: t("inbox.quickReply.followUp") },
-                { key: "inbox.quickReply.anythingElse", text: t("inbox.quickReply.anythingElse") },
+                t("inbox.quickReply1" as TranslationKey),
+                t("inbox.quickReply2" as TranslationKey),
+                t("inbox.quickReply3" as TranslationKey),
               ].map((qr) => (
-                <button key={qr.key} type="button" onClick={() => setReplyBody(qr.text)}
-                  className="px-2.5 py-1 text-[11px] font-medium border border-slate-200 rounded-lg text-slate-500 bg-white hover:bg-slate-50 hover:border-slate-300 hover:text-slate-700 transition-colors">
-                  {qr.text}
+                <button
+                  key={qr}
+                  type="button"
+                  onClick={() => {
+                    setReplyBody(qr);
+                    inputRef.current?.focus();
+                  }}
+                  style={{ padding: "5px 13px", borderRadius: "18px", fontSize: "12px", fontWeight: 500, background: "#FAFAFA", border: "1px solid #F3E8D8", color: "#64748B", cursor: "pointer" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "#FEF3C7"; e.currentTarget.style.borderColor = "#FCD34D"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "#FAFAFA"; e.currentTarget.style.borderColor = "#F3E8D8"; }}
+                >
+                  {qr}
                 </button>
               ))}
+              </div>
+              {noteMode && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    marginBottom: "5px",
+                    padding: "5px 12px",
+                    borderRadius: "7px",
+                    background: "#FEF3C7",
+                    border: "1px solid #FCD34D",
+                  }}
+                >
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#92400E" }}>
+                    📝 {t("inbox.noteMode" as TranslationKey)} — {t("inbox.teamOnlyVisible" as TranslationKey)}
+                  </span>
+                  <button
+                    onClick={() => setNoteMode(false)}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "#92400E", fontSize: "11px", marginLeft: "auto" }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* ── Composer ── */}
-            <div className="px-5 py-3.5 bg-white border-t border-slate-200/60 flex-shrink-0" role="form" aria-label={t("inbox.chat.replyForm")}>
-              <div className="flex items-end gap-2.5">
-                <div className="flex-1 relative">
-                  <textarea
-                    value={replyBody}
-                    onChange={e => {
-                      setReplyBody(e.target.value);
-                      if (selectedConversationId) {
-                        emitAgentTyping(selectedConversationId);
-                        if (agentTypingTimerRef.current) clearTimeout(agentTypingTimerRef.current);
-                        agentTypingTimerRef.current = setTimeout(() => {
-                          if (selectedConversationId) emitAgentTypingStop(selectedConversationId);
-                        }, 1500);
-                      }
-                    }}
-                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendReply(); } }}
-                    placeholder={t("inbox.chat.typeMessage")}
-                    disabled={isSendingReply}
-                    aria-label={t("inbox.chat.typeMessage")}
-                    rows={1}
-                    className="w-full px-4 py-3 text-[13px] border border-slate-200/80 rounded-xl bg-slate-50/40 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 focus:bg-white disabled:opacity-50 resize-none transition-all shadow-sm"
-                    style={{ minHeight: "44px", maxHeight: "120px" }}
-                  />
+            {selectedFileName && (
+              <div className="mx-5 mb-1 rounded-lg border border-[#FCD34D] bg-[#FEF3C7] px-3 py-1.5 text-[11px] text-[#92400E]">
+                <div className="flex items-center justify-between">
+                  <span>📎 {selectedFileName}</span>
+                  <button type="button" onClick={() => setSelectedFileName(null)} className="text-[#92400E]">✕</button>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0 pb-0.5">
-                  <button disabled title={t("inbox.chat.notSupported")} className="p-2.5 text-slate-300 cursor-not-allowed hover:text-slate-400 rounded-lg transition-colors"><Paperclip size={16} /></button>
-                  <button disabled title={t("inbox.chat.notSupported")} className="p-2.5 text-slate-300 cursor-not-allowed hover:text-slate-400 rounded-lg transition-colors"><Smile size={16} /></button>
-                  <button type="button" onClick={handleSendReply} disabled={!replyBody.trim() || isSendingReply} aria-label={t("inbox.chat.send")}
-                    className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-blue-500/20 hover:shadow-md hover:shadow-blue-500/25 transition-all">
-                    {isSendingReply ? <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin block" /> : <Send size={15} />}
+              </div>
+            )}
+
+            {/* ── Composer ── */}
+            <div className="bg-white px-5 pb-3.5" role="form" aria-label={t("inbox.chat.replyForm")}>
+              {selectedFileName && (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 12px", marginBottom: "6px", borderRadius: "8px", background: "#FEF3C7", border: "1px solid #FCD34D", fontSize: "12px", color: "#92400E" }}>
+                  <span>📎 {selectedFileName}</span>
+                  <button onClick={() => setSelectedFileName(null)} style={{ background: "none", border: "none", color: "#92400E", cursor: "pointer", fontSize: "13px" }}>✕</button>
+                </div>
+              )}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: "7px",
+                  padding: "9px 13px",
+                  borderRadius: "14px",
+                  border: noteMode ? "2px solid #FCD34D" : "1px solid #F3E8D8",
+                  background: noteMode ? "#FFFEF5" : "#FAFAFA",
+                }}
+              >
+                <textarea
+                  ref={inputRef}
+                  value={replyBody}
+                  onChange={(e) => {
+                    setReplyBody(e.target.value);
+                    if (selectedConversationId) {
+                      emitAgentTyping(selectedConversationId);
+                      if (agentTypingTimerRef.current) clearTimeout(agentTypingTimerRef.current);
+                      agentTypingTimerRef.current = setTimeout(() => {
+                        if (selectedConversationId) emitAgentTypingStop(selectedConversationId);
+                      }, 1500);
+                    }
+                  }}
+                  placeholder={noteMode ? t("inbox.notePlaceholder" as TranslationKey) : t("inbox.messagePlaceholder" as TranslationKey)}
+                  rows={1}
+                  style={{ flex: 1, border: "none", background: "none", outline: "none", fontSize: "15px", color: "#1A1D23", resize: "none", fontFamily: "inherit", lineHeight: 1.5, minHeight: "26px", maxHeight: "100px" }}
+                  onInput={(e) => {
+                    const target = e.currentTarget;
+                    target.style.height = "26px";
+                    target.style.height = `${target.scrollHeight}px`;
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleComposerSend();
+                    }
+                  }}
+                />
+                <div style={{ display: "flex", alignItems: "center", gap: "1px" }}>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) setSelectedFileName(file.name);
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      if (!canUseFileAttach) { openUpgradeForPlan("starter", "fileAttach"); return; }
+                      fileInputRef.current?.click();
+                    }}
+                    style={{ width: "34px", height: "34px", borderRadius: "7px", border: "none", background: "transparent", cursor: "pointer", fontSize: "17px", display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseFileAttach ? 1 : 0.45 }}
+                    title={t("inbox.upload.tooltip" as TranslationKey)}
+                  >
+                    📎
+                  </button>
+                  <div style={{ position: "relative" }}>
+                    <button
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      style={{ width: "34px", height: "34px", borderRadius: "7px", border: "none", background: showEmojiPicker ? "#FEF3C7" : "transparent", cursor: "pointer", fontSize: "17px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    >
+                      😊
+                    </button>
+                    {showEmojiPicker && (
+                      <div style={{ position: "absolute", bottom: "32px", right: 0, background: "#fff", border: "1px solid #F3E8D8", borderRadius: "13px", boxShadow: "0 4px 20px rgba(0,0,0,0.1)", padding: "10px", display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "3px", width: "240px", zIndex: 50 }}>
+                        {EMOJIS.map((em) => (
+                          <button
+                            key={em}
+                            onClick={() => {
+                              setReplyBody((prev) => prev + em);
+                              setShowEmojiPicker(false);
+                              inputRef.current?.focus();
+                            }}
+                            style={{ width: "36px", height: "36px", borderRadius: "6px", border: "none", background: "transparent", cursor: "pointer", fontSize: "20px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = "#F1F5F9"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                          >
+                            {em}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleComposerSend}
+                    disabled={!replyBody.trim()}
+                    style={{
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "11px",
+                      background: replyBody.trim() ? "linear-gradient(135deg, #F59E0B, #D97706)" : "#E2E8F0",
+                      border: "none",
+                      cursor: replyBody.trim() ? "pointer" : "default",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: replyBody.trim() ? "0 2px 8px rgba(245,158,11,0.25)" : "none",
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={replyBody.trim() ? "#fff" : "#94A3B8"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="22" y1="2" x2="11" y2="13" />
+                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -1338,13 +2203,14 @@ export default function PortalInboxContent() {
           </>
         )}
       </div>
+      </ErrorBoundary>
 
       {/* ═══ PANEL 3: RIGHT — Customer Details + Notes ═══ */}
-      <div className={`w-[320px] flex-shrink-0 bg-white border-l border-slate-200/80 flex flex-col overflow-y-auto ${
+      <div className={`w-[320px] flex-shrink-0 bg-white border-l flex flex-col overflow-y-auto ${
         mobileView === "details"
           ? "flex fixed inset-0 z-50 w-full bg-white lg:static lg:w-[320px]"
           : showRightPanel ? "hidden lg:flex" : "hidden"
-      }`}>
+      }`} style={{ borderColor: WARM_BORDER }}>
         {!selectedConversationId || !conversationDetail ? (
           /* ── Empty right panel — helpful tips ── */
           <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
@@ -1363,106 +2229,354 @@ export default function PortalInboxContent() {
               </button>
             </div>
 
-            {/* Customer profile card */}
-            <div className="px-5 py-5 border-b border-slate-100">
-              <div className="flex items-center gap-3.5 mb-5">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm ${getAvatarColor(selectedConversationId)}`}>
-                  {selectedConv ? getInitials(displayName(selectedConv, t)) : "?"}
+            <div style={{ padding: "14px", textAlign: "center", borderBottom: `1px solid ${WARM_BORDER}` }}>
+              <div
+                style={{
+                  width: "52px",
+                  height: "52px",
+                  borderRadius: "15px",
+                  background: isOnline ? "linear-gradient(135deg,#22C55E,#16A34A)" : "#E2E8F0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 7px",
+                }}
+              >
+                <span style={{ fontSize: "18px", fontWeight: 700, color: isOnline ? "#fff" : "#94A3B8" }}>Z#</span>
+              </div>
+              <div style={{ fontSize: "16px", fontWeight: 700, color: "#1A1D23" }}>
+                {selectedConv ? displayName(selectedConv, t) : ""}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", marginTop: "3px" }}>
+                <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: isOnline ? "#22C55E" : "#94A3B8" }} />
+                <span style={{ fontSize: "12px", color: isOnline ? "#22C55E" : "#94A3B8", fontWeight: 600 }}>
+                  {isOpen ? (isOnline ? t("inbox.online" as TranslationKey) : t("inbox.offline" as TranslationKey)) : t("inbox.resolved" as TranslationKey)}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "center", gap: "16px", marginTop: "10px" }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#1A1D23" }}>
+                    {conversationDetail.messages.filter((m) => !m.content?.startsWith("[system]") && !m.content?.startsWith("[note]")).length || 0}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#94A3B8" }}>{t("inbox.messages" as TranslationKey)}</div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[14px] font-bold text-slate-900">{selectedConv ? displayName(selectedConv, t) : ""}</div>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-lg ${
-                      isOpen ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60" : "bg-slate-100 text-slate-600 ring-1 ring-slate-200/60"
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${isOpen ? "bg-emerald-500" : "bg-slate-400"}`} />
-                      {isOpen ? t("inbox.detail.open") : t("inbox.detail.close")}
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#1A1D23" }}>
+                    {conversationDetail.messages.filter((m) => m.content?.startsWith("[note]")).length || 0}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#94A3B8" }}>{t("inbox.notes.title")}</div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", borderBottom: `1px solid ${WARM_BORDER}` }}>
+              {(["details", "notes"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setDetailTab(tab)}
+                  style={{
+                    flex: 1,
+                    padding: "10px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    border: "none",
+                    cursor: "pointer",
+                    background: "transparent",
+                    color: detailTab === tab ? "#F59E0B" : "#94A3B8",
+                    borderBottom: detailTab === tab ? "2px solid #F59E0B" : "2px solid transparent",
+                  }}
+                >
+                  {tab === "details" ? t("inbox.detail.details" as TranslationKey) : t("inbox.notes.title")}
+                </button>
+              ))}
+            </div>
+
+            {detailTab === "details" && (
+              <div style={{ padding: "10px" }}>
+                {(() => {
+                  const baseFields = [
+                    { icon: "🔗", label: t("inbox.detail.channel" as TranslationKey), value: selectedConvExtra?.channel || "Web Widget" },
+                    { icon: "🆔", label: t("inbox.detail.identity" as TranslationKey), value: selectedConvExtra?.recipientId || "-" },
+                    { icon: "📅", label: t("inbox.detail.created" as TranslationKey), value: formatTime(selectedConv?.createdAt || "", hydrated) },
+                    { icon: "👤", label: t("inbox.detail.assigned" as TranslationKey), value: conversationDetail.assignedTo?.email?.split("@")[0] || t("inbox.detail.unassigned" as TranslationKey) },
+                  ];
+                  const standardFields = [
+                    { icon: "📍", label: t("inbox.detail.location" as TranslationKey), value: selectedConvExtra?.country || "-" },
+                    { icon: "📱", label: t("inbox.detail.device" as TranslationKey), value: selectedConvExtra?.browser || "-" },
+                    { icon: "📄", label: t("inbox.detail.activePage" as TranslationKey), value: selectedConvExtra?.currentPage || "-" },
+                    { icon: "⚡", label: t("inbox.detail.lastActivity" as TranslationKey), value: formatTime(selectedConv?.lastMessageAt || "", hydrated) },
+                  ];
+                  const fullFields = [
+                    { icon: "🕐", label: t("inbox.detail.timeOnSite" as TranslationKey), value: selectedConvExtra?.timeOnSite || "-" },
+                    { icon: "📊", label: t("inbox.detail.visitHistory" as TranslationKey), value: selectedConvExtra?.visitCount ? `${selectedConvExtra.visitCount} ${t("inbox.detail.visits" as TranslationKey)}` : "-" },
+                  ];
+                  const visibleFields = (() => {
+                    if (planRank >= 3) return [...standardFields, ...baseFields, ...fullFields];
+                    if (planRank >= 2) return [...standardFields, ...baseFields];
+                    return baseFields;
+                  })();
+                  return (
+                    <>
+                      {visibleFields.map((field, i) => (
+                        <div key={`${field.label}-${i}`} style={{ marginBottom: "12px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "1px" }}>
+                            <span style={{ fontSize: "14px" }}>{field.icon}</span>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#94A3B8", letterSpacing: "0.8px" }}>
+                              {field.label}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "14px", color: "#1A1D23", fontWeight: 500, whiteSpace: "pre-wrap", marginLeft: "22px" }}>
+                            {field.value}
+                          </div>
+                        </div>
+                      ))}
+
+                      {planRank < 2 && (
+                        <button
+                          onClick={() => openUpgradeForPlan("starter", "visitorStandard")}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "10px 12px",
+                            borderRadius: "9px",
+                            border: "1px solid #F3E8D8",
+                            background: "#FAFAFA",
+                            cursor: "pointer",
+                            width: "100%",
+                            marginTop: "4px",
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#F59E0B"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#F3E8D8"; }}
+                        >
+                          <span style={{ fontSize: "12px" }}>🔒</span>
+                          <div style={{ textAlign: "left", flex: 1 }}>
+                            <div style={{ fontSize: "13px", fontWeight: 700, color: "#1A1D23" }}>
+                              {t("inbox.upgrade.visitorInfo" as TranslationKey)}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#94A3B8" }}>
+                              {t("inbox.upgrade.visitorInfoDesc" as TranslationKey)}
+                            </div>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: 700,
+                              color: "#fff",
+                              background: "linear-gradient(135deg,#F59E0B,#D97706)",
+                              padding: "3px 8px",
+                              borderRadius: "5px",
+                            }}
+                          >
+                            STARTER+
+                          </span>
+                        </button>
+                      )}
+
+                      {planRank >= 2 && planRank < 3 && (
+                        <button
+                          onClick={() => openUpgradeForPlan("pro", "visitorFull")}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "10px 12px",
+                            borderRadius: "9px",
+                            border: "1px solid #F3E8D8",
+                            background: "#FAFAFA",
+                            cursor: "pointer",
+                            width: "100%",
+                            marginTop: "4px",
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#8B5CF6"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#F3E8D8"; }}
+                        >
+                          <span style={{ fontSize: "12px" }}>🔒</span>
+                          <div style={{ textAlign: "left", flex: 1 }}>
+                            <div style={{ fontSize: "13px", fontWeight: 700, color: "#1A1D23" }}>
+                              {t("inbox.upgrade.fullAnalytics" as TranslationKey)}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#94A3B8" }}>
+                              {t("inbox.upgrade.fullAnalyticsDesc" as TranslationKey)}
+                            </div>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: 700,
+                              color: "#fff",
+                              background: "linear-gradient(135deg,#8B5CF6,#7C3AED)",
+                              padding: "3px 8px",
+                              borderRadius: "5px",
+                            }}
+                          >
+                            PRO+
+                          </span>
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
+
+                <div style={{ marginTop: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "10px" }}>🏷️</span>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#94A3B8" }}>
+                      {t("inbox.tags.title" as TranslationKey)}
                     </span>
                   </div>
-                </div>
-              </div>
-
-              {/* Quick stats for this conversation */}
-              <div className="grid grid-cols-3 gap-2.5">
-                <div className="bg-slate-50/80 rounded-xl px-3 py-2.5 text-center ring-1 ring-slate-100">
-                  <div className="text-lg font-extrabold text-slate-900 tabular-nums">{conversationDetail.messages.length}</div>
-                  <div className="text-[10px] text-slate-400 font-semibold">{t("inbox.customer.messageCount")}</div>
-                </div>
-                <div className="bg-slate-50/80 rounded-xl px-3 py-2.5 text-center ring-1 ring-slate-100">
-                  <div className="text-lg font-extrabold text-slate-900 tabular-nums">{notes.length}</div>
-                  <div className="text-[10px] text-slate-400 font-semibold">{t("inbox.detail.notes")}</div>
-                </div>
-                <div className="bg-slate-50/80 rounded-xl px-3 py-2.5 text-center ring-1 ring-slate-100">
-                  <div className="text-sm font-extrabold text-slate-900 tabular-nums" suppressHydrationWarning>{hydrated ? formatRelativeTime(conversationDetail.createdAt, t) : "--"}</div>
-                  <div className="text-[10px] text-slate-400 font-semibold">{t("inbox.customer.createdAt")}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex border-b border-slate-100">
-              <button onClick={() => setDetailTab("details")}
-                className={`flex-1 py-2.5 text-[12px] font-semibold text-center transition-colors ${detailTab === "details" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-400 hover:text-slate-600"}`}>
-                {t("inbox.detail.details")}
-              </button>
-              <button onClick={() => setDetailTab("notes")}
-                className={`flex-1 py-2.5 text-[12px] font-semibold text-center transition-colors relative ${detailTab === "notes" ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-400 hover:text-slate-600"}`}>
-                {t("inbox.detail.notes")}
-                {notes.length > 0 && <span className="ml-1 text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full">{notes.length}</span>}
-              </button>
-            </div>
-
-            {/* Detail attributes */}
-            {detailTab === "details" && (
-              <div className="px-5 py-4 space-y-0 flex-1">
-                <DetailRow label={t("inbox.customer.channel")} value="Web Widget" icon={<svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>} />
-                <DetailRow label={t("inbox.customer.id")} value={selectedConversationId.substring(0, 16)} icon={<svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a48.667 48.667 0 00-1.234 8.244M12 20.25A7.5 7.5 0 014.5 10.5c0-1.08.228-2.108.64-3.037M12 20.25a7.5 7.5 0 007.5-9.75" /></svg>} />
-                <DetailRow label={t("inbox.customer.createdAt")} value={hydrated ? formatDateTime(conversationDetail.createdAt, hydrated) : "--"} icon={<svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
-                <DetailRow label={t("inbox.customer.lastActive")} value={hydrated ? formatDateTime(conversationDetail.updatedAt, hydrated) : "--"} icon={<svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>} />
-                {conversationDetail.assignedTo && (
-                  <DetailRow label={t("inbox.assignTo")} value={conversationDetail.assignedTo.email} icon={<User size={14} className="text-slate-400" />} />
-                )}
-              </div>
-            )}
-
-            {/* Notes */}
-            {detailTab === "notes" && (
-              <div className="px-5 py-4 flex-1 flex flex-col">
-                <div className="mb-3">
-                  <textarea value={noteBody} onChange={e => setNoteBody(e.target.value)}
-                    placeholder={t("inbox.notePlaceholder")} maxLength={2000} rows={3}
-                    className="w-full px-3 py-2.5 text-[13px] border border-slate-200 rounded-xl bg-slate-50/50 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:bg-white resize-none transition-all" />
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] text-slate-300">{noteBody.length}/2000</span>
-                    <button onClick={handleAddNote} disabled={!noteBody.trim() || isSubmittingNote}
-                      className="px-3.5 py-1.5 text-[12px] font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-                      {t("inbox.noteSubmit")}
+                  <div style={{ display: "flex", gap: "3px", marginLeft: "18px", flexWrap: "wrap" }}>
+                    {selectedTags.map((tag) => (
+                      <span
+                        key={tag}
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          padding: "3px 8px",
+                          borderRadius: "7px",
+                          background: "#F1F5F9",
+                          color: "#475569",
+                          border: "1px solid #CBD5E1",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "2px",
+                        }}
+                      >
+                        {tag}
+                        <button
+                          onClick={() => handleRemoveTag(tag)}
+                          style={{ background: "none", border: "none", cursor: "pointer", fontSize: "8px", color: "inherit", padding: 0 }}
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                    <button
+                      onClick={() => setShowTagBar(true)}
+                      style={{
+                        fontSize: "11px",
+                        padding: "3px 8px",
+                        borderRadius: "7px",
+                        background: "#FAFAFA",
+                        color: "#94A3B8",
+                        border: "1px dashed #E2E8F0",
+                        cursor: "pointer",
+                      }}
+                    >
+                      + {t("inbox.tags.add" as TranslationKey)}
                     </button>
                   </div>
                 </div>
-                <div className="space-y-3 flex-1 overflow-y-auto">
-                  {notes.length === 0 ? (
-                    <div className="text-center py-8">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-2">
-                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
-                      </div>
-                      <p className="text-xs text-slate-400">{t("inbox.notes.empty")}</p>
+              </div>
+            )}
+
+            {detailTab === "notes" && (
+              <div style={{ padding: "10px" }}>
+                {!canUseInternalNotes ? (
+                  <button
+                    onClick={() => openUpgradeForPlan("starter", "internalNotes")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "10px",
+                      borderRadius: "9px",
+                      border: "1px solid #F3E8D8",
+                      background: "#FAFAFA",
+                      cursor: "pointer",
+                      width: "100%",
+                    }}
+                  >
+                    <span style={{ fontSize: "14px" }}>🔒</span>
+                    <div style={{ textAlign: "left", flex: 1 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 700, color: "#1A1D23" }}>{t("inbox.notes.title")}</div>
+                      <div style={{ fontSize: "11px", color: "#94A3B8" }}>{t("inbox.upgrade.notesDesc" as TranslationKey)}</div>
                     </div>
-                  ) : notes.map(note => (
-                    <div key={note.id} className="flex gap-2.5 p-3 bg-amber-50/50 border border-amber-100 rounded-xl">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 ${getAvatarColor(note.author.email)}`}>
-                        {getInitials(note.author.email)}
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        color: "#fff",
+                        background: "linear-gradient(135deg,#F59E0B,#D97706)",
+                        padding: "3px 8px",
+                        borderRadius: "5px",
+                      }}
+                    >
+                      STARTER+
+                    </span>
+                  </button>
+                ) : (
+                  <>
+                    {(conversationDetail.messages.filter((m) => m.content?.startsWith("[note]")) || []).length === 0 && (
+                      <div style={{ textAlign: "center", padding: "14px", color: "#94A3B8", fontSize: "11px" }}>
+                        {t("inbox.notes.empty" as TranslationKey)}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[12px] font-semibold text-slate-700">{note.author.email.split("@")[0]}</span>
-                          <span className="text-[10px] text-slate-400" suppressHydrationWarning>{formatDateTime(note.createdAt, hydrated)}</span>
+                    )}
+
+                    {(conversationDetail.messages.filter((m) => m.content?.startsWith("[note]")) || []).map((note) => (
+                      <div
+                        key={note.id}
+                        style={{
+                          padding: "7px 10px",
+                          borderRadius: "9px",
+                          background: "#FEF3C7",
+                          border: "1px dashed #FCD34D",
+                          marginBottom: "5px",
+                        }}
+                      >
+                        <div style={{ fontSize: "12px", fontWeight: 600, color: "#92400E", marginBottom: "2px" }}>
+                          📝 {user?.email?.split("@")[0] || "Agent"}
                         </div>
-                        <p className="text-[12px] text-slate-600 leading-relaxed whitespace-pre-wrap">{note.body}</p>
+                        <p style={{ fontSize: "14px", color: "#78350F", margin: 0, lineHeight: 1.4 }}>
+                          {note.content.replace(/^\[note\]\s*/i, "")}
+                        </p>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+
+                    <textarea
+                      value={sidebarNoteText}
+                      onChange={(e) => setSidebarNoteText(e.target.value)}
+                      placeholder={t("inbox.notes.addPlaceholder" as TranslationKey)}
+                      rows={2}
+                      style={{
+                        width: "100%",
+                        border: "1px solid #F3E8D8",
+                        borderRadius: "9px",
+                        padding: "9px 11px",
+                        fontSize: "13px",
+                        fontFamily: "inherit",
+                        resize: "none",
+                        outline: "none",
+                        background: "#FAFAFA",
+                        boxSizing: "border-box",
+                        marginTop: "5px",
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        if (sidebarNoteText.trim()) {
+                          handleSendNote(sidebarNoteText);
+                          setSidebarNoteText("");
+                        }
+                      }}
+                      disabled={!sidebarNoteText?.trim()}
+                      style={{
+                        marginTop: "3px",
+                        padding: "7px",
+                        borderRadius: "7px",
+                        background: sidebarNoteText?.trim() ? "linear-gradient(135deg,#F59E0B,#D97706)" : "#E2E8F0",
+                        color: sidebarNoteText?.trim() ? "#fff" : "#94A3B8",
+                        border: "none",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        cursor: sidebarNoteText?.trim() ? "pointer" : "default",
+                        width: "100%",
+                      }}
+                    >
+                      📝 {t("inbox.notes.add" as TranslationKey)}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </>
@@ -1477,22 +2591,156 @@ export default function PortalInboxContent() {
         </div>
       )}
 
-      {/* Upgrade Modal */}
-      <UpgradeModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} currentPlan={planKey} reason={upgradeReason} requiredPlan={upgradeRequiredPlan} />
-    </div>
-  );
-}
+      {upgradeModal?.show && (
+        <div
+          onClick={() => setUpgradeModal(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: "20px",
+              padding: "28px",
+              maxWidth: "380px",
+              width: "90%",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+            }}
+          >
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "40px", marginBottom: "10px" }}>🚀</div>
+              <h3
+                style={{
+                  fontSize: "19px",
+                  fontWeight: 800,
+                  color: "#1A1D23",
+                  margin: "0 0 4px",
+                }}
+              >
+                {t("inbox.upgrade.title" as TranslationKey)}
+              </h3>
+              <p
+                style={{
+                  fontSize: "14px",
+                  color: "#64748B",
+                  margin: "0 0 18px",
+                  lineHeight: 1.5,
+                }}
+              >
+                {t("inbox.upgrade.description" as TranslationKey)}
+              </p>
+            </div>
 
-/* ─── Inline Sub-components ─── */
+            {[
+              {
+                plan: "STARTER",
+                price: "$19",
+                features: t("inbox.upgrade.starterFeatures" as TranslationKey),
+                color: "#F59E0B",
+              },
+              {
+                plan: "PRO",
+                price: "$79",
+                features: t("inbox.upgrade.proFeatures" as TranslationKey),
+                color: "#8B5CF6",
+              },
+              {
+                plan: "ENTERPRISE",
+                price: t("inbox.upgrade.custom" as TranslationKey),
+                features: t("inbox.upgrade.enterpriseFeatures" as TranslationKey),
+                color: "#059669",
+              },
+            ].map((p) => {
+              const isMin = upgradeModal.minPlan.toUpperCase() === p.plan;
+              return (
+                <div
+                  key={p.plan}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "12px",
+                    textAlign: "left",
+                    marginBottom: "6px",
+                    border: isMin ? `2px solid ${p.color}` : "1px solid #F3E8D8",
+                    background: isMin ? "#FFFBF5" : "#fff",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "14px", fontWeight: 700, color: "#1A1D23" }}>
+                      {p.plan}
+                    </span>
+                    <span style={{ fontSize: "14px", fontWeight: 800, color: p.color }}>
+                      {p.price}/{t("inbox.upgrade.month" as TranslationKey)}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#94A3B8", marginTop: "1px" }}>
+                    {p.features}
+                  </div>
+                  {isMin && (
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        color: p.color,
+                        fontWeight: 700,
+                        marginTop: "3px",
+                      }}
+                    >
+                      ← {t("inbox.upgrade.minimumPlan" as TranslationKey)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
-function DetailRow({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
-      {icon && <div className="flex-shrink-0">{icon}</div>}
-      <div className="flex-1 min-w-0">
-        <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mb-0.5">{label}</div>
-        <div className="text-[13px] text-slate-800 font-medium break-words truncate">{value || "\u2014"}</div>
-      </div>
+            <button
+              onClick={() => {
+                window.location.href = "/portal/billing";
+                setUpgradeModal(null);
+              }}
+              style={{
+                width: "100%",
+                padding: "13px",
+                borderRadius: "13px",
+                background: "linear-gradient(135deg, #F59E0B, #D97706)",
+                color: "#fff",
+                border: "none",
+                fontSize: "14px",
+                fontWeight: 700,
+                cursor: "pointer",
+                marginTop: "8px",
+                boxShadow: "0 4px 12px rgba(245,158,11,0.3)",
+              }}
+            >
+              {t("inbox.upgrade.viewPlans" as TranslationKey)} →
+            </button>
+
+            <button
+              onClick={() => setUpgradeModal(null)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#94A3B8",
+                fontSize: "12px",
+                cursor: "pointer",
+                marginTop: "8px",
+                display: "block",
+                marginLeft: "auto",
+                marginRight: "auto",
+              }}
+            >
+              {t("inbox.upgrade.notNow" as TranslationKey)}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

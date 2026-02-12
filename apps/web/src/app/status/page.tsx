@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useI18n } from "@/i18n/I18nContext";
 import { useHydrated } from "@/hooks/useHydrated";
 import PublicLayout from "@/components/PublicLayout";
-import PageHeader from "@/components/PageHeader";
+import PageHeader from "@/components/ui/PageHeader";
 import SectionTitle from "@/components/SectionTitle";
-import Card from "@/components/Card";
+import Card from "@/components/ui/Card";
 import { designTokens } from "@/lib/designTokens";
 
 interface ServiceStatus {
@@ -36,7 +36,7 @@ export default function StatusPage() {
       case "down":
         return "bg-red-500";
       default:
-        return "bg-slate-400";
+        return "bg-[#94A3B8]";
     }
   };
 
@@ -109,31 +109,31 @@ export default function StatusPage() {
 
       {/* Service list */}
       <section className="max-w-3xl mx-auto px-6 pb-10">
-        <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
+        <div className="bg-white rounded-xl border border-[#F3E8D8] divide-y divide-[#F3E8D8]">
           {SERVICES.map((svc, i) => (
             <div key={i} className="flex items-center justify-between px-5 py-4">
-              <span className="text-sm font-medium text-slate-800">
+              <span className="text-sm font-medium text-[#1E293B]">
                 {t(svc.nameKey as Parameters<typeof t>[0])}
               </span>
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${statusColor(svc.status)}`} />
-                <span className="text-sm text-slate-600">{statusLabel(svc.status)}</span>
+                <span className="text-sm text-[#475569]">{statusLabel(svc.status)}</span>
               </div>
             </div>
           ))}
         </div>
-        <p className="text-xs text-slate-400 mt-3 text-center" suppressHydrationWarning>
+        <p className="text-xs text-[#94A3B8] mt-3 text-center" suppressHydrationWarning>
           {t("pubStatus.lastChecked")}: {hydrated ? new Date().toLocaleString() : "…"}
         </p>
       </section>
 
       {/* Incident history */}
       <section className="max-w-3xl mx-auto px-6 pb-20">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">{t("pubStatus.incidentHistory")}</h2>
-        <div className="bg-white rounded-xl border border-slate-200 p-6 text-center">
-          <p className="text-sm text-slate-500">{t("pubStatus.noIncidents")}</p>
+        <h2 className="text-lg font-semibold text-[#1A1D23] font-heading mb-4">{t("pubStatus.incidentHistory")}</h2>
+        <div className="bg-white rounded-xl border border-[#F3E8D8] p-6 text-center">
+          <p className="text-sm text-[#64748B]">{t("pubStatus.noIncidents")}</p>
         </div>
-        <p className="text-xs text-slate-400 mt-3 text-center">{t("pubStatus.uptimeNote")}</p>
+        <p className="text-xs text-[#94A3B8] mt-3 text-center">{t("pubStatus.uptimeNote")}</p>
       </section>
 
       <section className="max-w-5xl mx-auto px-6 pb-12">
@@ -141,10 +141,10 @@ export default function StatusPage() {
         <div className="grid md:grid-cols-3 gap-6">
           {steps.map((step) => (
             <Card key={step.titleKey} padding="lg">
-              <h3 className="text-lg font-semibold text-slate-900">
+              <h3 className="text-lg font-semibold text-[#1A1D23] font-heading">
                 {t(step.titleKey as Parameters<typeof t>[0])}
               </h3>
-              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+              <p className="text-sm text-[#475569] mt-2 leading-relaxed">
                 {t(step.descKey as Parameters<typeof t>[0])}
               </p>
             </Card>
@@ -157,10 +157,10 @@ export default function StatusPage() {
         <div className="space-y-4">
           {faqs.map((faq) => (
             <Card key={faq.qKey} padding="md" variant="muted">
-              <h3 className="text-sm font-semibold text-slate-900">
+              <h3 className="text-sm font-semibold text-[#1A1D23] font-heading">
                 {t(faq.qKey as Parameters<typeof t>[0])}
               </h3>
-              <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+              <p className="text-sm text-[#475569] mt-1 leading-relaxed">
                 {t(faq.aKey as Parameters<typeof t>[0])}
               </p>
             </Card>
@@ -170,10 +170,10 @@ export default function StatusPage() {
 
       <section className="max-w-5xl mx-auto px-6 pb-20">
         <Card padding="lg" variant="outlined" className="text-center">
-          <h2 className="text-2xl font-semibold text-slate-900">
+          <h2 className="text-2xl font-semibold text-[#1A1D23] font-heading">
             {t("pubStatus.ctaTitle")}
           </h2>
-          <p className="text-sm text-slate-600 mt-2">
+          <p className="text-sm text-[#475569] mt-2">
             {t("pubStatus.ctaSubtitle")}
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6">

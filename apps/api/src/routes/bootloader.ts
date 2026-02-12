@@ -28,6 +28,12 @@ interface BootloaderResponse {
     language: string;
     theme: {
       primaryColor: string;
+      bubbleShape: string;
+      bubbleIcon: string;
+      bubbleSize: number;
+      bubblePosition: string;
+      greetingText: string;
+      greetingEnabled: boolean;
     };
     branding: {
       widgetName: string;
@@ -45,6 +51,12 @@ interface BootloaderResponse {
       primaryColor: string;
       position: string;
       launcher: string;
+      bubbleShape: string;
+      bubbleIcon: string;
+      bubbleSize: number;
+      bubblePosition: string;
+      greetingText: string;
+      greetingEnabled: boolean;
       welcomeTitle: string;
       welcomeMessage: string;
       brandName: string | null;
@@ -227,6 +239,12 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
           primaryColor: true,
           position: true,
           launcher: true,
+          bubbleShape: true,
+          bubbleIcon: true,
+          bubbleSize: true,
+          bubblePosition: true,
+          greetingText: true,
+          greetingEnabled: true,
           welcomeTitle: true,
           welcomeMessage: true,
           brandName: true,
@@ -260,6 +278,7 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
       }
 
       // Widget health metrics: increment load count + update lastSeenAt (fire-and-forget)
+      // SQL-safe: parameterized query
       prisma.$executeRawUnsafe(
         `UPDATE "organizations" SET "widgetLoadsTotal" = "widgetLoadsTotal" + 1, "lastWidgetSeenAt" = NOW() WHERE "id" = $1`,
         org.id
@@ -279,7 +298,15 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
           aiEnabled: org.aiEnabled,
           language: org.language, // From DB
           theme: {
-            primaryColor: org.primaryColor, // From DB (has default)
+            // Use widget appearance color when available so launcher/bubble
+            // always reflects what user saved in Widget Appearance.
+            primaryColor: widgetSettings?.primaryColor || org.primaryColor,
+            bubbleShape: widgetSettings?.bubbleShape || "circle",
+            bubbleIcon: widgetSettings?.bubbleIcon || "chat",
+            bubbleSize: widgetSettings?.bubbleSize || 60,
+            bubblePosition: widgetSettings?.bubblePosition || (widgetSettings?.position === "left" ? "bottom-left" : "bottom-right"),
+            greetingText: widgetSettings?.greetingText || "",
+            greetingEnabled: widgetSettings?.greetingEnabled || false,
           },
           branding: {
             widgetName: org.widgetName, // From DB
@@ -295,6 +322,12 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
             primaryColor: "#0F5C5C",
             position: "right",
             launcher: "bubble",
+            bubbleShape: "circle",
+            bubbleIcon: "chat",
+            bubbleSize: 60,
+            bubblePosition: "bottom-right",
+            greetingText: "",
+            greetingEnabled: false,
             welcomeTitle: "Welcome",
             welcomeMessage: "How can we help you today?",
             brandName: null,
@@ -315,12 +348,14 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
       // Widget health: update response time histogram (fire-and-forget)
       const latencyMs = Date.now() - bootloaderStartMs;
       const { sql: histSql, params: histParams } = buildHistogramUpdateSql(org.id, latencyMs);
+      // SQL-safe: parameterized query (built with placeholders in buildHistogramUpdateSql)
       prisma.$executeRawUnsafe(histSql, histParams[0], histParams[1]).catch(() => {});
 
       return response;
     } catch (err) {
       // Increment widgetLoadFailuresTotal if org was resolved (best-effort)
       if (resolvedOrgId) {
+        // SQL-safe: parameterized query
         prisma.$executeRawUnsafe(
           `UPDATE "organizations" SET "widgetLoadFailuresTotal" = "widgetLoadFailuresTotal" + 1 WHERE "id" = $1`,
           resolvedOrgId

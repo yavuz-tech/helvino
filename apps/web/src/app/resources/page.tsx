@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { BookOpen, Newspaper, FileText, Sparkles, LifeBuoy } from "lucide-react";
 import PublicLayout from "@/components/PublicLayout";
-import PageHeader from "@/components/PageHeader";
+import PageHeader from "@/components/ui/PageHeader";
 import SectionTitle from "@/components/SectionTitle";
-import FeatureCard from "@/components/FeatureCard";
-import Card from "@/components/Card";
+import FeatureCard from "@/components/ui/FeatureCard";
+import Card from "@/components/ui/Card";
 import { useI18n } from "@/i18n/I18nContext";
 import { designTokens } from "@/lib/designTokens";
 

@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "9"
+
+jobs:
+  ci:
+    name: Lint, Typecheck & Build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: helvion
+          POSTGRES_PASSWORD: helvion_test
+          POSTGRES_DB: helvion_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: cd apps/api && npx prisma generate
+
+      - name: Typecheck API
+        run: cd apps/api && npx tsc --noEmit
+
+      - name: Typecheck Web
+        run: cd apps/web && npx tsc --noEmit
+
+      - name: Build shared
+        run: cd packages/shared && pnpm build
+
+      - name: Test API
+        env:
+          DATABASE_URL: postgresql://helvion:helvion_test@localhost:5432/helvion_test
+          REDIS_URL: redis://localhost:6379
+          SESSION_SECRET: ci-test-secret
+          ORG_TOKEN_SECRET: ci-test-org-secret
+        run: cd apps/api && pnpm test
+
+      - name: Build API
+        run: cd apps/api && pnpm build
+
+      - name: Build Web
+        env:
+          DATABASE_URL: postgresql://helvion:helvion_test@localhost:5432/helvion_test
+          REDIS_URL: redis://localhost:6379
+          SESSION_SECRET: ci-test-secret-not-real
+          NEXT_PUBLIC_WEB_URL: http://localhost:3000
+        run: cd apps/web && pnpm build
+
+      - name: Build Widget
+        run: cd apps/widget && pnpm build

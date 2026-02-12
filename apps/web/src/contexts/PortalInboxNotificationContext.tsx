@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 
 const SOUND_STORAGE_KEY = "helvino_portal_sound_enabled";
+const PORTAL_SOCKET_TOKEN_STORAGE_KEY = "helvino_portal_refresh_token";
 
 interface PortalInboxNotificationContextValue {
   soundEnabled: boolean;
@@ -57,7 +58,6 @@ let _userHasInteracted = false;
 if (typeof window !== "undefined") {
   const markInteracted = () => {
     _userHasInteracted = true;
-    console.log("[Portal Sound] User interaction detected — sound unlocked");
     document.removeEventListener("click", markInteracted);
     document.removeEventListener("keydown", markInteracted);
     document.removeEventListener("touchstart", markInteracted);
@@ -74,12 +74,10 @@ if (typeof window !== "undefined") {
 function safePlayBeep(): void {
   try {
     if (typeof window === "undefined") {
-      console.log("[Portal Sound] No window — skipping");
       return;
     }
 
     if (!_userHasInteracted) {
-      console.log("[Portal Sound] No user interaction yet — cannot play (browser policy)");
       return;
     }
 
@@ -89,12 +87,10 @@ function safePlayBeep(): void {
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 
     if (!ACtor) {
-      console.log("[Portal Sound] AudioContext not available");
       return;
     }
 
     const ctx = new ACtor();
-    console.log("[Portal Sound] AudioContext state:", ctx.state);
 
     // Resume if needed, then play
     const play = () => {
@@ -126,7 +122,6 @@ function safePlayBeep(): void {
         // Clean up context after sound finishes
         setTimeout(() => { try { ctx.close(); } catch { /* */ } }, 500);
 
-        console.log("[Portal Sound] Beep played successfully!");
       } catch (e) {
         console.warn("[Portal Sound] Failed to play beep:", e);
       }
@@ -197,9 +192,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
   // ── Socket.IO connection (fully wrapped in try-catch, lazy import) ──
   useEffect(() => {
-    console.log("[Portal Socket] useEffect fired. user:", user ? { orgKey: user.orgKey, email: user.email } : null);
     if (!user?.orgKey) {
-      console.log("[Portal Socket] No user/orgKey — skipping socket connection");
       setSocketStatus("no-user");
       return;
     }
@@ -209,18 +202,20 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
     const connect = async () => {
       try {
-        console.log("[Portal Socket] Connecting... orgKey:", user.orgKey);
         // Lazy import so socket.io-client failure never crashes the page
         const { io } = await import("socket.io-client");
         const { API_URL } = await import("@/lib/portal-auth");
 
         if (cancelled) return;
 
-        console.log("[Portal Socket] API_URL:", API_URL);
         setSocketStatus("connecting");
+        const portalSocketToken =
+          typeof window !== "undefined"
+            ? window.sessionStorage.getItem(PORTAL_SOCKET_TOKEN_STORAGE_KEY) || undefined
+            : undefined;
         socketInstance = io(API_URL, {
           transports: ["polling", "websocket"],
-          auth: { orgKey: user.orgKey },
+          auth: { orgKey: user.orgKey, token: portalSocketToken },
           reconnection: true,
           reconnectionAttempts: 10,
           reconnectionDelay: 3000,
@@ -230,7 +225,6 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
         socketRef.current = socketInstance;
 
         socketInstance.on("connect", () => {
-          console.log("[Portal Socket] Connected! socket.id:", socketInstance?.id);
           setSocketStatus("connected:" + socketInstance?.id);
         });
 
@@ -240,7 +234,6 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
         });
 
         socketInstance.on("disconnect", (reason: string) => {
-          console.log("[Portal Socket] Disconnected:", reason);
           setSocketStatus("disconnected:" + reason);
         });
 
@@ -252,25 +245,22 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
           try { window.dispatchEvent(new CustomEvent("portal-user-typing-stop", { detail: data })); } catch { /* */ }
         });
 
-        socketInstance.on("message:new", (payload: { conversationId?: string; message?: { content?: string } }) => {
+        socketInstance.on("message:new", (payload: { conversationId?: string; message?: { content?: string; role?: string } }) => {
           try {
             const conversationId = payload?.conversationId || "";
             const preview = (payload?.message?.content || "").slice(0, 80);
-            console.log("[Portal] ▶▶▶ message:new received!", { conversationId, preview: preview.slice(0, 30) });
+            const role = payload?.message?.role || "";
+            const isVisitorMessage = role === "user";
             setLastMessageAt(new Date().toLocaleTimeString());
 
-            // Sound
-            console.log("[Portal] soundEnabled:", soundEnabledRef.current, "userInteracted:", _userHasInteracted);
-            if (soundEnabledRef.current) {
-              console.log("[Portal] Attempting to play notification sound...");
+            // Sound + notification only for visitor/customer messages
+            if (isVisitorMessage && soundEnabledRef.current) {
               safePlayBeep();
-            } else {
-              console.log("[Portal] Sound is DISABLED — skipping beep");
             }
 
             // Desktop notification
             try {
-              if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+              if (isVisitorMessage && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
                 const n = new Notification("New message", {
                   body: preview || "New message in conversation",
                   tag: conversationId,
@@ -286,16 +276,22 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
               }
             } catch { /* notification failed, no crash */ }
 
-            // Tell bell badge to refresh
+            // Tell bell badge to refresh only for visitor/customer messages
             try {
-              window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
-              window.dispatchEvent(new CustomEvent("portal-inbox-badge-pulse"));
+              if (isVisitorMessage) {
+                window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
+                window.dispatchEvent(new CustomEvent("portal-inbox-badge-pulse"));
+              }
             } catch { /* */ }
 
             // Notify inbox screen so it can mark active conversation as read
             try {
               window.dispatchEvent(new CustomEvent("portal-inbox-message-new", {
-                detail: { conversationId, content: payload?.message?.content || "" },
+                detail: {
+                  conversationId,
+                  content: payload?.message?.content || "",
+                  role,
+                },
               }));
             } catch { /* */ }
           } catch {
@@ -352,7 +348,6 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
   }, []);
 
   const testSound = useCallback(() => {
-    console.log("[Portal] Test sound button pressed");
     safePlayBeep();
   }, []);
 

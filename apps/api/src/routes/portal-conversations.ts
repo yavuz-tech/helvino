@@ -16,13 +16,30 @@ import { prisma } from "../prisma";
 import { store } from "../store";
 import { requirePortalUser, requirePortalRole } from "../middleware/require-portal-user";
 import { requireStepUp } from "../middleware/require-step-up";
+import { rateLimit } from "../middleware/rate-limiter";
 import { writeAuditLog } from "../utils/audit-log";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { checkMessageEntitlement, checkM2Entitlement, recordMessageUsage, recordM2Usage } from "../utils/entitlements";
 import { validateJsonContentType } from "../middleware/validation";
 import { runWorkflowsForTrigger } from "../utils/workflow-engine";
+import { validateBody } from "../utils/validate";
+import { sendMessageSchema } from "../utils/schemas";
+import { sanitizeHTML, sanitizePlainText } from "../utils/sanitize";
 
 export async function portalConversationRoutes(fastify: FastifyInstance) {
+  const portalConversationWriteRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    maxRequests: 10,
+    message: "Too many conversation operations",
+    keyBuilder: (request) => request.portalUser?.id || "anonymous-user",
+  });
+  const portalConversationMessageRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    message: "Too many message requests",
+    keyBuilder: (request) => request.portalUser?.id || "anonymous-user",
+  });
+
   // ═══════════════════════════════════════════════════════════════
   // GET /portal/conversations — Enhanced list with filters + search + pagination
   // ═══════════════════════════════════════════════════════════════
@@ -99,7 +116,7 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
           assignedTo: { select: { id: true, email: true, role: true } },
           messages: {
             orderBy: { timestamp: "desc" as const },
-            take: 1,
+            take: 5,
             select: { content: true, role: true, timestamp: true },
           },
           _count: { select: { notes: true } },
@@ -122,7 +139,9 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
       const nextCursor = hasMore ? slice[slice.length - 1]?.id || null : null;
 
       const items = slice.map((conv: any) => {
-        const lastMsg = conv.messages?.[0] || null;
+        // Prefer the last non-system/note message for preview text
+        const recentMsgs = conv.messages || [];
+        const lastMsg = recentMsgs.find((m: any) => !/^\[(system|note)\]/i.test(m.content)) || recentMsgs[0] || null;
         let slaStatus: "ok" | "warning" | "breached" | null = null;
         let slaDueAt: string | null = null;
         if (slaPolicy && conv.status === "OPEN") {
@@ -149,7 +168,13 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
           hasUnreadMessages: !!conv.hasUnreadFromUser,
           preview: lastMsg
             ? {
-                text: lastMsg.content.length > 100 ? lastMsg.content.slice(0, 100) + "..." : lastMsg.content,
+                text: (() => {
+                  // Strip [system]/[note] prefixes and HTML tags for clean preview
+                  const cleaned = lastMsg.content
+                    .replace(/^\[(system|note)\]\s*/i, "")
+                    .replace(/<[^>]*>/g, "");
+                  return cleaned.length > 100 ? cleaned.slice(0, 100) + "..." : cleaned;
+                })(),
                 from: lastMsg.role,
               }
             : null,
@@ -278,11 +303,15 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
     "/portal/conversations/bulk",
     {
       preHandler: [
+        portalConversationWriteRateLimit,
         requirePortalUser,
         requirePortalRole(["owner", "admin", "agent"]),
         requireStepUp("portal"),
         createRateLimitMiddleware({ limit: 10, windowMs: 60000 }),
       ],
+      config: {
+        skipGlobalRateLimit: true,
+      },
     },
     async (request, reply) => {
       const { ids, action, assignedToOrgUserId } = request.body;
@@ -476,6 +505,31 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
         ).catch(() => {});
       }
 
+      // System messages use structured key format: [system] KEY:param
+      // Frontend parses and translates using i18n
+      const systemMessages: string[] = [];
+      const actorName = actor.email.split("@")[0] || "Agent";
+      if (status === "CLOSED" && conversation.status !== "CLOSED") {
+        systemMessages.push(`[system] conversation_closed:${actorName}`);
+      }
+      if (assignedToUserId !== undefined && assignedToUserId !== conversation.assignedToOrgUserId) {
+        if (assignedToUserId === null) {
+          systemMessages.push("[system] ai_handoff");
+        } else {
+          const assigneeName = updated.assignedTo?.email?.split("@")[0] || "Agent";
+          systemMessages.push(`[system] agent_joined:${assigneeName}`);
+        }
+      }
+      for (const content of systemMessages) {
+        const systemMessage = await store.addMessage(id, actor.orgId, "assistant", content);
+        if (systemMessage) {
+          (fastify as any).io?.to(`org:${actor.orgId}`).emit("message:new", {
+            conversationId: id,
+            message: systemMessage,
+          });
+        }
+      }
+
       return {
         conversation: {
           id: updated.id,
@@ -499,28 +553,31 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
     "/portal/conversations/:id/messages",
     {
       preHandler: [
+        portalConversationMessageRateLimit,
         requirePortalUser,
         requirePortalRole(["owner", "admin", "agent"]),
         createRateLimitMiddleware({ limit: 120, windowMs: 60000 }),
       ],
+      config: {
+        skipGlobalRateLimit: true,
+      },
     },
     async (request, reply) => {
       const { id } = request.params;
-      const { content } = request.body;
+      const parsedBody = validateBody(sendMessageSchema, request.body, reply);
+      if (!parsedBody) return;
+
+      const content = parsedBody.content;
       const actor = request.portalUser!;
       const requestId =
         (request as any).requestId ||
         (request.headers["x-request-id"] as string) ||
         undefined;
 
-      if (!content || typeof content !== "string" || content.trim().length === 0) {
+      const sanitizedContent = sanitizeHTML(content).trim();
+      if (!sanitizedContent) {
         return reply.status(400).send({
           error: { code: "INVALID_INPUT", message: "Message content is required", requestId },
-        });
-      }
-      if (content.length > 10000) {
-        return reply.status(400).send({
-          error: { code: "INVALID_INPUT", message: "Message too long (max 10000)", requestId },
         });
       }
 
@@ -553,7 +610,7 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
         });
       }
 
-      const message = await store.addMessage(id, actor.orgId, "assistant", content.trim());
+      const message = await store.addMessage(id, actor.orgId, "assistant", sanitizedContent);
       if (!message) {
         return reply.status(404).send({
           error: { code: "NOT_FOUND", message: "Conversation not found", requestId },
@@ -659,14 +716,14 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
         (request.headers["x-request-id"] as string) ||
         undefined;
 
-      // Validate body
-      if (!body || body.trim().length === 0) {
+      const sanitizedBody = sanitizePlainText(body || "").trim();
+      if (!sanitizedBody) {
         return reply.status(400).send({
           error: { code: "INVALID_INPUT", message: "Note body is required", requestId },
         });
       }
 
-      if (body.length > 2000) {
+      if (sanitizedBody.length > 2000) {
         return reply.status(400).send({
           error: { code: "INVALID_INPUT", message: "Note body too long (max 2000)", requestId },
         });
@@ -690,7 +747,7 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
           orgId: actor.orgId,
           conversationId: id,
           authorOrgUserId: actor.id,
-          body: body.trim(),
+          body: sanitizedBody,
         },
         include: {
           author: { select: { id: true, email: true, role: true } },

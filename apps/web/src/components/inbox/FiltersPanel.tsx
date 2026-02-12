@@ -33,24 +33,24 @@ export default function FiltersPanel({
   counts,
 }: FiltersPanelProps) {
   return (
-    <div className="flex flex-col w-[260px] bg-white border-r border-slate-200/80 flex-shrink-0">
+    <div className="flex flex-col w-[260px] bg-white border-r border-[#F3E8D8] flex-shrink-0">
       {/* Search */}
-      <div className="px-4 py-3.5 border-b border-slate-100">
+      <div className="px-4 py-3.5 border-b border-[#F3E8D8]">
         <div className="relative">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search conversations..."
-            className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-[#F3E8D8] rounded-lg bg-white placeholder:text-[#94A3B8] focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all"
           />
         </div>
       </div>
 
       {/* INBOX filters */}
-      <div className="px-4 py-3 border-b border-slate-100">
-        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2.5 px-1">
+      <div className="px-4 py-3 border-b border-[#F3E8D8]">
+        <div className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2.5 px-1">
           Inbox
         </div>
         <div className="space-y-0.5">
@@ -76,8 +76,8 @@ export default function FiltersPanel({
       </div>
 
       {/* STATUS filters */}
-      <div className="px-4 py-3 border-b border-slate-100">
-        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2.5 px-1">
+      <div className="px-4 py-3 border-b border-[#F3E8D8]">
+        <div className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2.5 px-1">
           Status
         </div>
         <div className="space-y-0.5">
@@ -115,8 +115,8 @@ export default function FiltersPanel({
       </div>
 
       {/* CHANNEL filters (static for now) */}
-      <div className="px-4 py-3 border-b border-slate-100">
-        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2.5 px-1">
+      <div className="px-4 py-3 border-b border-[#F3E8D8]">
+        <div className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider mb-2.5 px-1">
           Channel
         </div>
         <div className="space-y-0.5">
@@ -146,14 +146,14 @@ function FilterItem({
       onClick={onClick}
       className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
         active
-          ? "bg-blue-50 text-blue-700"
-          : "text-slate-700 hover:bg-slate-50"
+          ? "bg-amber-50 text-amber-700"
+          : "text-[#334155] hover:bg-[#FFFBF5]"
       }`}
     >
       <span className="truncate">{label}</span>
       <span
         className={`text-xs font-semibold tabular-nums flex-shrink-0 ml-2 ${
-          active ? "text-blue-600" : "text-slate-400"
+          active ? "text-amber-600" : "text-[#94A3B8]"
         }`}
       >
         {count}

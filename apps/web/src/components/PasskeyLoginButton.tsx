@@ -184,7 +184,7 @@ export default function PasskeyLoginButton({
       type="button"
       onClick={handlePasskeyLogin}
       disabled={loading}
-      className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${className || ""}`}
+      className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-[#F3E8D8] rounded-lg text-sm font-medium text-amber-800 hover:border-amber-400 hover:bg-[#FFFBF5] transition-all disabled:opacity-50 disabled:cursor-not-allowed ${className || ""}`}
     >
       <Fingerprint size={18} />
       {loading ? t("passkeys.loginLoading") : t("passkeys.loginButton")}

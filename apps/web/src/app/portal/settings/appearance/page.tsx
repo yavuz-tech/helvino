@@ -8,6 +8,7 @@ import { portalApiFetch } from "@/lib/portal-auth";
 import Card from "@/components/ui/Card";
 import PageHeader from "@/components/ui/PageHeader";
 import { p } from "@/styles/theme";
+import { colors, fonts } from "@/lib/design-tokens";
 
 type WidgetAppearance = {
   primaryColor: string;
@@ -19,6 +20,7 @@ type WidgetAppearance = {
 };
 
 export default function PortalSettingsAppearancePage() {
+  void fonts;
   const { t } = useI18n();
   const [s, setS] = useState<WidgetAppearance | null>(null);
 
@@ -30,12 +32,16 @@ export default function PortalSettingsAppearancePage() {
   }, []);
 
   return (
-    <div className={p.sectionGap}>
+    <div className={p.sectionGap} style={{ background: colors.brand.ultraLight, borderRadius: 16, padding: 16 }}>
       <PageHeader
         title={t("settingsPortal.appearance")}
         subtitle={t("settingsPortal.appearanceSubtitle")}
         action={
-          <Link href="/portal/widget-appearance" className={p.btnPrimary}>
+          <Link
+            href="/portal/widget-appearance"
+            className="inline-flex items-center gap-1.5 rounded-[10px] px-4 py-2.5 text-[12px] font-semibold text-white transition-all hover:scale-[1.02]"
+            style={{ background: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.secondary})` }}
+          >
             {t("settingsPortal.openAppearanceStudio")}
             <ArrowUpRight size={14} />
           </Link>
@@ -43,17 +49,17 @@ export default function PortalSettingsAppearancePage() {
       />
 
       {/* ── Compact Summary Row ── */}
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
         <div className="grid gap-6 sm:grid-cols-3">
           {/* Color */}
           <div className="flex items-center gap-3">
             <div
-              className="h-9 w-9 flex-shrink-0 rounded-lg border border-slate-200"
+              className="h-9 w-9 flex-shrink-0 rounded-lg border border-[#E2E8F0]"
               style={{ backgroundColor: s?.primaryColor ?? "#3B82F6" }}
             />
             <div className="min-w-0">
               <p className={p.overline}>{t("widgetAppearance.primaryColor")}</p>
-              <p className="text-[13px] font-semibold text-slate-800 truncate">
+              <p className="text-[13px] font-semibold text-[#1A1D23] truncate">
                 {s?.primaryColor ?? "-"}
               </p>
             </div>
@@ -61,12 +67,12 @@ export default function PortalSettingsAppearancePage() {
 
           {/* Position */}
           <div className="flex items-center gap-3">
-            <div className={`${p.iconSm} ${p.iconSlate}`}>
+            <div className={`${p.iconSm} ${p.iconAmber}`}>
               <Layout size={14} />
             </div>
             <div className="min-w-0">
               <p className={p.overline}>{t("widgetAppearance.position")}</p>
-              <p className="text-[13px] font-semibold text-slate-800">
+              <p className="text-[13px] font-semibold text-[#1A1D23]">
                 {s?.position === "left"
                   ? t("widgetAppearance.positionLeft")
                   : t("widgetAppearance.positionRight")}
@@ -76,12 +82,12 @@ export default function PortalSettingsAppearancePage() {
 
           {/* Launcher */}
           <div className="flex items-center gap-3">
-            <div className={`${p.iconSm} ${p.iconSlate}`}>
+            <div className={`${p.iconSm} ${p.iconAmber}`}>
               <Eye size={14} />
             </div>
             <div className="min-w-0">
               <p className={p.overline}>{t("widgetAppearance.launcher")}</p>
-              <p className="text-[13px] font-semibold text-slate-800">
+              <p className="text-[13px] font-semibold text-[#1A1D23]">
                 {s?.launcher === "icon"
                   ? t("widgetAppearance.launcherIcon")
                   : t("widgetAppearance.launcherBubble")}
@@ -92,16 +98,16 @@ export default function PortalSettingsAppearancePage() {
       </Card>
 
       {/* ── Welcome Screen Preview ── */}
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
         <div className="mb-4 flex items-center gap-2.5">
-          <div className={`${p.iconSm} ${p.iconBlue}`}>
+          <div className={`${p.iconSm} ${p.iconAmber}`}>
             <MessageCircle size={14} />
           </div>
-          <h3 className={p.h3}>{t("widgetAppearance.welcomeTitle")}</h3>
+          <h3 className="font-heading font-semibold text-[15px] text-[#1A1D23]">{t("widgetAppearance.welcomeTitle")}</h3>
         </div>
 
         {/* Mini widget preview */}
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+        <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-5">
           <div className="mx-auto max-w-xs">
             {/* Simulated widget header */}
             <div
@@ -109,19 +115,19 @@ export default function PortalSettingsAppearancePage() {
               style={{ backgroundColor: s?.primaryColor ?? "#3B82F6" }}
             >
               <p className="text-[12px] font-semibold text-white/90">
-                {s?.brandName ?? "Helvino"}
+                {s?.brandName ?? "Helvion"}
               </p>
             </div>
             {/* Content */}
-            <div className="rounded-b-xl border border-t-0 border-slate-200 bg-white p-4">
-              <p className="text-[13px] font-semibold text-slate-800">
+            <div className="rounded-b-xl border border-t-0 border-[#E2E8F0] bg-white p-4">
+              <p className="text-[13px] font-semibold text-[#1A1D23]">
                 {s?.welcomeTitle ?? "-"}
               </p>
-              <p className="mt-1.5 text-[12px] leading-relaxed text-slate-500">
+              <p className="mt-1.5 text-[12px] leading-relaxed text-[#64748B]">
                 {s?.welcomeMessage ?? "-"}
               </p>
-              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-[11px] text-slate-400">
+              <div className="mt-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2">
+                <p className="text-[11px] text-[#94A3B8]">
                   {t("settingsPortal.chatPlaceholder")}...
                 </p>
               </div>
@@ -132,14 +138,14 @@ export default function PortalSettingsAppearancePage() {
 
       {/* ── Brand Info ── */}
       {s?.brandName && (
-        <Card>
+        <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
           <div className="flex items-center gap-3">
             <div className={`${p.iconSm} ${p.iconViolet}`}>
               <Palette size={14} />
             </div>
             <div>
               <p className={p.overline}>{t("widgetAppearance.primaryColor")}</p>
-              <p className="text-[13px] font-semibold text-slate-800">
+              <p className="text-[13px] font-semibold text-[#1A1D23]">
                 {s.brandName}
               </p>
             </div>

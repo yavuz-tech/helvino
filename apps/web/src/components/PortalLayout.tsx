@@ -10,19 +10,28 @@ import {
   X,
   Bell,
   CheckCheck,
-  MessageCircle,
 } from "lucide-react";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useI18n } from "@/i18n/I18nContext";
 import type { TranslationKey } from "@/i18n/translations";
 import { portalApiFetch } from "@/lib/portal-auth";
+import { rememberPublicWidgetIdentity } from "@/lib/public-widget";
+import { colors, fonts, shadow, radius, ui } from "@/lib/design-tokens";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import CampaignTopBanner from "@/components/CampaignTopBanner";
+import { bubbleBorderRadius, resolveWidgetBubbleTheme } from "@helvino/shared";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 interface WidgetBubbleSettings {
   primaryColor: string;
   position: "right" | "left";
   launcher: "bubble" | "icon";
+  bubbleShape?: "circle" | "rounded-square";
+  bubbleIcon?: "chat" | "message" | "help" | "custom";
+  bubbleSize?: number;
+  bubblePosition?: "bottom-right" | "bottom-left";
+  greetingText?: string;
+  greetingEnabled?: boolean;
   welcomeTitle: string;
 }
 
@@ -196,10 +205,15 @@ export default function PortalLayout({
 }: {
   children: React.ReactNode;
 }) {
+  void shadow;
+  void radius;
+  void ui;
+  void fonts;
   const { user, logout } = usePortalAuth();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [currentPlanKey, setCurrentPlanKey] = useState<string | null>(null);
   const [bellPulse, setBellPulse] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [widgetSettings, setWidgetSettings] = useState<WidgetBubbleSettings | null>(null);
@@ -212,6 +226,8 @@ export default function PortalLayout({
   const userAvatarUrl = (user as { avatarUrl?: string } | null)?.avatarUrl;
   const userName = (user as { name?: string } | null)?.name;
   const avatarLetter = (userName?.charAt(0) || user?.email?.charAt(0) || "U").toUpperCase();
+  const normalizedPlanKey = (currentPlanKey || "").trim().toLowerCase();
+  const showSidebarUpgradeCta = normalizedPlanKey === "free";
 
   const fetchWidgetSettings = useCallback(async () => {
     try {
@@ -219,6 +235,20 @@ export default function PortalLayout({
       if (!res.ok) return;
       const data = await res.json();
       if (data?.settings) setWidgetSettings(data.settings as WidgetBubbleSettings);
+    } catch {
+      // silent
+    }
+  }, []);
+
+  const syncPublicWidgetIdentity = useCallback(async () => {
+    try {
+      const res = await portalApiFetch(`/portal/widget/config?_t=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      const siteId = data?.embedSnippet?.siteId;
+      if (siteId) {
+        rememberPublicWidgetIdentity({ siteId });
+      }
     } catch {
       // silent
     }
@@ -233,7 +263,8 @@ export default function PortalLayout({
   useEffect(() => {
     if (!user) return;
     fetchWidgetSettings();
-  }, [user, fetchWidgetSettings]);
+    syncPublicWidgetIdentity();
+  }, [user, fetchWidgetSettings, syncPublicWidgetIdentity]);
 
   // Refresh widget settings when user customizes them
   useEffect(() => {
@@ -243,10 +274,11 @@ export default function PortalLayout({
         setWidgetSettings(custom.detail.settings);
       }
       fetchWidgetSettings();
+      syncPublicWidgetIdentity();
     };
     window.addEventListener("widget-settings-updated", handler as EventListener);
     return () => window.removeEventListener("widget-settings-updated", handler as EventListener);
-  }, [fetchWidgetSettings]);
+  }, [fetchWidgetSettings, syncPublicWidgetIdentity]);
 
   // Live preview sync from widget appearance editor (no API roundtrip)
   useEffect(() => {
@@ -316,6 +348,34 @@ export default function PortalLayout({
     };
   }, [user, pathname]);
 
+  // Keep sidebar upgrade card aligned with actual plan.
+  // Pro+ users should only see upgrade prompts on locked higher-tier screens.
+  useEffect(() => {
+    if (!user) return;
+    let mounted = true;
+
+    const fetchPlan = async () => {
+      try {
+        const res = await portalApiFetch(`/portal/billing/status?_t=${Date.now()}`, {
+          cache: "no-store",
+        });
+        if (!res.ok || !mounted) return;
+        const data = await res.json();
+        const key = String(data?.plan?.key || data?.org?.planKey || "").trim().toLowerCase();
+        if (key && mounted) {
+          setCurrentPlanKey(key);
+        }
+      } catch {
+        // silent
+      }
+    };
+
+    fetchPlan();
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
+
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("sidebar-collapsed");
@@ -369,8 +429,55 @@ export default function PortalLayout({
     } catch { /* */ }
   }, [fetchUnreadCount]);
 
+  const bubbleTheme = widgetSettings
+    ? resolveWidgetBubbleTheme(
+        {
+          primaryColor: widgetSettings.primaryColor,
+          bubbleShape: widgetSettings.bubbleShape,
+          bubbleIcon: widgetSettings.bubbleIcon,
+          bubbleSize: widgetSettings.bubbleSize,
+          bubblePosition: widgetSettings.bubblePosition,
+          greetingText: widgetSettings.greetingText,
+          greetingEnabled: widgetSettings.greetingEnabled,
+        },
+        {
+          position: widgetSettings.position,
+          launcher: widgetSettings.launcher,
+          launcherLabel: "",
+        }
+      )
+    : null;
+
+  const renderBubbleIcon = () => {
+    if (!bubbleTheme) return null;
+    if (bubbleTheme.bubbleIcon === "help") {
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.8 9.4a2.3 2.3 0 0 1 4.4.9c0 1.9-2.2 2.1-2.2 3.5" />
+          <circle cx="12" cy="17.1" r="1" fill="#FFF" stroke="none" />
+        </svg>
+      );
+    }
+    if (bubbleTheme.bubbleIcon === "message") {
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 5h16v10H8l-4 4V5z" />
+        </svg>
+      );
+    }
+    if (bubbleTheme.bubbleIcon === "custom") {
+      return <span className="text-[15px] font-bold text-white">★</span>;
+    }
+    return (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 isolate">
+    <div className="min-h-screen bg-[#FFFBF5] isolate">
       {mobileSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
@@ -386,7 +493,9 @@ export default function PortalLayout({
       >
         <div
           className={`shrink-0 ${sidebarOpen ? "px-5 py-5" : "px-[15px] py-[15px]"}`}
-          style={{ background: "linear-gradient(135deg, #F59E0B 0%, #D97706 60%, #B45309 100%)" }}
+          style={{
+            background: `linear-gradient(135deg, ${colors.brand.primary} 0%, ${colors.brand.secondary} 60%, ${colors.brand.tertiary} 100%)`,
+          }}
         >
           {sidebarOpen ? (
             <div className="flex w-full items-start justify-between gap-3">
@@ -512,12 +621,12 @@ export default function PortalLayout({
           ))}
         </nav>
 
-        {sidebarOpen && (
+        {sidebarOpen && showSidebarUpgradeCta && (
         <div className="shrink-0 border-t border-black/5 bg-white px-4 pb-4 pt-3">
           <div
             className="rounded-xl border px-3.5 py-3"
             style={{
-              background: "linear-gradient(135deg, #FFFBEB, #FEF3C7)",
+              background: `linear-gradient(135deg, ${colors.brand.ultraLight}, ${colors.brand.light})`,
               borderColor: "rgba(245, 158, 11, 0.1)",
             }}
           >
@@ -548,12 +657,12 @@ export default function PortalLayout({
         style={{ transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)" }}
       >
         {/* Top bar */}
-        <header className="relative h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 flex items-center px-5 sticky top-0 z-[100] shadow-sm pointer-events-auto">
+        <header className="relative h-16 bg-white/95 backdrop-blur-md border-b border-[#F3E8D8] flex items-center px-5 sticky top-0 z-[100] shadow-sm pointer-events-auto">
           <button
             onClick={() => setMobileSidebarOpen(true)}
-            className="relative z-[2] lg:hidden hover:bg-slate-100 rounded-lg p-2 transition-colors"
+            className="relative z-[2] lg:hidden hover:bg-amber-50 rounded-lg p-2 transition-colors"
           >
-            <Menu size={20} strokeWidth={2} className="text-slate-400" />
+            <Menu size={20} strokeWidth={2} className="text-amber-500" />
           </button>
 
           {/* Campaign gradient — blends into header background */}
@@ -571,27 +680,27 @@ export default function PortalLayout({
                 aria-label={t("inbox.bell.recentMessages")}
                 aria-expanded={bellOpen}
               >
-                <Bell size={18} strokeWidth={2} className="text-slate-500 transition-colors duration-200 group-hover:text-[#64748B]" />
+                <Bell size={18} strokeWidth={2} className="text-amber-600 transition-colors duration-200 group-hover:text-[#64748B]" />
                 {unreadCount > 0 && (
                   <span className="absolute right-1 top-1 h-2 w-2 rounded-full border-2 border-white bg-[#EF4444] bell-dot" />
                 )}
               </button>
               {bellOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-200/40 overflow-hidden z-30">
+                <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-[#F3E8D8] bg-white shadow-xl shadow-amber-200/30 overflow-hidden z-30">
                   {/* Header */}
-                  <div className={`px-5 py-4 ${unreadCount > 0 ? "bg-gradient-to-r from-blue-50 to-indigo-50/60 border-b border-blue-100/60" : "bg-slate-50/80 border-b border-slate-100"}`}>
+                  <div className={`px-5 py-4 ${unreadCount > 0 ? "bg-gradient-to-r from-amber-50 to-amber-50/80 border-b border-amber-100/60" : "bg-[#FFFBF5]/80 border-b border-[#F3E8D8]"}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${unreadCount > 0 ? "bg-blue-500/10" : "bg-slate-200/60"}`}>
-                          <Bell size={15} className={unreadCount > 0 ? "text-blue-600" : "text-slate-400"} />
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${unreadCount > 0 ? "bg-amber-500/10" : "bg-amber-100/60"}`}>
+                          <Bell size={15} className={unreadCount > 0 ? "text-amber-600" : "text-amber-500"} />
                         </div>
                         <div>
-                          <p className="text-[13px] font-semibold text-slate-800">
+                          <p className="text-[13px] font-semibold text-amber-900">
                             {unreadCount > 0
                               ? t("inbox.bell.unreadCount").replace("{count}", String(unreadCount))
                               : t("inbox.bell.noUnread")}
                           </p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">{t("inbox.bell.recentMessages")}</p>
+                          <p className="text-[11px] text-amber-500 mt-0.5">{t("inbox.bell.recentMessages")}</p>
                         </div>
                       </div>
                       {unreadCount > 0 && (
@@ -606,10 +715,10 @@ export default function PortalLayout({
                     <button
                       type="button"
                       onClick={() => goToInbox(unreadCount > 0)}
-                      className="flex w-full items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition-all duration-150"
+                      className="flex w-full items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-amber-800 hover:bg-[#FFFBF5] transition-all duration-150"
                     >
-                      <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                        <Inbox size={14} className="text-slate-500" />
+                      <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                        <Inbox size={14} className="text-amber-600" />
                       </div>
                       {t("nav.inbox")}
                     </button>
@@ -617,10 +726,10 @@ export default function PortalLayout({
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); clearBadge(() => setBellOpen(false)); }}
-                        className="flex w-full items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-blue-700 hover:bg-blue-50 transition-all duration-150"
+                        className="flex w-full items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-amber-700 hover:bg-amber-50 transition-all duration-150"
                       >
-                        <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                          <CheckCheck size={14} className="text-blue-600" />
+                        <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                          <CheckCheck size={14} className="text-amber-600" />
                         </div>
                         {t("inbox.markAllRead")}
                       </button>
@@ -633,16 +742,16 @@ export default function PortalLayout({
             {user ? (
               <div className="ml-1 flex items-center gap-2">
                 <div className="hidden sm:block text-right mr-1">
-                  <p className="text-[13px] font-semibold text-slate-800 leading-tight">
+                  <p className="text-[13px] font-semibold text-amber-900 leading-tight">
                     {user.email}
                   </p>
-                  <p className="text-[11px] text-slate-500">{user.role}</p>
+                  <p className="text-[11px] text-amber-600">{user.role}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => router.push("/portal/settings")}
                   className="group flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border-2 border-white/80 shadow-[0_2px_8px_rgba(245,158,11,0.25)] transition-all duration-200 hover:scale-105 hover:shadow-[0_4px_12px_rgba(245,158,11,0.35)]"
-                  style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+                  style={{ background: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.secondary})` }}
                   title={t("nav.settings")}
                   aria-label={t("nav.settings")}
                 >
@@ -658,7 +767,7 @@ export default function PortalLayout({
             ) : null}
             <button
               onClick={logout}
-              className="flex items-center gap-1.5 px-2.5 py-2 text-[13px] text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-all duration-150"
+              className="flex items-center gap-1.5 px-2.5 py-2 text-[13px] text-amber-700 hover:bg-amber-50 hover:text-amber-900 rounded-lg transition-all duration-150"
               title={t("common.logout")}
             >
               <LogOut size={15} strokeWidth={2} />
@@ -671,49 +780,65 @@ export default function PortalLayout({
           <CampaignTopBanner source="portal" />
         </div>
 
-        {pathname === "/portal/inbox" ? (
-          <>{children}</>
-        ) : (
-          <main className="relative z-0 p-5 sm:p-6">{children}</main>
-        )}
+        <ErrorBoundary>
+          {pathname === "/portal/inbox" ? (
+            <>{children}</>
+          ) : (
+            <main className="relative z-0 p-5 sm:p-6">{children}</main>
+          )}
+        </ErrorBoundary>
       </div>
 
       {/* ── Floating Widget Bubble (customer's own customization) ── */}
-      {widgetSettings && (
+      {widgetSettings && bubbleTheme && (
         <div
-          className={`fixed bottom-6 z-[60] ${widgetSettings.position === "left" ? "left-6 lg:left-[276px]" : "right-6"}`}
+          className={`fixed bottom-6 z-[60] ${bubbleTheme.bubblePosition === "bottom-left" ? "left-6 lg:left-[276px]" : "right-6"}`}
           onMouseEnter={() => setBubbleHover(true)}
           onMouseLeave={() => setBubbleHover(false)}
         >
           {/* Tooltip on hover */}
           <div
-            className={`absolute bottom-full mb-2.5 ${widgetSettings.position === "left" ? "left-0" : "right-0"} transition-all duration-200 pointer-events-none ${
+            className={`absolute bottom-full mb-2.5 ${bubbleTheme.bubblePosition === "bottom-left" ? "left-0" : "right-0"} transition-all duration-200 pointer-events-none ${
               bubbleHover ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
             }`}
           >
-            <div className="bg-slate-900 text-white text-[11px] font-semibold px-3 py-2 rounded-xl shadow-lg whitespace-nowrap">
+            <div className="bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[11px] font-semibold px-3 py-2 rounded-xl shadow-lg whitespace-nowrap">
               {widgetSettings.welcomeTitle}
-              <div className={`absolute -bottom-1 ${widgetSettings.position === "left" ? "left-5" : "right-5"} w-2 h-2 bg-slate-900 rotate-45`} />
+              <div className={`absolute -bottom-1 ${bubbleTheme.bubblePosition === "bottom-left" ? "left-5" : "right-5"} w-2 h-2 bg-amber-500 rotate-45`} />
             </div>
           </div>
 
-          {/* Bubble */}
+          {bubbleTheme.greetingEnabled && bubbleTheme.greetingText ? (
+            <div
+              className={`mb-2 max-w-[210px] rounded-xl border border-black/10 bg-white px-3 py-2 text-[12px] font-semibold text-amber-800 shadow-lg ${
+                bubbleTheme.bubblePosition === "bottom-left" ? "text-left" : "text-right"
+              }`}
+            >
+              {bubbleTheme.greetingText}
+            </div>
+          ) : null}
+
+          {/* Bubble / Button launcher */}
           <button
             type="button"
             onClick={() => router.push("/portal/widget-appearance")}
-            className="group relative w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-2xl active:scale-95"
+            className="group relative shadow-xl flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-2xl active:scale-95"
             style={{
-              backgroundColor: widgetSettings.primaryColor,
-              boxShadow: `0 8px 25px ${widgetSettings.primaryColor}40, 0 4px 10px ${widgetSettings.primaryColor}30`,
+              backgroundColor: bubbleTheme.primaryColor,
+              boxShadow: `0 8px 25px ${bubbleTheme.primaryColor}40, 0 4px 10px ${bubbleTheme.primaryColor}30`,
+              width: bubbleTheme.bubbleSize,
+              height: bubbleTheme.bubbleSize,
+              borderRadius: bubbleBorderRadius(bubbleTheme.bubbleShape, bubbleTheme.bubbleSize),
             }}
             title={t("dashboard.widgetPreview.customize")}
           >
-            <MessageCircle size={24} className="text-white group-hover:scale-110 transition-transform duration-200" />
-            {/* Pulse ring */}
-            <span
-              className="absolute inset-0 rounded-full animate-ping opacity-20"
-              style={{ backgroundColor: widgetSettings.primaryColor }}
-            />
+            {renderBubbleIcon()}
+            {bubbleTheme.bubbleShape === "circle" && widgetSettings.launcher === "bubble" && (
+              <span
+                className="absolute inset-0 rounded-full animate-ping opacity-20"
+                style={{ backgroundColor: bubbleTheme.primaryColor }}
+              />
+            )}
           </button>
         </div>
       )}

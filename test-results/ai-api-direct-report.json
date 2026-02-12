@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-02-12T00:07:33.831Z",
+  "testMessage": "AI debug live test message",
+  "conversationId": "1770854793646-uowf4ktoe",
+  "orgKey": "demo",
+  "aiEnabled": true,
+  "visitorMessageSent": true,
+  "aiResponseFound": false,
+  "attempts": 30,
+  "maxAttempts": 30,
+  "success": false,
+  "aiMessage": null
+}

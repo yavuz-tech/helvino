@@ -31,7 +31,7 @@ export default function DebugBanner() {
       <div className="fixed bottom-4 right-4 z-50">
         <button
           onClick={() => setIsMinimized(false)}
-          className="bg-slate-800 text-white px-3 py-2 rounded-lg shadow-lg text-xs font-mono hover:bg-slate-700 transition-colors"
+          className="bg-[#1E293B] text-white px-3 py-2 rounded-lg shadow-lg text-xs font-mono hover:bg-[#334155] transition-colors"
         >
           🐛 {t("debug.panel")}
         </button>
@@ -40,16 +40,16 @@ export default function DebugBanner() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 bg-slate-800 text-white rounded-lg shadow-2xl w-96 max-w-full">
+    <div className="fixed bottom-4 right-4 z-50 bg-[#1E293B] text-white rounded-lg shadow-2xl w-96 max-w-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[#334155]">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold">🐛 {t("debug.panel")}</span>
-          <span className="text-xs text-slate-400">({t("debug.devOnly")})</span>
+          <span className="text-xs text-[#94A3B8]">({t("debug.devOnly")})</span>
         </div>
         <button
           onClick={() => setIsMinimized(true)}
-          className="text-slate-400 hover:text-white transition-colors"
+          className="text-[#94A3B8] hover:text-white transition-colors"
         >
           ─
         </button>
@@ -59,15 +59,15 @@ export default function DebugBanner() {
       <div className="p-4 space-y-3 font-mono text-xs">
         {/* API URL */}
         <div>
-          <div className="text-slate-400 mb-1">{t("debug.apiUrl")}:</div>
-          <div className="bg-slate-900 px-2 py-1 rounded text-green-400 break-all">
+          <div className="text-[#94A3B8] mb-1">{t("debug.apiUrl")}:</div>
+          <div className="bg-[#0F172A] px-2 py-1 rounded text-green-400 break-all">
             {apiUrl}
           </div>
         </div>
 
         {/* Socket Status */}
         <div>
-          <div className="text-slate-400 mb-1">{t("debug.socketStatus")}:</div>
+          <div className="text-[#94A3B8] mb-1">{t("debug.socketStatus")}:</div>
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${statusColor} animate-pulse`}></div>
             <span className="text-white">{statusText}</span>
@@ -76,21 +76,21 @@ export default function DebugBanner() {
 
         {/* Recent Requests */}
         <div>
-          <div className="text-slate-400 mb-1">{t("debug.lastRequests")}:</div>
+          <div className="text-[#94A3B8] mb-1">{t("debug.lastRequests")}:</div>
           {requests.length === 0 ? (
-            <div className="text-slate-500 italic">{t("debug.noRequests")}</div>
+            <div className="text-[#64748B] italic">{t("debug.noRequests")}</div>
           ) : (
             <div className="space-y-1 max-h-40 overflow-y-auto">
               {requests.map((req) => (
                 <div
                   key={req.id}
-                  className="bg-slate-900 px-2 py-1 rounded text-xs"
+                  className="bg-[#0F172A] px-2 py-1 rounded text-xs"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-blue-400 font-semibold">
+                    <span className="text-amber-400 font-semibold">
                       {req.method}
                     </span>
-                    <span className="text-slate-300 flex-1 truncate">
+                    <span className="text-[#CBD5E1] flex-1 truncate">
                       {req.path}
                     </span>
                     <span
@@ -105,7 +105,7 @@ export default function DebugBanner() {
                       {req.status || "..."}
                     </span>
                   </div>
-                  <div className="text-slate-500 text-[10px] mt-0.5">
+                  <div className="text-[#64748B] text-[10px] mt-0.5">
                     {req.timestamp.toLocaleTimeString()}
                   </div>
                 </div>
@@ -116,7 +116,7 @@ export default function DebugBanner() {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 border-t border-slate-700 text-[10px] text-slate-500 text-center">
+      <div className="px-4 py-2 border-t border-[#334155] text-[10px] text-[#64748B] text-center">
         {t("debug.autoHides")}
       </div>
     </div>

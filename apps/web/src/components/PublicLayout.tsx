@@ -9,6 +9,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import CurrencySwitcher from "@/components/CurrencySwitcher";
 import CampaignTopBanner from "@/components/CampaignTopBanner";
 import { designTokens } from "@/lib/designTokens";
+import { colors, fonts } from "@/lib/design-tokens";
 import {
   MessageCircle,
   Inbox,
@@ -145,8 +146,8 @@ function DesktopDropdown({
         aria-controls={panelId}
         className={`inline-flex items-center gap-1 px-3.5 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${
           isOpen
-            ? "text-slate-900 bg-slate-100"
-            : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+            ? "text-amber-900 bg-amber-50"
+            : "text-amber-600 hover:text-amber-900 hover:bg-[#FFFBF5]"
         }`}
       >
         {t(dropdown.labelKey as Parameters<typeof t>[0])}
@@ -159,7 +160,7 @@ function DesktopDropdown({
         <div
           id={panelId}
           role="menu"
-          className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-2xl border border-slate-200/80 ${designTokens.shadows.elevated} p-2 z-50 ${
+          className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-2xl border border-[#F3E8D8] ${designTokens.shadows.elevated} p-2 z-50 ${
             isWide ? "w-[540px] grid grid-cols-2 gap-0.5" : "w-[320px]"
           }`}
         >
@@ -169,14 +170,14 @@ function DesktopDropdown({
               href={item.href}
               role="menuitem"
               onClick={onClose}
-              className="flex items-start gap-3 px-3.5 py-3 rounded-xl hover:bg-slate-50 transition-colors duration-150 group"
+              className="flex items-start gap-3 px-3.5 py-3 rounded-xl hover:bg-[#FFFBF5] transition-colors duration-150 group"
             >
               <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
               <div>
-                <span className="text-sm font-medium text-slate-900 group-hover:text-[#0F5C5C] transition-colors">
+                <span className="text-sm font-medium text-amber-900 group-hover:text-[#0F5C5C] transition-colors">
                   {t(item.labelKey as Parameters<typeof t>[0])}
                 </span>
-                <span className="block text-xs text-slate-400 mt-0.5 leading-relaxed">
+                <span className="block text-xs text-amber-500 mt-0.5 leading-relaxed">
                   {t(item.descKey as Parameters<typeof t>[0])}
                 </span>
               </div>
@@ -206,15 +207,15 @@ function MobileAccordion({
   t: ReturnType<typeof useI18n>["t"];
 }) {
   return (
-    <div className="border-b border-slate-100 last:border-b-0">
+    <div className="border-b border-amber-100 last:border-b-0">
       <button
         onClick={onToggle}
         aria-expanded={isOpen}
-        className="w-full flex items-center justify-between px-4 py-3.5 text-sm font-medium text-slate-700"
+        className="w-full flex items-center justify-between px-4 py-3.5 text-sm font-medium text-amber-800"
       >
         {t(dropdown.labelKey as Parameters<typeof t>[0])}
         <ChevronDown
-          className={`w-4 h-4 text-slate-400 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-amber-500 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`}
         />
       </button>
       {isOpen && (
@@ -224,7 +225,7 @@ function MobileAccordion({
               key={item.labelKey}
               href={item.href}
               onClick={onLinkClick}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 text-sm text-slate-600"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#FFFBF5] text-sm text-amber-700"
             >
               <span className="flex-shrink-0">{item.icon}</span>
               {t(item.labelKey as Parameters<typeof t>[0])}
@@ -310,6 +311,8 @@ export default function PublicLayout({
 }: {
   children: React.ReactNode;
 }) {
+  void colors;
+  void fonts;
   const { t } = useI18n();
   const pathname = usePathname();
 
@@ -340,10 +343,10 @@ export default function PublicLayout({
   return (
     <div className="min-h-screen flex flex-col bg-white">
       {/* ── Header ── */}
-      <header className="border-b border-slate-200/60 bg-white/90 backdrop-blur-md sticky top-0 z-40">
+      <header className="border-b border-[#F3E8D8] bg-white/90 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
           {/* Logo */}
-          <Link href="/" className="text-lg font-bold text-slate-900 tracking-tight flex-shrink-0">
+          <Link href="/" className="text-lg font-bold text-amber-900 tracking-tight flex-shrink-0">
             {APP_NAME}
           </Link>
 
@@ -361,7 +364,7 @@ export default function PublicLayout({
             ))}
             <Link
               href="/pricing"
-              className="px-3.5 py-2 text-sm font-medium text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-50 transition-all duration-150"
+              className="px-3.5 py-2 text-sm font-medium text-amber-600 hover:text-amber-900 rounded-lg hover:bg-amber-50 transition-all duration-150"
             >
               {t("nav.pricing")}
             </Link>
@@ -373,13 +376,13 @@ export default function PublicLayout({
             <CurrencySwitcher />
             <Link
               href="/contact"
-              className="px-3.5 py-2 text-sm text-slate-600 hover:text-slate-900 transition-colors font-medium rounded-lg hover:bg-slate-50"
+              className="px-3.5 py-2 text-sm text-amber-700 hover:text-amber-900 transition-colors font-medium rounded-lg hover:bg-amber-50"
             >
               {t("nav.contactSales")}
             </Link>
             <Link
               href="/portal/login?reauth=1"
-              className="px-3.5 py-2 text-sm text-slate-600 hover:text-slate-900 transition-colors font-medium rounded-lg hover:bg-slate-50"
+              className="px-3.5 py-2 text-sm text-amber-700 hover:text-amber-900 transition-colors font-medium rounded-lg hover:bg-amber-50"
             >
               {t("common.login")}
             </Link>
@@ -398,12 +401,12 @@ export default function PublicLayout({
             <button
               onClick={() => setMobileMenuOpen((v) => !v)}
               aria-label={t("nav.menu")}
-              className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+              className="p-2 rounded-lg hover:bg-amber-50 transition-colors"
             >
               {mobileMenuOpen ? (
-                <X className="w-5 h-5 text-slate-700" />
+                <X className="w-5 h-5 text-amber-800" />
               ) : (
-                <Menu className="w-5 h-5 text-slate-700" />
+                <Menu className="w-5 h-5 text-amber-800" />
               )}
             </button>
           </div>
@@ -411,7 +414,7 @@ export default function PublicLayout({
 
         {/* ── Mobile menu ── */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-slate-200/60 bg-white max-h-[80vh] overflow-y-auto">
+          <div className="lg:hidden border-t border-[#F3E8D8] bg-white max-h-[80vh] overflow-y-auto">
             {NAV_DROPDOWNS.map((dd) => (
               <MobileAccordion
                 key={dd.id}
@@ -427,13 +430,13 @@ export default function PublicLayout({
             <Link
               href="/pricing"
               onClick={closeMobile}
-              className="block px-4 py-3.5 text-sm font-medium text-slate-700 border-b border-slate-100"
+              className="block px-4 py-3.5 text-sm font-medium text-amber-800 border-b border-amber-100"
             >
               {t("nav.pricing")}
             </Link>
 
             {/* Mobile CTAs */}
-            <div className="p-4 space-y-2 border-t border-slate-100">
+            <div className="p-4 space-y-2 border-t border-amber-100">
               <Link
                 href="/signup"
                 onClick={closeMobile}
@@ -467,16 +470,16 @@ export default function PublicLayout({
       <main className="flex-1">{children}</main>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-slate-200/60 bg-slate-50/50">
+      <footer className="border-t border-[#F3E8D8] bg-[#FFFBF5]/50">
         <div className="max-w-7xl mx-auto px-6 py-14">
           {/* Top row: brand + columns */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-8 mb-12">
             {/* Brand column */}
             <div className="col-span-2 sm:col-span-3 lg:col-span-1 mb-4 lg:mb-0">
-              <Link href="/" className="text-lg font-bold text-slate-900 tracking-tight">
+              <Link href="/" className="text-lg font-bold text-amber-900 tracking-tight">
                 {APP_NAME}
               </Link>
-              <p className="text-sm text-slate-500 mt-2 leading-relaxed max-w-[200px]">
+              <p className="text-sm text-amber-600 mt-2 leading-relaxed max-w-[200px]">
                 {t("footer.tagline")}
               </p>
               <div className="flex gap-2 mt-5">
@@ -492,7 +495,7 @@ export default function PublicLayout({
             {/* Directory columns */}
             {FOOTER_COLUMNS.map((col) => (
               <div key={col.headingKey}>
-                <h4 className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-4">
+                <h4 className="text-[11px] font-semibold text-amber-500 uppercase tracking-widest mb-4">
                   {t(col.headingKey as Parameters<typeof t>[0])}
                 </h4>
                 <ul className="space-y-2.5 text-sm">
@@ -500,7 +503,7 @@ export default function PublicLayout({
                     <li key={link.labelKey + link.href}>
                       <Link
                         href={link.href}
-                        className="text-slate-500 hover:text-slate-900 transition-colors"
+                        className="text-amber-600 hover:text-amber-900 transition-colors"
                       >
                         {t(link.labelKey as Parameters<typeof t>[0])}
                       </Link>
@@ -512,20 +515,20 @@ export default function PublicLayout({
           </div>
 
           {/* Bottom legal row */}
-          <div className="border-t border-slate-200/60 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-slate-400" suppressHydrationWarning>
+          <div className="border-t border-[#F3E8D8] pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs text-amber-500" suppressHydrationWarning>
               &copy; {new Date().getFullYear()} {APP_NAME}. {t("home.allRightsReserved")}
             </p>
-            <div className="flex items-center gap-3 text-[11px] text-slate-400">
-              <Link href="/compliance" className="hover:text-slate-600 transition-colors">
+            <div className="flex items-center gap-3 text-[11px] text-amber-500">
+              <Link href="/compliance" className="hover:text-amber-700 transition-colors">
                 {t("footer.privacy")}
               </Link>
-              <span className="w-1 h-1 rounded-full bg-slate-300" />
-              <Link href="/compliance" className="hover:text-slate-600 transition-colors">
+              <span className="w-1 h-1 rounded-full bg-amber-400" />
+              <Link href="/compliance" className="hover:text-amber-700 transition-colors">
                 {t("footer.terms")}
               </Link>
-              <span className="w-1 h-1 rounded-full bg-slate-300" />
-              <Link href="/security" className="hover:text-slate-600 transition-colors">
+              <span className="w-1 h-1 rounded-full bg-amber-400" />
+              <Link href="/security" className="hover:text-amber-700 transition-colors">
                 {t("footer.security")}
               </Link>
             </div>

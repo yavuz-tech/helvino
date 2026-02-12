@@ -29,7 +29,7 @@ function escapeHtml(value: string): string {
 
 const SUBJECT_LINES: Record<SubjectVariant, string> = {
   A: "Neredeyse bitmisti! 🎁 Size ozel %20 indirim",
-  B: "Helvino planiniz hazir - Son adim kaldi!",
+  B: "Helvion planiniz hazir - Son adim kaldi!",
   C: "Kacirmayin: Ozel indirimli fiyat sizin icin sakli",
 };
 
@@ -65,7 +65,7 @@ export function renderAbandonedCheckoutEmail(
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
           <tr>
             <td style="padding:24px 28px;background:#0F5C5C;">
-              <div style="font-size:24px;font-weight:700;color:#ffffff;letter-spacing:0.3px;">Helvino</div>
+              <div style="font-size:24px;font-weight:700;color:#ffffff;letter-spacing:0.3px;">Helvion</div>
             </td>
           </tr>
           <tr>
@@ -86,7 +86,7 @@ export function renderAbandonedCheckoutEmail(
               </div>
 
               <div style="margin:0 0 20px 0;padding:16px;border:1px solid #e5e7eb;border-radius:10px;background:#f9fafb;">
-                <p style="margin:0 0 10px 0;font-weight:700;color:#111827;">Helvino ile:</p>
+                <p style="margin:0 0 10px 0;font-weight:700;color:#111827;">Helvion ile:</p>
                 <p style="margin:0;color:#374151;line-height:1.9;">
                   ✅ Sinirsiz canli destek konusmalari<br>
                   ✅ AI-destekli otomatik yanitlar<br>
@@ -108,14 +108,14 @@ export function renderAbandonedCheckoutEmail(
               <p style="margin:0 0 20px 0;font-size:14px;color:#b91c1c;font-weight:700;">Bu ozel fiyat 24 saat gecerli!</p>
 
               <p style="margin:0 0 4px 0;font-size:15px;color:#374151;">Iyi calismalar,</p>
-              <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">Helvino Ekibi</p>
+              <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">Helvion Ekibi</p>
             </td>
           </tr>
           <tr>
             <td style="padding:18px 28px;background:#f9fafb;border-top:1px solid #e5e7eb;">
               <p style="margin:0 0 10px 0;font-size:13px;color:#6b7280;">
                 P.S. Sorulariniz mi var? Cevaplamaktan mutluluk duyariz:
-                <a href="mailto:support@helvino.com" style="color:#0F5C5C;text-decoration:none;">support@helvino.com</a>
+                <a href="mailto:support@helvion.io" style="color:#0F5C5C;text-decoration:none;">support@helvion.io</a>
               </p>
               <p style="margin:0;font-size:12px;">
                 <a href="{{unsubscribe_url}}" style="color:#9ca3af;text-decoration:underline;">Abonelikten Cik</a>
@@ -139,7 +139,7 @@ Sadece size ozel: %20 indirim! 🎁
 
 Ilk aya ozel indirim kodunuz: ${params.promoCode}
 
-Helvino ile:
+Helvion ile:
 ✅ Sinirsiz canli destek konusmalari
 ✅ AI-destekli otomatik yanitlar
 ✅ WhatsApp & Instagram entegrasyonu
@@ -153,9 +153,9 @@ Indirimli fiyat: ${params.originalPrice} -> ${params.discountedPrice}${params.cu
 Bu ozel fiyat 24 saat gecerli!
 
 Iyi calismalar,
-Helvino Ekibi
+Helvion Ekibi
 
-P.S. Sorulariniz mi var? support@helvino.com`;
+P.S. Sorulariniz mi var? support@helvion.io`;
 
   return { subject, html, text, variant };
 }

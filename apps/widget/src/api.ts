@@ -1,8 +1,9 @@
 /**
- * API Service for Helvino Widget
+ * API Service for Helvion Widget
  */
 
 import { getVisitorId } from "./utils/visitor";
+import type { WidgetBubbleTheme } from "@helvino/shared";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -252,6 +253,18 @@ export interface BootloaderConfig {
     language: string;
     theme: {
       primaryColor: string;
+      bubbleShape?: WidgetBubbleTheme["bubbleShape"];
+      bubbleIcon?: WidgetBubbleTheme["bubbleIcon"];
+      bubbleSize?: number;
+      bubblePosition?: WidgetBubbleTheme["bubblePosition"];
+      greetingText?: string;
+      greetingEnabled?: boolean;
+    };
+    branding?: {
+      widgetName: string;
+      widgetSubtitle: string;
+      launcherText?: string | null;
+      position?: string;
     };
     /** Server-enforced entitlement: true = branding must be shown */
     brandingRequired?: boolean;
@@ -259,6 +272,27 @@ export interface BootloaderConfig {
     maxAgents?: number;
     /** true if widget is loaded from an unauthorized domain */
     unauthorizedDomain?: boolean;
+    widgetSettings?: {
+      primaryColor: string;
+      position: string;
+      launcher: string;
+      bubbleShape: WidgetBubbleTheme["bubbleShape"];
+      bubbleIcon: WidgetBubbleTheme["bubbleIcon"];
+      bubbleSize: number;
+      bubblePosition: WidgetBubbleTheme["bubblePosition"];
+      greetingText: string;
+      greetingEnabled: boolean;
+      welcomeTitle: string;
+      welcomeMessage: string;
+      brandName: string | null;
+    };
+    chatPageConfig?: {
+      title: string;
+      subtitle: string;
+      placeholder: string;
+      showAgentAvatars: boolean;
+      showOperatingHours: boolean;
+    };
   };
   orgToken: string; // Short-lived signed token for write operations
   env: string;

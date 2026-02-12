@@ -4,6 +4,9 @@
 
 import argon2 from "argon2";
 
+export const PASSWORD_STRENGTH_ERROR_MESSAGE =
+  "Password must contain at least 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character";
+
 /**
  * Hash a plain-text password using Argon2id
  * @param password Plain-text password
@@ -34,4 +37,35 @@ export async function verifyPassword(
     // Invalid hash format or other error
     return false;
   }
+}
+
+/**
+ * Validate password strength using baseline complexity rules.
+ */
+export function validatePasswordStrength(
+  password: string
+): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  const value = password || "";
+
+  if (value.length < 8) {
+    errors.push("minimum_length");
+  }
+  if (!/[A-Z]/.test(value)) {
+    errors.push("uppercase");
+  }
+  if (!/[a-z]/.test(value)) {
+    errors.push("lowercase");
+  }
+  if (!/[0-9]/.test(value)) {
+    errors.push("number");
+  }
+  if (!/[!@#$%^&*()_+\-=]/.test(value)) {
+    errors.push("special");
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
 }

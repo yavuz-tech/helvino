@@ -1,14 +1,20 @@
 "use client";
 
 import { type MouseEvent as ReactMouseEvent, useEffect, useRef, useState } from "react";
-import { ChevronDown, HelpCircle, Home, Send, X } from "lucide-react";
+import { ChevronDown, Home, Send, X } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
-import { EMOJI_LIST } from "@helvino/shared";
+import { EMOJI_LIST, bubbleBorderRadius, resolveWidgetBubbleTheme } from "@helvino/shared";
 
 interface WidgetSettings {
   primaryColor: string;
   position: "right" | "left";
   launcher: "bubble" | "icon";
+  bubbleShape?: "circle" | "rounded-square";
+  bubbleIcon?: "chat" | "message" | "help" | "custom";
+  bubbleSize?: number;
+  bubblePosition?: "bottom-right" | "bottom-left";
+  greetingText?: string;
+  greetingEnabled?: boolean;
   welcomeTitle: string;
   welcomeMessage: string;
   brandName: string | null;
@@ -127,6 +133,52 @@ export default function WidgetPreviewRenderer({
   };
   const effectiveLauncherStyle =
     settings.launcher === "icon" ? "button" : settings.launcher === "bubble" ? "bubble" : (launcher?.style ?? "bubble");
+  const bubbleTheme = resolveWidgetBubbleTheme(
+    {
+      primaryColor: settings.primaryColor,
+      bubbleShape: settings.bubbleShape,
+      bubbleIcon: settings.bubbleIcon,
+      bubbleSize: settings.bubbleSize,
+      bubblePosition: settings.bubblePosition,
+      greetingText: settings.greetingText,
+      greetingEnabled: settings.greetingEnabled,
+    },
+    {
+      position: settings.position,
+      launcher: settings.launcher,
+      launcherLabel: launcher?.label,
+    }
+  );
+  const bubbleRadius = bubbleBorderRadius(bubbleTheme.bubbleShape, bubbleTheme.bubbleSize);
+  const showGreeting = bubbleTheme.greetingEnabled && bubbleTheme.greetingText.length > 0;
+  const bubblePositionClass = bubbleTheme.bubblePosition === "bottom-left" ? "left-5" : "right-5";
+
+  const bubbleIcon = () => {
+    if (bubbleTheme.bubbleIcon === "help" || effectiveLauncherStyle === "button") {
+      return (
+        <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth={2.1} strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.8 9.4a2.3 2.3 0 0 1 4.4.9c0 1.9-2.2 2.1-2.2 3.5" />
+          <circle cx="12" cy="17.1" r="1" fill="#FFF" stroke="none" />
+        </svg>
+      );
+    }
+    if (bubbleTheme.bubbleIcon === "message") {
+      return (
+        <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 5h16v10H8l-4 4V5z" />
+        </svg>
+      );
+    }
+    if (bubbleTheme.bubbleIcon === "custom") {
+      return <span className="text-[16px] font-bold text-white">★</span>;
+    }
+    return (
+      <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth={2}>
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    );
+  };
 
   const mapRange = (v: number, inMin: number, inMax: number, outMin: number, outMax: number) =>
     Math.round(outMin + ((Math.min(Math.max(v, inMin), inMax) - inMin) / (inMax - inMin)) * (outMax - outMin));
@@ -305,32 +357,29 @@ export default function WidgetPreviewRenderer({
         </div>
 
         {widgetState === "closed" ? (
-          <div className={`absolute bottom-5 ${settings.position === "right" ? "right-5" : "left-5"}`} style={{ zIndex: 2 }}>
-            {launcher?.label ? (
+          <div className={`absolute bottom-5 ${bubblePositionClass}`} style={{ zIndex: 2 }}>
+            {showGreeting ? (
               <div
                 className="mb-2 max-w-[200px] truncate rounded-2xl rounded-br-sm px-3.5 py-2 text-white"
                 style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 600, fontSize: 12, background: `linear-gradient(135deg, ${grad.from}, ${grad.to})` }}
               >
-                {launcher.label}
+                {bubbleTheme.greetingText}
               </div>
             ) : null}
             <button
               onClick={toggleWidget}
-              className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl"
+              className="flex items-center justify-center"
               style={{
                 background: `linear-gradient(135deg, ${grad.from}, ${grad.to})`,
                 boxShadow: `0 6px 24px ${grad.from}66`,
                 transition: "all 0.5s ease",
+                width: bubbleTheme.bubbleSize,
+                height: bubbleTheme.bubbleSize,
+                borderRadius: bubbleRadius,
               }}
               aria-label={t("widgetPreview.openChat")}
             >
-              {effectiveLauncherStyle === "button" ? (
-                <HelpCircle size={22} color="#FFF" />
-              ) : (
-                <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth={2}>
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-              )}
+              {bubbleIcon()}
             </button>
           </div>
         ) : (

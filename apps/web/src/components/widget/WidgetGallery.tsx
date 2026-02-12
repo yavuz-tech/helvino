@@ -147,16 +147,16 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
       {/* Header */}
       <div className="mb-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <h2 className="text-[18px] font-semibold text-slate-900 mb-1">
+          <h2 className="text-[18px] font-semibold text-amber-900 mb-1">
             {t("widgetGallery.title") || "Widget Görünüm Galerisi"}
           </h2>
-          <p className="text-[13px] text-slate-600">
+          <p className="text-[13px] text-amber-700">
             {t("widgetGallery.subtitle") || "Farklı kullanım senaryolarında widget'ınızın nasıl göründüğünü inceleyin"}
           </p>
         </div>
         <button
           onClick={() => setShowManageModal(true)}
-          className="flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
+          className="flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium text-amber-700 hover:text-amber-900 hover:bg-amber-100 rounded-lg transition-colors flex-shrink-0"
           aria-label={t("widgetGallery.manageImages") || "Görselleri Yönet"}
         >
           <Upload size={15} strokeWidth={2} aria-hidden="true" />
@@ -167,7 +167,7 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
 
       {/* Usage Type Filters */}
       <div className="mb-3">
-        <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+        <div className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-2">
           {t("widgetGallery.filterByUsage") || "Kullanım Alanına Göre"}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -175,8 +175,8 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
             onClick={() => setSelectedUsage(null)}
             className={`px-2.5 py-1.5 text-[12px] font-medium rounded-lg transition-all ${
               selectedUsage === null
-                ? "bg-gradient-to-r from-[#1A1A2E] to-[#2D2D44] text-white shadow-sm"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm"
+                : "bg-amber-50 text-amber-700 hover:bg-amber-100"
             }`}
           >
             {t("widgetGallery.allUsages") || "Tüm Kullanımlar"} ({WIDGET_GALLERY_IMAGES.length})
@@ -187,8 +187,8 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
               onClick={() => setSelectedUsage(usage)}
               className={`px-2.5 py-1.5 text-[12px] font-medium rounded-lg transition-all ${
                 selectedUsage === usage
-                  ? "bg-gradient-to-r from-[#1A1A2E] to-[#2D2D44] text-white shadow-sm"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm"
+                  : "bg-amber-100 text-amber-700 hover:bg-amber-200"
               }`}
             >
               {label} ({count})
@@ -199,7 +199,7 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
 
       {/* Tag Filters */}
       <div className="mb-5">
-        <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+        <div className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-2">
           {t("widgetGallery.filterByTag") || "Etikete Göre"}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -207,8 +207,8 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
             onClick={() => setSelectedTag(null)}
             className={`px-2.5 py-1.5 text-[12px] font-medium rounded-lg transition-all ${
               selectedTag === null
-                ? "bg-blue-100 text-blue-700 shadow-sm"
-                : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                ? "bg-amber-100 text-amber-700 shadow-sm"
+                : "bg-amber-50/70 text-amber-700 hover:bg-amber-100"
             }`}
           >
             {t("widgetGallery.allViews") || "Tümü"} ({WIDGET_GALLERY_IMAGES.length})
@@ -221,8 +221,8 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
                 onClick={() => setSelectedTag(tag)}
                 className={`flex items-center gap-1 px-2.5 py-1.5 text-[12px] font-medium rounded-lg transition-all ${
                   selectedTag === tag
-                    ? "bg-blue-100 text-blue-700 shadow-sm"
-                    : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                    ? "bg-amber-100 text-amber-700 shadow-sm"
+                    : "bg-amber-50/70 text-amber-700 hover:bg-amber-100"
                 }`}
               >
                 <TagIcon size={11} strokeWidth={2} />
@@ -243,26 +243,26 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
               key={image.id}
               onClick={() => !hasError && handleImageClick(image)}
               disabled={hasError}
-              className={`group relative bg-white rounded-xl border border-slate-200/80 overflow-hidden text-left transition-all duration-200 ${
+              className={`group relative bg-white rounded-xl border border-[#F3E8D8] overflow-hidden text-left transition-all duration-200 ${
                 hasError
                   ? "opacity-60 cursor-not-allowed"
-                  : "cursor-pointer hover:shadow-lg hover:border-blue-300"
+                  : "cursor-pointer hover:shadow-lg hover:border-amber-300"
               }`}
               aria-label={`${image.title} - ${usageTypes.find(u => u.usage === image.usage)?.label}`}
             >
               {/* Usage Badge */}
               <div className="absolute top-2 left-2 z-10 px-2 py-0.5 bg-white/95 backdrop-blur-sm rounded-md shadow-sm">
-                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">
+                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">
                   {usageTypes.find(u => u.usage === image.usage)?.label}
                 </span>
               </div>
 
               {/* Image */}
-              <div className="relative aspect-[4/3] bg-slate-100">
+              <div className="relative aspect-[4/3] bg-amber-100">
                 {hasError ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                    <AlertTriangle size={32} className="text-slate-400 mb-2" strokeWidth={1.5} aria-hidden="true" />
-                    <p className="text-[12px] text-slate-500 text-center font-medium">
+                    <AlertTriangle size={32} className="text-amber-500 mb-2" strokeWidth={1.5} aria-hidden="true" />
+                    <p className="text-[12px] text-amber-600 text-center font-medium">
                       {t("widgetGallery.imageNotFound") || "Görsel bulunamadı"}
                     </p>
                   </div>
@@ -292,10 +292,10 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
 
               {/* Info */}
               <div className="p-3">
-                <h3 className="text-[14px] font-semibold text-slate-900 mb-1 line-clamp-1">
+                <h3 className="text-[14px] font-semibold text-amber-900 mb-1 line-clamp-1">
                   {image.title}
                 </h3>
-                <p className="text-[12px] text-slate-600 line-clamp-2 leading-snug">
+                <p className="text-[12px] text-amber-700 line-clamp-2 leading-snug">
                   {image.description}
                 </p>
                 {/* Tags */}
@@ -303,13 +303,13 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
                   {image.tags.slice(0, 3).map(tag => (
                     <span
                       key={tag}
-                      className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-medium rounded"
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-medium rounded"
                     >
                       {tag}
                     </span>
                   ))}
                   {image.tags.length > 3 && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-medium rounded">
+                    <span className="inline-flex items-center px-1.5 py-0.5 bg-amber-100 text-amber-600 text-[10px] font-medium rounded">
                       +{image.tags.length - 3}
                     </span>
                   )}
@@ -322,9 +322,9 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
 
       {/* No Results */}
       {filteredImages.length === 0 && (
-        <div className="text-center py-12 bg-slate-50 rounded-xl border border-slate-200/60">
-          <TagIcon size={32} className="mx-auto mb-3 text-slate-300" strokeWidth={1.5} />
-          <p className="text-[14px] text-slate-500 font-medium">
+        <div className="text-center py-12 bg-[#FFFBF5] rounded-xl border border-[#F3E8D8]">
+          <TagIcon size={32} className="mx-auto mb-3 text-amber-400" strokeWidth={1.5} />
+          <p className="text-[14px] text-amber-600 font-medium">
             {t("widgetGallery.noResults") || "Bu filtre için görsel bulunamadı"}
           </p>
           <button
@@ -332,7 +332,7 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
               setSelectedTag(null);
               setSelectedUsage(null);
             }}
-            className="mt-3 text-[13px] text-blue-600 hover:text-blue-700 font-medium"
+              className="mt-3 text-[13px] text-amber-600 hover:text-amber-700 font-medium"
           >
             {t("widgetGallery.clearFilters") || "Filtreleri Temizle"}
           </button>
@@ -356,51 +356,51 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
             <button
               ref={firstFocusableRef}
               onClick={() => setShowManageModal(false)}
-              className="absolute top-3 right-3 sm:top-4 sm:right-4 w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-colors"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 w-8 h-8 rounded-lg hover:bg-amber-50 flex items-center justify-center transition-colors"
               aria-label={t("widgetGallery.close") || "Kapat"}
             >
-              <X size={18} strokeWidth={2} className="text-slate-500" aria-hidden="true" />
+              <X size={18} strokeWidth={2} className="text-amber-600" aria-hidden="true" />
             </button>
 
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                <Info size={20} className="text-blue-600" strokeWidth={2} aria-hidden="true" />
+              <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <Info size={20} className="text-amber-600" strokeWidth={2} aria-hidden="true" />
               </div>
               <div className="flex-1 min-w-0 pr-8">
-                <h3 id="manage-modal-title" className="text-[16px] sm:text-[18px] font-semibold text-slate-900 mb-1">
+                <h3 id="manage-modal-title" className="text-[16px] sm:text-[18px] font-semibold text-amber-900 mb-1">
                   {t("widgetGallery.manageImagesTitle") || "Galeri Görsellerini Yönetme"}
                 </h3>
-                <p className="text-[13px] text-slate-600 leading-relaxed">
+                <p className="text-[13px] text-amber-700 leading-relaxed">
                   {t("widgetGallery.manageImagesDesc") || "Bu galerinin görselleri proje kaynak kodunda tutulmaktadır."}
                 </p>
               </div>
             </div>
 
-            <div className="bg-slate-50 rounded-lg p-3 sm:p-4 mb-4">
-              <h4 className="text-[14px] font-semibold text-slate-900 mb-2">
+            <div className="bg-[#FFFBF5] rounded-lg p-3 sm:p-4 mb-4">
+              <h4 className="text-[14px] font-semibold text-amber-900 mb-2">
                 {t("widgetGallery.howToUpdate") || "Görselleri Nasıl Güncellerim?"}
               </h4>
-              <ol className="space-y-2 text-[12px] sm:text-[13px] text-slate-700 leading-relaxed">
+              <ol className="space-y-2 text-[12px] sm:text-[13px] text-amber-800 leading-relaxed">
                 <li className="flex gap-2">
-                  <span className="font-bold text-blue-600 flex-shrink-0">1.</span>
+                  <span className="font-bold text-amber-600 flex-shrink-0">1.</span>
                   <span>
                     <code className="px-1.5 py-0.5 bg-white rounded text-[11px] sm:text-[12px] font-mono break-all">apps/web/public/widget-gallery/</code> klasörüne yeni görsel ekleyin
                   </span>
                 </li>
                 <li className="flex gap-2">
-                  <span className="font-bold text-blue-600 flex-shrink-0">2.</span>
+                  <span className="font-bold text-amber-600 flex-shrink-0">2.</span>
                   <span>
                     <code className="px-1.5 py-0.5 bg-white rounded text-[11px] sm:text-[12px] font-mono break-all">apps/web/src/lib/widgetImageManifest.ts</code> dosyasını açın
                   </span>
                 </li>
                 <li className="flex gap-2">
-                  <span className="font-bold text-blue-600 flex-shrink-0">3.</span>
+                  <span className="font-bold text-amber-600 flex-shrink-0">3.</span>
                   <span>
                     <code className="px-1.5 py-0.5 bg-white rounded text-[11px] sm:text-[12px] font-mono">WIDGET_GALLERY_IMAGES</code> dizisine yeni görsel metadata ekleyin
                   </span>
                 </li>
                 <li className="flex gap-2">
-                  <span className="font-bold text-blue-600 flex-shrink-0">4.</span>
+                  <span className="font-bold text-amber-600 flex-shrink-0">4.</span>
                   <span>
                     <code className="px-1.5 py-0.5 bg-white rounded text-[11px] sm:text-[12px] font-mono">pnpm build</code> çalıştırarak değişiklikleri test edin
                   </span>
@@ -417,7 +417,7 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
 
             <button
               onClick={() => setShowManageModal(false)}
-              className="mt-4 w-full px-4 py-2.5 bg-gradient-to-r from-[#1A1A2E] to-[#2D2D44] text-white text-[14px] font-semibold rounded-lg hover:opacity-90 transition-all shadow-sm"
+              className="mt-4 w-full px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[14px] font-semibold rounded-lg hover:opacity-90 transition-all shadow-sm"
             >
               {t("common.close") || "Anladım"}
             </button>
@@ -440,33 +440,33 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-white border-b border-slate-200/80 px-3 sm:px-5 py-3 sm:py-4 flex items-center justify-between">
+            <div className="sticky top-0 z-10 bg-white border-b border-[#F3E8D8] px-3 sm:px-5 py-3 sm:py-4 flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3 sm:mr-4">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
-                  <h3 id="preview-modal-title" className="text-[14px] sm:text-[16px] font-semibold text-slate-900 truncate">
+                  <h3 id="preview-modal-title" className="text-[14px] sm:text-[16px] font-semibold text-amber-900 truncate">
                     {selectedImage.title}
                   </h3>
-                  <span className="inline-flex items-center self-start px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide rounded flex-shrink-0">
+                  <span className="inline-flex items-center self-start px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide rounded flex-shrink-0">
                     {usageTypes.find(u => u.usage === selectedImage.usage)?.label}
                   </span>
                 </div>
-                <p className="text-[12px] sm:text-[13px] text-slate-600 line-clamp-2 sm:line-clamp-none">
+                <p className="text-[12px] sm:text-[13px] text-amber-700 line-clamp-2 sm:line-clamp-none">
                   {selectedImage.description}
                 </p>
               </div>
               <button
                 ref={firstFocusableRef}
                 onClick={() => setSelectedImage(null)}
-                className="flex-shrink-0 w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-colors"
+                className="flex-shrink-0 w-8 h-8 rounded-lg hover:bg-amber-50 flex items-center justify-center transition-colors"
                 aria-label={t("widgetGallery.close") || "Kapat"}
               >
-                <X size={18} strokeWidth={2} className="text-slate-500" aria-hidden="true" />
+                <X size={18} strokeWidth={2} className="text-amber-600" aria-hidden="true" />
               </button>
             </div>
 
             {/* Image */}
             <div className="p-3 sm:p-5">
-              <div className="relative bg-slate-100 rounded-lg overflow-hidden">
+              <div className="relative bg-amber-100 rounded-lg overflow-hidden">
                 <Image
                   src={selectedImage.src}
                   alt={selectedImage.title}
@@ -481,14 +481,14 @@ export default function WidgetGallery({ className = "", onTemplateSelect }: Widg
 
               {/* Tags & Info */}
               <div className="mt-3 sm:mt-4 flex flex-wrap gap-1.5 sm:gap-2" role="list" aria-label={t("widgetGallery.useCases") || "Kullanım Alanları"}>
-                <span className="text-[11px] sm:text-[12px] text-slate-500 font-medium self-center">
+                <span className="text-[11px] sm:text-[12px] text-amber-600 font-medium self-center">
                   {t("widgetGallery.useCases") || "Kullanım Alanları:"}
                 </span>
                 {selectedImage.tags.map(tag => (
                   <span
                     key={tag}
                     role="listitem"
-                    className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 bg-slate-100 text-slate-700 text-[11px] sm:text-[12px] font-medium rounded-lg"
+                    className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 bg-amber-100 text-amber-800 text-[11px] sm:text-[12px] font-medium rounded-lg"
                   >
                     <TagIcon size={10} strokeWidth={2} aria-hidden="true" />
                     {tag}

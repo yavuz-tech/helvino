@@ -56,16 +56,16 @@ function formatDate(iso: string, hydrated: boolean): string {
 const ACTION_COLORS: Record<string, string> = {
   security: "bg-rose-100 text-rose-700 border border-rose-200",
   billing: "bg-amber-100 text-amber-700 border border-amber-200",
-  usage: "bg-blue-100 text-blue-700 border border-blue-200",
-  widget: "bg-violet-100 text-violet-700 border border-violet-200",
+  usage: "bg-amber-50 text-amber-700 border border-amber-200",
+  widget: "bg-amber-100 text-amber-700 border border-amber-200",
   team: "bg-emerald-100 text-emerald-700 border border-emerald-200",
-  org: "bg-slate-100 text-slate-700",
-  mfa: "bg-indigo-100 text-indigo-700 border border-indigo-200",
+  org: "bg-[#F1F5F9] text-[#475569] border border-[#F3E8D8]",
+  mfa: "bg-amber-50 text-amber-700 border border-amber-200",
 };
 
 function getActionColor(action: string): string {
   const prefix = action.split(".")[0];
-  return ACTION_COLORS[prefix] || "bg-slate-100 text-slate-600 border border-slate-200";
+  return ACTION_COLORS[prefix] || "bg-[#F1F5F9] text-[#64748B] border border-[#F3E8D8]";
 }
 
 /* ────────── Main ────────── */
@@ -181,17 +181,17 @@ export default function PortalAuditPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1A1D23]" />
       </div>
     );
   }
 
   return (
     <div className="relative mx-auto max-w-7xl space-y-10">
-      <div className="pointer-events-none absolute left-1/2 top-0 h-52 w-52 -translate-x-1/2 rounded-full bg-violet-200/30 blur-3xl" />
+      <div className="pointer-events-none absolute left-1/2 top-0 h-52 w-52 -translate-x-1/2 rounded-full bg-amber-200/30 blur-3xl" />
       <Link
         href="/portal"
-        className="group mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
+        className="group mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-[#64748B] transition-colors hover:text-[#1A1D23]"
       >
         <ChevronLeft size={16} className="transition-transform group-hover:-translate-x-0.5" />
         {t("portalOnboarding.backToDashboard")}
@@ -218,56 +218,56 @@ export default function PortalAuditPage() {
       {error && <ErrorBanner message={error} />}
 
       <div className="grid gap-6 md:gap-7 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-blue-200/70 bg-gradient-to-br from-blue-50/80 via-white to-indigo-50/70 p-5">
+        <Card className="border-amber-200/70 bg-gradient-to-br from-amber-50/80 via-white to-[#FFFBF5] p-5">
           <div className="mb-3 flex items-start justify-between">
             <span className={`${p.iconSm} ${p.iconBlue}`}>
               <Activity size={15} />
             </span>
-            <Sparkles size={14} className="text-blue-400" />
+            <Sparkles size={14} className="text-amber-400" />
           </div>
           <p className={p.overline}>{t("audit.stats.total")}</p>
-          <p className="mt-1.5 text-[24px] font-semibold tracking-tight text-slate-900">{entries.length}</p>
+          <p className="mt-1.5 text-[24px] font-semibold tracking-tight text-[#1A1D23]">{entries.length}</p>
         </Card>
 
-        <Card className="border-violet-200/70 bg-gradient-to-br from-violet-50/80 via-white to-fuchsia-50/70 p-5">
+        <Card className="border-amber-200/70 bg-gradient-to-br from-amber-50/80 via-white to-[#FFFBF5] p-5">
           <div className="mb-3 flex items-start justify-between">
-            <span className={`${p.iconSm} ${p.iconViolet}`}>
+            <span className={`${p.iconSm} ${p.iconAmber}`}>
               <ListFilter size={15} />
             </span>
-            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
               {t("audit.filters.active")}
             </span>
           </div>
           <p className={p.overline}>{t("audit.stats.filters")}</p>
-          <p className="mt-1.5 text-[24px] font-semibold tracking-tight text-slate-900">{activeFilterCount}</p>
+          <p className="mt-1.5 text-[24px] font-semibold tracking-tight text-[#1A1D23]">{activeFilterCount}</p>
         </Card>
 
-        <Card className="border-rose-200/70 bg-gradient-to-br from-rose-50/80 via-white to-orange-50/70 p-5">
+        <Card className="border-amber-200/70 bg-gradient-to-br from-amber-50/80 via-white to-[#FFFBF5] p-5">
           <div className="mb-3 flex items-start justify-between">
             <span className={`${p.iconSm} ${p.iconRose}`}>
               <ShieldCheck size={15} />
             </span>
-            <Sparkles size={14} className="text-rose-400" />
+            <Sparkles size={14} className="text-amber-400" />
           </div>
           <p className={p.overline}>{t("audit.stats.security")}</p>
-          <p className="mt-1.5 text-[24px] font-semibold tracking-tight text-slate-900">{securityEvents}</p>
+          <p className="mt-1.5 text-[24px] font-semibold tracking-tight text-[#1A1D23]">{securityEvents}</p>
         </Card>
 
-        <Card className="border-indigo-200/70 bg-gradient-to-br from-indigo-50/80 via-white to-cyan-50/70 p-5">
+        <Card className="border-amber-200/70 bg-gradient-to-br from-amber-50/80 via-white to-[#FFFBF5] p-5">
           <div className="mb-3 flex items-start justify-between">
-            <span className={`${p.iconSm} ${p.iconIndigo}`}>
+            <span className={`${p.iconSm} ${p.iconAmber}`}>
               <Clock3 size={15} />
             </span>
           </div>
           <p className={p.overline}>{t("audit.stats.lastEvent")}</p>
-          <p className="mt-1.5 text-[18px] font-semibold tracking-tight text-slate-900">{latestEventLabel}</p>
+          <p className="mt-1.5 text-[18px] font-semibold tracking-tight text-[#1A1D23]">{latestEventLabel}</p>
         </Card>
       </div>
 
-      <Card className="mt-1 border-violet-200/70 bg-gradient-to-br from-white via-violet-50/30 to-indigo-50/40">
+      <Card className="mt-1 border-amber-200/70 bg-gradient-to-br from-white via-amber-50/30 to-[#FFFBF5]">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <span className={`${p.iconSm} ${p.iconViolet}`}>
+            <span className={`${p.iconSm} ${p.iconAmber}`}>
               <ListFilter size={15} />
             </span>
             <div>
@@ -330,10 +330,10 @@ export default function PortalAuditPage() {
         </div>
       </Card>
 
-      <Card noPadding className="overflow-hidden border-slate-200/80 shadow-[0_10px_35px_rgba(30,41,59,0.06)]">
+      <Card noPadding className="overflow-hidden border-[#F3E8D8] shadow-[0_10px_35px_rgba(30,41,59,0.06)]">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="h-7 w-7 animate-spin rounded-full border-b-2 border-slate-800" />
+            <div className="h-7 w-7 animate-spin rounded-full border-b-2 border-[#1A1D23]" />
           </div>
         ) : entries.length === 0 ? (
           <div className="py-20 text-center">
@@ -344,31 +344,31 @@ export default function PortalAuditPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/80">
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <tr className="border-b border-[#F3E8D8] bg-[#FFFBF5]">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                       {t("audit.table.createdAt")}
                     </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                       {t("audit.table.action")}
                     </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                       {t("audit.table.actor")}
                     </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                       {t("audit.table.ip")}
                     </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                       {t("audit.table.requestId")}
                     </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                       {t("audit.table.details")}
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {entries.map((entry) => (
-                    <tr key={entry.id} className="border-b border-slate-100 transition-colors hover:bg-slate-50/80">
-                      <td className="px-5 py-3 text-slate-600 whitespace-nowrap" suppressHydrationWarning>
+                    <tr key={entry.id} className="border-b border-[#F1F5F9] transition-colors hover:bg-[#FFFBF5]">
+                      <td className="px-5 py-3 text-[#475569] whitespace-nowrap" suppressHydrationWarning>
                         {formatDate(entry.createdAt, hydrated)}
                       </td>
                       <td className="px-5 py-3">
@@ -378,27 +378,27 @@ export default function PortalAuditPage() {
                           {entry.action}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-slate-700">
+                      <td className="px-5 py-3 text-[#334155]">
                         {entry.actor.email || entry.actor.id || t("audit.table.unknownActor")}
                       </td>
-                      <td className="px-5 py-3 font-mono text-xs text-slate-500">
+                      <td className="px-5 py-3 font-mono text-xs text-[#64748B]">
                         {entry.ip || t("audit.table.noIp")}
                       </td>
-                      <td className="max-w-[240px] truncate px-5 py-3 font-mono text-xs text-slate-400">
+                      <td className="max-w-[240px] truncate px-5 py-3 font-mono text-xs text-[#94A3B8]">
                         {entry.requestId || t("audit.table.noRequestId")}
                       </td>
                       <td className="px-5 py-3">
                         <details>
-                          <summary className="cursor-pointer list-none text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+                          <summary className="cursor-pointer list-none text-xs font-semibold text-amber-600 hover:text-amber-700">
                             {t("audit.table.details")}
                           </summary>
-                          <div className="mt-2 max-w-[360px] rounded-lg border border-slate-200 bg-slate-50 p-2">
+                          <div className="mt-2 max-w-[360px] rounded-lg border border-[#F3E8D8] bg-[#FFFBF5] p-2">
                             {entry.meta ? (
-                              <pre className="max-h-28 overflow-auto text-[11px] leading-5 text-slate-600">
+                              <pre className="max-h-28 overflow-auto text-[11px] leading-5 text-[#475569]">
                                 {JSON.stringify(entry.meta, null, 2)}
                               </pre>
                             ) : (
-                              <div className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                              <div className="inline-flex items-center gap-1.5 text-xs text-[#64748B]">
                                 <FileJson size={12} />
                                 {t("audit.table.noMeta")}
                               </div>
@@ -413,14 +413,14 @@ export default function PortalAuditPage() {
             </div>
 
             {nextCursor && (
-              <div className="border-t border-slate-200 p-4 text-center">
+              <div className="border-t border-[#F3E8D8] p-4 text-center">
                 <button
                   onClick={() => fetchEntries(nextCursor, true)}
                   disabled={loadingMore}
                   className={p.btnSecondary}
                 >
                   {loadingMore ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-slate-600" />
+                    <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-[#475569]" />
                   ) : (
                     <ChevronDown size={14} />
                   )}

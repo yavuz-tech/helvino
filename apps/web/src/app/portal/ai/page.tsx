@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bot, Zap, Send, Check, AlertTriangle, Cpu } from "lucide-react";
 import ErrorBanner from "@/components/ErrorBanner";
-import PageHeader from "@/components/PageHeader";
-import Card from "@/components/Card";
+import PageHeader from "@/components/ui/PageHeader";
+import Card from "@/components/ui/Card";
 import AIUsageStats from "@/components/AIUsageStats";
 import UpgradeModal from "@/components/UpgradeModal";
 import { portalApiFetch } from "@/lib/portal-auth";
@@ -130,7 +130,7 @@ export default function PortalAiPage() {
   const getRecommendedBadgeClass = (model: AiModel) => {
     const haystack = `${model.name} ${model.id}`.toLowerCase();
     if (haystack.includes("gpt-4o") && haystack.includes("mini")) return "bg-[#10B981]";
-    if (haystack.includes("gemini") && haystack.includes("flash")) return "bg-[#6366F1]";
+    if (haystack.includes("gemini") && haystack.includes("flash")) return "bg-amber-500";
     if (haystack.includes("claude") && haystack.includes("haiku")) return "bg-[#F59E0B]";
     return "bg-[#F59E0B]";
   };
@@ -208,7 +208,7 @@ export default function PortalAiPage() {
             <div className="lg:col-span-2 space-y-5">
 
               {/* System Prompt */}
-              <Card className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm" padding="none">
+              <Card className="rounded-2xl border border-[#F3E8D8] bg-white p-6 shadow-sm" padding="none">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[rgba(245,158,11,0.08)] text-[16px]">💬</div>
                   <div>
@@ -227,7 +227,7 @@ export default function PortalAiPage() {
 
               {/* Greeting & Fallback */}
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Card className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm" padding="none">
+                <Card className="rounded-2xl border border-[#F3E8D8] bg-white p-5 shadow-sm" padding="none">
                   <label className="mb-2 flex items-center gap-2 font-[var(--font-heading)] text-[14px] font-bold text-[#1A1D23]">👋 {t("ai.greeting")}</label>
                   <textarea
                     value={config.greeting}
@@ -237,7 +237,7 @@ export default function PortalAiPage() {
                     className="w-full min-h-[72px] resize-none rounded-xl border border-black/10 bg-[#FAFAF8] px-[14px] py-3 font-[var(--font-body)] text-[12.5px] leading-[1.5] text-[#1A1D23] focus:border-[#F59E0B] focus:outline-none focus:ring-0 disabled:opacity-50"
                   />
                 </Card>
-                <Card className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm" padding="none">
+                <Card className="rounded-2xl border border-[#F3E8D8] bg-white p-5 shadow-sm" padding="none">
                   <label className="mb-2 flex items-center gap-2 font-[var(--font-heading)] text-[14px] font-bold text-[#1A1D23]">🔄 {t("ai.fallback")}</label>
                   <textarea
                     value={config.fallbackMessage}
@@ -250,7 +250,7 @@ export default function PortalAiPage() {
               </div>
 
               {/* Model & Parameters */}
-              <Card className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm" padding="none">
+              <Card className="rounded-2xl border border-[#F3E8D8] bg-white p-6 shadow-sm" padding="none">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[rgba(99,102,241,0.08)] text-[16px]">⚡</div>
                   <div>
@@ -362,7 +362,7 @@ export default function PortalAiPage() {
 
             {/* ── Right: Test Playground ── */}
             <div className="space-y-5">
-              <Card className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm" padding="none">
+              <Card className="rounded-2xl border border-[#F3E8D8] bg-white p-6 shadow-sm" padding="none">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[rgba(251,113,133,0.08)] text-[16px]">🧪</div>
                   <div>

@@ -1,0 +1,15 @@
+/portal/settings => http://localhost:3000/portal/settings
+/portal/settings/general => http://localhost:3000/portal/settings/general
+/portal/settings/appearance => http://localhost:3000/portal/settings/appearance
+/portal/settings/installation => http://localhost:3000/portal/settings/installation
+/portal/settings/chat-page => http://localhost:3000/portal/settings/chat-page
+/portal/settings/translations => http://localhost:3000/portal/settings/translations
+/portal/settings/channels => http://localhost:3000/portal/settings/channels
+/portal/settings/notifications => http://localhost:3000/portal/settings/notifications
+/portal/settings/operating-hours => http://localhost:3000/portal/settings/operating-hours
+/portal/settings/macros => http://localhost:3000/portal/settings/macros
+/portal/settings/workflows => http://localhost:3000/portal/settings/workflows
+/portal/settings/sla => http://localhost:3000/portal/settings/sla
+/portal/settings/integrations => http://localhost:3000/portal/settings/integrations
+/portal/settings/api-keys => http://localhost:3000/portal/settings/api-keys
+/portal/settings/data => http://localhost:3000/portal/settings/data

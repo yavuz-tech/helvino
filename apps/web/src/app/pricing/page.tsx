@@ -5,6 +5,7 @@ import { useI18n } from "@/i18n/I18nContext";
 import PublicLayout from "@/components/PublicLayout";
 import PlanComparisonTable, { type PlanData } from "@/components/PlanComparisonTable";
 import { designTokens } from "@/lib/designTokens";
+import { colors, fonts } from "@/lib/design-tokens";
 import type { TranslationKey } from "@/i18n/translations";
 
 /**
@@ -52,6 +53,8 @@ const FAQ_KEYS = [
 ];
 
 export default function PricingPage() {
+  void colors;
+  void fonts;
   const { t } = useI18n();
 
   return (
@@ -67,7 +70,7 @@ export default function PricingPage() {
           className="object-cover opacity-50"
         />
         <div className={`${designTokens.layout.maxWidth} pt-20 sm:pt-24 pb-16 sm:pb-20 text-center relative`}>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-4 tracking-tight">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-[#1A1D23] font-heading mb-4 tracking-tight">
             {t("pricing.title")}
           </h1>
           <p className={`${designTokens.typography.heroSubtitle} max-w-2xl mx-auto`}>
@@ -86,7 +89,7 @@ export default function PricingPage() {
       </section>
 
       {/* Trust badges */}
-      <section className="bg-slate-50/50 border-t border-slate-200/40">
+      <section className="bg-[#FFFBF5] border-t border-[#F3E8D8]">
         <div className="max-w-5xl mx-auto px-6 py-12">
           <p className={`text-center ${designTokens.typography.caption} mb-6`}>
             {t("pricing.trustBadges")}
@@ -108,21 +111,21 @@ export default function PricingPage() {
 
       {/* FAQ */}
       <section className="max-w-3xl mx-auto px-6 py-16 sm:py-20">
-        <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 text-center mb-10 tracking-tight">
+        <h2 className="text-2xl sm:text-3xl font-bold text-[#1A1D23] font-heading text-center mb-10 tracking-tight">
           {t("pricing.faqTitle")}
         </h2>
         <div className="space-y-3">
           {FAQ_KEYS.map((faq, i) => (
             <details
               key={i}
-              className="bg-white rounded-2xl border border-slate-200/80 group shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition-all duration-150"
+              className="bg-white rounded-2xl border border-[#F3E8D8] group shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition-all duration-150"
             >
               <summary className="flex items-center justify-between px-6 py-5 cursor-pointer list-none">
-                <span className="text-base font-semibold text-slate-900 pr-4">
+                <span className="text-base font-semibold text-[#1A1D23] font-heading pr-4">
                   {t(faq.q as TranslationKey)}
                 </span>
                 <svg
-                  className="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform duration-150 flex-shrink-0"
+                  className="w-4 h-4 text-[#94A3B8] group-open:rotate-180 transition-transform duration-150 flex-shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -135,7 +138,7 @@ export default function PricingPage() {
                   />
                 </svg>
               </summary>
-              <div className="px-6 pb-5 text-sm text-slate-500 leading-relaxed border-t border-slate-100 pt-4">
+              <div className="px-6 pb-5 text-sm text-[#64748B] leading-relaxed border-t border-[#F1F5F9] pt-4">
                 {t(faq.a as TranslationKey)}
               </div>
             </details>

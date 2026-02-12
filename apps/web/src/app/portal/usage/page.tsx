@@ -6,14 +6,8 @@ import { portalApiFetch } from "@/lib/portal-auth";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { useI18n } from "@/i18n/I18nContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
-import type { TranslationKey } from "@/i18n/translations";
-import type { LucideIcon } from "lucide-react";
-import { 
-  ChevronLeft, TrendingUp, TrendingDown, Minus, 
-  MessageSquare, Send, Bot, Users, Download, 
-  AlertCircle, CheckCircle2, AlertTriangle, Sparkles,
-  Crown, Zap, Calendar, ArrowUpRight
-} from "lucide-react";
+import { colors, fonts } from "@/lib/design-tokens";
+import { ChevronLeft, Download, ArrowUpRight, Crown } from "lucide-react";
 
 /* ────────── Types ────────── */
 
@@ -76,169 +70,64 @@ interface AiUsage {
   isUnlimited: boolean;
 }
 
-/* ────────── Components ────────── */
-
-function HeroMetricCard({
-  icon: Icon,
-  label,
-  value,
-  limit,
-  extra,
-  iconColor,
-  trend,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: number;
+interface AnalyticsUsageMetric {
+  used: number;
   limit: number;
-  extra?: number;
-  iconColor: string;
-  trend?: "up" | "down" | "stable";
-}) {
-  const { t } = useI18n();
-  const pct = limit > 0 ? Math.min((value / limit) * 100, 100) : 0;
-  const remaining = Math.max(0, limit - value);
-  const isHigh = pct >= 80;
-  const isFull = pct >= 100;
-
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`p-3 rounded-xl bg-gradient-to-br ${iconColor}`}>
-          <Icon size={24} className="text-white" />
-        </div>
-        {trend && (
-          <div className={`flex items-center gap-1 text-xs font-medium ${
-            trend === "up" ? "text-emerald-600" : trend === "down" ? "text-red-600" : "text-slate-500"
-          }`}>
-            {trend === "up" && <TrendingUp size={14} />}
-            {trend === "down" && <TrendingDown size={14} />}
-            {trend === "stable" && <Minus size={14} />}
-          </div>
-        )}
-      </div>
-      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">{label}</p>
-      <div className="flex items-baseline gap-2 mb-3">
-        <span className="text-3xl font-bold text-slate-900" suppressHydrationWarning>
-          {value.toLocaleString()}
-        </span>
-        <span className="text-sm text-slate-400" suppressHydrationWarning>
-          {t("usage.of")} {limit.toLocaleString()}
-        </span>
-      </div>
-      {extra != null && extra > 0 && (
-        <p className="text-xs text-blue-600 mb-2" suppressHydrationWarning>
-          +{extra.toLocaleString()} {t("usage.extra")}
-        </p>
-      )}
-      <div className="w-full bg-slate-100 rounded-full h-2 mb-2">
-        <div
-          className={`h-2 rounded-full transition-all duration-500 ${
-            isFull ? "bg-red-500" : isHigh ? "bg-amber-500" : "bg-emerald-500"
-          }`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <p className="text-xs text-slate-500" suppressHydrationWarning>
-        {remaining.toLocaleString()} {t("usage.remaining")}
-      </p>
-    </div>
-  );
+  lastMonthUsed: number;
 }
 
-function AlertBanner({
-  variant,
-  children,
-}: {
-  variant: "warning" | "danger" | "info" | "success";
-  children: React.ReactNode;
-}) {
-  const styles = {
-    warning: "bg-amber-50 border-amber-200 text-amber-900",
-    danger: "bg-red-50 border-red-200 text-red-900",
-    info: "bg-blue-50 border-blue-200 text-blue-900",
-    success: "bg-emerald-50 border-emerald-200 text-emerald-900",
+interface AnalyticsUsagePayload {
+  period: string;
+  resetDate: string;
+  conversations: AnalyticsUsageMetric;
+  messages: AnalyticsUsageMetric;
+  aiMessages: AnalyticsUsageMetric;
+  automationReached: AnalyticsUsageMetric;
+  plan: {
+    key: string;
+    name: string;
+    price: number;
+    status: string;
   };
-  const icons = {
-    warning: <AlertTriangle size={18} />,
-    danger: <AlertCircle size={18} />,
-    info: <AlertCircle size={18} />,
-    success: <CheckCircle2 size={18} />,
-  };
-  return (
-    <div className={`rounded-xl border p-4 text-sm flex items-start gap-3 ${styles[variant]}`}>
-      {icons[variant]}
-      <div className="flex-1">{children}</div>
-    </div>
-  );
 }
 
-function MeteringCard({
-  label,
-  value,
-  limit,
-  icon: Icon,
-  color,
-}: {
-  label: string;
-  value: number;
-  limit: number | null;
-  icon: LucideIcon;
-  color: string;
-}) {
-  const { t } = useI18n();
-  const pct = limit != null && limit > 0 ? Math.min((value / limit) * 100, 100) : 0;
-  const isHigh = pct >= 80;
-  const isFull = pct >= 100;
+const PAGE_BG = colors.brand.ultraLight;
+const ACCENT = colors.brand.primary;
+const CORAL = "#FB7185";
+const MINT = colors.status.success;
 
-  return (
-    <div className="bg-white rounded-xl border border-slate-200/80 p-5 hover:shadow-md transition-shadow">
-      <div className="flex items-center gap-3 mb-3">
-        <div className={`p-2 rounded-lg ${color}`}>
-          <Icon size={18} className="text-white" />
-        </div>
-        <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{label}</p>
-      </div>
-      <p className="text-2xl font-bold text-slate-900 mb-2" suppressHydrationWarning>
-        {value.toLocaleString()}
-      </p>
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-slate-500" suppressHydrationWarning>
-          {t("usage.limit")}{" "}
-          {limit == null ? t("usage.unlimited") : limit.toLocaleString()}
-        </span>
-        {limit != null && limit > 0 && (
-          <span
-            className={`font-medium ${
-              isFull ? "text-red-600" : isHigh ? "text-amber-600" : "text-emerald-600"
-            }`}
-          >
-            {pct.toFixed(0)}%
-          </span>
-        )}
-      </div>
-      {limit != null && limit > 0 && (
-        <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
-          <div
-            className={`h-1.5 rounded-full transition-all duration-500 ${
-              isFull ? "bg-red-500" : isHigh ? "bg-amber-500" : "bg-emerald-500"
-            }`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      )}
-    </div>
-  );
+function metricPercent(used: number, limit?: number | null) {
+  if (!limit || limit <= 0) return 0;
+  return Math.min(100, (used / limit) * 100);
+}
+
+function progressTone(percent: number) {
+  if (percent >= 80) return { bar: "#EF4444", track: "#FEE2E2", text: "#B91C1C" };
+  if (percent >= 60) return { bar: ACCENT, track: "#FEF3C7", text: "#B45309" };
+  return { bar: MINT, track: "#D1FAE5", text: "#047857" };
+}
+
+function trendView(current: number, previous: number) {
+  if (previous <= 0) {
+    return { arrow: "→", value: 0, tone: "#64748B" };
+  }
+  const delta = ((current - previous) / previous) * 100;
+  if (delta > 0) return { arrow: "↑", value: Math.round(delta), tone: "#047857" };
+  if (delta < 0) return { arrow: "↓", value: Math.round(Math.abs(delta)), tone: "#B91C1C" };
+  return { arrow: "→", value: 0, tone: "#64748B" };
 }
 
 /* ────────── Main ────────── */
 
 export default function PortalUsagePage() {
+  void fonts;
   const { loading: authLoading } = usePortalAuth();
   const [billing, setBilling] = useState<BillingStatus | null>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsUsagePayload | null>(null);
   const [lockStatus, setLockStatus] = useState<LockStatus | null>(null);
   const [alerts, setAlerts] = useState<AlertsPayload | null>(null);
   const [aiUsage, setAiUsage] = useState<AiUsage | null>(null);
+  const [animateUsageBars, setAnimateUsageBars] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { t } = useI18n();
@@ -248,17 +137,24 @@ export default function PortalUsagePage() {
     if (authLoading) return;
     const load = async () => {
       try {
-        const [billingRes, lockRes, alertsRes, aiUsageRes] = await Promise.all([
+        const [billingRes, lockRes, alertsRes, aiUsageRes, analyticsRes] = await Promise.all([
           portalApiFetch("/portal/billing/status"),
           portalApiFetch("/portal/billing/lock-status"),
           portalApiFetch("/portal/org/me/alerts"),
           portalApiFetch("/portal/ai/usage"),
+          portalApiFetch("/api/analytics/usage"),
         ]);
         if (billingRes.ok) setBilling(await billingRes.json());
         else setError(t("usage.failedLoad"));
         if (lockRes.ok) setLockStatus(await lockRes.json());
         if (alertsRes.ok) setAlerts(await alertsRes.json());
         if (aiUsageRes.ok) setAiUsage(await aiUsageRes.json());
+        if (analyticsRes.ok) {
+          const usagePayload = (await analyticsRes.json()) as AnalyticsUsagePayload;
+          setAnalytics(usagePayload);
+        } else {
+          setError(t("usage.failedLoad"));
+        }
       } catch {
         setError(t("common.networkError"));
       }
@@ -266,6 +162,13 @@ export default function PortalUsagePage() {
     };
     load();
   }, [authLoading, t]);
+
+  useEffect(() => {
+    if (!analytics) return;
+    setAnimateUsageBars(false);
+    const timer = window.setTimeout(() => setAnimateUsageBars(true), 200);
+    return () => window.clearTimeout(timer);
+  }, [analytics]);
 
   if (authLoading) {
     return (
@@ -276,570 +179,531 @@ export default function PortalUsagePage() {
   }
 
   const limits = billing?.limits;
-  const usage = billing?.usage;
+  const usageMetrics = analytics;
   const isLocked = lockStatus?.locked === true;
   const isGrace = lockStatus?.reason === "grace";
 
-  const pctForLimit = (used: number, limit?: number | null) => {
-    if (!limit || limit <= 0) return 0;
-    return (used / limit) * 100;
-  };
-  const convPct = limits ? pctForLimit(usage?.conversationsCreated || 0, limits.maxConversationsPerMonth) : 0;
-  const msgPct = limits ? pctForLimit(usage?.messagesSent || 0, limits.maxMessagesPerMonth) : 0;
-  const m1Pct = limits ? pctForLimit(usage?.m1Count || 0, limits.m1LimitPerMonth ?? null) : 0;
-  const m2Pct = limits ? pctForLimit(usage?.m2Count || 0, limits.m2LimitPerMonth ?? null) : 0;
-  const m3Pct = limits ? pctForLimit(usage?.m3Count || 0, limits.m3LimitVisitorsPerMonth ?? null) : 0;
-  const anyHigh = convPct >= 80 || msgPct >= 80 || m1Pct >= 80 || m2Pct >= 80 || m3Pct >= 80;
-  const anyFull = convPct >= 100 || msgPct >= 100 || m1Pct >= 100 || m2Pct >= 100 || m3Pct >= 100;
+  const convPct = usageMetrics ? metricPercent(usageMetrics.conversations.used, usageMetrics.conversations.limit) : 0;
+  const msgPct = usageMetrics ? metricPercent(usageMetrics.messages.used, usageMetrics.messages.limit) : 0;
+  const aiPct = usageMetrics ? metricPercent(usageMetrics.aiMessages.used, usageMetrics.aiMessages.limit) : 0;
+  const automationPct = usageMetrics
+    ? metricPercent(usageMetrics.automationReached.used, usageMetrics.automationReached.limit)
+    : 0;
+  const anyHigh = convPct >= 80 || msgPct >= 80 || aiPct >= 80 || automationPct >= 80;
+  const anyFull = convPct >= 100 || msgPct >= 100 || aiPct >= 100 || automationPct >= 100;
+  const aiUsageRate = usageMetrics && usageMetrics.messages.used > 0
+    ? usageMetrics.aiMessages.used / usageMetrics.messages.used
+    : 0;
 
-  const handleExport = () => {
-    if (!billing) return;
-    const data = {
-      org: billing.org,
-      plan: billing.plan,
-      period: usage?.monthKey,
-      usage: {
-        conversations: usage?.conversationsCreated,
-        messages: usage?.messagesSent,
-        m1: usage?.m1Count,
-        m2: usage?.m2Count,
-        m3: usage?.m3Count,
-      },
-      limits: billing.limits,
-      exportedAt: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
+  const handleExport = async () => {
+    if (!analytics) return;
+    const res = await portalApiFetch(`/api/analytics/export?format=csv&period=${encodeURIComponent(analytics.period)}`);
+    if (!res.ok) {
+      setError(t("usage.failedLoad"));
+      return;
+    }
+    const csvBlob = await res.blob();
+    const url = URL.createObjectURL(csvBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `helvino-usage-${usage?.monthKey || "export"}.json`;
+    a.download = `helvion-analytics-${analytics.period}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
+  const aiInsightUsed = aiUsage?.used ?? usageMetrics?.aiMessages.used ?? 0;
+  const aiInsightLimit = aiUsage?.isUnlimited ? -1 : aiUsage?.limit ?? usageMetrics?.aiMessages.limit ?? 0;
+
   return (
-    <>
-      {/* Header */}
-      <div className="mb-8">
-        <Link
-          href="/portal"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#1A1A2E] transition-colors mb-4 group"
-        >
-          <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
-          {t("portalOnboarding.backToDashboard")}
-        </Link>
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-1">{t("usage.heroTitle")}</h1>
-            <p className="text-sm text-slate-600">
-              {t("usage.heroSubtitle")}
-            </p>
-          </div>
-          <button
-            onClick={handleExport}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center gap-2"
-          >
-            <Download size={16} />
-            {t("usage.exportData")}
-          </button>
-        </div>
-      </div>
-
-      {/* Alerts */}
-      {alerts && alerts.domainMismatchCountPeriod > 0 && (
-        <AlertBanner variant="warning">
-          <div>
-            <p className="font-semibold mb-1">{t("usage.securityNotice")}</p>
-            <p className="text-xs">
-              {t("security.domainMismatchCount")}: <strong>{alerts.domainMismatchCountPeriod}</strong>
-            </p>
-          </div>
-        </AlertBanner>
-      )}
-
-      {error && (
-        <AlertBanner variant="danger">
-          {error}{" "}
-          <button
-            onClick={() => setError(null)}
-            className="underline font-semibold ml-2"
-          >
-            {t("usage.dismiss")}
-          </button>
-        </AlertBanner>
-      )}
-
-      {loading || !billing ? (
+    <div style={{ background: colors.brand.ultraLight, borderRadius: 16, padding: 20 }}>
+      {loading || !billing || !usageMetrics ? (
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
         </div>
       ) : (
-        <div className="space-y-6">
-          {/* Locked / Grace banner */}
-          {isLocked && (
-            <AlertBanner variant="danger">
+        <div className="space-y-4">
+          <div
+            style={{
+              animation: "usageFadeUp .5s ease 0s both",
+            }}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="font-semibold mb-1">{t("usage.locked")}</p>
-                <Link
-                  href="/portal/billing"
-                  className="text-xs underline font-medium"
+                <h1
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 900,
+                    color: colors.neutral[900],
+                    lineHeight: 1.15,
+                    fontFamily: fonts.heading,
+                  }}
                 >
-                  {t("billing.manageBilling")}
-                </Link>
+                  {t("usage.heroTitle")}
+                </h1>
+                <p style={{ marginTop: 6, fontSize: 14, color: colors.neutral[500], fontFamily: fonts.body }}>
+                  {t("usage.heroSubtitle")}
+                </p>
+                <p style={{ marginTop: 6, fontSize: 13, color: colors.neutral[400], fontFamily: fonts.body }} suppressHydrationWarning>
+                  📅 {t("usage.currentPeriod")}: {usageMetrics.period} · {t("usage.resetDate")}: {new Date(usageMetrics.resetDate).toLocaleDateString("tr-TR")}
+                </p>
               </div>
-            </AlertBanner>
-          )}
-
-          {isGrace && !isLocked && (
-            <AlertBanner variant="warning">
-              <div>
-                <p className="font-semibold mb-1">{t("usage.gracePeriod")}</p>
-                {lockStatus?.graceEndsAt && (
-                  <p className="text-xs" suppressHydrationWarning>
-                    {t("usage.resetDate")}{" "}
-                    <strong>{new Date(lockStatus.graceEndsAt).toLocaleDateString()}</strong>
-                  </p>
-                )}
-                <Link
-                  href="/portal/billing"
-                  className="text-xs underline font-medium mt-2 inline-block"
-                >
-                  {t("billing.manageBilling")}
-                </Link>
-              </div>
-            </AlertBanner>
-          )}
-
-          {/* High usage banner */}
-          {anyFull && !isLocked && (
-            <AlertBanner variant="danger">
-              <div>
-                <p className="font-semibold mb-1">{t("usage.limitReached")}</p>
-                <Link
-                  href="/portal/billing"
-                  className="text-xs underline font-medium"
-                >
-                  {t("billing.viewPlans")}
-                </Link>
-              </div>
-            </AlertBanner>
-          )}
-
-          {anyHigh && !anyFull && !isLocked && (
-            <AlertBanner variant="warning">
-              <div>
-                <p className="font-semibold mb-1">{t("usage.approachingLimit")}</p>
-                <Link
-                  href="/portal/billing"
-                  className="text-xs underline font-medium"
-                >
-                  {t("billing.viewPlans")}
-                </Link>
-              </div>
-            </AlertBanner>
-          )}
-
-          {/* Period info bar */}
-          <div className="bg-gradient-to-r from-slate-50 to-slate-100/50 rounded-xl p-4 border border-slate-200/60">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-900">{t("usage.currentPeriod")}</span>
-                <span className="text-slate-500" suppressHydrationWarning>
-                  {usage?.monthKey}
-                </span>
-              </div>
-              {usage?.nextResetDate && (
-                <div className="text-slate-600 text-xs" suppressHydrationWarning>
-                  {t("usage.resetDate")}{" "}
-                  <span className="font-semibold">
-                    {new Date(usage.nextResetDate).toLocaleDateString()}
-                  </span>
-                </div>
-              )}
+              <button
+                onClick={handleExport}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all"
+                style={{
+                  background: colors.neutral.white,
+                  border: `1px solid ${colors.border.warm}`,
+                  color: colors.neutral[900],
+                  fontSize: 14,
+                  fontWeight: 600,
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
+                  fontFamily: fonts.body,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = colors.brand.primary;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = colors.border.warm;
+                }}
+              >
+                <Download size={16} />
+                📥 {t("usage.exportData")}
+              </button>
             </div>
           </div>
 
-          {/* Hero metrics grid */}
-          {limits && (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <HeroMetricCard
-                icon={MessageSquare}
-                label={t("usage.conversations")}
-                value={usage?.conversationsCreated || 0}
-                limit={limits.maxConversationsPerMonth}
-                extra={limits.extraConversationQuota}
-                iconColor="from-blue-500 to-indigo-600"
-                trend="stable"
-              />
-              <HeroMetricCard
-                icon={Send}
-                label={t("usage.messages")}
-                value={usage?.messagesSent || 0}
-                limit={limits.maxMessagesPerMonth}
-                extra={limits.extraMessageQuota}
-                iconColor="from-purple-500 to-violet-600"
-                trend="stable"
-              />
-              <HeroMetricCard
-                icon={Bot}
-                label={t("usage.m2Label")}
-                value={usage?.m2Count || 0}
-                limit={limits.m2LimitPerMonth || 0}
-                iconColor="from-emerald-500 to-teal-600"
-                trend="up"
-              />
-              <HeroMetricCard
-                icon={Users}
-                label={t("usage.m3Label")}
-                value={usage?.m3Count || 0}
-                limit={limits.m3LimitVisitorsPerMonth || 0}
-                iconColor="from-amber-500 to-orange-600"
-                trend="stable"
-              />
+          <div
+            style={{
+              animation: "usageFadeUp .5s ease 0.05s both",
+              background: colors.neutral.white,
+              border: `1px solid ${colors.border.warm}`,
+              borderRadius: 16,
+              padding: 22,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
+            }}
+          >
+            <h3
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: colors.neutral[900],
+                marginBottom: 12,
+                fontFamily: fonts.heading,
+              }}
+            >
+              💡 {t("usage.quickInsights")}
+            </h3>
+            <div style={{ borderTop: `1px solid ${colors.neutral[100]}`, paddingTop: 10 }}>
+              <p style={{ color: colors.neutral[900], fontSize: 14, fontWeight: 600 }}>✅ {t("usage.insightHealthy")}</p>
+              <p style={{ color: colors.neutral[400], fontSize: 12 }} suppressHydrationWarning>
+                {t("usage.conversations")} %{Math.round(convPct)}
+              </p>
             </div>
-          )}
-
-          {/* AI Usage Premium Card */}
-          {aiUsage && (
-            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl border border-indigo-200/60 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
-                    <Sparkles size={20} className="text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900">{t("usage.aiUsageTitle")}</h3>
-                    <p className="text-xs text-slate-600">{t("usage.aiQuota")}</p>
-                  </div>
-                </div>
-                <Link
-                  href="/portal/ai"
-                  className="text-xs font-medium text-indigo-600 hover:text-indigo-800 underline"
-                >
-                  {t("usage.viewDetails")}
-                </Link>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="bg-white/70 rounded-xl p-4 backdrop-blur-sm">
-                  <p className="text-xs text-slate-600 mb-1">{t("usage.aiResponses")}</p>
-                  <p className="text-2xl font-bold text-slate-900" suppressHydrationWarning>
-                    {aiUsage.used.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1" suppressHydrationWarning>
-                    {t("usage.of")} {aiUsage.isUnlimited ? t("usage.unlimited") : aiUsage.limit.toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-white/70 rounded-xl p-4 backdrop-blur-sm">
-                  <p className="text-xs text-slate-600 mb-1">{t("usage.remaining")}</p>
-                  <p className="text-2xl font-bold text-indigo-600" suppressHydrationWarning>
-                    {aiUsage.isUnlimited
-                      ? t("usage.unlimited")
-                      : Math.max(0, aiUsage.limit - aiUsage.used).toLocaleString()}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {!aiUsage.isUnlimited && (
-                      <>
-                        {((Math.max(0, aiUsage.limit - aiUsage.used) / aiUsage.limit) * 100).toFixed(0)}% {t("usage.remaining")}
-                      </>
-                    )}
-                  </p>
-                </div>
-                <div className="bg-white/70 rounded-xl p-4 backdrop-blur-sm">
-                  <p className="text-xs text-slate-600 mb-1">{t("usage.status")}</p>
-                  <p className="text-xl font-bold text-slate-900">
-                    {!aiUsage.isUnlimited && aiUsage.used >= aiUsage.limit ? (
-                      <span className="text-red-600">{t("usage.critical")}</span>
-                    ) : !aiUsage.isUnlimited && aiUsage.used >= aiUsage.limit * 0.8 ? (
-                      <span className="text-amber-600">{t("usage.warning")}</span>
-                    ) : (
-                      <span className="text-emerald-600">{t("usage.healthy")}</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-              {!aiUsage.isUnlimited && aiUsage.used >= aiUsage.limit * 0.8 && (
-                <div className="mt-4 p-3 bg-white/60 rounded-lg border border-indigo-200/40">
-                  <p className="text-xs text-slate-700">
-                    {aiUsage.used >= aiUsage.limit
-                      ? t("usage.limitReached")
-                      : t("usage.approachingLimit")}{" "}
-                    <Link
-                      href="/portal/billing"
-                      className="font-semibold text-indigo-600 hover:text-indigo-800 underline"
-                    >
-                      {t("usage.upgradeForMore")}
-                    </Link>
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Advanced Metering */}
-          {limits && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-slate-900">{t("usage.meteringBreakdown")}</h3>
-                <span className="text-xs text-slate-500 px-2.5 py-1 bg-slate-100 rounded-full font-medium">
-                  {t("usage.thisMonth")}
-                </span>
-              </div>
-              <div className="grid gap-5 sm:grid-cols-3">
-                <MeteringCard
-                  label={t("usage.m1Label")}
-                  value={usage?.m1Count || 0}
-                  limit={limits.m1LimitPerMonth ?? null}
-                  icon={MessageSquare}
-                  color="bg-gradient-to-br from-blue-500 to-cyan-600"
-                />
-                <MeteringCard
-                  label={t("usage.m2Label")}
-                  value={usage?.m2Count || 0}
-                  limit={limits.m2LimitPerMonth ?? null}
-                  icon={Bot}
-                  color="bg-gradient-to-br from-emerald-500 to-teal-600"
-                />
-                <MeteringCard
-                  label={t("usage.m3Label")}
-                  value={usage?.m3Count || 0}
-                  limit={limits.m3LimitVisitorsPerMonth ?? null}
-                  icon={Users}
-                  color="bg-gradient-to-br from-amber-500 to-orange-600"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Quick Insights */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">{t("usage.quickInsights")}</h3>
-            <div className="space-y-3">
-              {!anyHigh && !anyFull && (
-                <div className="flex items-start gap-3 text-sm">
-                  <CheckCircle2 size={18} className="text-emerald-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-slate-700">{t("usage.insight1")}</p>
-                </div>
-              )}
-              {aiUsage && !aiUsage.isUnlimited && aiUsage.used >= aiUsage.limit * 0.7 && (
-                <div className="flex items-start gap-3 text-sm">
-                  <AlertTriangle size={18} className="text-amber-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-slate-700">{t("usage.insight2")}</p>
-                </div>
-              )}
-              <div className="flex items-start gap-3 text-sm">
-                <AlertCircle size={18} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                <p className="text-slate-700">{t("usage.insight3")}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Plan info card - Premium Design */}
-          <div className="bg-gradient-to-br from-slate-50 via-white to-slate-50/50 rounded-2xl border border-slate-200/80 p-8 shadow-sm">
-            {/* Header with Plan Badge */}
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">{t("usage.planDetails")}</h3>
-                <p className="text-sm text-slate-600">
-                  {billing.subscription.currentPeriodEnd && (
-                    <span className="flex items-center gap-1.5">
-                      <Calendar size={14} />
-                      {t("usage.resetDate")}{" "}
-                      <span className="font-semibold" suppressHydrationWarning>
-                        {new Date(billing.subscription.currentPeriodEnd).toLocaleDateString()}
-                      </span>
-                    </span>
-                  )}
+            {aiInsightLimit > 0 && aiPct >= 80 ? (
+              <div style={{ borderTop: `1px solid ${colors.neutral[100]}`, paddingTop: 10, marginTop: 10 }}>
+                <p style={{ color: colors.brand.secondary, fontSize: 14, fontWeight: 600 }}>⚠️ {t("usage.insightLimitApproaching")}</p>
+                <p style={{ color: colors.neutral[400], fontSize: 12 }} suppressHydrationWarning>
+                  {t("usage.m2Label")} {aiInsightUsed.toLocaleString()} / {aiInsightLimit.toLocaleString()} (%{Math.round(aiPct)})
                 </p>
               </div>
-              <div className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md ${
-                billing.plan.key === "business"
-                  ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white"
-                  : billing.plan.key === "pro"
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white"
-                  : "bg-gradient-to-r from-slate-400 to-slate-500 text-white"
-              }`}>
-                {billing.plan.key !== "free" && <Crown size={16} />}
-                {billing.plan.name}
-              </div>
-            </div>
-
-            {/* Plan Overview Grid */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-              {/* Price Card */}
-              <div className="bg-white rounded-xl p-5 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 rounded-lg bg-emerald-100">
-                    <Zap size={14} className="text-emerald-600" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
-                    {t("billing.price")}
-                  </p>
-                </div>
-                <p className="text-3xl font-bold text-slate-900 leading-none">
-                  {billing.plan.monthlyPriceUsd == null || billing.plan.monthlyPriceUsd === 0 ? (
-                    t("billing.free")
-                  ) : (
-                    <span suppressHydrationWarning>
-                      {formatUsd(billing.plan.monthlyPriceUsd, { decimals: 0 })}
-                      <span className="text-sm font-normal text-slate-500">{t("billing.perMonth")}</span>
-                    </span>
-                  )}
+            ) : null}
+            {automationPct < 30 ? (
+              <div style={{ borderTop: `1px solid ${colors.neutral[100]}`, paddingTop: 10, marginTop: 10 }}>
+                <p style={{ color: colors.neutral[900], fontSize: 14, fontWeight: 600 }}>💡 {t("usage.insightAiLow")}</p>
+                <p style={{ color: colors.neutral[400], fontSize: 12 }} suppressHydrationWarning>
+                  {t("usage.m3Label")} %{Math.round(automationPct)} · {t("usage.remaining")}
                 </p>
               </div>
-
-              {/* Conversations Card */}
-              <div className="bg-white rounded-xl p-5 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 rounded-lg bg-blue-100">
-                    <MessageSquare size={14} className="text-blue-600" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
-                    {t("usage.conversations")}
-                  </p>
-                </div>
-                <p className="text-3xl font-bold text-slate-900 leading-none" suppressHydrationWarning>
-                  {limits?.maxConversationsPerMonth.toLocaleString()}
-                  <span className="text-sm font-normal text-slate-500">{t("billing.perMonth")}</span>
+            ) : null}
+            {(isLocked || isGrace || anyFull || (alerts && alerts.domainMismatchCountPeriod > 0)) && (
+              <div style={{ borderTop: `1px solid ${colors.neutral[100]}`, paddingTop: 10, marginTop: 10 }}>
+                <p style={{ color: colors.brand.secondary, fontSize: 12, fontWeight: 600 }}>
+                  ⚠️ {isLocked ? t("usage.locked") : isGrace ? t("usage.gracePeriod") : anyFull ? t("usage.limitReached") : t("usage.securityNotice")}
                 </p>
-              </div>
-
-              {/* Messages Card */}
-              <div className="bg-white rounded-xl p-5 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 rounded-lg bg-purple-100">
-                    <Send size={14} className="text-purple-600" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
-                    {t("usage.messages")}
-                  </p>
-                </div>
-                <p className="text-3xl font-bold text-slate-900 leading-none" suppressHydrationWarning>
-                  {limits?.maxMessagesPerMonth.toLocaleString()}
-                  <span className="text-sm font-normal text-slate-500">{t("billing.perMonth")}</span>
-                </p>
-              </div>
-
-              {/* Agents Card */}
-              <div className="bg-white rounded-xl p-5 border border-slate-200/60 hover:border-slate-300 transition-all hover:shadow-md">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 rounded-lg bg-amber-100">
-                    <Users size={14} className="text-amber-600" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
-                    {t("usage.agentSeats")}
-                  </p>
-                </div>
-                <p className="text-3xl font-bold text-slate-900 leading-none">
-                  {limits?.maxAgents ?? "—"}
-                </p>
-              </div>
-            </div>
-
-            {/* Status Banner */}
-            <div className={`rounded-xl p-4 mb-6 border ${
-              billing.subscription.status === "active"
-                ? "bg-emerald-50/50 border-emerald-200/60"
-                : billing.subscription.status === "trialing"
-                ? "bg-blue-50/50 border-blue-200/60"
-                : "bg-slate-50/50 border-slate-200/60"
-            }`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${
-                    billing.subscription.status === "active"
-                      ? "bg-emerald-100"
-                      : billing.subscription.status === "trialing"
-                      ? "bg-blue-100"
-                      : "bg-slate-100"
-                  }`}>
-                    {billing.subscription.status === "active" ? (
-                      <CheckCircle2 size={18} className="text-emerald-600" />
-                    ) : billing.subscription.status === "trialing" ? (
-                      <Sparkles size={18} className="text-blue-600" />
-                    ) : (
-                      <AlertCircle size={18} className="text-slate-600" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {t("usage.status")}:{" "}
-                      {(() => {
-                        const sKey = `billing.status.${billing.subscription.status}` as TranslationKey;
-                        const sTranslated = t(sKey);
-                        return sTranslated === sKey
-                          ? (billing.subscription.status === "none" ? t("usage.noSubscription") : billing.subscription.status.replace("_", " "))
-                          : sTranslated;
-                      })()}
-                    </p>
-                    {billing.subscription.status === "active" && (
-                      <p className="text-xs text-slate-600 mt-0.5">
-                        {t("usage.healthy")} • {t("billing.autoRenew")}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Upgrade CTA (if Free) */}
-            {billing.plan.key === "free" && (
-              <div className="bg-gradient-to-br from-blue-50 via-indigo-50/30 to-purple-50/50 rounded-xl p-5 border border-blue-200/60 mb-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Crown size={20} className="text-blue-600" />
-                      <h4 className="text-base font-bold text-slate-900">
-                        {t("billing.upgradePlan")}
-                      </h4>
-                    </div>
-                    <p className="text-sm text-slate-700 mb-3">
-                      {t("billing.unlockPremiumFeatures")}
-                    </p>
-                    <ul className="space-y-1.5 text-xs text-slate-600">
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
-                        2,000+ {t("usage.conversations").toLowerCase()} & 20,000+ {t("usage.messages").toLowerCase()}
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
-                        10 {t("usage.agentSeats").toLowerCase()}
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
-                        2,000 AI {t("usage.aiResponses").toLowerCase()}
-                      </li>
-                    </ul>
-                  </div>
-                  <Link
-                    href="/portal/billing"
-                    className="px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl flex items-center gap-2 whitespace-nowrap"
-                  >
-                    {t("billing.viewPlans")}
-                    <ArrowUpRight size={16} />
-                  </Link>
-                </div>
               </div>
             )}
+          </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/portal/billing"
-                className="px-6 py-3 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-              >
-                {t("billing.manageBilling")}
-                <ArrowUpRight size={16} />
-              </Link>
-              {isLocked && (
-                <span className="px-6 py-3 text-sm text-red-700 bg-red-50 rounded-xl border border-red-200 font-semibold flex items-center gap-2">
-                  <AlertCircle size={16} />
-                  {t("usage.contactSupport")}
-                </span>
-              )}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              {
+                emoji: "💬",
+                label: t("usage.conversations"),
+                used: usageMetrics.conversations.used,
+                limit: usageMetrics.conversations.limit,
+                previous: usageMetrics.conversations.lastMonthUsed,
+                iconBg: "linear-gradient(135deg,#EFF6FF,#DBEAFE)",
+              },
+              {
+                emoji: "📨",
+                label: t("usage.messages"),
+                used: usageMetrics.messages.used,
+                limit: usageMetrics.messages.limit,
+                previous: usageMetrics.messages.lastMonthUsed,
+                iconBg: "linear-gradient(135deg,#F5F3FF,#EDE9FE)",
+              },
+              {
+                emoji: "🤖",
+                label: t("usage.m2Label"),
+                used: usageMetrics.aiMessages.used,
+                limit: usageMetrics.aiMessages.limit,
+                previous: usageMetrics.aiMessages.lastMonthUsed,
+                iconBg: "linear-gradient(135deg,#ECFDF5,#D1FAE5)",
+              },
+              {
+                emoji: "⚡",
+                label: t("usage.m3Label"),
+                used: usageMetrics.automationReached.used,
+                limit: usageMetrics.automationReached.limit,
+                previous: usageMetrics.automationReached.lastMonthUsed,
+                iconBg: "linear-gradient(135deg,#FFF7ED,#FFEDD5)",
+              },
+            ].map((metric, idx) => {
+              const pct = metricPercent(metric.used, metric.limit);
+              const warning = pct >= 80;
+              const isUnlimited = metric.limit < 0;
+              const remaining = isUnlimited ? 0 : Math.max(0, metric.limit - metric.used);
+              const tone =
+                pct >= 80
+                  ? "linear-gradient(135deg,#EF4444,#FB7185)"
+                  : pct >= 60
+                  ? "linear-gradient(135deg,#F59E0B,#FBBF24)"
+                  : "linear-gradient(135deg,#10B981,#34D399)";
+
+              let trendBadge: { text: string; bg: string; color: string } = { text: "— 0%", bg: "#F1F5F9", color: "#94A3B8" };
+              if (metric.previous > metric.used && metric.previous > 0) {
+                trendBadge = {
+                  text: `↑ ${Math.round(((metric.previous - metric.used) / metric.previous) * 100)}%`,
+                  bg: "#ECFDF5",
+                  color: "#059669",
+                };
+              } else if (metric.previous < metric.used && metric.previous > 0) {
+                trendBadge = {
+                  text: `↓ ${Math.round(((metric.used - metric.previous) / metric.previous) * 100)}%`,
+                  bg: "#FFF1F2",
+                  color: "#E11D48",
+                };
+              }
+
+              return (
+                <div
+                  key={metric.label}
+                  style={{
+                    animation: `usageFadeUp .5s ease ${0.1 + idx * 0.05}s both`,
+                    background: colors.neutral.white,
+                    border: warning ? "1px solid #FCD34D" : "1px solid #F3E8D8",
+                    borderRadius: 16,
+                    padding: 20,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
+                    transition: "transform .2s ease, box-shadow .2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)";
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        background: metric.iconBg,
+                        display: "grid",
+                        placeItems: "center",
+                        fontSize: 20,
+                      }}
+                    >
+                      {metric.emoji}
+                    </div>
+                    <span
+                      style={{
+                        background: trendBadge.bg,
+                        color: trendBadge.color,
+                        borderRadius: 999,
+                        padding: "4px 10px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        fontFamily: fonts.body,
+                      }}
+                      title={t("usage.lastMonthValue", { value: metric.previous.toLocaleString() })}
+                    >
+                      {trendBadge.text}
+                    </span>
+                  </div>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: 1,
+                      textTransform: "uppercase",
+                      color: colors.neutral[400],
+                      fontFamily: fonts.body,
+                    }}
+                  >
+                    {metric.label}
+                  </p>
+                  <div className="mt-1 flex items-end gap-2" suppressHydrationWarning>
+                    <span style={{ fontSize: 32, lineHeight: 1, fontWeight: 900, color: colors.neutral[900], fontFamily: fonts.heading }}>
+                      {metric.used.toLocaleString()}
+                    </span>
+                    <span style={{ fontSize: 16, color: colors.neutral[400], fontFamily: fonts.body }}>
+                      / {isUnlimited ? t("usage.unlimited") : metric.limit.toLocaleString()}
+                    </span>
+                  </div>
+                  <p
+                    style={{
+                      marginTop: 6,
+                      fontSize: 12,
+                      color: warning ? colors.brand.secondary : colors.neutral[400],
+                      fontWeight: warning ? 600 : 500,
+                      fontFamily: fonts.body,
+                    }}
+                    suppressHydrationWarning
+                  >
+                    {warning ? `⚠️ ${remaining.toLocaleString()} ${t("usage.remaining")}` : `${remaining.toLocaleString()} ${t("usage.remaining")}`}
+                  </p>
+                  <div style={{ marginTop: 10, height: 6, borderRadius: 999, background: colors.neutral[100], overflow: "hidden" }}>
+                    <div
+                      style={{
+                        width: `${animateUsageBars ? pct : 0}%`,
+                        height: "100%",
+                        borderRadius: 999,
+                        background: tone,
+                        transition: "width 1.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div
+            style={{
+              animation: "usageFadeUp .5s ease 0.35s both",
+              background: colors.neutral.white,
+              border: `1px solid ${colors.border.warm}`,
+              borderRadius: 16,
+              padding: 22,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 style={{ fontSize: 20, fontWeight: 700, color: colors.neutral[900], fontFamily: fonts.heading }}>
+                {t("usage.meteringBreakdown")}
+              </h3>
+              <span style={{ fontSize: 13, color: colors.brand.primary, fontWeight: 700 }}>{t("usage.thisMonth")} ▾</span>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                {
+                  emoji: "💬",
+                  label: "M1",
+                  title: t("usage.m1Label"),
+                  used: usageMetrics.conversations.used,
+                  limit: usageMetrics.conversations.limit,
+                  bar: "linear-gradient(135deg,#3B82F6,#60A5FA)",
+                  color: "#3B82F6",
+                },
+                {
+                  emoji: "🤖",
+                  label: "M2",
+                  title: t("usage.m2Label"),
+                  used: usageMetrics.aiMessages.used,
+                  limit: usageMetrics.aiMessages.limit,
+                  bar: "linear-gradient(135deg,#EF4444,#FB7185)",
+                  color: aiPct >= 80 ? "#EF4444" : "#64748B",
+                },
+                {
+                  emoji: "⚡",
+                  label: "M3",
+                  title: t("usage.m3Label"),
+                  used: usageMetrics.automationReached.used,
+                  limit: usageMetrics.automationReached.limit,
+                  bar: "linear-gradient(135deg,#10B981,#34D399)",
+                  color: "#F59E0B",
+                },
+              ].map((m, idx) => {
+                const pct = metricPercent(m.used, m.limit);
+                const warn = pct >= 80;
+                return (
+                  <div
+                    key={m.label}
+                    style={{
+                      animation: `usageFadeUp .5s ease ${0.4 + idx * 0.05}s both`,
+                      background: colors.neutral.white,
+                      border: `1px solid ${colors.border.warm}`,
+                      borderRadius: 16,
+                      padding: 22,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
+                      transition: "transform .2s ease, box-shadow .2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)";
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: colors.neutral[50], display: "grid", placeItems: "center", fontSize: 18 }}>
+                        {m.emoji}
+                      </div>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: colors.neutral[500], letterSpacing: 0.8 }}>
+                        {m.title.toUpperCase()}
+                      </p>
+                    </div>
+                    <p style={{ fontSize: 36, lineHeight: 1, fontWeight: 900, color: colors.neutral[900], fontFamily: fonts.heading }} suppressHydrationWarning>
+                      {m.used.toLocaleString()}
+                    </p>
+                    <div className="mt-4 flex items-center gap-2">
+                      <div style={{ flex: 1, height: 8, borderRadius: 999, background: colors.neutral[100], overflow: "hidden" }}>
+                        <div
+                          style={{
+                            width: `${animateUsageBars ? pct : 0}%`,
+                            height: "100%",
+                            borderRadius: 999,
+                            background: m.bar,
+                            transition: "width 1.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                          }}
+                        />
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: m.color }}>{pct.toFixed(0)}%</span>
+                    </div>
+                    <p
+                      style={{ marginTop: 8, fontSize: 12, color: warn ? colors.brand.secondary : colors.neutral[400], fontWeight: warn ? 700 : 500 }}
+                      suppressHydrationWarning
+                    >
+                      {warn
+                        ? `⚠️ ${t("usage.limit")} ${m.limit < 0 ? t("usage.unlimited") : m.limit.toLocaleString()} — ${t("usage.approachingLimit")}`
+                        : `${t("usage.limit")} ${m.limit < 0 ? t("usage.unlimited") : m.limit.toLocaleString()}`}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div
+              style={{
+                animation: "usageFadeUp .5s ease 0.55s both",
+                background: colors.neutral.white,
+                border: `1px solid ${colors.border.warm}`,
+                borderRadius: 16,
+                padding: 24,
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
+              }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: colors.neutral[900], fontFamily: fonts.heading }}>
+                  {t("usage.planDetails")}
+                </h3>
+                <span style={{ background: colors.neutral[100], color: colors.neutral[500], borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>
+                  {usageMetrics.plan.name}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div style={{ background: colors.neutral[50], borderRadius: 10, padding: "10px 14px" }}>
+                  <p style={{ fontSize: 11, color: colors.neutral[400] }}>💰 {t("billing.price")}</p>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: colors.neutral[900] }} suppressHydrationWarning>
+                    {usageMetrics.plan.price > 0 ? `${formatUsd(usageMetrics.plan.price, { decimals: 0 })}${t("billing.perMonth")}` : t("billing.free")}
+                  </p>
+                </div>
+                <div style={{ background: colors.neutral[50], borderRadius: 10, padding: "10px 14px" }}>
+                  <p style={{ fontSize: 11, color: colors.neutral[400] }}>💬 {t("usage.conversations")}</p>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: colors.neutral[900] }} suppressHydrationWarning>
+                    {usageMetrics.conversations.limit < 0 ? t("usage.unlimited") : `${usageMetrics.conversations.limit.toLocaleString()}${t("billing.perMonth")}`}
+                  </p>
+                </div>
+                <div style={{ background: colors.neutral[50], borderRadius: 10, padding: "10px 14px" }}>
+                  <p style={{ fontSize: 11, color: colors.neutral[400] }}>📨 {t("usage.messages")}</p>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: colors.neutral[900] }} suppressHydrationWarning>
+                    {usageMetrics.messages.limit < 0 ? t("usage.unlimited") : `${usageMetrics.messages.limit.toLocaleString()}${t("billing.perMonth")}`}
+                  </p>
+                </div>
+                <div style={{ background: colors.neutral[50], borderRadius: 10, padding: "10px 14px" }}>
+                  <p style={{ fontSize: 11, color: colors.neutral[400] }}>👥 {t("usage.agentSeats")}</p>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: colors.neutral[900] }}>{limits?.maxAgents ?? "—"}</p>
+                </div>
+              </div>
+              <div style={{ marginTop: 12, background: colors.status.successLight, color: colors.status.success, borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 700 }}>
+                ✅ {t("usage.status")}: {usageMetrics.plan.status === "active" ? t("usage.planActive") : t("usage.noPlan")}
+              </div>
+            </div>
+
+            <div
+              style={{
+                animation: "usageFadeUp .5s ease 0.6s both",
+                background: "linear-gradient(135deg,#FFFBEB,#FEF3C7,#FDE68A)",
+                border: "1px solid #FCD34D",
+                borderRadius: 16,
+                padding: 24,
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
+              }}
+            >
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: colors.neutral[900], fontFamily: fonts.heading }}>
+                ✨ {t("billing.upgradePlan")}
+              </h3>
+              <p style={{ marginTop: 8, fontSize: 14, color: colors.neutral[500] }}>{t("billing.unlockPremiumFeatures")}</p>
+              <div style={{ marginTop: 10, fontSize: 13, color: colors.neutral[900], lineHeight: 1.65 }}>
+                <p>✅ {t("usage.m2Label")}</p>
+                <p>✅ {t("usage.m3Label")}</p>
+                <p>✅ {t("usage.conversations")}</p>
+                <p>✅ {t("usage.messages")}</p>
+              </div>
+              <Link
+                href="/portal/billing"
+                className="inline-flex items-center gap-2 mt-5"
+                style={{
+                  background: `linear-gradient(135deg,${colors.brand.primary},${colors.brand.secondary})`,
+                  color: colors.neutral.white,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  padding: "14px 32px",
+                  borderRadius: 12,
+                  boxShadow: "0 10px 24px rgba(217,119,6,0.25)",
+                  transition: "transform .2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                }}
+              >
+                {t("billing.viewPlans")} 🚀
+                <ArrowUpRight size={16} />
+              </Link>
+            </div>
+          </div>
+
+          {error && (
+            <div style={{ background: "#FFF1F2", border: "1px solid #FBCFE8", color: "#BE123C", borderRadius: 12, padding: "10px 14px", fontSize: 13 }}>
+              {error}
+            </div>
+          )}
         </div>
       )}
-    </>
+      <style jsx global>{`
+        @keyframes usageFadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(16px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+    </div>
   );
 }

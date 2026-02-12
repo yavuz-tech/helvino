@@ -234,7 +234,7 @@ export default function NotificationsPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1A1D23]" />
       </div>
     );
   }
@@ -247,14 +247,14 @@ export default function NotificationsPage() {
           <div>
             <Link
               href="/portal"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#1A1A2E] transition-colors mb-3 group"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#64748B] hover:text-[#1A1D23] transition-colors mb-3 group"
             >
               <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
               {t("portalOnboarding.backToDashboard")}
             </Link>
             <div className="flex items-center gap-3">
-              <Bell size={24} className="text-slate-600" />
-              <h1 className="text-2xl font-bold text-slate-900">
+              <Bell size={24} className="text-[#475569]" />
+              <h1 className="text-2xl font-bold text-[#1A1D23] font-heading">
                 {t("notifications.title")}
               </h1>
               {unreadCount > 0 && (
@@ -267,7 +267,7 @@ export default function NotificationsPage() {
           {unreadCount > 0 && (
             <button
               onClick={handleMarkAllRead}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors"
             >
               <CheckCircle size={16} />
               {t("notifications.markAllRead")}
@@ -278,9 +278,9 @@ export default function NotificationsPage() {
         {error && <ErrorBanner message={error} />}
 
         {/* Preferences */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
+        <div className="bg-white border border-[#F3E8D8] rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-slate-700">
+            <h3 className="text-sm font-semibold text-[#1A1D23] font-heading">
               {t("notifications.preferencesTitle")}
             </h3>
             {prefsSaved && (
@@ -303,9 +303,9 @@ export default function NotificationsPage() {
                   type="checkbox"
                   checked={prefs[key]}
                   onChange={(e) => handlePrefToggle(key, e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                  className="w-4 h-4 rounded border-[#E2E8F0] text-amber-600 focus:ring-amber-500/20"
                 />
-                <span className="text-sm text-slate-600">{t(label)}</span>
+                <span className="text-sm text-[#475569]">{t(label)}</span>
               </label>
             ))}
           </div>
@@ -313,13 +313,13 @@ export default function NotificationsPage() {
 
         {/* Tabs + Category Filter */}
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <div className="flex gap-1 bg-slate-100 rounded-lg p-1 w-fit">
+          <div className="flex gap-1 bg-[#F1F5F9] rounded-lg p-1 w-fit">
             <button
               onClick={() => setTab("all")}
               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
                 tab === "all"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "bg-white text-[#1A1D23] shadow-sm"
+                  : "text-[#64748B] hover:text-[#475569]"
               }`}
             >
               {t("notifications.all")}
@@ -328,8 +328,8 @@ export default function NotificationsPage() {
               onClick={() => setTab("unread")}
               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
                 tab === "unread"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "bg-white text-[#1A1D23] shadow-sm"
+                  : "text-[#64748B] hover:text-[#475569]"
               }`}
             >
               {t("notifications.unread")}
@@ -338,13 +338,13 @@ export default function NotificationsPage() {
 
           {/* Category Filter */}
           <div className="flex items-center gap-2">
-            <label className="text-xs text-slate-500 font-medium">
+            <label className="text-xs text-[#64748B] font-medium">
               {t("notifications.filter.category")}:
             </label>
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
+              className="px-3 py-1.5 text-sm border border-[#F3E8D8] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-transparent"
             >
               <option value="">{t("notifications.all")}</option>
               <option value="security">{t("notifications.category.security")}</option>
@@ -359,12 +359,12 @@ export default function NotificationsPage() {
         <div className="space-y-3">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-900" />
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#1A1D23]" />
             </div>
           ) : items.length === 0 ? (
-            <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
-              <Bell size={40} className="mx-auto text-slate-300 mb-3" />
-              <p className="text-slate-400 text-sm">
+            <div className="bg-white border border-[#F3E8D8] rounded-xl p-12 text-center">
+              <Bell size={40} className="mx-auto text-[#CBD5E1] mb-3" />
+              <p className="text-[#94A3B8] text-sm">
                 {t("notifications.empty")}
               </p>
             </div>
@@ -382,12 +382,12 @@ export default function NotificationsPage() {
                   className={`bg-white border rounded-xl p-4 transition-colors ${
                     isUnread
                       ? "border-blue-200 bg-blue-50/30"
-                      : "border-slate-200"
+                      : "border-[#F3E8D8]"
                   }`}
                 >
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5">
-                      <TypeIcon size={18} className="text-slate-400" />
+                      <TypeIcon size={18} className="text-[#94A3B8]" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -397,7 +397,7 @@ export default function NotificationsPage() {
                           <SevIcon size={12} />
                           {t(sev.labelKey)}
                         </span>
-                        <span className="px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-600 rounded-full">
+                        <span className="px-2 py-0.5 text-xs font-medium bg-[#F1F5F9] text-[#475569] rounded-full">
                           {t(
                             (`notifications.category.${item.type.toLowerCase().replace("_", "")}` as TranslationKey) ||
                             "notifications.type.system"
@@ -407,14 +407,14 @@ export default function NotificationsPage() {
                           <span className="w-2 h-2 bg-blue-500 rounded-full" />
                         )}
                       </div>
-                      <h3 className="text-sm font-semibold text-slate-900">
+                      <h3 className="text-sm font-semibold text-[#1A1D23] font-heading">
                         {t(item.titleKey as TranslationKey)}
                       </h3>
-                      <p className="text-sm text-slate-600 mt-0.5">
+                      <p className="text-sm text-[#475569] mt-0.5">
                         {t(item.bodyKey as TranslationKey)}
                       </p>
                       <p
-                        className="text-xs text-slate-400 mt-2"
+                        className="text-xs text-[#94A3B8] mt-2"
                         suppressHydrationWarning
                       >
                         {formatDate(item.createdAt, hydrated)}
@@ -423,7 +423,7 @@ export default function NotificationsPage() {
                     {isUnread && (
                       <button
                         onClick={() => handleMarkRead(item.id)}
-                        className="shrink-0 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                        className="shrink-0 px-3 py-1.5 text-xs font-medium text-[#475569] bg-[#F1F5F9] rounded-lg hover:bg-[#E2E8F0] transition-colors"
                       >
                         {t("notifications.markRead")}
                       </button>
@@ -441,10 +441,10 @@ export default function NotificationsPage() {
             <button
               onClick={() => fetchNotifications(nextCursor, true)}
               disabled={loadingMore}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[#F1F5F9] text-[#475569] rounded-lg hover:bg-[#E2E8F0] transition-colors disabled:opacity-50"
             >
               {loadingMore ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-600" />
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#475569]" />
               ) : (
                 <ChevronDown size={16} />
               )}

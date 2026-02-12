@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useI18n } from "@/i18n/I18nContext";
 import PublicLayout from "@/components/PublicLayout";
 import { designTokens } from "@/lib/designTokens";
-import Card from "@/components/Card";
+import Card from "@/components/ui/Card";
 import Badge from "@/components/Badge";
 import SectionTitle from "@/components/SectionTitle";
 

@@ -8,63 +8,57 @@ alwaysApply: true
 
 ## IN PROGRESS: Abandoned Checkout + Promotion Code System
 
-### What's Done
-- `CheckoutSession` and `PromotionCode` models added to `apps/api/prisma/schema.prisma`
-- Migration directory created but SQL NOT written yet
-- No routes, jobs, or templates created yet
+### Current Implementation Status (Updated)
 
-### What Needs To Be Done
+#### Done
+- `CheckoutSession` and `PromotionCode` models are present in `apps/api/prisma/schema.prisma`.
+- Migration exists for checkout/promo foundation:
+  - `apps/api/prisma/migrations/20260210083000_add_checkout_abandon_and_promo/migration.sql`
+- Checkout tracking is implemented in Stripe utility:
+  - `apps/api/src/utils/stripe.ts` -> `createCheckoutSession()` upserts `CheckoutSession` with `status: "started"`.
+- Checkout completion is wired in webhook:
+  - `apps/api/src/routes/stripe-webhook.ts` handles `checkout.session.completed`.
+  - Matching `CheckoutSession` is updated to `status: "completed"` with `completedAt`.
+- Abandoned checkout job is implemented:
+  - `apps/api/src/jobs/checkAbandonedCheckouts.ts`
+  - Marks old `started` sessions as `abandoned`, sends email, records audit.
+  - Registered in `apps/api/src/index.ts` via cron (`* * * * *`).
+- Abandoned checkout email flow exists:
+  - Sender: `apps/api/src/emails/send-abandoned-email.ts`
+  - Template provider: `apps/api/src/utils/email-templates.ts` -> `getAbandonedCheckoutEmail(...)`
+- Admin promo code APIs exist in:
+  - `apps/api/src/routes/internal-admin.ts`
+  - `GET /internal/promo-codes`
+  - `POST /internal/promo-codes`
+  - `PATCH /internal/promo-codes/:id`
+- Admin promo UI section exists in:
+  - `apps/web/src/app/dashboard/settings/page.tsx`
+- Checkout supports promo usage in Stripe:
+  - `apps/api/src/utils/stripe.ts` uses `allow_promotion_codes: true`.
 
-#### 1. Database Migration
-- Write and apply migration for CheckoutSession and PromotionCode tables
-- Run: `cd apps/api && npx prisma db push` or create migration SQL
+#### Partially Done / Needs Validation
+- Stripe-side coupon/promotion code sync is implemented, but should be validated in real Stripe environment for all edge cases (usage limits, expiration, inactive codes).
+- End-to-end checkout-abandon-recovery flow needs explicit integration test coverage.
+- Production migration/application status should be confirmed per environment (local code has migration; deployment state may vary).
 
-#### 2. Track Checkout Sessions (API)
-- In `apps/api/src/routes/portal-billing.ts`, POST `/portal/billing/checkout` route:
-  - After `createCheckoutSession()` succeeds, save a `CheckoutSession` record with status="started"
-  - Include org email, planKey, Stripe session ID
+#### Remaining Work (Actionable)
+1. Add or expand automated integration tests for:
+   - checkout start -> `CheckoutSession(status="started")`
+   - webhook completion -> `status="completed"`
+   - abandoned job -> `status="abandoned"` + promo creation + email send
+2. Validate full Stripe behavior with live/test keys:
+   - promotion code attach, checkout acceptance, webhook attribution.
+3. Optional cleanup:
+   - review legacy abandoned email artifacts (`apps/api/src/emails/abandoned-checkout.ts`, `apps/api/src/emails/abandonedCheckout.tsx`) and keep only the canonical path.
 
-#### 3. Complete Checkout via Webhook
-- In `apps/api/src/routes/stripe-webhook.ts`, `checkout.session.completed` handler:
-  - Find matching CheckoutSession record by Stripe session ID
-  - Update status to "completed", set completedAt
+## LATEST COMPLETED (Security/Tech Debt)
 
-#### 4. Abandoned Checkout Background Job
-- Create `apps/api/src/jobs/check-abandoned-checkouts.ts`
-- Every 60 seconds: find CheckoutSession where status="started" AND createdAt < 5 minutes ago
-- Mark as "abandoned", generate a unique promo code (Stripe coupon + promotion_code)
-- Send abandoned checkout email with the promo code
-- Register job in `apps/api/src/index.ts`
-
-#### 5. Abandoned Checkout Email Template
-- Add to `apps/api/src/utils/email-templates.ts`
-- Premium design, EN/TR/ES versions
-- Content: "We noticed you started checkout but didn't finish. Here's a special X% discount just for you: CODE"
-- Include plan benefits, urgency (48h expiry), CTA button back to checkout
-
-#### 6. Admin Promo Code Management
-- Add routes to `apps/api/src/routes/internal-admin.ts`:
-  - POST `/internal/promo-codes` — Create promo code (Stripe coupon + promotion_code API)
-  - GET `/internal/promo-codes` — List all codes
-  - PATCH `/internal/promo-codes/:id` — Activate/deactivate
-- Admin UI in `apps/web/src/app/dashboard/settings/page.tsx` (add a Promo Codes section)
-
-#### 7. Portal: Promo Code in Checkout
-- In `apps/api/src/utils/stripe.ts`, `createCheckoutSession()`:
-  - Add `allow_promotion_codes: true` to Stripe session creation
-- This lets customers enter promo codes directly in Stripe Checkout
-
-#### 8. i18n Keys
-- Add keys to en.json, tr.json, es.json for:
-  - Abandoned email subject/content
-  - Admin promo code management labels
-  - Toast messages for promo operations
-
-#### 9. Testing
-- Verify API health after changes
-- Test checkout flow creates CheckoutSession record
-- Test abandoned job detects and sends email
-- Test promo code creation via admin API
+- Strong password validation added in API (`validatePasswordStrength`) and enforced on signup/reset/change/invite accept flows.
+- CORS and domain allowlist hardening completed:
+  - empty allowlist blocked in production,
+  - localhost-only behavior in development for empty lists,
+  - wildcard allowlist entries blocked/ignored.
+- Non-essential `console.log` cleanup completed across API/Web; startup-level logs retained.
 
 ## COMPLETED FEATURES (for reference)
 - Full portal UI overhaul (Tidio/Intercom level)

@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2, Mail } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ErrorBanner from "@/components/ErrorBanner";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -20,8 +20,9 @@ export default function ForgotPasswordPage() {
   const [resetLink, setResetLink] = useState<string | null>(null);
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaRenderNonce, setCaptchaRenderNonce] = useState(0);
   const [resendCountdown, setResendCountdown] = useState(0);
-  const captchaSiteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || "";
+  const captchaSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
   useEffect(() => {
     if (!resendCountdown) return;
@@ -67,6 +68,7 @@ export default function ForgotPasswordPage() {
         } else if (code === "INVALID_CAPTCHA") {
           setShowCaptcha(true);
           setCaptchaToken(null);
+          setCaptchaRenderNonce((v) => v + 1);
           setError(t("security.resetCaptchaInvalid"));
         } else {
           setError(msg || t("common.error"));
@@ -198,12 +200,12 @@ export default function ForgotPasswordPage() {
                       </p>
                       {captchaSiteKey ? (
                         <div className="overflow-hidden rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] p-2">
-                          <HCaptcha
-                            sitekey={captchaSiteKey}
+                          <TurnstileWidget
+                            key={captchaRenderNonce}
+                            siteKey={captchaSiteKey}
                             onVerify={(token) => setCaptchaToken(token)}
                             onExpire={() => setCaptchaToken(null)}
                             onError={() => setCaptchaToken(null)}
-                            theme="light"
                           />
                         </div>
                       ) : (

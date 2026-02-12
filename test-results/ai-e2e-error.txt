@@ -1,0 +1,11 @@
+Error: locator.waitFor: Timeout 15000ms exceeded.
+Call log:
+  - waiting for locator('.widget-launcher-button').first() to be visible
+
+
+Stack:
+locator.waitFor: Timeout 15000ms exceeded.
+Call log:
+  - waiting for locator('.widget-launcher-button').first() to be visible
+
+    at main (/Users/yavuz/Desktop/helvino/scripts/test-ai-reply-e2e.mjs:80:24)

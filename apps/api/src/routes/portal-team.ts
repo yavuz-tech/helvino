@@ -8,13 +8,17 @@
 import { FastifyInstance } from "fastify";
 import crypto from "crypto";
 import { prisma } from "../prisma";
-import { hashPassword } from "../utils/password";
+import {
+  hashPassword,
+  validatePasswordStrength,
+  PASSWORD_STRENGTH_ERROR_MESSAGE,
+} from "../utils/password";
 import { writeAuditLog } from "../utils/audit-log";
 import { sendEmail, getDefaultFromAddress } from "../utils/mailer";
 import { generateInviteLink, verifySignedLink } from "../utils/signed-links";
 import { getInviteEmail, normalizeRequestLocale, extractLocaleCookie } from "../utils/email-templates";
-import { validatePasswordPolicy } from "../utils/password-policy";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { rateLimit } from "../middleware/rate-limiter";
 import {
   requirePortalUser,
   requirePortalRole,
@@ -46,6 +50,13 @@ const INVITE_ROLES = ["admin", "agent"] as const;
 const DEFAULT_INVITE_EXPIRY_DAYS = 7;
 
 export async function portalTeamRoutes(fastify: FastifyInstance) {
+  const teamInviteRateLimit = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    maxRequests: 10,
+    message: "Too many invite attempts",
+    keyBuilder: (request) => request.portalUser?.id || "anonymous-user",
+  });
+
   // ──────────────────────────────────────────────────────
   // GET /portal/org/users — list org users (and alias /portal/team/users for inbox etc.)
   // ──────────────────────────────────────────────────────
@@ -93,11 +104,15 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
     "/portal/org/users/invite",
     {
       preHandler: [
+        teamInviteRateLimit,
         requirePortalUser,
         requirePortalRole(["owner", "admin"]),
         requireStepUp("portal"),
         createRateLimitMiddleware({ limit: 10, windowMs: 60000 }),
       ],
+      config: {
+        skipGlobalRateLimit: true,
+      },
     },
     async (request, reply) => {
       const actor = request.portalUser!;
@@ -551,16 +566,10 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
         return { error: "Token and password are required" };
       }
 
-      const pwCheck = validatePasswordPolicy(body.password);
+      const pwCheck = validatePasswordStrength(body.password);
       if (!pwCheck.valid) {
         reply.code(400);
-        return {
-          error: {
-            code: pwCheck.code,
-            message: pwCheck.message || "Password policy validation failed",
-            requestId: request.requestId,
-          },
-        };
+        return { error: PASSWORD_STRENGTH_ERROR_MESSAGE };
       }
 
       // When expires + sig are provided, verify signed link (prevents tampered URLs)

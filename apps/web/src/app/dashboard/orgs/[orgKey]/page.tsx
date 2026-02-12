@@ -156,8 +156,8 @@ export default function OrgDetailPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">{t("common.loading")}</div>
+      <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+        <div className="text-[#475569]">{t("common.loading")}</div>
       </div>
     );
   }
@@ -167,7 +167,7 @@ export default function OrgDetailPage() {
       {/* Back link */}
       <Link
         href="/dashboard/orgs"
-        className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900 mb-4"
+        className="inline-flex items-center gap-1.5 text-sm text-[#475569] hover:text-amber-800 mb-4"
       >
         <ArrowLeft size={16} />
         {t("orgDir.backToList")}
@@ -183,18 +183,18 @@ export default function OrgDetailPage() {
       )}
 
       {!org ? (
-        <div className="text-center py-12 text-slate-500">{t("common.error")}</div>
+        <div className="text-center py-12 text-[#64748B]">{t("common.error")}</div>
       ) : (
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center">
-                <Building2 size={24} className="text-slate-600" />
+              <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
+                <Building2 size={24} className="text-[#475569]" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">{org.displayName}</h1>
-                <p className="text-sm text-slate-500 font-mono">{org.orgKey}</p>
+                <h1 className="text-2xl font-bold text-[#1A1D23] font-heading">{org.displayName}</h1>
+                <p className="text-sm text-[#64748B] font-mono">{org.orgKey}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -204,7 +204,7 @@ export default function OrgDetailPage() {
                 {org.isActive ? t("orgDir.active") : t("orgDir.inactive")}
               </span>
               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                org.createdVia === "self_serve" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-700"
+                org.createdVia === "self_serve" ? "bg-amber-100 text-amber-700" : "bg-amber-50 text-amber-800"
               }`}>
                 {org.createdVia === "self_serve" ? t("orgDir.selfServe") : t("orgDir.admin")}
               </span>
@@ -213,8 +213,8 @@ export default function OrgDetailPage() {
 
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Overview Card */}
-            <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
+              <h2 className="text-lg font-semibold text-[#1A1D23] font-heading mb-4 flex items-center gap-2">
                 <Activity size={18} />
                 {t("orgDir.overview")}
               </h2>
@@ -232,8 +232,8 @@ export default function OrgDetailPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
+              <h2 className="text-lg font-semibold text-[#1A1D23] font-heading mb-4 flex items-center gap-2">
                 <Shield size={18} />
                 {t("orgDir.quickActions")}
               </h2>
@@ -261,17 +261,17 @@ export default function OrgDetailPage() {
 
               {/* Usage Summary */}
               {org.usage && org.limits && (
-                <div className="mt-6 pt-4 border-t border-slate-100">
-                  <h3 className="text-sm font-medium text-slate-700 mb-3">{t("orgDir.usage")}</h3>
+                <div className="mt-6 pt-4 border-t border-amber-100">
+                  <h3 className="text-sm font-medium text-[#334155] mb-3">{t("orgDir.usage")}</h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-slate-500">{t("orgDir.conversations")}</span>
+                      <span className="text-[#64748B]">{t("orgDir.conversations")}</span>
                       <span className="font-medium">
                         {org.usage.conversationsCreated} / {org.limits.maxConversationsPerMonth}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">{t("orgDir.messages")}</span>
+                      <span className="text-[#64748B]">{t("orgDir.messages")}</span>
                       <span className="font-medium">
                         {org.usage.messagesSent} / {org.limits.maxMessagesPerMonth}
                       </span>
@@ -282,31 +282,31 @@ export default function OrgDetailPage() {
             </div>
 
             {/* Users Table */}
-            <div className="bg-white rounded-lg border border-slate-200 p-6 lg:col-span-2">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <div className="bg-white rounded-lg border border-[#F3E8D8] p-6 lg:col-span-2">
+              <h2 className="text-lg font-semibold text-[#1A1D23] font-heading mb-4 flex items-center gap-2">
                 <Users size={18} />
                 {t("orgDir.users")} ({org.users.length})
               </h2>
               {org.users.length === 0 ? (
-                <p className="text-sm text-slate-500">{t("common.noData")}</p>
+                <p className="text-sm text-[#64748B]">{t("common.noData")}</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="text-left px-3 py-2 font-medium text-slate-600">{t("auth.email")}</th>
-                        <th className="text-left px-3 py-2 font-medium text-slate-600">{t("team.role")}</th>
-                        <th className="text-left px-3 py-2 font-medium text-slate-600">{t("common.status")}</th>
-                        <th className="text-left px-3 py-2 font-medium text-slate-600">MFA</th>
-                        <th className="text-left px-3 py-2 font-medium text-slate-600" suppressHydrationWarning>{t("orgDir.createdAt")}</th>
+                      <tr className="bg-amber-50/50 border-b border-amber-200">
+                        <th className="text-left px-3 py-2 font-medium text-[#475569]">{t("auth.email")}</th>
+                        <th className="text-left px-3 py-2 font-medium text-[#475569]">{t("team.role")}</th>
+                        <th className="text-left px-3 py-2 font-medium text-[#475569]">{t("common.status")}</th>
+                        <th className="text-left px-3 py-2 font-medium text-[#475569]">MFA</th>
+                        <th className="text-left px-3 py-2 font-medium text-[#475569]" suppressHydrationWarning>{t("orgDir.createdAt")}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-amber-100">
                       {org.users.map((u) => (
-                        <tr key={u.id} className="hover:bg-slate-50">
-                          <td className="px-3 py-2 text-slate-900">{u.email}</td>
+                        <tr key={u.id} className="hover:bg-amber-50/50">
+                          <td className="px-3 py-2 text-[#1A1D23]">{u.email}</td>
                           <td className="px-3 py-2">
-                            <span className="px-2 py-0.5 bg-slate-100 rounded text-xs font-medium text-slate-600 uppercase">
+                            <span className="px-2 py-0.5 bg-amber-50 rounded text-xs font-medium text-amber-800 uppercase">
                               {u.role}
                             </span>
                           </td>
@@ -319,12 +319,12 @@ export default function OrgDetailPage() {
                           </td>
                           <td className="px-3 py-2">
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                              u.mfaEnabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                              u.mfaEnabled ? "bg-emerald-100 text-emerald-700" : "bg-amber-50 text-amber-700"
                             }`}>
                               {u.mfaEnabled ? "ON" : "OFF"}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-slate-500" suppressHydrationWarning>
+                          <td className="px-3 py-2 text-[#64748B]" suppressHydrationWarning>
                             {new Date(u.createdAt).toLocaleDateString()}
                           </td>
                         </tr>
@@ -336,8 +336,8 @@ export default function OrgDetailPage() {
             </div>
 
             {/* Widget Health */}
-            <div className="bg-white rounded-lg border border-slate-200 p-6 lg:col-span-2">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <div className="bg-white rounded-lg border border-[#F3E8D8] p-6 lg:col-span-2">
+              <h2 className="text-lg font-semibold text-[#1A1D23] font-heading mb-4 flex items-center gap-2">
                 <Activity size={18} />
                 {t("orgDir.health")}
               </h2>
@@ -357,8 +357,8 @@ export default function OrgDetailPage() {
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex justify-between items-center">
-      <span className="text-slate-500">{label}</span>
-      <span className="text-slate-900">{value}</span>
+      <span className="text-[#64748B]">{label}</span>
+      <span className="text-[#1A1D23]">{value}</span>
     </div>
   );
 }
@@ -366,10 +366,10 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 function StatCard({ label, value, variant = "default" }: { label: string; value: number; variant?: "default" | "warn" }) {
   return (
     <div className={`p-4 rounded-lg border ${
-      variant === "warn" && value > 0 ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"
+      variant === "warn" && value > 0 ? "bg-amber-50 border-amber-200" : "bg-amber-50/50 border-amber-200"
     }`}>
-      <div className="text-2xl font-bold text-slate-900">{value.toLocaleString()}</div>
-      <div className="text-xs text-slate-500 mt-1">{label}</div>
+      <div className="text-2xl font-bold text-[#1A1D23]">{value.toLocaleString()}</div>
+      <div className="text-xs text-[#64748B] mt-1">{label}</div>
     </div>
   );
 }

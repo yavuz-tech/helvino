@@ -15,9 +15,9 @@ import EmptyState from "@/components/EmptyState";
 import SecurityBadges from "@/components/SecurityBadges";
 import AdminWidgetHealthSummary from "@/components/AdminWidgetHealthSummary";
 import AdminAuditSummary from "@/components/AdminAuditSummary";
-import PageHeader from "@/components/PageHeader";
-import Card from "@/components/Card";
-import StatCard from "@/components/StatCard";
+import PageHeader from "@/components/ui/PageHeader";
+import Card from "@/components/ui/Card";
+import StatCard from "@/components/ui/StatCard";
 import SectionTitle from "@/components/SectionTitle";
 import { useI18n } from "@/i18n/I18nContext";
 import { premiumToast } from "@/components/PremiumToast";
@@ -251,8 +251,6 @@ export default function DashboardPage() {
     if (!socket || !isMounted) return;
 
     const handleNewMessage = (data: { conversationId: string; message: Message }) => {
-      console.log("📨 Real-time update received:", data.conversationId);
-      
       // Update conversation in inbox list
       setConversations((prev) => {
         const updated = prev.map((conv) => {
@@ -312,8 +310,8 @@ export default function DashboardPage() {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-[#0F5C5C] animate-spin" />
+      <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-amber-200 border-t-amber-500 animate-spin" />
       </div>
     );
   }
@@ -324,11 +322,11 @@ export default function DashboardPage() {
       <DashboardLayout user={user} onLogout={handleLogout}>
         <div className="flex items-center justify-center h-[60vh]">
           <div className="text-center">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-5">
+            <div className="w-16 h-16 rounded-2xl bg-[#F1F5F9] flex items-center justify-center mx-auto mb-5">
               <span className="text-2xl">🏢</span>
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2 tracking-tight">{t("dashboard.noOrgSelected")}</h2>
-            <p className="text-sm text-slate-500 mb-6 max-w-sm mx-auto">
+            <h2 className="text-xl font-bold text-[#1A1D23] font-heading mb-2 tracking-tight">{t("dashboard.noOrgSelected")}</h2>
+            <p className="text-sm text-[#64748B] mb-6 max-w-sm mx-auto">
               {t("dashboard.createFirstOrg")}
             </p>
             <Link
@@ -383,16 +381,16 @@ export default function DashboardPage() {
 
       <div className="flex gap-5 h-[calc(100vh-16rem)]">
         {/* Left: Inbox List */}
-        <div className="w-96 flex flex-col bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(15,92,92,0.08)] overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-200/60 bg-white">
+        <div className="w-96 flex flex-col bg-white rounded-2xl border border-[#F3E8D8] shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(245,158,11,0.1)] overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-amber-200/70 bg-white">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-900">
+              <h2 className="text-sm font-semibold text-[#1A1D23]">
                 {t("dashboard.inbox")} ({conversations.length})
               </h2>
               <button
                 onClick={fetchConversations}
                 disabled={isLoading}
-                className="text-[11px] text-slate-400 hover:text-slate-900 disabled:text-slate-300 transition-colors duration-150 font-medium"
+                className="text-[11px] text-[#94A3B8] hover:text-[#1A1D23] disabled:text-[#E2E8F0] transition-colors duration-150 font-medium"
               >
                 {isLoading ? t("common.loading") : `↻ ${t("common.refresh")}`}
               </button>
@@ -413,7 +411,7 @@ export default function DashboardPage() {
 
             {isLoading && conversations.length === 0 ? (
               <div className="flex items-center justify-center py-12">
-                <div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-[#0F5C5C] animate-spin" />
+                <div className="w-6 h-6 rounded-full border-2 border-amber-200 border-t-amber-500 animate-spin" />
               </div>
             ) : conversations.length === 0 ? (
               <EmptyState
@@ -426,21 +424,21 @@ export default function DashboardPage() {
                 <div
                   key={conv.id}
                   onClick={() => selectConversation(conv.id)}
-                  className={`px-5 py-3.5 cursor-pointer transition-all duration-150 border-l-[3px] border-b border-b-slate-100 ${
+                  className={`px-5 py-3.5 cursor-pointer transition-all duration-150 border-l-[3px] border-b border-b-amber-100 ${
                     selectedConversationId === conv.id
-                      ? "bg-[#0F5C5C]/[0.04] border-l-[#0F5C5C]"
-                      : "border-l-transparent hover:bg-slate-50"
+                      ? "bg-amber-50/80 border-l-amber-500"
+                      : "border-l-transparent hover:bg-amber-50/50"
                   }`}
                 >
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <code className="text-[11px] font-mono text-slate-800 font-medium">
+                    <code className="text-[11px] font-mono text-[#334155] font-medium">
                       {shortId(conv.id)}
                     </code>
-                    <span className="px-1.5 py-0.5 bg-slate-100 rounded-md text-[10px] font-semibold text-slate-600">
+                    <span className="px-1.5 py-0.5 bg-amber-50 rounded-md text-[10px] font-semibold text-amber-800">
                       {conv.messageCount}
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-400" suppressHydrationWarning>
+                  <div className="text-[11px] text-[#94A3B8]" suppressHydrationWarning>
                     {formatDate(conv.updatedAt)}
                   </div>
                 </div>
@@ -450,14 +448,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Right: Conversation Detail */}
-        <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(15,92,92,0.08)] overflow-hidden">
+        <div className="flex-1 flex flex-col bg-white rounded-2xl border border-[#F3E8D8] shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(245,158,11,0.1)] overflow-hidden">
           {!selectedConversationId ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto mb-3">
                   <span className="text-2xl">💬</span>
                 </div>
-                <p className="text-sm text-slate-400">{t("dashboard.selectConversation")}</p>
+                <p className="text-sm text-[#94A3B8]">{t("dashboard.selectConversation")}</p>
               </div>
             </div>
           ) : (
@@ -466,11 +464,11 @@ export default function DashboardPage() {
               <div className="flex-1 overflow-y-auto p-5 space-y-3">
                 {isLoadingDetail ? (
                   <div className="flex items-center justify-center py-12">
-                    <div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-[#0F5C5C] animate-spin" />
+                    <div className="w-6 h-6 rounded-full border-2 border-amber-200 border-t-amber-500 animate-spin" />
                   </div>
                 ) : conversationDetail ? (
                   conversationDetail.messages.length === 0 ? (
-                    <div className="text-center text-slate-400 py-8 text-sm">
+                    <div className="text-center text-[#94A3B8] py-8 text-sm">
                       {t("dashboard.noMessages")}
                     </div>
                   ) : (
@@ -482,12 +480,12 @@ export default function DashboardPage() {
                         <div
                           className={`max-w-md px-4 py-2.5 rounded-2xl text-sm ${
                             msg.role === "user"
-                              ? "bg-[#0F5C5C] text-white"
-                              : "bg-slate-50 text-slate-800 border border-slate-200/60"
+                              ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white"
+                              : "bg-amber-50 text-[#334155] border border-amber-200/70"
                           }`}
                         >
                           <div className="mb-1 leading-relaxed">{msg.content}</div>
-                          <div className={`text-[10px] ${msg.role === "user" ? "text-white/60" : "text-slate-400"}`} suppressHydrationWarning>
+                          <div className={`text-[10px] ${msg.role === "user" ? "text-white/60" : "text-[#94A3B8]"}`} suppressHydrationWarning>
                             {new Date(msg.timestamp).toLocaleTimeString()}
                           </div>
                         </div>
@@ -498,7 +496,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Agent Reply Box */}
-              <div className="border-t border-slate-200/60 p-4 bg-white">
+              <div className="border-t border-amber-200/70 p-4 bg-white">
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -512,17 +510,17 @@ export default function DashboardPage() {
                     }}
                     placeholder={t("dashboard.typeReply")}
                     disabled={isSending}
-                    className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm placeholder:text-slate-400 focus:outline-none focus:border-[#0F5C5C] focus:ring-2 focus:ring-[#0F5C5C]/10 disabled:bg-slate-50 transition-all duration-150"
+                    className="flex-1 px-4 py-2.5 border border-amber-200/70 rounded-xl text-sm placeholder:text-[#94A3B8] focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 disabled:bg-amber-50/50 transition-all duration-150"
                   />
                   <button
                     onClick={sendReply}
                     disabled={isSending || !replyContent.trim()}
-                    className="bg-[#0F5C5C] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#0D4F4F] transition-all duration-150 disabled:opacity-50 shadow-[0_1px_2px_rgba(15,92,92,0.2)]"
+                    className="bg-gradient-to-r from-amber-500 to-amber-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-all duration-150 disabled:opacity-50 shadow-[0_4px_14px_rgba(245,158,11,0.2)]"
                   >
                     {isSending ? t("common.sending") : t("common.send")}
                   </button>
                 </div>
-                <div className="mt-1.5 text-[11px] text-slate-400">
+                <div className="mt-1.5 text-[11px] text-[#94A3B8]">
                   {t("dashboard.pressEnter")}
                 </div>
               </div>

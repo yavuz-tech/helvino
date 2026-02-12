@@ -1,9 +1,9 @@
-interface HCaptchaVerifyResponse {
+interface TurnstileVerifyResponse {
   success?: boolean;
 }
 
-export async function verifyHCaptchaToken(token: string, remoteIp?: string): Promise<boolean> {
-  const secret = process.env.HCAPTCHA_SECRET_KEY;
+export async function verifyTurnstileToken(token: string, remoteIp?: string): Promise<boolean> {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) {
     return false;
   }
@@ -16,7 +16,7 @@ export async function verifyHCaptchaToken(token: string, remoteIp?: string): Pro
       body.set("remoteip", remoteIp);
     }
 
-    const response = await fetch("https://hcaptcha.com/siteverify", {
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: body.toString(),
@@ -26,7 +26,7 @@ export async function verifyHCaptchaToken(token: string, remoteIp?: string): Pro
       return false;
     }
 
-    const data = (await response.json()) as HCaptchaVerifyResponse;
+    const data = (await response.json()) as TurnstileVerifyResponse;
     return Boolean(data.success);
   } catch {
     return false;

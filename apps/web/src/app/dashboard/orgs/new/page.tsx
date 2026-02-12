@@ -104,8 +104,8 @@ export default function NewOrgPage() {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">{t("common.loading")}</div>
+      <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+        <div className="text-[#475569]">{t("common.loading")}</div>
       </div>
     );
   }
@@ -115,50 +115,50 @@ export default function NewOrgPage() {
     return (
       <DashboardLayout user={user} onLogout={handleLogout}>
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-lg border border-slate-200 p-8">
+            <div className="bg-white rounded-lg border border-[#F3E8D8] p-8">
             <div className="text-center mb-6">
               <div className="text-6xl mb-4">🎉</div>
-              <h1 className="text-2xl font-bold text-slate-900 mb-2">
+              <h1 className="text-2xl font-bold text-[#1A1D23] font-heading mb-2">
                 {t("orgs.orgCreated")}
               </h1>
-              <p className="text-slate-600">
+              <p className="text-[#475569]">
                 <strong>{createdOrg.name}</strong> {t("orgs.readyToUse")}
               </p>
             </div>
 
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-[#334155] mb-1">
                   {t("orgs.orgKeyLabel")}
                 </label>
-                <code className="block px-4 py-2 bg-slate-50 rounded border border-slate-200 text-sm font-mono">
+                <code className="block px-4 py-2 bg-amber-50/50 rounded border border-amber-200 text-sm font-mono">
                   {createdOrg.key}
                 </code>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-[#334155] mb-1">
                   {t("orgs.siteIdPublic")}
                 </label>
-                <code className="block px-4 py-2 bg-slate-50 rounded border border-slate-200 text-sm font-mono">
+                <code className="block px-4 py-2 bg-amber-50/50 rounded border border-amber-200 text-sm font-mono">
                   {createdOrg.siteId}
                 </code>
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 mb-6">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h3 className="font-semibold text-blue-900 mb-1">
+                  <h3 className="font-semibold text-amber-900 font-heading mb-1">
                     {t("orgs.embedSnippet")}
                   </h3>
-                  <p className="text-sm text-blue-700">
+                  <p className="text-sm text-amber-800">
                     {t("orgs.embedHint")}
                   </p>
                 </div>
                 <button
                   onClick={copyToClipboard}
-                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                  className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:opacity-90 transition-colors text-sm"
                 >
                   {copied ? (
                     <>
@@ -173,7 +173,7 @@ export default function NewOrgPage() {
                   )}
                 </button>
               </div>
-              <pre className="bg-blue-900 text-blue-50 px-4 py-3 rounded text-xs overflow-x-auto">
+              <pre className="bg-[#1A1D23] text-amber-50 px-4 py-3 rounded text-xs overflow-x-auto">
                 <code>{embedSnippet}</code>
               </pre>
             </div>
@@ -181,13 +181,13 @@ export default function NewOrgPage() {
             <div className="flex gap-3">
               <a
                 href="/dashboard"
-                className="flex-1 px-4 py-2 bg-slate-900 text-white text-center rounded-lg hover:bg-slate-700 transition-colors"
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-center rounded-lg hover:opacity-90 transition-colors"
               >
                 {t("orgs.goToDashboard")}
               </a>
               <a
                 href="/dashboard/settings"
-                className="flex-1 px-4 py-2 bg-slate-100 text-slate-900 text-center rounded-lg hover:bg-slate-200 transition-colors"
+                className="flex-1 px-4 py-2 bg-amber-50 text-amber-900 text-center rounded-lg hover:bg-amber-100 border border-amber-200 transition-colors"
               >
                 {t("orgs.configureSettings")}
               </a>
@@ -203,15 +203,15 @@ export default function NewOrgPage() {
     <DashboardLayout user={user} onLogout={handleLogout}>
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">
+          <h1 className="text-2xl font-bold text-[#1A1D23] font-heading mb-2">
             {t("orgs.createTitle")}
           </h1>
-          <p className="text-slate-600">
+          <p className="text-[#475569]">
             {t("orgs.createOrgSubtitle")}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-slate-200 p-6">
+        <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-[#F3E8D8] p-6">
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
               {error}
@@ -223,7 +223,7 @@ export default function NewOrgPage() {
             <div>
               <label
                 htmlFor="name"
-                className="block text-sm font-medium text-slate-700 mb-2"
+                className="block text-sm font-medium text-[#334155] mb-2"
               >
                 {t("orgs.orgNameLabel")} <span className="text-red-500">*</span>
               </label>
@@ -235,7 +235,7 @@ export default function NewOrgPage() {
                 onInvalid={(e) => e.currentTarget.setCustomValidity(t("validation.website"))}
                 onInput={(e) => e.currentTarget.setCustomValidity("")}
                 placeholder={t("orgs.orgNamePlaceholder")}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="w-full px-4 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 required
                 pattern={websitePatternText}
                 inputMode="url"
@@ -243,8 +243,8 @@ export default function NewOrgPage() {
                 autoCorrect="off"
                 disabled={isSubmitting}
               />
-              <p className="mt-1 text-xs text-slate-500">{t("validation.websiteHint")}</p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-[#64748B]">{t("validation.websiteHint")}</p>
+              <p className="mt-1 text-xs text-[#64748B]">
                 {t("orgs.autoKeyHint")}
               </p>
             </div>
@@ -253,7 +253,7 @@ export default function NewOrgPage() {
             <div>
               <label
                 htmlFor="domains"
-                className="block text-sm font-medium text-slate-700 mb-2"
+                className="block text-sm font-medium text-[#334155] mb-2"
               >
                 {t("orgs.allowedDomainsOptional")}
               </label>
@@ -263,10 +263,10 @@ export default function NewOrgPage() {
                 onChange={(e) => setAllowedDomainsText(e.target.value)}
                 placeholder="example.com&#10;*.example.com&#10;app.example.com"
                 rows={4}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 font-mono text-sm"
+                className="w-full px-4 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 font-mono text-sm"
                 disabled={isSubmitting}
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-[#64748B]">
                 {t("orgs.domainPerLine")}
               </p>
             </div>
@@ -278,10 +278,10 @@ export default function NewOrgPage() {
                 id="localhost"
                 checked={allowLocalhost}
                 onChange={(e) => setAllowLocalhost(e.target.checked)}
-                className="w-4 h-4 text-slate-900 border-slate-300 rounded focus:ring-slate-900"
+                className="w-4 h-4 text-amber-600 border-amber-200 rounded focus:ring-amber-500/20"
                 disabled={isSubmitting}
               />
-              <label htmlFor="localhost" className="text-sm text-slate-700">
+              <label htmlFor="localhost" className="text-sm text-[#334155]">
                 {t("orgs.allowLocalhostDev")}
               </label>
             </div>
@@ -291,14 +291,14 @@ export default function NewOrgPage() {
             <button
               type="button"
               onClick={() => router.push("/dashboard")}
-              className="flex-1 px-4 py-2 bg-slate-100 text-slate-900 rounded-lg hover:bg-slate-200 transition-colors"
+              className="flex-1 px-4 py-2 bg-amber-50 text-amber-900 rounded-lg hover:bg-amber-100 border border-amber-200 transition-colors"
               disabled={isSubmitting}
             >
               {t("common.cancel")}
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
+              className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:opacity-90 transition-colors disabled:opacity-50"
               disabled={isSubmitting}
             >
               {isSubmitting ? t("orgs.creating") : t("orgs.createTitle")}

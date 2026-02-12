@@ -34,7 +34,7 @@ export default function ConversationList({
   if (isLoading && conversations.length === 0) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-blue-600 animate-spin" />
+        <div className="w-6 h-6 rounded-full border-2 border-[#F3E8D8] border-t-amber-600 animate-spin" />
       </div>
     );
   }
@@ -42,7 +42,7 @@ export default function ConversationList({
   if (conversations.length === 0) {
     return (
       <div className="px-6 py-16 text-center">
-        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+        <div className="w-12 h-12 rounded-full bg-[#F1F5F9] flex items-center justify-center mx-auto mb-3">
           <svg
             width="24"
             height="24"
@@ -50,13 +50,13 @@ export default function ConversationList({
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            className="text-slate-400"
+            className="text-[#94A3B8]"
           >
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
         </div>
-        <p className="text-sm font-medium text-slate-600 mb-1">No conversations</p>
-        <p className="text-xs text-slate-400">New chats will appear here</p>
+        <p className="text-sm font-medium text-[#475569] mb-1">No conversations</p>
+        <p className="text-xs text-[#94A3B8]">New chats will appear here</p>
       </div>
     );
   }
@@ -78,8 +78,8 @@ export default function ConversationList({
             tabIndex={0}
             role="button"
             aria-label={`Conversation with ${conv.displayName}`}
-            className={`group px-4 py-3.5 cursor-pointer border-b border-slate-100 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
-              isActive ? "bg-blue-50/60 border-blue-100" : "hover:bg-slate-50"
+            className={`group px-4 py-3.5 cursor-pointer border-b border-[#F3E8D8] transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:ring-inset ${
+              isActive ? "bg-amber-50 border-amber-200" : "hover:bg-[#FFFBF5]"
             }`}
           >
             <div className="flex items-start gap-3">
@@ -94,11 +94,11 @@ export default function ConversationList({
               <div className="flex-1 min-w-0">
                 {/* Name + Time */}
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-semibold text-slate-900 truncate">
+                  <span className="text-sm font-semibold text-[#1A1D23] truncate">
                     {conv.displayName}
                   </span>
                   <span
-                    className="text-[11px] text-slate-400 flex-shrink-0 ml-2"
+                    className="text-[11px] text-[#94A3B8] flex-shrink-0 ml-2"
                     suppressHydrationWarning
                   >
                     {conv.timestamp}
@@ -106,11 +106,11 @@ export default function ConversationList({
                 </div>
 
                 {/* Preview */}
-                <p className="text-[13px] text-slate-600 truncate mb-2">{conv.preview}</p>
+                <p className="text-[13px] text-[#475569] truncate mb-2">{conv.preview}</p>
 
                 {/* Meta row */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                  <div className="flex items-center gap-2 text-[11px] text-[#64748B]">
                     {conv.assignedTo && (
                       <span className="flex items-center gap-1">
                         <User size={10} />
@@ -118,7 +118,7 @@ export default function ConversationList({
                       </span>
                     )}
                     {conv.status === "CLOSED" && (
-                      <span className="px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-semibold">
+                      <span className="px-1.5 py-0.5 bg-[#F1F5F9] text-[#334155] rounded text-[10px] font-semibold">
                         Closed
                       </span>
                     )}
@@ -139,11 +139,11 @@ export default function ConversationList({
 
       {/* Load More */}
       {hasMore && (
-        <div className="px-4 py-3 text-center border-b border-slate-100">
+        <div className="px-4 py-3 text-center border-b border-[#F3E8D8]">
           <button
             onClick={onLoadMore}
             disabled={isLoading}
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
+            className="text-sm text-amber-600 hover:text-amber-700 font-medium disabled:opacity-50"
           >
             Load more
           </button>

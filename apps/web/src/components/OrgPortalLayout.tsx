@@ -50,7 +50,7 @@ export default function OrgPortalLayout({
   const { t } = useI18n();
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#FFFBF5]">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -61,37 +61,37 @@ export default function OrgPortalLayout({
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-full w-64 bg-white border-r border-slate-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 left-0 z-50 h-full w-64 bg-white border-r border-[#F3E8D8] transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200">
+        <div className="h-16 flex items-center justify-between px-6 border-b border-[#F3E8D8]">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">H</span>
             </div>
-            <span className="font-bold text-lg text-slate-900">Helvion</span>
+            <span className="font-bold text-lg text-amber-900">Helvion</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden hover:bg-slate-100 rounded-lg p-1.5 transition-colors"
+            className="lg:hidden hover:bg-amber-50 rounded-lg p-1.5 transition-colors"
           >
-            <X size={20} strokeWidth={2} className="text-slate-600" />
+            <X size={20} strokeWidth={2} className="text-amber-700" />
           </button>
         </div>
 
         {/* Organization Info */}
         {user && (
-          <div className="p-4 border-b border-slate-200">
-            <div className="px-4 py-3 rounded-lg bg-slate-50">
+          <div className="p-4 border-b border-[#F3E8D8]">
+            <div className="px-4 py-3 rounded-lg bg-[#FFFBF5]">
               <div className="flex items-center gap-2 mb-1">
-                <Building2 size={14} className="text-slate-600" strokeWidth={2} />
-                <p className="text-sm font-semibold text-slate-900 truncate">
+                <Building2 size={14} className="text-amber-700" strokeWidth={2} />
+                <p className="text-sm font-semibold text-amber-900 truncate">
                   {user.orgName}
                 </p>
               </div>
-              <p className="text-xs text-slate-500 truncate">{user.orgKey}</p>
+              <p className="text-xs text-amber-600 truncate">{user.orgKey}</p>
             </div>
           </div>
         )}
@@ -108,8 +108,8 @@ export default function OrgPortalLayout({
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
                   isActive
-                    ? "bg-slate-900 text-white shadow-sm"
-                    : "text-slate-700 hover:bg-slate-100 hover:translate-x-0.5"
+                    ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm"
+                    : "text-amber-800 hover:bg-amber-50 hover:translate-x-0.5"
                 }`}
                 onClick={() => setSidebarOpen(false)}
               >
@@ -121,12 +121,12 @@ export default function OrgPortalLayout({
         </nav>
 
         {/* Bottom Section */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#F3E8D8]">
           {user && (
             <div className="px-4 py-2 text-xs">
-              <p className="text-slate-600">{t("auth.loggedInAs")}</p>
-              <p className="font-medium text-slate-900 truncate">{user.email}</p>
-              <p className="text-slate-500">({user.role})</p>
+              <p className="text-amber-700">{t("auth.loggedInAs")}</p>
+              <p className="font-medium text-amber-900 truncate">{user.email}</p>
+              <p className="text-amber-600">({user.role})</p>
             </div>
           )}
         </div>
@@ -135,12 +135,12 @@ export default function OrgPortalLayout({
       {/* Main Content */}
       <div className="lg:pl-64">
         {/* Top Bar */}
-        <header className="relative h-16 bg-white border-b border-slate-200 flex items-center px-6">
+        <header className="relative h-16 bg-white border-b border-[#F3E8D8] flex items-center px-6">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="relative z-[2] lg:hidden hover:bg-slate-100 rounded-lg p-2"
+            className="relative z-[2] lg:hidden hover:bg-amber-100 rounded-lg p-2"
           >
-            <Menu size={20} strokeWidth={2} className="text-slate-600" />
+            <Menu size={20} strokeWidth={2} className="text-amber-700" />
           </button>
 
           {/* Campaign gradient — blends into header background */}
@@ -153,18 +153,18 @@ export default function OrgPortalLayout({
             {user && (
               <>
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium text-slate-900">{user.email}</p>
-                  <p className="text-xs text-slate-500">{user.role}</p>
+                  <p className="text-sm font-medium text-amber-900">{user.email}</p>
+                  <p className="text-xs text-amber-600">{user.role}</p>
                 </div>
-                <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-semibold text-slate-600">
+                <div className="w-10 h-10 bg-amber-200 rounded-full flex items-center justify-center">
+                  <span className="text-sm font-semibold text-amber-700">
                     {user.email.charAt(0).toUpperCase()}
                   </span>
                 </div>
                 {onLogout && (
                   <button
                     onClick={onLogout}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-amber-800 hover:bg-amber-100 rounded-lg transition-colors"
                     title={t("common.logout")}
                   >
                     <LogOut size={18} strokeWidth={2} />

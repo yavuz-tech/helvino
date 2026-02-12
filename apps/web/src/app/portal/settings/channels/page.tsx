@@ -100,7 +100,7 @@ export default function PortalSettingsChannelsPage() {
   const enabledCount = channels.filter((c) => c.enabled).length;
 
   return (
-    <div className={p.sectionGap}>
+    <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
       <PageHeader
         title={t("settingsPortal.channels")}
         subtitle={t("settingsPortal.channelsSubtitle")}
@@ -137,8 +137,11 @@ export default function PortalSettingsChannelsPage() {
           const isLocked = !isFreeChannel && !isPro;
 
           return (
-            <Card key={channel.channelType}>
-              <div className="flex items-center gap-4">
+            <Card key={channel.channelType} className="border-[#F3E8D8] hover:border-[#E8D5BC]">
+              <div
+                className="flex items-center gap-4 rounded-lg pl-3"
+                style={{ borderLeft: channel.enabled ? "3px solid #10B981" : "3px solid #F3E8D8" }}
+              >
                 <div className={`${p.iconMd} ${isLocked ? p.iconSlate : iconColor}`}>
                   {isLocked ? <Lock size={18} /> : <Icon size={18} />}
                 </div>
@@ -188,7 +191,8 @@ export default function PortalSettingsChannelsPage() {
                 {isLocked ? (
                   <Link
                     href="/portal/billing"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-3 py-1.5 text-[11px] font-semibold text-violet-700 transition-colors hover:bg-violet-100"
+                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white transition-colors"
+                    style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
                   >
                     <Crown size={11} />
                     {t("settingsPortal.channelUpgrade")}
@@ -203,7 +207,7 @@ export default function PortalSettingsChannelsPage() {
                     className={[
                       "relative h-6 w-11 flex-shrink-0 rounded-full transition-colors duration-200",
                       channel.enabled
-                        ? "bg-blue-600"
+                        ? "bg-amber-500"
                         : "bg-slate-200 hover:bg-slate-300",
                       isSaving
                         ? "opacity-50 cursor-not-allowed"

@@ -312,8 +312,8 @@ export default function DashboardCampaignsPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-[#0F5C5C] animate-spin" />
+      <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-amber-200 border-t-amber-500 animate-spin" />
       </div>
     );
   }
@@ -321,7 +321,7 @@ export default function DashboardCampaignsPage() {
   return (
     <DashboardLayout user={user} onLogout={handleLogout}>
       {!selectedOrg ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+        <div className="rounded-xl border border-[#F3E8D8] bg-white p-6 text-sm text-[#64748B]">
           {t("dashboard.noOrgSelected")}
         </div>
       ) : (
@@ -348,7 +348,7 @@ export default function DashboardCampaignsPage() {
                 onClick={toggleGlobal}
                 disabled={savingGlobal}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  campaignsEnabled ? "bg-emerald-600" : "bg-slate-300"
+                  campaignsEnabled ? "bg-emerald-600" : "bg-amber-200"
                 } ${savingGlobal ? "opacity-60" : ""}`}
                 aria-label={t("campaigns.globalToggleTitle")}
               >
@@ -368,17 +368,17 @@ export default function DashboardCampaignsPage() {
 
           <Card noPadding>
             {loading ? (
-              <div className="px-6 py-10 text-center text-sm text-slate-500">
+              <div className="px-6 py-10 text-center text-sm text-[#64748B]">
                 {t("common.loading")}
               </div>
             ) : items.length === 0 ? (
-              <div className="px-6 py-10 text-center text-sm text-slate-500">
+              <div className="px-6 py-10 text-center text-sm text-[#64748B]">
                 {t("settingsPortal.noCampaigns")}
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-slate-500">
+                  <thead className="bg-amber-50/50 text-[#64748B]">
                     <tr>
                       <th className="px-5 py-3 text-left font-medium">{t("settingsPortal.tableCode")}</th>
                       <th className="px-5 py-3 text-left font-medium">{t("settingsPortal.tableType")}</th>
@@ -392,8 +392,8 @@ export default function DashboardCampaignsPage() {
                   </thead>
                   <tbody>
                     {items.map((item) => (
-                      <tr key={item.id} className="border-t border-slate-100 hover:bg-slate-50/70">
-                        <td className="px-5 py-4 font-semibold text-slate-900">{item.code}</td>
+                      <tr key={item.id} className="border-t border-amber-100 hover:bg-amber-50/50">
+                        <td className="px-5 py-4 font-semibold text-[#1A1D23]">{item.code}</td>
                         <td className="px-5 py-4">
                           <span className={item.discountType === "percentage" ? p.badgeGreen : p.badgeAmber}>
                             {item.discountType === "percentage" ? "%" : "₺"}
@@ -404,13 +404,13 @@ export default function DashboardCampaignsPage() {
                             {item.isGlobal ? t("campaigns.audienceGlobal") : t("campaigns.audienceOrg")}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-slate-700">
+                        <td className="px-5 py-4 text-[#334155]">
                           {item.discountType === "percentage" ? `${item.discountValue}%` : `₺${item.discountValue}`}
                         </td>
-                        <td className="px-5 py-4 text-slate-700">
+                        <td className="px-5 py-4 text-[#334155]">
                           {item.currentUses}/{item.maxUses === null ? "∞" : item.maxUses}
                         </td>
-                        <td className="px-5 py-4 text-slate-700">
+                        <td className="px-5 py-4 text-[#334155]">
                           {item.validUntil ? new Date(item.validUntil).toLocaleDateString() : t("settingsPortal.unlimited")}
                         </td>
                         <td className="px-5 py-4">
@@ -418,7 +418,7 @@ export default function DashboardCampaignsPage() {
                             type="button"
                             onClick={() => toggleStatus(item)}
                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                              item.isActive ? "bg-emerald-600" : "bg-slate-300"
+                              item.isActive ? "bg-emerald-600" : "bg-amber-200"
                             }`}
                           >
                             <span
@@ -454,8 +454,8 @@ export default function DashboardCampaignsPage() {
           </Card>
 
           {modalOpen && (
-            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 px-4">
-              <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#1A1D23]/40 px-4">
+              <div className="w-full max-w-xl rounded-2xl border border-[#F3E8D8] bg-white p-6 shadow-2xl">
                 <div className="mb-5 flex items-start justify-between">
                   <div className="flex items-center gap-2">
                     <div className={`${p.iconSm} ${p.iconRose}`}>
@@ -491,7 +491,7 @@ export default function DashboardCampaignsPage() {
                       onChange={(e) => setForm((prev) => ({ ...prev, bannerTitle: e.target.value }))}
                       placeholder={t("campaigns.bannerTitlePlaceholder")}
                     />
-                    <p className="mt-1 text-xs text-slate-400">{t("campaigns.bannerTitleHint")}</p>
+                    <p className="mt-1 text-xs text-[#94A3B8]">{t("campaigns.bannerTitleHint")}</p>
                   </div>
 
                   <div>
@@ -503,7 +503,7 @@ export default function DashboardCampaignsPage() {
                       onChange={(e) => setForm((prev) => ({ ...prev, bannerSubtitle: e.target.value }))}
                       placeholder={t("campaigns.bannerSubtitlePlaceholder")}
                     />
-                    <p className="mt-1 text-xs text-slate-400">{t("campaigns.bannerSubtitleHint")}</p>
+                    <p className="mt-1 text-xs text-[#94A3B8]">{t("campaigns.bannerSubtitleHint")}</p>
                   </div>
 
                   <div>
@@ -544,7 +544,7 @@ export default function DashboardCampaignsPage() {
                         {t("campaigns.audienceGlobal")}
                       </button>
                     </div>
-                    <p className="mt-2 text-xs text-slate-500">
+                    <p className="mt-2 text-xs text-[#64748B]">
                       {form.isGlobal ? t("campaigns.audienceGlobalDesc") : t("campaigns.audienceOrgDesc")}
                     </p>
                   </div>

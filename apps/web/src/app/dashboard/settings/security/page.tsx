@@ -261,8 +261,8 @@ export default function SecurityPage() {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">{t("common.checkingAuth")}</div>
+      <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+        <div className="text-[#475569]">{t("common.checkingAuth")}</div>
       </div>
     );
   }
@@ -270,7 +270,7 @@ export default function SecurityPage() {
   if (loading) {
     return (
       <DashboardLayout user={user} onLogout={handleLogout}>
-        <div className="text-center py-12 text-slate-500">
+        <div className="text-center py-12 text-[#64748B]">
           {t("security.loadingSettings")}
         </div>
       </DashboardLayout>
@@ -291,8 +291,8 @@ export default function SecurityPage() {
     <DashboardLayout user={user} onLogout={handleLogout}>
       {/* Page Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">{t("nav.security")}</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="text-2xl font-bold text-[#1A1D23] font-heading">{t("nav.security")}</h1>
+        <p className="text-sm text-[#64748B] mt-1">
           {orgInfo.name} ({orgInfo.key})
         </p>
       </div>
@@ -313,14 +313,14 @@ export default function SecurityPage() {
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex gap-4 border-b border-slate-200 pb-4 mb-6">
+      <div className="flex gap-4 border-b border-[#F3E8D8] pb-4 mb-6">
         <a
           href="/dashboard/settings"
-          className="px-4 py-2 text-slate-600 hover:text-slate-900 transition-colors"
+          className="px-4 py-2 text-[#475569] hover:text-amber-800 transition-colors"
         >
           {t("nav.generalSettings")}
         </a>
-        <div className="px-4 py-2 border-b-2 border-slate-900 text-slate-900 font-medium">
+        <div className="px-4 py-2 border-b-2 border-amber-600 text-[#1A1D23] font-medium font-heading">
           🔒 {t("nav.security")}
         </div>
       </div>
@@ -329,31 +329,31 @@ export default function SecurityPage() {
       <div className="space-y-6">
 
         {/* Site ID Card */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
+          <h2 className="text-lg font-semibold text-[#1A1D23] font-heading mb-4">
             {t("security.siteId")}
           </h2>
-          <p className="text-sm text-slate-600 mb-4">
+          <p className="text-sm text-[#475569] mb-4">
             {t("security.siteIdDesc")}
           </p>
 
           <div className="flex items-center gap-3 mb-4">
-            <code className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg font-mono text-sm">
+            <code className="flex-1 px-4 py-3 bg-amber-50/50 border border-amber-200 rounded-lg font-mono text-sm">
               {security.siteId}
             </code>
             <button
               onClick={handleCopy}
-              className="px-4 py-3 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors"
+              className="px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-colors"
             >
               {copied ? t("security.copied") : t("security.copy")}
             </button>
           </div>
 
-          <div className="border-t border-slate-200 pt-4">
-            <h3 className="text-sm font-semibold text-slate-900 mb-2">
+          <div className="border-t border-amber-200 pt-4">
+            <h3 className="text-sm font-semibold text-[#1A1D23] mb-2">
               {t("security.rotateSiteId")}
             </h3>
-            <p className="text-xs text-slate-600 mb-3">
+            <p className="text-xs text-[#475569] mb-3">
               {t("security.rotateSiteIdDesc")}
             </p>
 
@@ -363,7 +363,7 @@ export default function SecurityPage() {
                 value={rotateInput}
                 onChange={(e) => setRotateInput(e.target.value)}
                 placeholder={t("security.rotateConfirmPlaceholder")}
-                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="flex-1 px-4 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
               <button
                 onClick={handleRotate}
@@ -371,7 +371,7 @@ export default function SecurityPage() {
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                   rotateInput === "ROTATE" && !rotating
                     ? "bg-red-600 text-white hover:bg-red-700"
-                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                    : "bg-amber-200 text-[#94A3B8] cursor-not-allowed"
                 }`}
               >
                 {rotating ? t("security.rotating") : t("security.rotate")}
@@ -387,11 +387,11 @@ export default function SecurityPage() {
         </div>
 
         {/* Allowed Domains Card */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
+          <h2 className="text-lg font-semibold text-[#1A1D23] font-heading mb-4">
             {t("security.allowedDomains")}
           </h2>
-          <p className="text-sm text-slate-600 mb-4">
+          <p className="text-sm text-[#475569] mb-4">
             {t("security.allowedDomainsDesc")}
           </p>
 
@@ -403,7 +403,7 @@ export default function SecurityPage() {
                   value={domain}
                   onChange={(e) => handleDomainChange(index, e.target.value)}
                   placeholder="example.com or *.example.com"
-                  className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="flex-1 px-4 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 />
                 <button
                   onClick={() => handleRemoveDomain(index)}
@@ -418,7 +418,7 @@ export default function SecurityPage() {
           <button
             onClick={handleAddDomain}
             disabled={security.allowedDomains.length >= 100}
-            className="px-4 py-2 bg-slate-100 text-slate-900 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-amber-50 text-amber-900 text-sm font-medium rounded-lg hover:bg-amber-100 transition-colors disabled:bg-amber-50/50 disabled:text-[#94A3B8] disabled:cursor-not-allowed border border-amber-200"
           >
             + {t("security.addDomain")}
           </button>
@@ -429,7 +429,7 @@ export default function SecurityPage() {
             </p>
           )}
 
-          <div className="mt-4 text-xs text-slate-500">
+          <div className="mt-4 text-xs text-[#64748B]">
             <p className="font-semibold mb-1">{t("security.examplesTitle")}</p>
             <ul className="list-disc list-inside space-y-1">
               <li><code>helvion.io</code> - {t("security.exampleExact")}</li>
@@ -440,13 +440,13 @@ export default function SecurityPage() {
         </div>
 
         {/* Localhost Toggle */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-slate-900">
+              <h3 className="text-sm font-semibold text-[#1A1D23]">
                 {t("security.allowLocalhost")}
               </h3>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-[#64748B] mt-1">
                 {t("security.allowLocalhostDesc")}
               </p>
             </div>
@@ -458,7 +458,7 @@ export default function SecurityPage() {
                 })
               }
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                security.allowLocalhost ? "bg-green-600" : "bg-slate-300"
+                security.allowLocalhost ? "bg-green-600" : "bg-amber-200"
               }`}
             >
               <span
@@ -471,8 +471,8 @@ export default function SecurityPage() {
         </div>
 
         {/* Save Button */}
-        <div className="flex items-center justify-between bg-white rounded-lg border border-slate-200 p-6">
-          <div className="text-sm text-slate-600">
+        <div className="flex items-center justify-between bg-white rounded-lg border border-[#F3E8D8] p-6">
+          <div className="text-sm text-[#475569]">
             {hasChanges ? (
               <span className="text-orange-600 font-medium">
                 ⚠️ {t("common.unsavedChanges")}
@@ -486,8 +486,8 @@ export default function SecurityPage() {
             disabled={!hasChanges || saving}
             className={`px-6 py-2 rounded-lg font-medium transition-colors ${
               hasChanges && !saving
-                ? "bg-slate-900 text-white hover:bg-slate-700"
-                : "bg-slate-300 text-slate-500 cursor-not-allowed"
+                ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white hover:opacity-90"
+                : "bg-amber-200 text-[#64748B] cursor-not-allowed"
             }`}
           >
             {saving ? t("common.saving") : t("common.saveChanges")}
@@ -495,11 +495,11 @@ export default function SecurityPage() {
         </div>
 
         {/* Info Section */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-blue-900 mb-2">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-amber-900 font-heading mb-2">
             ℹ️ {t("settings.importantNotes")}
           </h3>
-          <ul className="text-xs text-blue-800 space-y-1">
+          <ul className="text-xs text-amber-800 space-y-1">
             <li>• {t("security.note1")}</li>
             <li>• {t("security.note2")}</li>
             <li>• {t("security.note3")}</li>

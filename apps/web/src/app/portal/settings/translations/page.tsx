@@ -65,7 +65,7 @@ export default function PortalSettingsTranslationsPage() {
   };
 
   return (
-    <div className={p.sectionGap}>
+    <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
       <PageHeader title={t("settingsPortal.translations")} subtitle={t("settingsPortal.translationsSubtitle")} badge={locale.toUpperCase()} />
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -74,7 +74,7 @@ export default function PortalSettingsTranslationsPage() {
         <StatCard label={t("common.status")} value={items.length > 0 ? t("common.enabled") : t("common.disabled")} icon={Languages} color={items.length > 0 ? "emerald" : "slate"} />
       </div>
 
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
         <div className="mb-4 flex items-center gap-2.5">
           <div className={`${p.iconSm} ${p.iconEmerald}`}><Plus size={13} /></div>
           <h2 className={p.h2}>{t("settingsPortal.saveOverride")}</h2>
@@ -90,13 +90,20 @@ export default function PortalSettingsTranslationsPage() {
         <div className="mt-4">
           <TextareaField label={t("settingsPortal.translationValue")} value={valueInput} onChange={setValueInput} placeholder={t("settingsPortal.translationValue")} />
         </div>
-        <button onClick={save} className={`${p.btnPrimary} mt-4`}><Plus size={13} />{t("settingsPortal.saveOverride")}</button>
+        <button
+          onClick={save}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] px-4 py-2.5 text-[12px] font-semibold text-white transition-all hover:scale-[1.02]"
+          style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+        >
+          <Plus size={13} />
+          {t("settingsPortal.saveOverride")}
+        </button>
       </Card>
 
       {items.length > 0 && (
         <div className="space-y-2">
           {items.map((item) => (
-            <Card key={item.id}>
+            <Card key={item.id} className="border-[#F3E8D8] hover:border-[#E8D5BC]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="font-mono text-[11px] font-semibold text-slate-700">{item.translationKey}</p>

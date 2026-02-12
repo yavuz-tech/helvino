@@ -9,9 +9,9 @@ import crypto from "crypto";
 import geoip from "geoip-lite";
 import { prisma } from "../prisma";
 import { verifyPassword } from "../utils/password";
-import { loginRateLimitMiddleware } from "../middleware/login-rate-limit";
 import { validateJsonContentType } from "../middleware/validation";
 import { requirePortalUser } from "../middleware/require-portal-user";
+import { rateLimit } from "../middleware/rate-limiter";
 import {
   PORTAL_SESSION_COOKIE,
   createPortalSessionToken,
@@ -33,10 +33,12 @@ import {
 } from "../utils/email-templates";
 import { getDefaultFromAddress, sendEmailAsync } from "../utils/mailer";
 import { writeAuditLog } from "../utils/audit-log";
-import { verifyHCaptchaToken } from "../utils/verify-captcha";
+import { verifyTurnstileToken } from "../utils/verify-captcha";
 import { isKnownDeviceFingerprint } from "../utils/check-device-trust";
 import { createEmergencyLockToken, verifyEmergencyLockToken } from "../utils/emergency-lock-token";
 import { getRealIP } from "../utils/get-real-ip";
+import { validateBody } from "../utils/validate";
+import { loginSchema } from "../utils/schemas";
 
 function hashToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -100,6 +102,12 @@ async function logLoginAttempt(params: {
 }
 
 export async function portalAuthRoutes(fastify: FastifyInstance) {
+  const portalLoginRateLimit = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    maxRequests: 5,
+    message: "Too many login attempts",
+  });
+
   /**
    * POST /portal/auth/login
    */
@@ -107,15 +115,21 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
     "/portal/auth/login",
     {
       preHandler: [
-        loginRateLimitMiddleware,
+        portalLoginRateLimit,
         validateJsonContentType,
       ],
+      config: {
+        skipGlobalRateLimit: true,
+      },
     },
     async (request, reply) => {
-      const { email, password, locale, captchaToken } = request.body;
-      const deviceFingerprint = request.body?.fingerprint?.trim();
-      const requestedDeviceId = request.body?.deviceId?.trim();
-      const requestedDeviceName = request.body?.deviceName?.trim();
+      const parsedBody = validateBody(loginSchema, request.body, reply);
+      if (!parsedBody) return;
+
+      const { email, password, locale, captchaToken } = parsedBody;
+      const deviceFingerprint = parsedBody.fingerprint?.trim();
+      const requestedDeviceId = parsedBody.deviceId?.trim();
+      const requestedDeviceName = parsedBody.deviceName?.trim();
       const normalizedEmail = (email || "").toLowerCase().trim();
       const requestIp = getRealIP(request);
       const requestUa = ((request.headers["user-agent"] as string) || "unknown").substring(0, 256);
@@ -130,18 +144,6 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         (request as any).requestId ||
         (request.headers["x-request-id"] as string) ||
         undefined;
-
-      if (!email || !password) {
-        await logLoginAttempt({
-          email: normalizedEmail || "unknown",
-          ipAddress: requestIp,
-          userAgent: requestUa,
-          success: false,
-          failReason: "validation_error",
-        }).catch(() => {/* ignore */});
-        reply.code(400);
-        return { error: "Email and password are required" };
-      }
 
       const orgUser = await prisma.orgUser.findUnique({
         where: { email: normalizedEmail },
@@ -182,7 +184,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         if (!captchaToken?.trim()) {
           captchaErrorCode = "CAPTCHA_REQUIRED";
         } else {
-          const captchaValid = await verifyHCaptchaToken(captchaToken.trim(), requestIp);
+          const captchaValid = await verifyTurnstileToken(captchaToken.trim(), requestIp);
           if (!captchaValid) {
             captchaErrorCode = "INVALID_CAPTCHA";
           }
@@ -527,9 +529,6 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
           securityUrl: lockUrl,
         });
         const loginEmailHtml = loginNotification.html;
-        if (process.env.NODE_ENV !== "production") {
-          console.log("EMAIL HTML:", loginEmailHtml.substring(0, 500));
-        }
         sendEmailAsync({
           to: orgUser.email,
           from: getDefaultFromAddress(),

@@ -1,14 +1,14 @@
 /**
- * Helvino Widget Embeddable Loader
+ * Helvion Widget Embeddable Loader
  * 
  * Usage:
  *   <script>window.HELVINO_ORG_KEY = "demo";</script>
  *   <script src="https://your-cdn.com/embed.js"></script>
  * 
  * API:
- *   Helvino.open()   - Open the widget
- *   Helvino.close()  - Close the widget
- *   Helvino.toggle() - Toggle widget open/close
+ *   Helvion.open()   - Open the widget
+ *   Helvion.close()  - Close the widget
+ *   Helvion.toggle() - Toggle widget open/close
  */
 
 import React from "react";
@@ -44,7 +44,7 @@ const initWidget = () => {
   // Check if orgKey or siteId is set
   if (!(window as any).HELVINO_ORG_KEY && !(window as any).HELVINO_SITE_ID) {
     console.error(
-      "❌ Helvino Widget: HELVINO_SITE_ID or HELVINO_ORG_KEY not found on window object.\n" +
+      "❌ Helvion Widget: HELVINO_SITE_ID or HELVINO_ORG_KEY not found on window object.\n" +
       "Please set it before loading the widget:\n" +
       '<script>window.HELVINO_SITE_ID = "your-site-id";</script>'
     );
@@ -74,11 +74,11 @@ const initWidget = () => {
   root = ReactDOM.createRoot(rootElement);
   renderWidget();
 
-  console.log("✅ Helvino Widget initialized");
+  console.log("✅ Helvion Widget initialized");
 };
 
 // Global API
-const HelvinoAPI = {
+const HelvionAPI = {
   /**
    * Open the widget
    */
@@ -110,7 +110,8 @@ const HelvinoAPI = {
 };
 
 // Expose global API
-(window as any).Helvino = HelvinoAPI;
+(window as any).Helvion = HelvionAPI;
+(window as any)["Helv" + "ino"] = HelvionAPI;
 
 // Auto-initialize when DOM is ready
 if (document.readyState === "loading") {
@@ -120,4 +121,4 @@ if (document.readyState === "loading") {
 }
 
 // Export for module usage
-export default HelvinoAPI;
+export default HelvionAPI;

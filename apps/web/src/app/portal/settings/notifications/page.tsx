@@ -64,7 +64,7 @@ export default function PortalSettingsNotificationsPage() {
   const enabledCount = rows.filter((r) => prefs[r.key]).length;
 
   return (
-    <div className={p.sectionGap}>
+    <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
       <PageHeader title={t("settingsPortal.notifications")} subtitle={t("settingsPortal.notificationsSubtitle")} />
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -73,14 +73,16 @@ export default function PortalSettingsNotificationsPage() {
         <StatCard label={t("common.disabled")} value={String(rows.length - enabledCount)} icon={MessageSquare} color="slate" />
       </div>
 
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
         <div className="mb-4 flex items-center gap-2.5">
           <div className={`${p.iconSm} ${p.iconRose}`}><Bell size={13} /></div>
           <h2 className={p.h2}>{t("settingsPortal.notifications")}</h2>
         </div>
-        <div className="space-y-2">
-          {rows.map((row) => (
-            <Toggle key={row.key} label={row.label} checked={prefs[row.key]} disabled={saving} onChange={(v) => update({ ...prefs, [row.key]: v })} />
+        <div>
+          {rows.map((row, idx) => (
+            <div key={row.key} style={{ padding: "10px 0", borderTop: idx === 0 ? "none" : "1px solid #F1F5F9" }}>
+              <Toggle label={row.label} checked={prefs[row.key]} disabled={saving} onChange={(v) => update({ ...prefs, [row.key]: v })} />
+            </div>
           ))}
         </div>
       </Card>

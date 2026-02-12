@@ -39,7 +39,7 @@ export default function WidgetEmptyState({
   }> = {
     "not-loaded": {
       icon: (
-        <svg className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-10 h-10 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
         </svg>
       ),
@@ -77,14 +77,14 @@ export default function WidgetEmptyState({
   return (
     <div className={`flex flex-col items-center justify-center py-10 px-6 ${className}`}>
       <div className="mb-4">{cfg.icon}</div>
-      <h3 className="text-base font-semibold text-slate-800 mb-1">{cfg.title}</h3>
-      <p className="text-sm text-slate-500 text-center max-w-sm mb-5 leading-relaxed">
+      <h3 className="text-base font-semibold text-amber-900 mb-1">{cfg.title}</h3>
+      <p className="text-sm text-amber-600 text-center max-w-sm mb-5 leading-relaxed">
         {cfg.desc}
       </p>
       {cfg.actionLabel && cfg.onAction && (
         <button
           onClick={cfg.onAction}
-          className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors"
+          className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-medium rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors"
         >
           {cfg.actionLabel}
         </button>
@@ -92,7 +92,7 @@ export default function WidgetEmptyState({
       {cfg.actionLabel && cfg.actionHref && !cfg.onAction && (
         <Link
           href={cfg.actionHref}
-          className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors"
+          className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-medium rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors"
         >
           {cfg.actionLabel}
         </Link>

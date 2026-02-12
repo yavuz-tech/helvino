@@ -107,13 +107,18 @@ export default function PortalGeneralSettingsPage() {
     );
 
   return (
-    <div className={p.sectionGap}>
+    <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
       <PageHeader
         title={t("settingsPortal.general")}
         subtitle={t("portal.settingsSubtitle")}
         action={
           canEdit ? (
-            <button onClick={handleSave} disabled={!hasChanges || saving} className={p.btnPrimary}>
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges || saving}
+              className="inline-flex items-center justify-center gap-1.5 rounded-[10px] px-4 py-2.5 text-[12px] font-semibold text-white transition-all hover:scale-[1.02] disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+            >
               <Save size={13} />
               {saving ? t("common.saving") : t("portal.saveSettings")}
             </button>
@@ -127,7 +132,7 @@ export default function PortalGeneralSettingsPage() {
         <StatCard label={t("portal.aiEnabled")} value={settings.aiEnabled ? t("common.enabled") : t("common.disabled")} icon={Bot} color="violet" />
       </div>
 
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
         <div className="mb-4 flex items-center gap-2.5">
           <div className={`${p.iconSm} ${p.iconBlue}`}><MessageCircleMore size={13} /></div>
           <h2 className={p.h2}>{t("settingsPortal.general")}</h2>
@@ -139,7 +144,7 @@ export default function PortalGeneralSettingsPage() {
         </div>
       </Card>
 
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
         <div className="mb-4 flex items-center gap-2.5">
           <div className={`${p.iconSm} ${p.iconAmber}`}><Database size={13} /></div>
           <h2 className={p.h2}>{t("portal.messageRetentionDays")}</h2>
@@ -157,7 +162,7 @@ export default function PortalGeneralSettingsPage() {
         )}
       </Card>
 
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
         <div className="mb-4 flex items-center gap-2.5">
           <div className={`${p.iconSm} ${p.iconRose}`}><Bell size={13} /></div>
           <h2 className={p.h2}>{t("inbox.notification.title")}</h2>

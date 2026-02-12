@@ -55,11 +55,5 @@ export async function checkAbandonedCheckouts(): Promise<{ scanned: number; mark
     });
   }
 
-  if (abandoned.length > 0) {
-    console.log(
-      `[checkout-abandoned] scanned=${abandoned.length} marked=${markedAbandoned} emailed=${emailsSent}`
-    );
-  }
-
   return { scanned: abandoned.length, markedAbandoned, emailsSent };
 }

@@ -38,21 +38,21 @@ export default function OrgLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center p-4">
       <div className="absolute top-4 right-4">
         <LanguageSwitcher />
       </div>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-block w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mb-4">
+          <div className="inline-block w-16 h-16 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mb-4">
             <span className="text-white font-bold text-2xl">H</span>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Helvion</h1>
-          <p className="text-slate-600">{t("auth.orgPortal")}</p>
+          <h1 className="text-3xl font-bold text-[#1A1D23] mb-2">Helvion</h1>
+          <p className="text-[#475569]">{t("auth.orgPortal")}</p>
         </div>
 
-        <div className="bg-white rounded-lg border border-slate-200 p-8 shadow-sm">
-          <h2 className="text-xl font-semibold text-slate-900 mb-6">{t("auth.signIn")}</h2>
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-8 shadow-sm">
+          <h2 className="text-xl font-semibold text-[#1A1D23] mb-6">{t("auth.signIn")}</h2>
 
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
@@ -62,7 +62,7 @@ export default function OrgLoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-[#334155] mb-2">
                 {t("auth.email")}
               </label>
               <input
@@ -70,7 +70,7 @@ export default function OrgLoginPage() {
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                 placeholder="you@company.com"
                 required
                 disabled={isLoading}
@@ -78,7 +78,7 @@ export default function OrgLoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-[#334155] mb-2">
                 {t("auth.password")}
               </label>
               <input
@@ -86,7 +86,7 @@ export default function OrgLoginPage() {
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                 placeholder="••••••••"
                 required
                 disabled={isLoading}
@@ -95,22 +95,22 @@ export default function OrgLoginPage() {
 
             <button
               type="submit"
-              className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
+              className="w-full px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors disabled:from-amber-300 disabled:to-amber-300"
               disabled={isLoading}
             >
               {isLoading ? t("auth.signingIn") : t("auth.signIn")}
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-200 text-center text-sm text-slate-600">
+          <div className="mt-6 pt-6 border-t border-[#F3E8D8] text-center text-sm text-[#475569]">
             {t("auth.internalAdmin")}{" "}
-            <a href="/login" className="text-slate-900 font-medium hover:underline">
+            <a href="/login" className="text-[#1A1D23] font-medium hover:underline">
               {t("auth.loginHere")}
             </a>
           </div>
         </div>
 
-        <div className="mt-6 text-center text-sm text-slate-600">
+        <div className="mt-6 text-center text-sm text-[#475569]">
           <p>{t("auth.needAccess")}</p>
         </div>
       </div>

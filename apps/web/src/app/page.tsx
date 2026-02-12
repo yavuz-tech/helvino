@@ -5,10 +5,13 @@ import Image from "next/image";
 import { MessageSquare, Users, ShieldCheck, BarChart3 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 import PublicLayout from "@/components/PublicLayout";
-import FeatureCard from "@/components/FeatureCard";
+import FeatureCard from "@/components/ui/FeatureCard";
 import { designTokens } from "@/lib/designTokens";
+import { colors, fonts } from "@/lib/design-tokens";
 
 export default function Home() {
+  void colors;
+  void fonts;
   const { t } = useI18n();
 
   const features = [
@@ -70,7 +73,7 @@ export default function Home() {
 
             {/* Visual preview block */}
             <div className="relative hidden lg:block">
-              <div className={`bg-white border border-slate-200/80 rounded-2xl ${designTokens.shadows.elevated} p-5`}>
+              <div className={`bg-white border border-[#F3E8D8] rounded-2xl ${designTokens.shadows.elevated} p-5`}>
                 <Image
                   src="/marketing/mock-dashboard.svg"
                   alt=""
@@ -86,10 +89,10 @@ export default function Home() {
       </section>
 
       {/* ── Feature Showcase ── */}
-      <section className="bg-slate-50/50 border-t border-slate-200/40">
+      <section className="bg-[#FFFBF5] border-t border-[#F3E8D8]">
         <div className={`${designTokens.layout.maxWidth} ${designTokens.spacing.sectionY}`}>
           <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-bold text-[#1A1D23] font-heading tracking-tight">
               {t("home.featureTitle")}
             </h2>
           </div>
@@ -105,7 +108,7 @@ export default function Home() {
       <section className={`${designTokens.layout.maxWidth} py-12 sm:py-16`}>
         <Link
           href="/status"
-          className="inline-flex items-center gap-3 px-5 py-3 bg-white border border-slate-200/80 text-slate-600 rounded-full text-sm font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:border-slate-300 transition-all duration-150"
+          className="inline-flex items-center gap-3 px-5 py-3 bg-white border border-[#F3E8D8] text-[#475569] rounded-full text-sm font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:border-amber-300 transition-all duration-150"
         >
           <span className="w-2 h-2 bg-emerald-500 rounded-full" />
           {t("home.systemOperational")}

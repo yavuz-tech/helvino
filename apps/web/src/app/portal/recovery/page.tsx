@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -10,7 +10,7 @@ import ErrorBanner from "@/components/ErrorBanner";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { ArrowLeft, CheckCircle2, LockKeyhole } from "lucide-react";
 
-export default function PortalRecoveryPage() {
+function PortalRecoveryContent() {
   const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -179,5 +179,19 @@ export default function PortalRecoveryPage() {
         </motion.section>
       </div>
     </motion.div>
+  );
+}
+
+export default function PortalRecoveryPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+          <div className="text-[#64748B]">Loading...</div>
+        </div>
+      }
+    >
+      <PortalRecoveryContent />
+    </Suspense>
   );
 }

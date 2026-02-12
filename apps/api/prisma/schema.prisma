@@ -598,6 +598,12 @@ model WidgetSettings {
   primaryColor   String       @default("#0F5C5C")
   position       String       @default("right") // "right" | "left"
   launcher       String       @default("bubble") // "bubble" | "icon"
+  bubbleShape    String       @default("circle") // "circle" | "rounded-square"
+  bubbleIcon     String       @default("chat") // "chat" | "message" | "help" | "custom"
+  bubbleSize     Int          @default(60)
+  bubblePosition String       @default("bottom-right") // "bottom-right" | "bottom-left"
+  greetingText   String       @default("") @db.VarChar(120)
+  greetingEnabled Boolean     @default(false)
   welcomeTitle   String       @default("Welcome") @db.VarChar(60)
   welcomeMessage String       @default("How can we help you today?") @db.VarChar(240)
   brandName      String?      @db.VarChar(40)

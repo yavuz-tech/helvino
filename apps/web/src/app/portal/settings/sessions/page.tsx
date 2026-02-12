@@ -36,57 +36,69 @@ export default function PortalSessionsPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">{t("security.activeSessions")}</h1>
-        <p className="text-sm text-slate-600">{t("security.activeSessionsDesc")}</p>
+    <div className="space-y-4" style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
+      <div
+        style={{
+          background: "#FFFFFF",
+          border: "1px solid #F3E8D8",
+          borderRadius: 16,
+          padding: 24,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
+        }}
+      >
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1A1D23" }}>{t("security.activeSessions")}</h1>
+        <p style={{ fontSize: 13, color: "#64748B", marginTop: 4 }}>{t("security.activeSessionsDesc")}</p>
       </div>
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-4 py-2 text-left">{t("devices.device")}</th>
-              <th className="px-4 py-2 text-left">{t("common.location")}</th>
-              <th className="px-4 py-2 text-left">{t("security.lastActive")}</th>
-              <th className="px-4 py-2 text-left">{t("common.actions")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td className="px-4 py-4 text-slate-500" colSpan={4}>{t("common.loading")}</td>
-              </tr>
-            ) : sessions.length === 0 ? (
-              <tr>
-                <td className="px-4 py-4 text-slate-500" colSpan={4}>{t("security.noOtherSessions")}</td>
-              </tr>
-            ) : (
-              sessions.map((s) => (
-                <tr key={s.id} className="border-t border-slate-100">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-slate-800">{s.deviceName || t("devices.unknownDevice")}</div>
-                    {s.isCurrent ? (
-                      <span className="text-xs text-emerald-700">{t("security.currentSession")}</span>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{[s.loginCity, s.loginCountry].filter(Boolean).join(", ") || "-"}</td>
-                  <td className="px-4 py-3 text-slate-600">{new Date(s.lastSeenAt).toLocaleString()}</td>
-                  <td className="px-4 py-3">
-                    {!s.isCurrent ? (
-                      <button
-                        type="button"
-                        onClick={() => revoke(s.id)}
-                        className="rounded-md border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700"
-                      >
-                        {t("security.revokeSession")}
-                      </button>
-                    ) : null}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      <div className="space-y-3">
+        {loading ? (
+          <div style={{ color: "#64748B", fontSize: 13 }}>{t("common.loading")}</div>
+        ) : sessions.length === 0 ? (
+          <div style={{ color: "#64748B", fontSize: 13 }}>{t("security.noOtherSessions")}</div>
+        ) : (
+          sessions.map((s) => (
+            <div
+              key={s.id}
+              style={{
+                background: "#FFFFFF",
+                border: "1px solid #F3E8D8",
+                borderRadius: 16,
+                padding: 16,
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
+              }}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-800">{s.deviceName || t("devices.unknownDevice")}</p>
+                  <p className="text-xs text-slate-500">{[s.loginCity, s.loginCountry].filter(Boolean).join(", ") || "-"}</p>
+                  <p className="text-xs text-slate-500" suppressHydrationWarning>{new Date(s.lastSeenAt).toLocaleString()}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {s.isCurrent ? (
+                    <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                      {t("security.currentSession")}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => revoke(s.id)}
+                      style={{
+                        borderRadius: 10,
+                        border: "1px solid #FECDD3",
+                        background: "#FFF1F2",
+                        color: "#E11D48",
+                        padding: "8px 12px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {t("security.revokeSession")}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

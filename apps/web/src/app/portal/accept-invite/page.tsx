@@ -25,9 +25,9 @@ function AcceptInviteForm() {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center p-4">
         <div className="absolute top-4 right-4"><LanguageSwitcher /></div>
-        <div className="bg-white rounded-lg border border-slate-200 p-8 max-w-md w-full text-center">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-8 max-w-md w-full text-center">
           <p className="text-red-600 text-sm">{t("team.invalidToken")}</p>
         </div>
       </div>
@@ -73,19 +73,19 @@ function AcceptInviteForm() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center p-4">
       <div className="absolute top-4 right-4"><LanguageSwitcher /></div>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-block w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mb-4">
+          <div className="inline-block w-16 h-16 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mb-4">
             <span className="text-white font-bold text-2xl">H</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">{t("team.welcomeTitle")}</h1>
-          <p className="text-slate-600 mt-2">{t("team.welcomeSubtitle")}</p>
+          <h1 className="text-2xl font-bold text-[#1A1D23] font-heading">{t("team.welcomeTitle")}</h1>
+          <p className="text-[#475569] mt-2">{t("team.welcomeSubtitle")}</p>
         </div>
 
-        <div className="bg-white rounded-lg border border-slate-200 p-8 shadow-sm">
-          <h2 className="text-xl font-semibold text-slate-900 mb-6">{t("team.setPassword")}</h2>
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-8 shadow-sm">
+          <h2 className="text-xl font-semibold text-[#1A1D23] font-heading mb-6">{t("team.setPassword")}</h2>
 
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
@@ -94,13 +94,13 @@ function AcceptInviteForm() {
           )}
 
           {success ? (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-green-800 text-sm">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-emerald-800 text-sm">
               {t("team.acceptSuccess")}
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-[#475569] mb-2">
                   {t("team.password")}
                 </label>
                 <input
@@ -112,13 +112,13 @@ function AcceptInviteForm() {
                   minLength={12}
                   placeholder="••••••••"
                   disabled={loading}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:bg-slate-100"
+                  className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 disabled:bg-[#F1F5F9]"
                 />
-                <p className="text-xs text-slate-500 mt-1">{t("team.passwordHint")}</p>
+                <p className="text-xs text-[#64748B] mt-1">{t("team.passwordHint")}</p>
               </div>
 
               <div>
-                <label htmlFor="confirmPw" className="block text-sm font-medium text-slate-700 mb-2">
+                <label htmlFor="confirmPw" className="block text-sm font-medium text-[#475569] mb-2">
                   {t("team.confirmPassword")}
                 </label>
                 <input
@@ -130,14 +130,14 @@ function AcceptInviteForm() {
                   minLength={12}
                   placeholder="••••••••"
                   disabled={loading}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:bg-slate-100"
+                  className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 disabled:bg-[#F1F5F9]"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full px-4 py-3 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
+                className="w-full px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-medium rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors disabled:from-amber-300 disabled:to-amber-300"
               >
                 {loading ? t("team.accepting") : t("team.acceptInvite")}
               </button>
@@ -151,7 +151,7 @@ function AcceptInviteForm() {
 
 export default function AcceptInvitePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><p>Loading...</p></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center"><p>Loading...</p></div>}>
       <AcceptInviteForm />
     </Suspense>
   );

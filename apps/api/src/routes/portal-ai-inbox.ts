@@ -18,10 +18,19 @@ import {
 } from "../utils/ai-service";
 
 export async function portalAiInboxRoutes(fastify: FastifyInstance) {
+  const sendAiFailure = (reply: { code: (statusCode: number) => { send: (payload: unknown) => unknown } }, result: { error: string; code: string }) => {
+    if (result.code === "RATE_LIMITED") {
+      return reply.code(429).send({ error: result.error, code: "RATE_LIMITED" });
+    }
+    if (result.code === "QUOTA_EXCEEDED") {
+      return reply.code(402).send({ error: result.error, code: "QUOTA_EXCEEDED" });
+    }
+    return reply.code(500).send({ error: result.error, code: result.code });
+  };
 
   // ─── POST /portal/conversations/:id/ai-suggest ────────────────
-  // Generate 3 AI reply suggestions for a conversation
-  fastify.post<{ Params: { id: string } }>(
+  // Generate a single contextual AI reply suggestion
+  fastify.post<{ Params: { id: string }; Body: { locale?: "tr" | "en" | "es" } }>(
     "/portal/conversations/:id/ai-suggest",
     {
       preHandler: [
@@ -45,12 +54,13 @@ export async function portalAiInboxRoutes(fastify: FastifyInstance) {
       }
 
       const { id } = request.params;
+      const locale = request.body?.locale || "en";
 
       try {
         const conv = await prisma.conversation.findFirst({
           where: { id, orgId: user.orgId },
           include: {
-            messages: { orderBy: { timestamp: "asc" }, take: 30 },
+            messages: { orderBy: { timestamp: "asc" }, take: 20 },
           },
         });
 
@@ -59,80 +69,58 @@ export async function portalAiInboxRoutes(fastify: FastifyInstance) {
 
         const org = await prisma.organization.findUnique({
           where: { id: user.orgId },
-          select: { aiConfigJson: true, aiProvider: true, language: true },
+          select: { aiConfigJson: true, aiProvider: true, language: true, name: true },
         });
 
         const aiConfig = parseAiConfig(org?.aiConfigJson);
         if (org?.aiProvider) aiConfig.provider = org.aiProvider as AiProvider;
 
-        const history = conv.messages.map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        }));
+        const history = conv.messages
+          .filter((m) => !m.content.startsWith("[note]") && !m.content.startsWith("[system]"))
+          .map((m) => ({
+            role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
+            content: m.content,
+          }));
 
-        // Ask AI to generate 3 distinct reply suggestions
+        const localeLabel = locale === "tr" ? "Turkish" : locale === "es" ? "Spanish" : "English";
+        const systemPrompt = `You are a customer support assistant for ${org?.name || "the company"}.
+Task: Generate a professional, concise, and helpful reply suggestion for the customer's latest message.
+Language: ${localeLabel}.
+Rules:
+- Maximum 2-3 sentences
+- Professional but friendly tone
+- Direct and solution-oriented
+- You may use light emojis
+- Return only the reply text, no explanations`;
+
         const result = await generateAiResponse(
           [
-            ...history,
             {
               role: "user" as const,
-              content: `Based on the conversation above, generate exactly 3 different reply suggestions that a support agent could send. Each suggestion should be 1-3 sentences and take a different approach:
-1) Helpful and direct
-2) Empathetic and warm
-3) Professional and brief
-
-Format: Put each suggestion on its own line, prefixed with "1.", "2.", "3." respectively. Do not include any other text, headers, or explanations.`,
+              content: `${systemPrompt}\n\nConversation:\n${history
+                .map((m) => `${m.role === "user" ? "Customer" : "Agent"}: ${m.content}`)
+                .join("\n")}`,
             },
           ],
           {
             ...aiConfig,
-            language: aiConfig.language || org?.language || "en",
-            maxTokens: 600,
-            temperature: 0.8,
+            provider: "gemini",
+            language: locale || aiConfig.language || org?.language || "en",
+            maxTokens: 300,
+            temperature: 0.6,
           }
         );
 
-        if (!result.ok) {
-          return reply.code(500).send({ error: result.error });
-        }
+        if (!result.ok) return sendAiFailure(reply, result);
 
-        // Parse the 3 suggestions from AI response (numbered list format)
-        let suggestions: string[] = [];
-
-        // First try: extract numbered items (1. xxx \n 2. xxx \n 3. xxx)
-        const lines = result.content.split(/\n+/).map((l) => l.trim()).filter(Boolean);
-        for (const line of lines) {
-          const match = line.match(/^\d+[\.\)]\s*(.+)/);
-          if (match && match[1].length > 5) {
-            suggestions.push(match[1].replace(/^["']|["']$/g, "").trim());
-          }
-        }
-
-        // Second try: JSON array
-        if (suggestions.length === 0) {
-          try {
-            const cleaned = result.content.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
-            const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-            if (jsonMatch) {
-              const parsed = JSON.parse(jsonMatch[0]);
-              if (Array.isArray(parsed)) {
-                suggestions = parsed.map((s: unknown) => String(s).trim()).filter((s) => s.length > 5);
-              }
-            }
-          } catch { /* fall through */ }
-        }
-
-        // Fallback: use whole content as single suggestion
-        if (suggestions.length === 0) {
-          suggestions = [result.content.replace(/```[\s\S]*?```/g, "").trim()];
-        }
+        const suggestion = result.content.replace(/```[\s\S]*?```/g, "").trim().replace(/^["']|["']$/g, "");
 
         // Track AI usage
         await incrementAiUsage(user.orgId);
 
         return {
-          ok: true,
-          suggestions: suggestions.slice(0, 3),
+          success: true,
+          suggestion,
           model: result.model,
           provider: result.provider,
         };
@@ -210,9 +198,7 @@ Format: Put each suggestion on its own line, prefixed with "1.", "2.", "3." resp
           }
         );
 
-        if (!result.ok) {
-          return reply.code(500).send({ error: result.error });
-        }
+        if (!result.ok) return sendAiFailure(reply, result);
 
         // Track AI usage
         await incrementAiUsage(user.orgId);
@@ -303,9 +289,7 @@ Format: Put each suggestion on its own line, prefixed with "1.", "2.", "3." resp
           }
         );
 
-        if (!result.ok) {
-          return reply.code(500).send({ error: result.error });
-        }
+        if (!result.ok) return sendAiFailure(reply, result);
 
         // Track AI usage
         await incrementAiUsage(user.orgId);
@@ -380,7 +364,7 @@ Format: Put each suggestion on its own line, prefixed with "1.", "2.", "3." resp
           { ...aiConfig, maxTokens: 200, temperature: 0.2 }
         );
 
-        if (!result.ok) return reply.code(500).send({ error: result.error });
+        if (!result.ok) return sendAiFailure(reply, result);
 
         // Track AI usage
         await incrementAiUsage(user.orgId);
@@ -477,7 +461,7 @@ Format: Put each suggestion on its own line, prefixed with "1.", "2.", "3." resp
           }
         );
 
-        if (!result.ok) return reply.code(500).send({ error: result.error });
+        if (!result.ok) return sendAiFailure(reply, result);
 
         // Track AI usage
         await incrementAiUsage(user.orgId);

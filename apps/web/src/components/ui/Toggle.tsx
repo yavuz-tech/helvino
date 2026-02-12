@@ -24,16 +24,16 @@ export default function Toggle({
       className={`${p.toggleRow} ${disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} group w-full text-left`}
     >
       <div className="min-w-0 flex-1">
-        <p className="text-[14px] font-medium text-slate-700">{label}</p>
+        <p className="text-[14px] font-medium text-amber-800">{label}</p>
         {description && (
-          <p className="mt-1 text-[12px] leading-snug text-slate-500">{description}</p>
+          <p className="mt-1 text-[12px] leading-snug text-amber-600">{description}</p>
         )}
       </div>
       {/* Switch Track */}
       <div
         className={[
           "relative h-6 w-11 flex-shrink-0 rounded-full transition-colors duration-200",
-          checked ? "bg-blue-600" : "bg-slate-200 group-hover:bg-slate-300",
+          checked ? "bg-amber-500" : "bg-amber-200 group-hover:bg-amber-300",
         ].join(" ")}
       >
         {/* Switch Thumb */}

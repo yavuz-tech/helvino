@@ -153,8 +153,8 @@ export default function OrgSettingsPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">{t("common.checkingAuth")}</div>
+      <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+        <div className="text-[#475569]">{t("common.checkingAuth")}</div>
       </div>
     );
   }
@@ -162,7 +162,7 @@ export default function OrgSettingsPage() {
   if (loading) {
     return (
       <OrgPortalLayout user={user} onLogout={handleLogout}>
-        <div className="text-center py-12 text-slate-500">
+        <div className="text-center py-12 text-[#64748B]">
           {t("app.loadingSettings")}
         </div>
       </OrgPortalLayout>
@@ -182,8 +182,8 @@ export default function OrgSettingsPage() {
   return (
     <OrgPortalLayout user={user} onLogout={handleLogout}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">{t("app.widgetSettings")}</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="text-2xl font-bold text-[#1A1D23]">{t("app.widgetSettings")}</h1>
+        <p className="text-sm text-[#64748B] mt-1">
           {t("app.widgetSettingsSubtitle")}
         </p>
       </div>
@@ -202,35 +202,35 @@ export default function OrgSettingsPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg border border-slate-200 p-6 space-y-6">
+      <div className="bg-white rounded-lg border border-[#F3E8D8] p-6 space-y-6">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
+          <label className="block text-sm font-medium text-[#334155] mb-2">
             {t("app.widgetName")}
           </label>
           <input
             type="text"
             value={settings.widgetName}
             onChange={(e) => setSettings({ ...settings, widgetName: e.target.value })}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+            className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
             placeholder="Support Chat"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
+          <label className="block text-sm font-medium text-[#334155] mb-2">
             {t("app.widgetSubtitle")}
           </label>
           <input
             type="text"
             value={settings.widgetSubtitle}
             onChange={(e) => setSettings({ ...settings, widgetSubtitle: e.target.value })}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+            className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
             placeholder="We're here to help"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
+          <label className="block text-sm font-medium text-[#334155] mb-2">
             {t("app.primaryColor")}
           </label>
           <div className="flex gap-2">
@@ -244,20 +244,20 @@ export default function OrgSettingsPage() {
               type="text"
               value={settings.primaryColor || "#0F5C5C"}
               onChange={(e) => setSettings({ ...settings, primaryColor: e.target.value })}
-              className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 font-mono text-sm"
+              className="flex-1 px-4 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-mono text-sm"
               placeholder="#0F5C5C"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
+          <label className="block text-sm font-medium text-[#334155] mb-2">
             {t("app.language")}
           </label>
           <select
             value={settings.language}
             onChange={(e) => setSettings({ ...settings, language: e.target.value })}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+            className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
           >
             <option value="en">English</option>
             <option value="tr">Türkçe</option>
@@ -268,11 +268,11 @@ export default function OrgSettingsPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
+          <label className="block text-sm font-medium text-[#334155] mb-2">
             {t("app.position")}
           </label>
           <div className="flex gap-3">
-            <label className="flex-1 flex items-center gap-2 px-4 py-3 border-2 rounded-lg cursor-pointer hover:border-slate-400 transition-colors">
+            <label className="flex-1 flex items-center gap-2 px-4 py-3 border-2 rounded-lg cursor-pointer hover:border-amber-400 transition-colors">
               <input
                 type="radio"
                 value="right"
@@ -282,7 +282,7 @@ export default function OrgSettingsPage() {
               />
               <span className="text-sm">{t("app.right")}</span>
             </label>
-            <label className="flex-1 flex items-center gap-2 px-4 py-3 border-2 rounded-lg cursor-pointer hover:border-slate-400 transition-colors">
+            <label className="flex-1 flex items-center gap-2 px-4 py-3 border-2 rounded-lg cursor-pointer hover:border-amber-400 transition-colors">
               <input
                 type="radio"
                 value="left"
@@ -295,29 +295,29 @@ export default function OrgSettingsPage() {
           </div>
         </div>
 
-        <div className="pt-6 border-t border-slate-200">
-          <h3 className="text-sm font-medium text-slate-700 mb-3">{t("app.status")}</h3>
+        <div className="pt-6 border-t border-[#F3E8D8]">
+          <h3 className="text-sm font-medium text-[#334155] mb-3">{t("app.status")}</h3>
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">
               <div className={`text-2xl mb-1 ${settings.widgetEnabled ? "text-green-600" : "text-red-600"}`}>
                 {settings.widgetEnabled ? "✓" : "✗"}
               </div>
-              <p className="text-xs text-slate-600">{t("app.widget")}</p>
+              <p className="text-xs text-[#475569]">{t("app.widget")}</p>
             </div>
             <div className="text-center">
               <div className={`text-2xl mb-1 ${settings.writeEnabled ? "text-green-600" : "text-red-600"}`}>
                 {settings.writeEnabled ? "✓" : "✗"}
               </div>
-              <p className="text-xs text-slate-600">{t("app.write")}</p>
+              <p className="text-xs text-[#475569]">{t("app.write")}</p>
             </div>
             <div className="text-center">
               <div className={`text-2xl mb-1 ${settings.aiEnabled ? "text-green-600" : "text-red-600"}`}>
                 {settings.aiEnabled ? "✓" : "✗"}
               </div>
-              <p className="text-xs text-slate-600">{t("app.ai")}</p>
+              <p className="text-xs text-[#475569]">{t("app.ai")}</p>
             </div>
           </div>
-          <p className="text-xs text-slate-500 text-center mt-3">
+          <p className="text-xs text-[#64748B] text-center mt-3">
             {t("app.contactSupportChange")}
           </p>
         </div>
@@ -326,7 +326,7 @@ export default function OrgSettingsPage() {
           <button
             onClick={handleSave}
             disabled={saving || !hasChanges}
-            className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
+            className="w-full px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors disabled:from-amber-300 disabled:to-amber-300"
           >
             {saving ? t("common.saving") : hasChanges ? t("common.saveChanges") : t("common.noChanges")}
           </button>

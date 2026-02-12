@@ -26,6 +26,7 @@ import PasskeySection from "@/components/PasskeySection";
 import { useStepUp } from "@/contexts/StepUpContext";
 import PasswordStrength from "@/components/PasswordStrength";
 import { mapPasswordPolicyError } from "@/lib/password-errors";
+import { colors, fonts } from "@/lib/design-tokens";
 
 interface SecuritySettings {
   siteId: string;
@@ -62,7 +63,29 @@ interface AlertsPayload {
 
 const ROTATE_CONFIRM_TOKEN = "ROTATE";
 
+function sanitizeUiError(value: unknown, fallback: string): string {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    if (
+      normalized &&
+      normalized !== "[object Event]" &&
+      normalized !== "[object Object]" &&
+      normalized !== "Event"
+    ) {
+      return normalized;
+    }
+    return fallback;
+  }
+  if (value && typeof value === "object" && "message" in value) {
+    const maybe = (value as { message?: unknown }).message;
+    if (typeof maybe === "string" && maybe.trim()) return maybe.trim();
+  }
+  return fallback;
+}
+
 export default function PortalSecurityPage() {
+  void colors;
+  void fonts;
   const { t } = useI18n();
   const { user, loading: authLoading } = usePortalAuth();
   const [security, setSecurity] = useState<SecuritySettings | null>(null);
@@ -337,25 +360,25 @@ export default function PortalSecurityPage() {
   };
 
   const getDeviceIcon = (userAgent: string | null) => {
-    if (!userAgent) return <Monitor size={16} className="text-slate-400" />;
+    if (!userAgent) return <Monitor size={16} className="text-[#94A3B8]" />;
     const ua = userAgent.toLowerCase();
     if (ua.includes("mobile") || ua.includes("android") || ua.includes("iphone")) {
-      return <Smartphone size={16} className="text-slate-400" />;
+      return <Smartphone size={16} className="text-[#94A3B8]" />;
     }
-    return <Monitor size={16} className="text-slate-400" />;
+    return <Monitor size={16} className="text-[#94A3B8]" />;
   };
 
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1A1D23]" />
       </div>
     );
   }
 
   if (loading || !security) {
     return (
-      <div className="text-slate-600">{t("security.loadingSettings")}</div>
+      <div className="text-[#64748B]">{t("security.loadingSettings")}</div>
     );
   }
 
@@ -367,25 +390,25 @@ export default function PortalSecurityPage() {
 
   return (
     <div className="relative isolate">
-      <div className="pointer-events-none absolute -top-20 left-0 h-56 w-56 rounded-full bg-fuchsia-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute top-24 right-0 h-64 w-64 rounded-full bg-cyan-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-20 left-1/3 h-56 w-56 rounded-full bg-violet-200/30 blur-3xl" />
+      <div className="pointer-events-none absolute -top-20 left-0 h-56 w-56 rounded-full bg-amber-200/35 blur-3xl" />
+      <div className="pointer-events-none absolute top-24 right-0 h-64 w-64 rounded-full bg-amber-100/40 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-20 left-1/3 h-56 w-56 rounded-full bg-amber-200/25 blur-3xl" />
 
-      <section className="mb-6 overflow-hidden rounded-3xl border border-violet-200/70 bg-gradient-to-br from-violet-100 via-fuchsia-50 to-sky-50 p-6 shadow-[0_18px_45px_rgba(76,29,149,0.16)]">
+      <section className="mb-6 overflow-hidden rounded-3xl border border-amber-200/70 bg-gradient-to-br from-amber-100 via-[#FFFBF5] to-[#FEF3C7] p-6 shadow-[0_18px_45px_rgba(217,119,6,0.16)]">
         <Link
           href="/portal"
-          className="group mb-4 inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 text-sm font-semibold text-violet-700 transition-colors hover:text-violet-800"
+          className="group mb-4 inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 text-sm font-semibold text-amber-700 transition-colors hover:text-amber-900"
         >
           <ChevronLeft size={16} className="transition-transform group-hover:-translate-x-0.5" />
           {t("portalOnboarding.backToDashboard")}
         </Link>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-[28px] font-bold tracking-tight text-slate-900">{t("security.title")}</h1>
-            <p className="mt-1 text-sm text-slate-600">{t("portal.securitySubtitle")}</p>
+            <h1 className="font-heading text-[28px] font-bold tracking-tight text-[#1A1D23]">{t("security.title")}</h1>
+            <p className="mt-1 text-sm text-[#64748B]">{t("portal.securitySubtitle")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold text-violet-700">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold text-amber-700">
               <Shield size={13} />
               {t("security.title")}
             </span>
@@ -425,49 +448,49 @@ export default function PortalSecurityPage() {
       )}
 
       <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-violet-200/70 bg-white/90 p-4 shadow-[0_8px_24px_rgba(76,29,149,0.08)]">
-          <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
+        <div className="rounded-2xl border border-amber-200/70 bg-white/90 p-4 shadow-[0_8px_24px_rgba(217,119,6,0.08)]">
+          <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
             <Shield size={14} />
           </div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("security.score")}</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{securityScore}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">{t("security.score")}</p>
+          <p className="mt-1 text-2xl font-bold text-[#1A1D23]">{securityScore}</p>
         </div>
-        <div className="rounded-2xl border border-sky-200/70 bg-white/90 p-4 shadow-[0_8px_24px_rgba(3,105,161,0.08)]">
-          <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
+        <div className="rounded-2xl border border-amber-200/70 bg-white/90 p-4 shadow-[0_8px_24px_rgba(217,119,6,0.08)]">
+          <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
             <Globe2 size={14} />
           </div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("security.allowedDomains")}</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{domainCount}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">{t("security.allowedDomains")}</p>
+          <p className="mt-1 text-2xl font-bold text-[#1A1D23]">{domainCount}</p>
         </div>
         <div className="rounded-2xl border border-emerald-200/70 bg-white/90 p-4 shadow-[0_8px_24px_rgba(5,150,105,0.08)]">
           <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
             <Fingerprint size={14} />
           </div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("security.activeSessions")}</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{totalSessions}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">{t("security.activeSessions")}</p>
+          <p className="mt-1 text-2xl font-bold text-[#1A1D23]">{totalSessions}</p>
         </div>
         <div className="rounded-2xl border border-amber-200/70 bg-white/90 p-4 shadow-[0_8px_24px_rgba(217,119,6,0.08)]">
           <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
             <AlertTriangle size={14} />
           </div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("security.domainMismatchCount")}</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{mismatchTotal}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">{t("security.domainMismatchCount")}</p>
+          <p className="mt-1 text-2xl font-bold text-[#1A1D23]">{mismatchTotal}</p>
         </div>
       </section>
 
-      <div className="mb-6 rounded-2xl border border-slate-200/70 bg-white/90 p-3 shadow-[0_8px_30px_rgba(2,6,23,0.06)] backdrop-blur">
+      <div className="mb-6 rounded-2xl border border-[#F3E8D8] bg-white/90 p-3 shadow-[0_8px_30px_rgba(2,6,23,0.06)] backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
               <RefreshCw size={14} />
             </span>
-            <p className="text-sm font-medium text-slate-600">{t("portal.saveSecuritySettings")}</p>
+            <p className="text-sm font-medium text-[#64748B]">{t("portal.saveSecuritySettings")}</p>
           </div>
           {canEdit && (
             <button
               onClick={handleSave}
               disabled={saving || !hasChanges}
-              className="rounded-xl bg-gradient-to-r from-violet-700 via-fuchsia-700 to-indigo-700 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(109,40,217,0.25)] transition-all hover:from-violet-600 hover:to-indigo-600 disabled:cursor-not-allowed disabled:from-slate-400 disabled:to-slate-400 disabled:shadow-none"
+              className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(217,119,6,0.25)] transition-all hover:from-amber-600 hover:to-amber-700 disabled:cursor-not-allowed disabled:from-amber-300 disabled:to-amber-300 disabled:shadow-none"
             >
               {saving ? t("common.saving") : t("portal.saveSecuritySettings")}
             </button>
@@ -477,29 +500,29 @@ export default function PortalSecurityPage() {
 
       <div className="grid gap-6 xl:grid-cols-12">
         <div className="space-y-6 xl:col-span-7">
-          <div className="rounded-2xl border border-violet-200/70 bg-white/95 p-6 shadow-[0_8px_30px_rgba(76,29,149,0.08)]">
-            <h2 className="mb-1 text-lg font-semibold text-slate-900">{t("security.changePassword")}</h2>
-            <p className="mb-4 text-sm text-slate-600">{t("security.changePasswordDesc")}</p>
+          <div className="rounded-2xl border border-amber-200/70 bg-white/95 p-6 shadow-[0_8px_30px_rgba(217,119,6,0.08)]">
+            <h2 className="mb-1 text-lg font-semibold text-[#1A1D23]">{t("security.changePassword")}</h2>
+            <p className="mb-4 text-sm text-[#64748B]">{t("security.changePasswordDesc")}</p>
 
             <form onSubmit={handleChangePassword} className="space-y-3 max-w-md">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">{t("security.currentPassword")}</label>
+                <label className="mb-1 block text-sm font-medium text-[#475569]">{t("security.currentPassword")}</label>
                 <input
                   type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-500"
+                  className="w-full rounded-xl border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                   required
                   disabled={changingPassword}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">{t("security.newPassword")}</label>
+                <label className="mb-1 block text-sm font-medium text-[#475569]">{t("security.newPassword")}</label>
                 <input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-500"
+                  className="w-full rounded-xl border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                   required
                   minLength={12}
                   disabled={changingPassword}
@@ -507,12 +530,12 @@ export default function PortalSecurityPage() {
                 <PasswordStrength password={newPassword} minLength={12} />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">{t("security.confirmNewPassword")}</label>
+                <label className="mb-1 block text-sm font-medium text-[#475569]">{t("security.confirmNewPassword")}</label>
                 <input
                   type="password"
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-500"
+                  className="w-full rounded-xl border border-[#E2E8F0] bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                   required
                   minLength={12}
                   disabled={changingPassword}
@@ -521,19 +544,19 @@ export default function PortalSecurityPage() {
               <button
                 type="submit"
                 disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword}
-                className="inline-flex items-center rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-700 px-6 py-2.5 text-sm font-semibold text-white transition-all hover:from-violet-600 hover:to-fuchsia-600 disabled:cursor-not-allowed disabled:from-slate-400 disabled:to-slate-400"
+                className="inline-flex items-center rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-2.5 text-sm font-semibold text-white transition-all hover:from-amber-600 hover:to-amber-700 disabled:cursor-not-allowed disabled:from-amber-300 disabled:to-amber-300"
               >
                 {changingPassword ? t("security.changingPassword") : t("security.changePassword")}
               </button>
             </form>
           </div>
 
-          <div className="rounded-2xl border border-cyan-200/70 bg-white/95 p-6 shadow-[0_8px_30px_rgba(6,182,212,0.10)]">
+          <div className="rounded-2xl border border-amber-200/70 bg-white/95 p-6 shadow-[0_8px_30px_rgba(217,119,6,0.10)]">
             <div className="mb-4 flex items-center gap-2">
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-100 text-cyan-700">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
                 <Fingerprint size={14} />
               </span>
-              <h2 className="text-lg font-semibold text-slate-900">{t("security.title")}</h2>
+              <h2 className="text-lg font-semibold text-[#1A1D23]">{t("security.title")}</h2>
             </div>
             <MfaSetupSection
               mfaEnabled={mfaEnabled}
@@ -573,13 +596,13 @@ export default function PortalSecurityPage() {
             />
           </div>
 
-          <div className="rounded-2xl border border-indigo-200/70 bg-white/95 p-6 shadow-[0_8px_30px_rgba(79,70,229,0.08)]">
+          <div className="rounded-2xl border border-amber-200/70 bg-white/95 p-6 shadow-[0_8px_30px_rgba(217,119,6,0.08)]">
             <PasskeySection area="portal" />
           </div>
 
           <div className="rounded-2xl border border-emerald-200/70 bg-white/95 p-6 shadow-[0_8px_30px_rgba(5,150,105,0.08)]">
             <div className="mb-1 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">{t("security.activeSessions")}</h2>
+              <h2 className="text-lg font-semibold text-[#1A1D23]">{t("security.activeSessions")}</h2>
               {otherSessions.length > 0 && (
                 <button
                   onClick={handleRevokeAll}
@@ -590,12 +613,12 @@ export default function PortalSecurityPage() {
                 </button>
               )}
             </div>
-            <p className="mb-4 text-sm text-slate-600">{t("security.activeSessionsDesc")}</p>
+            <p className="mb-4 text-sm text-[#64748B]">{t("security.activeSessionsDesc")}</p>
 
             {loadingSessions ? (
-              <div className="text-sm text-slate-500">{t("common.loading")}</div>
+              <div className="text-sm text-[#64748B]">{t("common.loading")}</div>
             ) : sessions.length === 0 ? (
-              <div className="text-sm text-slate-500">{t("security.noOtherSessions")}</div>
+              <div className="text-sm text-[#64748B]">{t("security.noOtherSessions")}</div>
             ) : (
               <div className="space-y-3">
                 {sessions.map((session) => (
@@ -604,14 +627,14 @@ export default function PortalSecurityPage() {
                     className={`flex items-center justify-between rounded-xl border p-3 ${
                       session.isCurrent
                         ? "border-emerald-200 bg-emerald-50/70"
-                        : "border-slate-200 bg-slate-50/80"
+                        : "border-[#E2E8F0] bg-[#F8FAFC]/80"
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       {getDeviceIcon(session.userAgent)}
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-slate-900">
+                          <span className="text-sm font-medium text-[#1A1D23]">
                             {session.userAgent
                               ? session.userAgent.substring(0, 60) + (session.userAgent.length > 60 ? "..." : "")
                               : t("devices.unknownDevice")}
@@ -622,7 +645,7 @@ export default function PortalSecurityPage() {
                             </span>
                           )}
                         </div>
-                        <div className="mt-0.5 text-xs text-slate-500" suppressHydrationWarning>
+                        <div className="mt-0.5 text-xs text-[#64748B]" suppressHydrationWarning>
                           {session.ip && <span>{session.ip} &middot; </span>}
                           <span>{t("security.loginAt")}: {formatDate(session.createdAt)}</span>
                           <span> &middot; {t("security.lastActive")}: {formatDate(session.lastSeenAt)}</span>
@@ -645,20 +668,20 @@ export default function PortalSecurityPage() {
         </div>
 
         <div className="space-y-6 xl:col-span-5">
-          <div className="rounded-2xl border border-sky-200/70 bg-white/95 p-6 shadow-[0_8px_30px_rgba(2,132,199,0.08)]">
+          <div className="rounded-2xl border border-amber-200/70 bg-white/95 p-6 shadow-[0_8px_30px_rgba(217,119,6,0.08)]">
             <div className="mb-3 flex items-center gap-2">
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
                 <Globe2 size={14} />
               </span>
-              <h2 className="text-lg font-semibold text-slate-900">{t("security.siteId")}</h2>
+              <h2 className="text-lg font-semibold text-[#1A1D23]">{t("security.siteId")}</h2>
             </div>
             <div className="flex gap-2">
-              <code className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-mono">
+              <code className="flex-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-2.5 text-sm font-mono">
                 {security.siteId}
               </code>
               <button
                 onClick={copySiteId}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:from-cyan-500 hover:to-blue-600"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:from-amber-600 hover:to-amber-700"
               >
                 {copied ? (
                   <>
@@ -675,8 +698,8 @@ export default function PortalSecurityPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-indigo-200/70 bg-white/95 p-6 shadow-[0_8px_30px_rgba(79,70,229,0.08)]">
-            <h2 className="mb-3 text-lg font-semibold text-slate-900">{t("security.allowedDomains")}</h2>
+          <div className="rounded-2xl border border-amber-200/70 bg-white/95 p-6 shadow-[0_8px_30px_rgba(217,119,6,0.08)]">
+            <h2 className="mb-3 text-lg font-semibold text-[#1A1D23]">{t("security.allowedDomains")}</h2>
             <div className="mb-4 space-y-2">
               {security.allowedDomains.map((domain, index) => (
                 <div key={index} className="flex gap-2">
@@ -689,7 +712,7 @@ export default function PortalSecurityPage() {
                       setSecurity({ ...security, allowedDomains: next });
                     }}
                     disabled={!canEdit}
-                    className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-500 disabled:bg-slate-100"
+                    className="flex-1 rounded-xl border border-[#E2E8F0] px-4 py-2.5 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 disabled:bg-[#F8FAFC]"
                   />
                   {canEdit && (
                     <button
@@ -706,7 +729,7 @@ export default function PortalSecurityPage() {
             {canEdit && (
               <button
                 onClick={handleAddDomain}
-                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition-colors hover:bg-indigo-100"
+                className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100"
               >
                 <Plus size={16} />
                 {t("security.addDomain")}
@@ -715,33 +738,33 @@ export default function PortalSecurityPage() {
           </div>
 
           <div className="rounded-2xl border border-amber-200/70 bg-white/95 p-6 shadow-[0_8px_30px_rgba(217,119,6,0.08)]">
-            <h2 className="mb-2 text-lg font-semibold text-slate-900">{t("security.domainMismatches")}</h2>
-            <p className="mb-4 text-sm text-slate-600">{t("security.domainMismatchesDesc")}</p>
+            <h2 className="mb-2 text-lg font-semibold text-[#1A1D23]">{t("security.domainMismatches")}</h2>
+            <p className="mb-4 text-sm text-[#64748B]">{t("security.domainMismatchesDesc")}</p>
             <div className="mb-4 flex flex-wrap items-center gap-4">
-              <span className="text-sm font-medium text-slate-700">
+              <span className="text-sm font-medium text-[#475569]">
                 {t("security.domainMismatchCount")}:{" "}
-                <span className="font-bold text-slate-900">{security.domainMismatchCount ?? 0}</span>
+                <span className="font-bold text-[#1A1D23]">{security.domainMismatchCount ?? 0}</span>
               </span>
               {security.lastMismatchHost && security.lastMismatchAt && (
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-[#64748B]">
                   {t("security.lastMismatch")}: {security.lastMismatchHost} — {formatDate(security.lastMismatchAt)}
                 </span>
               )}
             </div>
             {mismatchEvents.length > 0 && (
-              <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <div className="overflow-x-auto rounded-xl border border-[#E2E8F0]">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50/90">
+                  <thead className="bg-[#F8FAFC]/90">
                     <tr>
-                      <th className="px-4 py-2 text-left font-semibold text-slate-700">{t("security.reportedHost")}</th>
-                      <th className="px-4 py-2 text-left font-semibold text-slate-700">{t("security.date")}</th>
+                      <th className="px-4 py-2 text-left font-semibold text-[#475569]">{t("security.reportedHost")}</th>
+                      <th className="px-4 py-2 text-left font-semibold text-[#475569]">{t("security.date")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {mismatchEvents.map((e) => (
-                      <tr key={e.id} className="border-t border-slate-100">
-                        <td className="px-4 py-2 font-mono text-slate-800">{e.reportedHost}</td>
-                        <td className="px-4 py-2 text-slate-600">{formatDate(e.createdAt)}</td>
+                      <tr key={e.id} className="border-t border-[#F3E8D8]">
+                        <td className="px-4 py-2 font-mono text-[#1A1D23]">{e.reportedHost}</td>
+                        <td className="px-4 py-2 text-[#64748B]">{formatDate(e.createdAt)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -753,15 +776,15 @@ export default function PortalSecurityPage() {
           <div className="rounded-2xl border border-emerald-200/70 bg-white/95 p-6 shadow-[0_8px_30px_rgba(5,150,105,0.08)]">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="mb-1 text-sm font-semibold text-slate-900">{t("security.allowLocalhost")}</h3>
-                <p className="text-sm text-slate-600">{t("security.allowLocalhostDesc")}</p>
+                <h3 className="mb-1 text-sm font-semibold text-[#1A1D23]">{t("security.allowLocalhost")}</h3>
+                <p className="text-sm text-[#64748B]">{t("security.allowLocalhostDesc")}</p>
               </div>
               <input
                 type="checkbox"
                 checked={security.allowLocalhost}
                 disabled={!canEdit}
                 onChange={(e) => setSecurity({ ...security, allowLocalhost: e.target.checked })}
-                className="relative h-6 w-12 cursor-pointer appearance-none rounded-full bg-slate-200 transition-colors checked:bg-emerald-500 disabled:cursor-not-allowed"
+                className="relative h-6 w-12 cursor-pointer appearance-none rounded-full bg-[#E2E8F0] transition-colors checked:bg-emerald-500 disabled:cursor-not-allowed"
                 style={{ WebkitAppearance: "none" }}
               />
             </div>
@@ -769,8 +792,8 @@ export default function PortalSecurityPage() {
 
           {canRotate && (
             <div className="rounded-2xl border border-rose-200/70 bg-gradient-to-r from-rose-50 to-orange-50 p-6 shadow-[0_8px_30px_rgba(244,63,94,0.12)]">
-              <h2 className="mb-2 text-lg font-semibold text-slate-900">{t("portal.rotateSiteId")}</h2>
-              <p className="mb-4 text-sm text-slate-600">{t("portal.rotateSiteIdSubtitle")}</p>
+              <h2 className="mb-2 text-lg font-semibold text-[#1A1D23]">{t("portal.rotateSiteId")}</h2>
+              <p className="mb-4 text-sm text-[#64748B]">{t("portal.rotateSiteIdSubtitle")}</p>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -831,7 +854,7 @@ function EmergencyTokenSection() {
         setCooldownUntil(data.cooldownUntil as string);
         setEmergencyError(t("emergency.cooldown"));
       } else {
-        setEmergencyError(data?.error as string || t("common.error"));
+        setEmergencyError(sanitizeUiError(data?.error, t("common.error")));
       }
     }
     setGenerating(false);
@@ -847,8 +870,8 @@ function EmergencyTokenSection() {
 
   return (
     <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50 p-6 shadow-[0_8px_30px_rgba(245,158,11,0.12)]">
-      <h2 className="text-lg font-semibold text-slate-900 mb-1">{t("emergency.title")}</h2>
-      <p className="text-sm text-slate-600 mb-4">{t("emergency.description")}</p>
+      <h2 className="text-lg font-semibold text-[#1A1D23] mb-1">{t("emergency.title")}</h2>
+      <p className="text-sm text-[#64748B] mb-4">{t("emergency.description")}</p>
 
       {emergencyError && (
         <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
@@ -878,7 +901,7 @@ function EmergencyTokenSection() {
             </div>
           </div>
           {cooldownUntil && (
-            <p className="text-xs text-slate-500" suppressHydrationWarning>
+            <p className="text-xs text-[#64748B]" suppressHydrationWarning>
               {t("emergency.cooldown")}: {new Date(cooldownUntil).toLocaleString()}
             </p>
           )}

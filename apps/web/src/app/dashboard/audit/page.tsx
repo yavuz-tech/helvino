@@ -27,11 +27,11 @@ const ACTION_LABEL_KEYS: Record<string, string> = {
 };
 
 const ACTION_COLORS: Record<string, string> = {
-  "usage.reset": "bg-blue-100 text-blue-800",
+  "usage.reset": "bg-amber-100 text-amber-800",
   "quota.grant": "bg-purple-100 text-purple-800",
   "billing.lock": "bg-red-100 text-red-800",
   "billing.unlock": "bg-emerald-100 text-emerald-800",
-  "webhook.state_change": "bg-slate-100 text-slate-800",
+  "webhook.state_change": "bg-amber-50 text-amber-800",
 };
 
 /* ────────── Main ────────── */
@@ -106,8 +106,8 @@ export default function AuditLogPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">{t("common.checkingAuth")}</div>
+      <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+        <div className="text-[#475569]">{t("common.checkingAuth")}</div>
       </div>
     );
   }
@@ -115,8 +115,8 @@ export default function AuditLogPage() {
   return (
     <DashboardLayout user={user} onLogout={handleLogout}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">{t("audit.title")}</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="text-2xl font-bold text-[#1A1D23] font-heading">{t("audit.title")}</h1>
+        <p className="text-sm text-[#64748B] mt-1">
           {selectedOrg
             ? `${t("audit.activityLog")} ${selectedOrg.name} (${selectedOrg.key})`
             : t("common.selectOrg")}
@@ -130,14 +130,14 @@ export default function AuditLogPage() {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg border border-slate-200 p-4 mb-4">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] p-4 mb-4">
         <div className="flex flex-wrap gap-3 items-end">
           <div>
-            <label className="block text-xs text-slate-500 mb-1">{t("common.action")}</label>
+            <label className="block text-xs text-[#64748B] mb-1">{t("common.action")}</label>
             <select
               value={filterAction}
               onChange={(e) => setFilterAction(e.target.value)}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
             >
               <option value="all">{t("audit.allActions")}</option>
               {uniqueActions.map((a) => (
@@ -148,21 +148,21 @@ export default function AuditLogPage() {
             </select>
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">{t("common.actor")}</label>
+            <label className="block text-xs text-[#64748B] mb-1">{t("common.actor")}</label>
             <input
               type="text"
               placeholder={t("audit.filterActor")}
               value={filterActor}
               onChange={(e) => setFilterActor(e.target.value)}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">{t("common.limit")}</label>
+            <label className="block text-xs text-[#64748B] mb-1">{t("common.limit")}</label>
             <select
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value))}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
             >
               <option value={25}>25</option>
               <option value={50}>50</option>
@@ -173,7 +173,7 @@ export default function AuditLogPage() {
           <button
             onClick={fetchEntries}
             disabled={loading}
-            className="px-4 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-700 disabled:opacity-50"
+            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm rounded-lg hover:opacity-90 disabled:opacity-50"
           >
             {loading ? t("common.loading") : t("common.refresh")}
           </button>
@@ -181,13 +181,13 @@ export default function AuditLogPage() {
       </div>
 
       {/* Entries */}
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-lg border border-[#F3E8D8] overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-slate-500">
+          <div className="p-8 text-center text-[#64748B]">
             {t("audit.loadingAudit")}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">
+          <div className="p-8 text-center text-[#64748B]">
             {entries.length === 0
               ? t("audit.noEntries")
               : t("audit.noMatch")}
@@ -196,17 +196,17 @@ export default function AuditLogPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="text-left py-3 px-4 font-medium text-slate-600">
+                <tr className="border-b border-amber-200 bg-amber-50/50">
+                  <th className="text-left py-3 px-4 font-medium text-[#475569]">
                     {t("common.time")}
                   </th>
-                  <th className="text-left py-3 px-4 font-medium text-slate-600">
+                  <th className="text-left py-3 px-4 font-medium text-[#475569]">
                     {t("common.action")}
                   </th>
-                  <th className="text-left py-3 px-4 font-medium text-slate-600">
+                  <th className="text-left py-3 px-4 font-medium text-[#475569]">
                     {t("common.actor")}
                   </th>
-                  <th className="text-left py-3 px-4 font-medium text-slate-600">
+                  <th className="text-left py-3 px-4 font-medium text-[#475569]">
                     {t("common.details")}
                   </th>
                 </tr>
@@ -215,22 +215,22 @@ export default function AuditLogPage() {
                 {filtered.map((entry) => (
                   <tr
                     key={entry.id}
-                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                    className="border-b border-amber-100 last:border-0 hover:bg-amber-50/50"
                   >
-                    <td className="py-3 px-4 text-slate-600 whitespace-nowrap" suppressHydrationWarning>
+                    <td className="py-3 px-4 text-[#475569] whitespace-nowrap" suppressHydrationWarning>
                       {new Date(entry.createdAt).toLocaleString()}
                     </td>
                     <td className="py-3 px-4">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ACTION_COLORS[entry.action] || "bg-slate-100 text-slate-700"}`}
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ACTION_COLORS[entry.action] || "bg-amber-50 text-amber-800"}`}
                       >
                         {ACTION_LABEL_KEYS[entry.action] ? t(ACTION_LABEL_KEYS[entry.action] as import("@/i18n/translations").TranslationKey) : entry.action}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-slate-700 font-mono text-xs">
+                    <td className="py-3 px-4 text-[#334155] font-mono text-xs">
                       {entry.actor}
                     </td>
-                    <td className="py-3 px-4 text-slate-500 text-xs max-w-xs truncate">
+                    <td className="py-3 px-4 text-[#64748B] text-xs max-w-xs truncate">
                       {entry.details
                         ? JSON.stringify(entry.details).slice(0, 120)
                         : "—"}
@@ -243,7 +243,7 @@ export default function AuditLogPage() {
         )}
       </div>
 
-      <div className="mt-3 text-xs text-slate-400">
+      <div className="mt-3 text-xs text-[#94A3B8]">
         {t("common.showing")} {filtered.length} {t("common.of")} {entries.length} {t("common.entries")}
       </div>
     </DashboardLayout>

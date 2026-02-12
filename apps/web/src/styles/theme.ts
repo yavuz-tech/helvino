@@ -1,7 +1,21 @@
 /* ═══════════════════════════════════════════════════════════
-   Helvino Portal — Premium Design System Tokens
+   Helvion Portal — Premium Design System Tokens
    Tidio / Intercom / Stripe level
    ═══════════════════════════════════════════════════════════ */
+
+export {
+  colors,
+  fonts,
+  fontSize,
+  fontWeight,
+  spacing,
+  radius,
+  shadow,
+  transition,
+  presets,
+  emoji,
+  ui,
+} from "@/lib/design-tokens";
 
 export const p = {
   /* ── Surfaces ── */

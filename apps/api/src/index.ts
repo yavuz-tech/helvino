@@ -34,6 +34,7 @@ import { recoveryRoutes } from "./routes/recovery-routes";
 import { webauthnRoutes } from "./routes/webauthn-routes";
 import { stripeWebhookRoutes } from "./routes/stripe-webhook";
 import { widgetAnalyticsRoutes } from "./routes/widget-analytics";
+import { analyticsRoutes } from "./routes/analytics";
 import { adminOrgDirectoryRoutes } from "./routes/admin-orgs";
 import { portalWidgetConfigRoutes } from "./routes/portal-widget-config";
 import { portalAiConfigRoutes } from "./routes/portal-ai-config";
@@ -67,6 +68,8 @@ import { enforceWidgetBillingLock } from "./middleware/billing-lock";
 import { RedisSessionStore } from "./utils/redis-session-store";
 import { hostTrustPlugin } from "./middleware/host-trust";
 import { securityHeadersPlugin } from "./middleware/security-headers";
+import { buildCorsPolicy, isOriginAllowedByCorsPolicy } from "./middleware/cors-policy";
+import { rateLimit } from "./middleware/rate-limiter";
 import {
   checkConversationEntitlement,
   checkMessageEntitlement,
@@ -87,8 +90,12 @@ import {
 } from "./utils/ai-service";
 import { checkAbandonedCheckouts } from "./jobs/checkAbandonedCheckouts";
 import { prisma } from "./prisma";
+import { verifyPortalSessionToken } from "./utils/portal-session";
 import { getOperatingHoursStatus } from "./utils/operating-hours";
 import { runWorkflowsForTrigger } from "./utils/workflow-engine";
+import { sanitizeHTML } from "./utils/sanitize";
+import { validateBody } from "./utils/validate";
+import { widgetSendMessageSchema } from "./utils/schemas";
 import type {
   CreateConversationResponse,
   CreateMessageRequest,
@@ -96,6 +103,13 @@ import type {
   Conversation,
   ConversationDetail,
 } from "./types";
+
+type RealtimeSocket = Socket & {
+  orgId?: string;
+  orgKey?: string;
+  isAgent?: boolean;
+  portalUser?: unknown;
+};
 
 const PORT = parseInt(process.env.PORT || "4000", 10);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -124,38 +138,61 @@ const fastify = Fastify({
   trustProxy: trustedProxies, // Only trust specific proxy IPs to prevent X-Forwarded-For spoofing
 });
 
+const globalApiRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  maxRequests: 200,
+  message: "Too many requests, please slow down.",
+  keyPrefix: "GLOBAL_HTTP",
+  includeEndpointInKey: false,
+  keyBuilder: (request) => getRealIP(request) || "unknown-ip",
+});
+
+const widgetConversationCreateRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  maxRequests: 5,
+  message: "Too many widget conversation requests",
+  keyPrefix: "WIDGET_CONVERSATIONS_CREATE",
+});
+
+const widgetMessagesRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  maxRequests: 20,
+  message: "Too many widget message requests",
+  keyPrefix: "WIDGET_MESSAGES_CREATE",
+});
+
+const widgetInitRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  maxRequests: 30,
+  message: "Too many widget init requests",
+  keyPrefix: "WIDGET_INIT",
+});
+
 // Register plugins
 const isProduction = process.env.NODE_ENV === "production";
-const corsAllowedOrigins = new Set(
-  [
-    process.env.APP_PUBLIC_URL,
-    process.env.NEXT_PUBLIC_WEB_URL,
-    process.env.ALLOWED_ORIGINS,
-  ]
-    .filter(Boolean)
-    .flatMap((value) => String(value).split(",").map((entry) => entry.trim()))
-    .filter(Boolean)
-);
-const hasCorsAllowlist = corsAllowedOrigins.size > 0;
+const corsPolicy = buildCorsPolicy(process.env.NODE_ENV, [
+  process.env.APP_PUBLIC_URL,
+  process.env.NEXT_PUBLIC_WEB_URL,
+  process.env.ALLOWED_ORIGINS,
+]);
 let corsWarned = false;
+let corsWildcardWarned = false;
 
 fastify.register(cors, {
   origin: (origin, cb) => {
-    if (!isProduction) return cb(null, true);
-    if (!hasCorsAllowlist) {
+    if (corsPolicy.corsHasWildcard && !corsWildcardWarned) {
+      corsWildcardWarned = true;
+      fastify.log.warn("Wildcard entries in CORS allowlist are ignored for security.");
+    }
+
+    if (corsPolicy.isProduction && !corsPolicy.hasCorsAllowlist) {
       if (!corsWarned) {
         corsWarned = true;
-        fastify.log.warn("CORS allowlist is empty in production. Allowing all origins until configured.");
+        fastify.log.warn("CORS allowlist is empty in production. Blocking all cross-origin requests.");
       }
-      return cb(null, true);
     }
-    if (!origin) return cb(null, true);
-    try {
-      const url = new URL(origin);
-      return cb(null, corsAllowedOrigins.has(url.origin));
-    } catch {
-      return cb(null, false);
-    }
+
+    return cb(null, isOriginAllowedByCorsPolicy(origin, corsPolicy));
   },
   credentials: true, // Allow cookies in CORS requests
 });
@@ -224,6 +261,13 @@ fastify.register(helmet, {
 });
 fastify.register(securityHeadersPlugin);
 
+fastify.addHook("preHandler", async (request, reply) => {
+  if ((request.routeOptions?.config as { skipGlobalRateLimit?: boolean } | undefined)?.skipGlobalRateLimit) {
+    return;
+  }
+  return globalApiRateLimit(request, reply);
+});
+
 // Force HTTPS in production when behind a proxy/load balancer.
 fastify.addHook("onRequest", async (request, reply) => {
   if (!isProduction) return;
@@ -291,6 +335,7 @@ fastify.register(recoveryRoutes); // Account recovery + emergency access (no pre
 fastify.register(webauthnRoutes); // WebAuthn passkeys: admin + portal (no prefix)
 fastify.register(stripeWebhookRoutes); // Stripe webhooks
 fastify.register(widgetAnalyticsRoutes); // Widget analytics + health (no prefix)
+fastify.register(analyticsRoutes); // Usage analytics + CSV export (portal auth)
 fastify.register(adminOrgDirectoryRoutes); // Admin org directory (Step 11.39)
 fastify.register(portalWidgetConfigRoutes); // Portal widget config + domains (Step 11.40)
 fastify.register(portalAiConfigRoutes);    // Portal AI configuration
@@ -334,6 +379,7 @@ fastify.post<{
   Reply: CreateConversationResponse | { error: string; code?: string };
 }>("/conversations", {
   preHandler: [
+    widgetConversationCreateRateLimit,
     createRateLimitMiddleware({ limit: 30, windowMs: 60000 }), // 30 per minute
     requireOrgToken, // Require valid org token (or internal bypass)
     enforceWidgetBillingLock,
@@ -341,6 +387,9 @@ fastify.post<{
     validateJsonContentType,
     validateDomainAllowlist(), // Widget endpoint: enforce domain allowlist
   ],
+  config: {
+    skipGlobalRateLimit: true,
+  },
 }, async (request, reply) => {
   // Org is already validated and attached by requireOrgToken middleware
   const org = request.org!;
@@ -410,10 +459,14 @@ fastify.get<{
   Querystring: { limit?: string };
 }>("/conversations", {
   preHandler: [
+    widgetInitRateLimit,
     createRateLimitMiddleware({ limit: 120, windowMs: 60000 }), // 120 per minute
     validateOrgKey,
     validateDomainAllowlist(), // Widget endpoint: enforce domain allowlist
   ],
+  config: {
+    skipGlobalRateLimit: true,
+  },
 }, async (request, reply) => {
   const orgKey = request.headers["x-org-key"] as string;
   const rawLimit = request.query?.limit;
@@ -489,6 +542,7 @@ fastify.post<{
       };
 }>("/conversations/:id/messages", {
   preHandler: [
+    widgetMessagesRateLimit,
     createRateLimitMiddleware({ limit: 120, windowMs: 60000 }), // 120 per minute
     requireOrgToken, // Require valid org token (or internal bypass)
     enforceWidgetBillingLock,
@@ -497,9 +551,14 @@ fastify.post<{
     validateMessageContent,
     validateDomainAllowlist(), // Widget endpoint: enforce domain allowlist
   ],
+  config: {
+    skipGlobalRateLimit: true,
+  },
 }, async (request, reply) => {
   const { id } = request.params;
-  const { role, content } = request.body;
+  const parsedBody = validateBody(widgetSendMessageSchema, request.body, reply);
+  if (!parsedBody) return;
+  const { role, content } = parsedBody;
   // Org is already validated and attached by requireOrgToken middleware
   const org = request.org!;
 
@@ -513,15 +572,10 @@ fastify.post<{
     return { error: "payment_required" };
   }
 
-  // Validate input
-  if (!role || !content) {
+  const sanitizedContent = sanitizeHTML(content).trim();
+  if (!sanitizedContent) {
     reply.code(400);
-    return { error: "Missing required fields: role, content" };
-  }
-
-  if (role !== "user" && role !== "assistant") {
-    reply.code(400);
-    return { error: "Invalid role. Must be 'user' or 'assistant'" };
+    return { error: "Message content is required" };
   }
 
   const entitlement = await checkMessageEntitlement(org.id);
@@ -544,7 +598,7 @@ fastify.post<{
     }
   }
 
-  const message = await store.addMessage(id, org.id, role, content);
+  const message = await store.addMessage(id, org.id, role, sanitizedContent);
 
   if (!message) {
     reply.code(404);
@@ -616,12 +670,25 @@ fastify.post<{
 
         if (!result.ok) {
           console.warn(`[AI] Generation failed for org ${org.id}:`, result.error);
+
+          // Graceful fallback: send configured fallback message instead of dropping the reply.
+          const fallbackText = (aiConfig.fallbackMessage || "").trim();
+          if (fallbackText) {
+            const fallbackMessage = await store.addMessage(id, org.id, "assistant", sanitizeHTML(fallbackText));
+            if (fallbackMessage) {
+              fastify.io.to(`org:${org.id}`).emit("message:new", {
+                conversationId: id,
+                message: fallbackMessage,
+              });
+            }
+          }
+
           fastify.io.to(`org:${org.id}`).emit("agent:typing:stop", { conversationId: id });
           return;
         }
 
         // Store AI response with tracking metadata
-        const aiMessage = await store.addMessage(id, org.id, "assistant", result.content, {
+        const aiMessage = await store.addMessage(id, org.id, "assistant", sanitizeHTML(result.content), {
           provider: result.provider,
           model: result.model,
           tokensUsed: result.tokensUsed,
@@ -658,7 +725,7 @@ fastify.post<{
         id,
         org.id,
         "assistant",
-        hoursStatus.offHoursReplyText
+        sanitizeHTML(hoursStatus.offHoursReplyText)
       );
       if (offHoursMessage) {
         fastify.io.to(`org:${org.id}`).emit("message:new", {
@@ -725,6 +792,14 @@ fastify.post<{ Params: { conversationId: string } }>(
 
     if (!result.ok) {
       fastify.io.to(`org:${org.id}`).emit("agent:typing:stop", { conversationId });
+      if (result.code === "RATE_LIMITED") {
+        reply.code(429);
+        return { error: result.error, code: "RATE_LIMITED" };
+      }
+      if (result.code === "QUOTA_EXCEEDED") {
+        reply.code(402);
+        return { error: result.error, code: "QUOTA_EXCEEDED" };
+      }
       reply.code(500);
       return { error: result.error, code: result.code };
     }
@@ -751,26 +826,74 @@ fastify.post<{ Params: { conversationId: string } }>(
 
 // Socket.IO connection handlers with org-based rooms
 fastify.ready().then(() => {
-  fastify.io.on("connection", async (socket: Socket) => {
-    const orgKey = socket.handshake.auth?.orgKey as string;
+  // Socket.IO auth middleware
+  fastify.io.use(async (socket, next) => {
+    try {
+      const orgKey = socket.handshake.auth?.orgKey as string | undefined;
+      const token = socket.handshake.auth?.token as string | undefined;
 
-    if (!orgKey) {
-      console.log(`❌ Socket rejected (no orgKey): ${socket.id}`);
+      if (!orgKey) {
+        return next(new Error("Authentication error: orgKey required"));
+      }
+
+      const org = await prisma.organization.findUnique({
+        where: { key: orgKey },
+        select: { id: true, widgetEnabled: true, isActive: true },
+      });
+
+      if (!org || !org.isActive) {
+        return next(new Error("Authentication error: invalid organization"));
+      }
+
+      if (!org.widgetEnabled) {
+        return next(new Error("Authentication error: widget disabled"));
+      }
+
+      // Optional token for agent/portal sockets.
+      if (token) {
+        try {
+          const secret = process.env.SESSION_SECRET;
+          if (secret) {
+            const payload = verifyPortalSessionToken(token, secret);
+            if (payload) {
+              const authSocket = socket as RealtimeSocket;
+              authSocket.portalUser = payload;
+              authSocket.isAgent = true;
+            }
+          }
+        } catch {
+          // If token is invalid, continue as visitor.
+        }
+      }
+
+      const authSocket = socket as RealtimeSocket;
+      authSocket.orgId = org.id;
+      authSocket.orgKey = orgKey;
+      return next();
+    } catch {
+      return next(new Error("Authentication error: internal"));
+    }
+  });
+
+  fastify.io.on("connection", (socket: Socket) => {
+    const authSocket = socket as RealtimeSocket;
+    const orgId = authSocket.orgId;
+    const orgKey = authSocket.orgKey;
+    const isAgent = authSocket.isAgent || false;
+    if (!orgId || !orgKey) {
       socket.disconnect();
       return;
     }
 
-    const org = await store.getOrganizationByKey(orgKey);
-    if (!org) {
-      console.log(`❌ Socket rejected (invalid orgKey): ${socket.id}`);
-      socket.disconnect();
-      return;
-    }
-
-    // Join organization room
-    const roomName = `org:${org.id}`;
+    // Keep current orgId room for existing event flow, plus orgKey rooms for auth-scoped fanout.
+    const roomName = `org:${orgId}`;
     socket.join(roomName);
-    console.log(`✅ Socket connected: ${socket.id} → ${roomName} (${org.name})`);
+    socket.join(`org:${orgKey}`);
+    if (isAgent) {
+      socket.join(`org:${orgKey}:agents`);
+      socket.join(`org:${orgId}:agents`);
+    }
+    fastify.log.info({ socketId: socket.id, roomName }, "Socket connected");
 
     // ── Typing indicator relay ──
     socket.on("typing:start", (data: { conversationId?: string }) => {
@@ -787,7 +910,7 @@ fastify.ready().then(() => {
     });
 
     socket.on("disconnect", () => {
-      console.log(`❌ Socket disconnected: ${socket.id} from ${roomName}`);
+      fastify.log.info({ socketId: socket.id, roomName }, "Socket disconnected");
     });
   });
 });

@@ -1,0 +1,13 @@
+{
+  "loginOpen": {
+    "title": "Destek Ekibi",
+    "subtitle": "Çevrimiçi",
+    "poweredByInWindow": 1,
+    "poweredByInLauncher": 0,
+    "chatOverlapsForm": false
+  },
+  "demoOpen": {
+    "title": "Destek Ekibi",
+    "subtitle": "Çevrimiçi"
+  }
+}

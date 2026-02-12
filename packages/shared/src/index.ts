@@ -29,6 +29,18 @@ export const APP_NAME = "Helvion";
 export const APP_DOMAIN = "helvion.io";
 
 export { EMOJI_LIST } from "./emojis";
+export {
+  DEFAULT_WIDGET_BUBBLE_THEME,
+  bubbleBorderRadius,
+  resolveWidgetBubbleTheme,
+} from "./widgetBubble";
+export type {
+  WidgetBubbleTheme,
+  WidgetBubbleShape,
+  WidgetBubbleIcon,
+  WidgetBubblePosition,
+  LegacyWidgetBubbleInput,
+} from "./widgetBubble";
 
 export function formatDate(date: Date): string {
   return new Intl.DateTimeFormat("en-US", {

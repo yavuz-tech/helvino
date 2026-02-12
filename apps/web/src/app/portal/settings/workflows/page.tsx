@@ -27,6 +27,7 @@ export default function PortalSettingsWorkflowsPage() {
   const [trigger, setTrigger] = useState("message_created");
   const [autoReplyText, setAutoReplyText] = useState("");
   const [closeConversation, setCloseConversation] = useState(false);
+  const [planKey, setPlanKey] = useState("free");
 
   const load = async () => {
     const res = await portalApiFetch("/portal/settings/workflows");
@@ -36,6 +37,15 @@ export default function PortalSettingsWorkflowsPage() {
   };
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    portalApiFetch("/portal/org/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        setPlanKey(String(data?.org?.planKey ?? "free").toLowerCase());
+      })
+      .catch(() => {});
+  }, []);
+  const isPro = ["pro", "business", "enterprise", "unlimited"].includes(planKey);
 
   const create = async () => {
     if (!name.trim()) return;
@@ -75,7 +85,7 @@ export default function PortalSettingsWorkflowsPage() {
   const enabledCount = items.filter((w) => w.enabled).length;
 
   return (
-    <div className={p.sectionGap}>
+    <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
       <PageHeader title={t("settingsPortal.workflows")} subtitle={t("settingsPortal.workflowsSubtitle")} />
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -84,7 +94,23 @@ export default function PortalSettingsWorkflowsPage() {
         <StatCard label={t("common.disabled")} value={String(items.length - enabledCount)} icon={WorkflowIcon} color="slate" />
       </div>
 
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
+        {!isPro && (
+          <div
+            style={{
+              marginBottom: 10,
+              background: "#FEF3C7",
+              border: "1px solid #FCD34D",
+              borderRadius: 12,
+              padding: "10px 12px",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#B45309",
+            }}
+          >
+            🔒 {t("settings.proRequired")}
+          </div>
+        )}
         <div className="mb-4 flex items-center gap-2.5">
           <div className={`${p.iconSm} ${p.iconViolet}`}><Plus size={13} /></div>
           <h2 className={p.h2}>{t("settingsPortal.addWorkflow")}</h2>
@@ -103,13 +129,20 @@ export default function PortalSettingsWorkflowsPage() {
         <div className="mt-3">
           <Toggle label={t("settingsPortal.workflowCloseConversation")} checked={closeConversation} onChange={setCloseConversation} />
         </div>
-        <button onClick={create} className={`${p.btnPrimary} mt-4`}><Plus size={13} />{t("settingsPortal.addWorkflow")}</button>
+        <button
+          onClick={create}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] px-4 py-2.5 text-[12px] font-semibold text-white transition-all hover:scale-[1.02]"
+          style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+        >
+          <Plus size={13} />
+          {t("settingsPortal.addWorkflow")}
+        </button>
       </Card>
 
       {items.length > 0 && (
         <div className="space-y-2">
           {items.map((item) => (
-            <Card key={item.id}>
+            <Card key={item.id} className="border-[#F3E8D8] hover:border-[#E8D5BC]">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-2.5 min-w-0 flex-1">
                   <div className={`${p.iconSm} ${item.enabled ? p.iconViolet : p.iconSlate} mt-0.5`}><WorkflowIcon size={13} /></div>

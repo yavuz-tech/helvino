@@ -9,6 +9,7 @@ import ErrorBanner from "@/components/ErrorBanner";
 import { premiumToast } from "@/components/PremiumToast";
 import type { TranslationKey } from "@/i18n/translations";
 import { useStepUp } from "@/contexts/StepUpContext";
+import { colors, fonts } from "@/lib/design-tokens";
 import PlanComparisonTable from "@/components/PlanComparisonTable";
 import TrialBanner from "@/components/TrialBanner";
 import UsageNudge from "@/components/UsageNudge";
@@ -69,17 +70,17 @@ interface OrgInfo {
 function fmtAmount(cents: number, currency: string) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase(), minimumFractionDigits: 2 }).format(cents / 100);
 }
-function ProgressBar({ pct, color = "bg-blue-500" }: { pct: number; color?: string }) {
+function ProgressBar({ pct, color = "bg-amber-500" }: { pct: number; color?: string }) {
   const bg = pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-400" : color;
   return (
-    <div className="h-1.5 w-full rounded-full bg-slate-100 mt-2">
+    <div className="h-1.5 w-full rounded-full bg-[#F1F5F9] mt-2">
       <div className={`h-full rounded-full transition-all duration-700 ${bg}`} style={{ width: `${Math.min(pct, 100)}%` }} />
     </div>
   );
 }
 function InvBadge({ status, t }: { status: string; t: (k: string) => string }) {
-  const styles: Record<string, string> = { paid: "bg-emerald-50 text-emerald-700", open: "bg-blue-50 text-blue-700", draft: "bg-slate-50 text-slate-600", void: "bg-slate-50 text-slate-500", uncollectible: "bg-red-50 text-red-700" };
-  const dots: Record<string, string> = { paid: "bg-emerald-500", open: "bg-blue-500", draft: "bg-slate-400", void: "bg-slate-400", uncollectible: "bg-red-500" };
+  const styles: Record<string, string> = { paid: "bg-emerald-50 text-emerald-700", open: "bg-amber-50 text-amber-700", draft: "bg-[#FFFBF5] text-[#475569]", void: "bg-[#FFFBF5] text-[#64748B]", uncollectible: "bg-red-50 text-red-700" };
+  const dots: Record<string, string> = { paid: "bg-emerald-500", open: "bg-amber-500", draft: "bg-[#94A3B8]", void: "bg-[#94A3B8]", uncollectible: "bg-red-500" };
   const key = `billing.status.${status}` as TranslationKey;
   const label = t(key) === key ? status : t(key);
   return <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${styles[status] || styles.draft}`}><span className={`h-1.5 w-1.5 rounded-full ${dots[status] || dots.draft}`} /> {label}</span>;
@@ -87,6 +88,8 @@ function InvBadge({ status, t }: { status: string; t: (k: string) => string }) {
 
 /* ═══════════ MAIN ═══════════ */
 export default function PortalBillingPage() {
+  void colors;
+  void fonts;
   const { loading: authLoading } = usePortalAuth();
   const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [lockStatus, setLockStatus] = useState<BillingLockStatus | null>(null);
@@ -251,7 +254,7 @@ export default function PortalBillingPage() {
   const setupDone = [widgetOk, aiOk, domainsOk].filter(Boolean).length;
   const planBadge = billing?.plan.key === "free" ? t("dashboard.currentUsage.freeTrial") : billing?.plan.name || "";
 
-  if (authLoading) return <div className="flex items-center justify-center py-20"><div className="h-7 w-7 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" /></div>;
+  if (authLoading) return <div className="flex items-center justify-center py-20"><div className="h-7 w-7 animate-spin rounded-full border-2 border-[#E2E8F0] border-t-slate-900" /></div>;
 
   return (
     <div className="space-y-8">
@@ -267,7 +270,7 @@ export default function PortalBillingPage() {
       {error && <ErrorBanner message={error} requestId={errorRequestId} onDismiss={() => { setError(null); setErrorRequestId(null); }} />}
 
       {loading || !billing ? (
-        <div className="flex items-center justify-center py-24"><div className="flex flex-col items-center gap-3"><div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" /><p className="text-sm text-slate-400">{t("billing.loadingBilling")}</p></div></div>
+        <div className="flex items-center justify-center py-24"><div className="flex flex-col items-center gap-3"><div className="h-8 w-8 animate-spin rounded-full border-2 border-[#F3E8D8] border-t-amber-600" /><p className="text-sm text-[#94A3B8]">{t("billing.loadingBilling")}</p></div></div>
       ) : (
         <>
           {/* ── Alerts ── */}
@@ -292,18 +295,18 @@ export default function PortalBillingPage() {
           )}
 
           {/* ═══════════ SETUP WIZARD ═══════════ */}
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="rounded-2xl border border-[#F3E8D8] bg-white shadow-sm">
             <div className="flex items-center justify-between px-8 py-5">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-sm font-extrabold text-slate-500">{setupDone}/4</div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F1F5F9] text-sm font-extrabold text-[#64748B]">{setupDone}/4</div>
                 <div>
-                  <h2 className="text-base font-bold text-slate-900">{t("dashboard.setupBanner")}</h2>
-                  <p className="text-sm text-slate-500">{t("dashboard.setupBanner.desc")}</p>
+                  <h2 className="text-base font-bold text-[#1A1D23]">{t("dashboard.setupBanner")}</h2>
+                  <p className="text-sm text-[#64748B]">{t("dashboard.setupBanner.desc")}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 {billing.stripeConfigured && (
-                  <button onClick={scrollToPlans} className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-blue-700">{t("billing.upgradeNow")}</button>
+                  <button onClick={scrollToPlans} className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-2.5 text-sm font-bold text-white hover:from-amber-600 hover:to-amber-700">{t("billing.upgradeNow")}</button>
                 )}
               </div>
             </div>
@@ -311,10 +314,10 @@ export default function PortalBillingPage() {
 
           {/* ═══════════ QUICK ACTIONS ═══════════ */}
           <div>
-            <h3 className="mb-4 text-base font-bold text-slate-900">{t("dashboard.quickActions")}</h3>
+            <h3 className="mb-4 text-base font-bold text-[#1A1D23]">{t("dashboard.quickActions")}</h3>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
               {[
-                { href: "/portal/inbox", icon: MessageSquare, label: t("dashboard.quickActions.liveConversations"), desc: `${stats?.conversations.open ?? 0} ${t("dashboard.quickActions.liveConversationsDesc").replace("{count}", "")}`.trim(), iconBg: "bg-blue-50", iconColor: "text-blue-600" },
+                { href: "/portal/inbox", icon: MessageSquare, label: t("dashboard.quickActions.liveConversations"), desc: `${stats?.conversations.open ?? 0} ${t("dashboard.quickActions.liveConversationsDesc").replace("{count}", "")}`.trim(), iconBg: "bg-amber-50", iconColor: "text-amber-600" },
                 { href: "/portal/ai", icon: Bot, label: t("dashboard.quickActions.aiAgent"), desc: aiOk ? `${stats?.ai.monthlyUsage ?? 0}/${stats?.ai.monthlyLimit ?? 0}` : t("dashboard.projectStatus.setupAi"), iconBg: "bg-violet-50", iconColor: "text-violet-600" },
                 { href: "/portal/widget", icon: Code, label: t("dashboard.projectStatus.chatWidget"), desc: widgetOk ? `${stats?.widget.totalLoads ?? 0} ${t("common.abbrev.loads")}` : t("dashboard.projectStatus.installWidget"), iconBg: "bg-emerald-50", iconColor: "text-emerald-600" },
                 { href: "/portal/usage", icon: BarChart3, label: t("portalOnboarding.quickActions.usage.title"), desc: `${stats?.messages.thisMonth ?? 0} ${t("common.abbrev.messages")}`, iconBg: "bg-amber-50", iconColor: "text-amber-600" },
@@ -322,10 +325,10 @@ export default function PortalBillingPage() {
               ].map((a) => {
                 const Icon = a.icon;
                 return (
-                  <Link key={a.href} href={a.href} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-blue-200">
+                  <Link key={a.href} href={a.href} className="group rounded-2xl border border-[#F3E8D8] bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-blue-200">
                     <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${a.iconBg}`}><Icon size={18} className={a.iconColor} /></div>
-                    <p className="text-sm font-bold text-slate-900">{a.label}</p>
-                    <p className="mt-1 text-xs text-slate-400">{a.desc}</p>
+                    <p className="text-sm font-bold text-[#1A1D23]">{a.label}</p>
+                    <p className="mt-1 text-xs text-[#94A3B8]">{a.desc}</p>
                   </Link>
                 );
               })}
@@ -339,100 +342,100 @@ export default function PortalBillingPage() {
             <div className="space-y-8 lg:col-span-3">
 
               {/* ── Plan Overview Card ── */}
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-slate-100 px-8 py-5">
+              <div className="rounded-2xl border border-[#F3E8D8] bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-[#F3E8D8] px-8 py-5">
                   <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50">
-                      <Crown size={22} className="text-blue-600" />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50">
+                      <Crown size={22} className="text-amber-600" />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t("billing.currentPlan")}</p>
-                      <h2 className="text-xl font-bold text-slate-900">{tPlan(billing.plan.key, billing.plan.name)}</h2>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">{t("billing.currentPlan")}</p>
+                      <h2 className="text-xl font-bold text-[#1A1D23]">{tPlan(billing.plan.key, billing.plan.name)}</h2>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${subStatus === "active" ? "bg-emerald-50 text-emerald-700" : subStatus === "trialing" ? "bg-blue-50 text-blue-700" : "bg-slate-50 text-slate-600"}`}>
-                      <span className={`h-2 w-2 rounded-full ${subStatus === "active" ? "bg-emerald-500" : subStatus === "trialing" ? "bg-blue-500" : "bg-slate-400"}`} />
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${subStatus === "active" ? "bg-emerald-50 text-emerald-700" : subStatus === "trialing" ? "bg-amber-50 text-amber-700" : "bg-[#FFFBF5] text-[#475569]"}`}>
+                      <span className={`h-2 w-2 rounded-full ${subStatus === "active" ? "bg-emerald-500" : subStatus === "trialing" ? "bg-amber-500" : "bg-[#94A3B8]"}`} />
                       {(() => { const k = `billing.status.${subStatus}` as TranslationKey; const v = t(k); return v === k ? subStatus : v; })()}
                     </span>
                     {billing.stripeConfigured && (
-                      <button onClick={scrollToPlans} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700">
+                      <button onClick={scrollToPlans} className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-5 py-2.5 text-sm font-bold text-white hover:from-amber-600 hover:to-amber-700">
                         <ArrowUpRight size={14} className="mr-1.5 inline" />{billing.plan.key === "free" ? t("billing.upgradeNow") : t("billing.viewPlans")}
                       </button>
                     )}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 divide-x divide-slate-100 sm:grid-cols-4">
+                <div className="grid grid-cols-2 divide-x divide-[#F3E8D8] sm:grid-cols-4">
                   <div className="px-8 py-6">
-                    <p className="text-xs text-slate-400">{t("billing.price")}</p>
-                    <p className="mt-1 text-2xl font-extrabold text-slate-900">{billing.plan.monthlyPriceUsd != null && billing.plan.monthlyPriceUsd > 0 ? `$${billing.plan.monthlyPriceUsd}` : t("billing.free")}<span className="text-sm font-normal text-slate-400">{billing.plan.monthlyPriceUsd ? t("billing.perMonth") : ""}</span></p>
+                    <p className="text-xs text-[#94A3B8]">{t("billing.price")}</p>
+                    <p className="mt-1 text-2xl font-extrabold text-[#1A1D23]">{billing.plan.monthlyPriceUsd != null && billing.plan.monthlyPriceUsd > 0 ? `$${billing.plan.monthlyPriceUsd}` : t("billing.free")}<span className="text-sm font-normal text-[#94A3B8]">{billing.plan.monthlyPriceUsd ? t("billing.perMonth") : ""}</span></p>
                   </div>
                   <div className="px-8 py-6">
-                    <p className="text-xs text-slate-400">{t("billing.agentSeats")}</p>
-                    <p className="mt-1 text-2xl font-extrabold text-slate-900">{billing.limits?.maxAgents ?? 0}</p>
+                    <p className="text-xs text-[#94A3B8]">{t("billing.agentSeats")}</p>
+                    <p className="mt-1 text-2xl font-extrabold text-[#1A1D23]">{billing.limits?.maxAgents ?? 0}</p>
                   </div>
                   <div className="px-8 py-6">
-                    <p className="text-xs text-slate-400">{t("billing.period")}</p>
-                    <p className="mt-1 text-lg font-bold text-slate-900">{billing.usage.monthKey}</p>
-                    {billing.usage.nextResetDate && <p className="text-[10px] text-slate-400" suppressHydrationWarning>{t("billing.nextReset")} {new Date(billing.usage.nextResetDate).toLocaleDateString()}</p>}
+                    <p className="text-xs text-[#94A3B8]">{t("billing.period")}</p>
+                    <p className="mt-1 text-lg font-bold text-[#1A1D23]">{billing.usage.monthKey}</p>
+                    {billing.usage.nextResetDate && <p className="text-[10px] text-[#94A3B8]" suppressHydrationWarning>{t("billing.nextReset")} {new Date(billing.usage.nextResetDate).toLocaleDateString()}</p>}
                   </div>
                   <div className="px-8 py-6">
-                    <p className="text-xs text-slate-400">{billing.subscription.cancelAtPeriodEnd ? t("billing.cancelsOn") : t("billing.renewsOn")}</p>
-                    <p className="mt-1 text-lg font-bold text-slate-900" suppressHydrationWarning>{billing.subscription.currentPeriodEnd ? new Date(billing.subscription.currentPeriodEnd).toLocaleDateString() : "—"}</p>
+                    <p className="text-xs text-[#94A3B8]">{billing.subscription.cancelAtPeriodEnd ? t("billing.cancelsOn") : t("billing.renewsOn")}</p>
+                    <p className="mt-1 text-lg font-bold text-[#1A1D23]" suppressHydrationWarning>{billing.subscription.currentPeriodEnd ? new Date(billing.subscription.currentPeriodEnd).toLocaleDateString() : "—"}</p>
                   </div>
                 </div>
               </div>
 
               {/* ── Insight Tip ── */}
-              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-sm">
-                <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-600"><Sparkles size={10} className="mr-1 inline" />{t("dashboard.insight")}</span>
-                <p className="text-sm text-slate-500">{t("dashboard.insight.proactive")} <Link href="/portal/inbox" className="font-semibold text-blue-600 hover:underline">{t("dashboard.insight.chatWithVisitors")}</Link></p>
+              <div className="flex items-center gap-3 rounded-2xl border border-[#F3E8D8] bg-white px-6 py-4 shadow-sm">
+                <span className="rounded-lg bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-600"><Sparkles size={10} className="mr-1 inline" />{t("dashboard.insight")}</span>
+                <p className="text-sm text-[#64748B]">{t("dashboard.insight.proactive")} <Link href="/portal/inbox" className="font-semibold text-amber-600 hover:underline">{t("dashboard.insight.chatWithVisitors")}</Link></p>
               </div>
 
               {/* ── Usage Metrics ── */}
               <div>
-                <h3 className="mb-4 text-base font-bold text-slate-900">{t("billing.usageThisMonth")}</h3>
+                <h3 className="mb-4 text-base font-bold text-[#1A1D23]">{t("billing.usageThisMonth")}</h3>
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex items-center gap-2 text-blue-600"><MessageSquare size={16} /><span className="text-xs font-semibold text-slate-500">{t("usage.conversations")}</span></div>
-                    <p className="mt-4 text-3xl font-extrabold tabular-nums text-slate-900">{billing.usage.conversationsCreated.toLocaleString()}</p>
-                    <p className="mt-1 text-xs text-slate-400">/ {billing.limits?.maxConversationsPerMonth.toLocaleString()} {t("billing.perMo")}</p>
-                    <ProgressBar pct={convPct} color="bg-blue-500" />
+                  <div className="rounded-2xl border border-[#F3E8D8] bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-2 text-amber-600"><MessageSquare size={16} /><span className="text-xs font-semibold text-[#64748B]">{t("usage.conversations")}</span></div>
+                    <p className="mt-4 text-3xl font-extrabold tabular-nums text-[#1A1D23]">{billing.usage.conversationsCreated.toLocaleString()}</p>
+                    <p className="mt-1 text-xs text-[#94A3B8]">/ {billing.limits?.maxConversationsPerMonth.toLocaleString()} {t("billing.perMo")}</p>
+                    <ProgressBar pct={convPct} color="bg-amber-500" />
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex items-center gap-2 text-violet-600"><Mail size={16} /><span className="text-xs font-semibold text-slate-500">{t("usage.messages")}</span></div>
-                    <p className="mt-4 text-3xl font-extrabold tabular-nums text-slate-900">{billing.usage.messagesSent.toLocaleString()}</p>
-                    <p className="mt-1 text-xs text-slate-400">/ {billing.limits?.maxMessagesPerMonth.toLocaleString()} {t("billing.perMo")}</p>
+                  <div className="rounded-2xl border border-[#F3E8D8] bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-2 text-violet-600"><Mail size={16} /><span className="text-xs font-semibold text-[#64748B]">{t("usage.messages")}</span></div>
+                    <p className="mt-4 text-3xl font-extrabold tabular-nums text-[#1A1D23]">{billing.usage.messagesSent.toLocaleString()}</p>
+                    <p className="mt-1 text-xs text-[#94A3B8]">/ {billing.limits?.maxMessagesPerMonth.toLocaleString()} {t("billing.perMo")}</p>
                     <ProgressBar pct={msgPct} color="bg-violet-500" />
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex items-center gap-2 text-emerald-600"><Bot size={16} /><span className="text-xs font-semibold text-slate-500">AI</span></div>
-                    <p className="mt-4 text-3xl font-extrabold tabular-nums text-slate-900">{(stats?.ai.monthlyUsage ?? 0).toLocaleString()}</p>
-                    <p className="mt-1 text-xs text-slate-400">/ {(stats?.ai.monthlyLimit ?? 100).toLocaleString()} {t("billing.perMo")}</p>
+                  <div className="rounded-2xl border border-[#F3E8D8] bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-2 text-emerald-600"><Bot size={16} /><span className="text-xs font-semibold text-[#64748B]">AI</span></div>
+                    <p className="mt-4 text-3xl font-extrabold tabular-nums text-[#1A1D23]">{(stats?.ai.monthlyUsage ?? 0).toLocaleString()}</p>
+                    <p className="mt-1 text-xs text-[#94A3B8]">/ {(stats?.ai.monthlyLimit ?? 100).toLocaleString()} {t("billing.perMo")}</p>
                     <ProgressBar pct={aiPct} color="bg-emerald-500" />
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex items-center gap-2 text-amber-600"><Eye size={16} /><span className="text-xs font-semibold text-slate-500">{t("dashboard.currentUsage.visitorsReached")}</span></div>
-                    <p className="mt-4 text-3xl font-extrabold tabular-nums text-slate-900">{(stats?.usage.visitorsReached ?? 0).toLocaleString()}</p>
-                    <p className="mt-1 text-xs text-slate-400">{t("dashboard.currentUsage.unlimited")}</p>
+                  <div className="rounded-2xl border border-[#F3E8D8] bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-2 text-amber-600"><Eye size={16} /><span className="text-xs font-semibold text-[#64748B]">{t("dashboard.currentUsage.visitorsReached")}</span></div>
+                    <p className="mt-4 text-3xl font-extrabold tabular-nums text-[#1A1D23]">{(stats?.usage.visitorsReached ?? 0).toLocaleString()}</p>
+                    <p className="mt-1 text-xs text-[#94A3B8]">{t("dashboard.currentUsage.unlimited")}</p>
                   </div>
                 </div>
               </div>
 
               {/* ── Performance Row ── */}
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="grid grid-cols-4 divide-x divide-slate-100">
+              <div className="rounded-2xl border border-[#F3E8D8] bg-white shadow-sm">
+                <div className="grid grid-cols-4 divide-x divide-[#F3E8D8]">
                   {[
-                    { label: t("dashboard.performance.repliedLive"), value: stats?.usage.humanConversations ?? 0, dot: "bg-blue-600" },
+                    { label: t("dashboard.performance.repliedLive"), value: stats?.usage.humanConversations ?? 0, dot: "bg-gradient-to-r from-amber-500 to-amber-600" },
                     { label: t("dashboard.performance.aiConversations"), value: stats?.ai.totalResponses ?? 0, dot: "bg-emerald-500" },
                     { label: t("dashboard.currentUsage.visitorsReached"), value: stats?.usage.visitorsReached ?? 0, dot: "bg-amber-500" },
-                    { label: t("dashboard.performance.interactions"), value: stats?.messages.today ?? 0, dot: "bg-slate-800" },
+                    { label: t("dashboard.performance.interactions"), value: stats?.messages.today ?? 0, dot: "bg-[#334155]" },
                   ].map((m, i) => (
                     <div key={i} className="flex items-center gap-3 px-6 py-5">
                       <span className={`h-3 w-3 flex-shrink-0 rounded-full ${m.dot}`} />
                       <div>
-                        <p className="text-sm font-medium text-slate-600">{m.label}</p>
-                        <p className="text-lg font-bold tabular-nums text-slate-900">{m.value.toLocaleString()}</p>
+                        <p className="text-sm font-medium text-[#475569]">{m.label}</p>
+                        <p className="text-lg font-bold tabular-nums text-[#1A1D23]">{m.value.toLocaleString()}</p>
                       </div>
                     </div>
                   ))}
@@ -443,32 +446,32 @@ export default function PortalBillingPage() {
               {billing.plan.key === "free" && billing.stripeConfigured && (
                 <div className="flex items-center justify-between rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-violet-50 px-8 py-6">
                   <div className="flex items-center gap-5">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-600/25"><Sparkles size={24} className="text-white" /></div>
-                    <div><p className="text-lg font-bold text-slate-900">{t("billing.upgradeTo")} {tPlan(billing.recommendedPlan || "pro", "Pro")}</p><p className="text-sm text-slate-500">{t("billing.unlockPremiumFeatures")}</p></div>
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 shadow-lg shadow-indigo-600/25"><Sparkles size={24} className="text-white" /></div>
+                    <div><p className="text-lg font-bold text-[#1A1D23]">{t("billing.upgradeTo")} {tPlan(billing.recommendedPlan || "pro", "Pro")}</p><p className="text-sm text-[#64748B]">{t("billing.unlockPremiumFeatures")}</p></div>
                   </div>
-                  <button onClick={scrollToPlans} className="rounded-xl bg-indigo-600 px-8 py-3 text-sm font-bold text-white shadow-sm hover:bg-indigo-700">{t("billing.viewPlans")} <ArrowRight size={14} className="ml-1 inline" /></button>
+                  <button onClick={scrollToPlans} className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-8 py-3 text-sm font-bold text-white shadow-sm hover:from-amber-600 hover:to-amber-700">{t("billing.viewPlans")} <ArrowRight size={14} className="ml-1 inline" /></button>
                 </div>
               )}
 
               {/* ── Plans ── */}
               {billing.stripeConfigured && billing.availablePlans.length > 0 && (
-                <div id="plans-section" className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                  <div className="flex items-center gap-3 border-b border-slate-100 px-8 py-5"><BarChart3 size={18} className="text-indigo-600" /><p className="text-base font-bold text-slate-900">{t("billing.availablePlans")}</p></div>
+                <div id="plans-section" className="rounded-2xl border border-[#F3E8D8] bg-white shadow-sm">
+                  <div className="flex items-center gap-3 border-b border-[#F3E8D8] px-8 py-5"><BarChart3 size={18} className="text-amber-600" /><p className="text-base font-bold text-[#1A1D23]">{t("billing.availablePlans")}</p></div>
                   <div className="space-y-4 p-8">
                     {showPromoInput && (
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("billing.promoCodeLabel")}</p>
+                      <div className="rounded-xl border border-[#F3E8D8] bg-[#FFFBF5] p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">{t("billing.promoCodeLabel")}</p>
                         <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                           <input
                             value={promoCodeInput}
                             onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
                             placeholder={t("billing.promoCodePlaceholder")}
-                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-50"
+                            className="w-full rounded-xl border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#334155] outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
                           />
                           <button
                             onClick={handleApplyCode}
                             disabled={applyingPromo}
-                            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                            className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2 text-sm font-semibold text-white hover:from-amber-600 hover:to-amber-700 disabled:opacity-50"
                           >
                             {applyingPromo ? t("common.loading") : t("billing.applyPromoCode")}
                           </button>
@@ -487,36 +490,36 @@ export default function PortalBillingPage() {
 
               {/* ── Invoices ── */}
               {billing.stripeConfigured && (
-                <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                  <div className="flex items-center justify-between border-b border-slate-100 px-8 py-5">
-                    <div className="flex items-center gap-3"><FileText size={18} className="text-slate-400" /><p className="text-base font-bold text-slate-900">{t("billing.billingHistory")}</p></div>
-                    {hasCustomer && <button onClick={handleManage} disabled={portalLoading} className="text-sm font-semibold text-blue-600 hover:text-blue-800">{t("billing.manageBilling")} <ChevronRight size={14} className="inline" /></button>}
+                <div className="rounded-2xl border border-[#F3E8D8] bg-white shadow-sm">
+                  <div className="flex items-center justify-between border-b border-[#F3E8D8] px-8 py-5">
+                    <div className="flex items-center gap-3"><FileText size={18} className="text-[#94A3B8]" /><p className="text-base font-bold text-[#1A1D23]">{t("billing.billingHistory")}</p></div>
+                    {hasCustomer && <button onClick={handleManage} disabled={portalLoading} className="text-sm font-semibold text-amber-600 hover:text-amber-800">{t("billing.manageBilling")} <ChevronRight size={14} className="inline" /></button>}
                   </div>
                   <div className="p-8">
-                    {invoicesLoading && <div className="flex justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" /></div>}
+                    {invoicesLoading && <div className="flex justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-2 border-[#F3E8D8] border-t-amber-600" /></div>}
                     {invoicesError && <p className="text-sm text-red-600">{invoicesError}</p>}
                     {!invoicesLoading && !invoicesError && (!hasCustomer || invoices.length === 0) && (
-                      <div className="flex flex-col items-center py-12"><FileText size={36} className="text-slate-200" /><p className="mt-3 text-sm font-semibold text-slate-400">{t("billing.noInvoices")}</p><p className="mt-1 text-xs text-slate-300">{t("billing.noBillingHistory")}</p></div>
+                      <div className="flex flex-col items-center py-12"><FileText size={36} className="text-[#E2E8F0]" /><p className="mt-3 text-sm font-semibold text-[#94A3B8]">{t("billing.noInvoices")}</p><p className="mt-1 text-xs text-[#CBD5E1]">{t("billing.noBillingHistory")}</p></div>
                     )}
                     {invoices.length > 0 && (
                       <table className="w-full">
-                        <thead><tr className="border-b border-slate-100">
-                          <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">{t("billing.invoice")}</th>
-                          <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">{t("billing.date")}</th>
-                          <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">{t("billing.amount")}</th>
-                          <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">{t("billing.status")}</th>
-                          <th className="pb-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">{t("billing.actions")}</th>
+                        <thead><tr className="border-b border-[#F3E8D8]">
+                          <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">{t("billing.invoice")}</th>
+                          <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">{t("billing.date")}</th>
+                          <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">{t("billing.amount")}</th>
+                          <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">{t("billing.status")}</th>
+                          <th className="pb-3 text-right text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">{t("billing.actions")}</th>
                         </tr></thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody className="divide-y divide-[#F3E8D8]">
                           {invoices.map(inv => (
-                            <tr key={inv.id} className="hover:bg-slate-50/50">
-                              <td className="py-4 text-sm font-medium text-slate-900">{inv.number || inv.id.slice(0, 16)}</td>
-                              <td className="py-4 text-sm text-slate-600" suppressHydrationWarning>{new Date(inv.created * 1000).toLocaleDateString()}</td>
-                              <td className="py-4 text-sm font-bold text-slate-900">{fmtAmount(inv.amountDue, inv.currency)}</td>
+                            <tr key={inv.id} className="hover:bg-[#FFFBF5]">
+                              <td className="py-4 text-sm font-medium text-[#1A1D23]">{inv.number || inv.id.slice(0, 16)}</td>
+                              <td className="py-4 text-sm text-[#475569]" suppressHydrationWarning>{new Date(inv.created * 1000).toLocaleDateString()}</td>
+                              <td className="py-4 text-sm font-bold text-[#1A1D23]">{fmtAmount(inv.amountDue, inv.currency)}</td>
                               <td className="py-4"><InvBadge status={inv.status} t={t} /></td>
                               <td className="py-4 text-right">
-                                {inv.hostedInvoiceUrl && <a href={inv.hostedInvoiceUrl} target="_blank" rel="noopener noreferrer" className="mr-2 text-xs font-semibold text-blue-600 hover:text-blue-800"><ExternalLink size={12} className="mr-1 inline" />{t("billing.view")}</a>}
-                                {inv.invoicePdf && <a href={inv.invoicePdf} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-slate-500 hover:text-slate-700"><Download size={12} className="mr-1 inline" />{t("common.document.pdf")}</a>}
+                                {inv.hostedInvoiceUrl && <a href={inv.hostedInvoiceUrl} target="_blank" rel="noopener noreferrer" className="mr-2 text-xs font-semibold text-amber-600 hover:text-amber-800"><ExternalLink size={12} className="mr-1 inline" />{t("billing.view")}</a>}
+                                {inv.invoicePdf && <a href={inv.invoicePdf} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-[#64748B] hover:text-[#334155]"><Download size={12} className="mr-1 inline" />{t("common.document.pdf")}</a>}
                               </td>
                             </tr>
                           ))}
@@ -532,8 +535,8 @@ export default function PortalBillingPage() {
             <div className="space-y-6">
 
               {/* ── Project Status ── */}
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-100 px-6 py-4"><h3 className="text-sm font-bold text-slate-900">{t("dashboard.projectStatus")}</h3></div>
+              <div className="rounded-2xl border border-[#F3E8D8] bg-white shadow-sm">
+                <div className="border-b border-[#F3E8D8] px-6 py-4"><h3 className="text-sm font-bold text-[#1A1D23]">{t("dashboard.projectStatus")}</h3></div>
                 <div className="p-5 space-y-4">
                   {[
                     { ok: widgetOk, label: t("dashboard.projectStatus.chatWidget"), okText: t("dashboard.projectStatus.chatWidgetInstalled"), noText: t("dashboard.projectStatus.chatWidgetNotInstalled"), action: t("dashboard.projectStatus.installWidget"), href: "/portal/widget" },
@@ -543,55 +546,55 @@ export default function PortalBillingPage() {
                     <div key={i} className="flex items-start gap-3">
                       {s.ok ? <CheckCircle2 size={18} className="mt-0.5 text-emerald-500" /> : <X size={18} className="mt-0.5 rounded-full bg-red-100 p-0.5 text-red-500" />}
                       <div>
-                        <p className="text-sm font-bold text-slate-800">{s.label}</p>
+                        <p className="text-sm font-bold text-[#334155]">{s.label}</p>
                         <p className={`text-xs ${s.ok ? "text-emerald-600" : "text-red-500"}`}>{s.ok ? s.okText : s.noText}</p>
-                        {!s.ok && <Link href={s.href} className="text-xs font-semibold text-blue-600 hover:text-blue-700">{s.action}</Link>}
+                        {!s.ok && <Link href={s.href} className="text-xs font-semibold text-amber-600 hover:text-amber-700">{s.action}</Link>}
                       </div>
                     </div>
                   ))}
-                  <div className="border-t border-slate-100 pt-3">
-                    <p className="mb-2 text-xs text-slate-400">{t("dashboard.projectStatus.addChannel")}</p>
+                  <div className="border-t border-[#F3E8D8] pt-3">
+                    <p className="mb-2 text-xs text-[#94A3B8]">{t("dashboard.projectStatus.addChannel")}</p>
                     <div className="flex gap-2">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50"><MessageSquare size={15} className="text-blue-500" /></div>
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50 opacity-40"><Mail size={15} className="text-slate-400" /></div>
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50"><MessageSquare size={15} className="text-blue-500" /></div>
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#FFFBF5] opacity-40"><Mail size={15} className="text-[#94A3B8]" /></div>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* ── Current Usage ── */}
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-100 px-6 py-4"><h3 className="text-sm font-bold text-slate-900">{t("dashboard.currentUsage")}</h3></div>
+              <div className="rounded-2xl border border-[#F3E8D8] bg-white shadow-sm">
+                <div className="border-b border-[#F3E8D8] px-6 py-4"><h3 className="text-sm font-bold text-[#1A1D23]">{t("dashboard.currentUsage")}</h3></div>
                 <div className="p-5 space-y-5">
                   <div>
-                    <div className="flex items-center justify-between"><span className="text-sm font-bold text-slate-800">{t("dashboard.currentUsage.customerService")}</span><span className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-blue-600">{planBadge}</span></div>
-                    <div className="mt-2 flex items-center justify-between text-xs text-slate-500"><span>{t("dashboard.currentUsage.billableConversations")}</span><span className="font-bold text-slate-700 tabular-nums">{billing.usage.conversationsCreated} / {billing.limits?.maxConversationsPerMonth ?? 0}</span></div>
-                    <ProgressBar pct={convPct} color="bg-blue-500" />
-                    {!widgetOk && <Link href="/portal/widget" className="mt-2 block text-xs font-semibold text-blue-600">{t("dashboard.projectStatus.installWidget")}</Link>}
+                    <div className="flex items-center justify-between"><span className="text-sm font-bold text-[#334155]">{t("dashboard.currentUsage.customerService")}</span><span className="rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-600">{planBadge}</span></div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-[#64748B]"><span>{t("dashboard.currentUsage.billableConversations")}</span><span className="font-bold text-[#334155] tabular-nums">{billing.usage.conversationsCreated} / {billing.limits?.maxConversationsPerMonth ?? 0}</span></div>
+                    <ProgressBar pct={convPct} color="bg-amber-500" />
+                    {!widgetOk && <Link href="/portal/widget" className="mt-2 block text-xs font-semibold text-amber-600">{t("dashboard.projectStatus.installWidget")}</Link>}
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between"><span className="text-sm font-bold text-slate-800">{t("dashboard.quickActions.aiAgent")}</span></div>
-                    <div className="mt-2 flex items-center justify-between text-xs text-slate-500"><span>{t("dashboard.currentUsage.aiConversations")}</span><span className="font-bold text-slate-700 tabular-nums">{stats?.ai.monthlyUsage ?? 0} / {stats?.ai.monthlyLimit ?? 100}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-sm font-bold text-[#334155]">{t("dashboard.quickActions.aiAgent")}</span></div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-[#64748B]"><span>{t("dashboard.currentUsage.aiConversations")}</span><span className="font-bold text-[#334155] tabular-nums">{stats?.ai.monthlyUsage ?? 0} / {stats?.ai.monthlyLimit ?? 100}</span></div>
                     <ProgressBar pct={aiPct} color="bg-emerald-500" />
-                    {!aiOk && <Link href="/portal/ai" className="mt-2 block text-xs font-semibold text-blue-600">{t("dashboard.projectStatus.setupAi")}</Link>}
+                    {!aiOk && <Link href="/portal/ai" className="mt-2 block text-xs font-semibold text-amber-600">{t("dashboard.projectStatus.setupAi")}</Link>}
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between"><span className="text-sm font-bold text-slate-800">{t("dashboard.currentUsage.visitorsReached")}</span></div>
-                    <p className="mt-1 text-lg font-extrabold tabular-nums text-slate-900">{stats?.usage.visitorsReached ?? 0}</p>
-                    <p className="text-[10px] text-slate-400">{t("dashboard.currentUsage.unlimited")}</p>
+                    <div className="flex items-center justify-between"><span className="text-sm font-bold text-[#334155]">{t("dashboard.currentUsage.visitorsReached")}</span></div>
+                    <p className="mt-1 text-lg font-extrabold tabular-nums text-[#1A1D23]">{stats?.usage.visitorsReached ?? 0}</p>
+                    <p className="text-[10px] text-[#94A3B8]">{t("dashboard.currentUsage.unlimited")}</p>
                   </div>
 
-                  <Link href="/portal/billing#plans-section" className="flex items-center justify-center gap-2 w-full rounded-xl bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700">
+                  <Link href="/portal/billing#plans-section" className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 py-3 text-sm font-bold text-white hover:from-amber-600 hover:to-amber-700">
                     <Crown size={14} /> {t("dashboard.currentUsage.upgrade")}
                   </Link>
                 </div>
               </div>
 
               {/* ── Quick Nav ── */}
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="divide-y divide-slate-50">
+              <div className="rounded-2xl border border-[#F3E8D8] bg-white shadow-sm overflow-hidden">
+                <div className="divide-y divide-[#F3E8D8]">
                   {[
                     { href: "/portal/settings", icon: Settings, label: t("portalOnboarding.quickActions.settings.title") },
                     { href: "/portal/security", icon: Shield, label: t("nav.security") },
@@ -600,8 +603,8 @@ export default function PortalBillingPage() {
                   ].map(a => {
                     const Icon = a.icon;
                     return (
-                      <Link key={a.href} href={a.href} className="flex items-center gap-3 px-5 py-3.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900">
-                        <Icon size={16} className="text-slate-400" /> {a.label} <ChevronRight size={14} className="ml-auto text-slate-300" />
+                      <Link key={a.href} href={a.href} className="flex items-center gap-3 px-5 py-3.5 text-sm font-medium text-[#475569] hover:bg-[#FFFBF5] hover:text-[#1A1D23]">
+                        <Icon size={16} className="text-[#94A3B8]" /> {a.label} <ChevronRight size={14} className="ml-auto text-[#CBD5E1]" />
                       </Link>
                     );
                   })}

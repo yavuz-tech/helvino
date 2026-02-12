@@ -50,7 +50,7 @@ export function middleware(request: NextRequest) {
       : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
     response.headers.set(
       "Content-Security-Policy",
-      `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:* https:; frame-ancestors 'none'`
+      `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:* ws://localhost:* https: wss:; frame-ancestors 'none'`
     );
   } else {
     // Public / widget-embeddable pages: allow framing from any origin
@@ -61,7 +61,7 @@ export function middleware(request: NextRequest) {
       : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
     response.headers.set(
       "Content-Security-Policy",
-      `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:* https:; frame-ancestors *`
+      `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:* ws://localhost:* https: wss:; frame-ancestors *`
     );
   }
 

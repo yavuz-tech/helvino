@@ -13,13 +13,13 @@ export class NoopEmailProvider implements EmailProvider {
   async send(payload: EmailPayload): Promise<EmailResult> {
     const messageId = `noop-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-    console.log("[mailer:noop] EMAIL_DISABLED — no provider configured");
-    console.log(`  To:      ${payload.to}`);
-    console.log(`  Subject: ${payload.subject}`);
-    console.log(`  ID:      ${messageId}`);
+    console.info("[mailer:noop] EMAIL_DISABLED — no provider configured");
+    console.info(`  To:      ${payload.to}`);
+    console.info(`  Subject: ${payload.subject}`);
+    console.info(`  ID:      ${messageId}`);
     const linkMatch = payload.html?.match(/href=["']([^"']+)["']/i);
     if (linkMatch && payload.tags?.length) {
-      console.log(`  📎 Link (copy for dev): ${linkMatch[1]}`);
+      console.info(`  📎 Link (copy for dev): ${linkMatch[1]}`);
     }
 
     return {

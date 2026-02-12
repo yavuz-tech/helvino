@@ -45,7 +45,7 @@ export default function DeviceList({ devices, onTrust, onRename, onRemove, onRef
 
   if (devices.length === 0) {
     return (
-      <p className="text-sm text-slate-500 italic">{t("devices.noDevices")}</p>
+      <p className="text-sm text-[#64748B] italic">{t("devices.noDevices")}</p>
     );
   }
 
@@ -70,9 +70,9 @@ export default function DeviceList({ devices, onTrust, onRename, onRemove, onRef
       {devices.map((d) => {
         const Icon = getDeviceIcon(d.userAgentRaw);
         return (
-          <div key={d.id} className="border border-slate-200 rounded-lg p-4">
+          <div key={d.id} className="border border-[#F3E8D8] rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <Icon size={20} className="text-slate-500 mt-0.5 shrink-0" />
+              <Icon size={20} className="text-[#64748B] mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   {editingId === d.id ? (
@@ -82,25 +82,25 @@ export default function DeviceList({ devices, onTrust, onRename, onRemove, onRef
                         value={editLabel}
                         onChange={(e) => setEditLabel(e.target.value)}
                         placeholder={t("devices.label")}
-                        className="px-2 py-1 border border-slate-300 rounded text-sm"
+                        className="px-2 py-1 border border-[#F3E8D8] rounded text-sm"
                         autoFocus
                         maxLength={100}
                       />
                       <button
                         onClick={() => handleRename(d.id)}
-                        className="text-xs px-2 py-1 bg-slate-900 text-white rounded hover:bg-slate-700"
+                        className="text-xs px-2 py-1 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded hover:from-amber-600 hover:to-amber-700"
                       >
                         {t("common.save")}
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
-                        className="text-xs px-2 py-1 text-slate-600 hover:text-slate-900"
+                        className="text-xs px-2 py-1 text-[#475569] hover:text-[#1A1D23]"
                       >
                         {t("common.cancel")}
                       </button>
                     </div>
                   ) : (
-                    <span className="font-medium text-sm text-slate-900">
+                    <span className="font-medium text-sm text-[#1A1D23]">
                       {d.label || parseUA(d.userAgentRaw, t("devices.unknown"))}
                     </span>
                   )}
@@ -111,9 +111,9 @@ export default function DeviceList({ devices, onTrust, onRename, onRemove, onRef
                   )}
                 </div>
                 {d.label && (
-                  <p className="text-xs text-slate-500 mt-0.5 truncate">{parseUA(d.userAgentRaw, t("devices.unknown"))}</p>
+                  <p className="text-xs text-[#64748B] mt-0.5 truncate">{parseUA(d.userAgentRaw, t("devices.unknown"))}</p>
                 )}
-                <div className="flex gap-4 text-xs text-slate-400 mt-1">
+                <div className="flex gap-4 text-xs text-[#94A3B8] mt-1">
                   <span suppressHydrationWarning>{t("devices.lastSeen")}: {new Date(d.lastSeenAt).toLocaleString()}</span>
                   {d.lastIp && <span>{t("devices.lastIp")}: {d.lastIp}</span>}
                 </div>
@@ -121,14 +121,14 @@ export default function DeviceList({ devices, onTrust, onRename, onRemove, onRef
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => onTrust(d.id, !d.trusted).then((ok) => ok && onRefresh())}
-                  className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100"
+                  className="p-1.5 text-[#94A3B8] hover:text-[#334155] rounded-lg hover:bg-[#F1F5F9]"
                   title={d.trusted ? t("devices.untrust") : t("devices.trust")}
                 >
                   {d.trusted ? <ShieldOff size={16} /> : <Shield size={16} />}
                 </button>
                 <button
                   onClick={() => { setEditingId(d.id); setEditLabel(d.label || ""); }}
-                  className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100"
+                  className="p-1.5 text-[#94A3B8] hover:text-[#334155] rounded-lg hover:bg-[#F1F5F9]"
                   title={t("devices.rename")}
                 >
                   <Pencil size={16} />

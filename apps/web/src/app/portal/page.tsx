@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -14,15 +14,17 @@ import OnboardingOverlay from "@/components/OnboardingOverlay";
 import TrialBanner from "@/components/TrialBanner";
 import UsageNudge from "@/components/UsageNudge";
 import UpgradeModal from "@/components/UpgradeModal";
-import FeatureCard from "@/components/portal/dashboard/FeatureCard";
-import StatCard from "@/components/portal/dashboard/StatCard";
+import FeatureCard from "@/components/ui/FeatureCard";
+import StatCard from "@/components/ui/StatCard";
 import {
   MessageSquare, Bot, TrendingUp, CheckCircle2, Users, BarChart3, Eye,
-  Shield, CreditCard, Monitor, Smartphone, X, Lock, Crown,
+  Shield, CreditCard, X, Lock, Crown,
   Code, Palette, Settings, ChevronRight, Send, Zap,
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 import { portalTheme } from "@/styles/theme";
+import { loadWidgetConfig } from "@/lib/widgetConfig";
+import { colors, fonts } from "@/lib/design-tokens";
 
 interface WidgetAppearance {
   primaryColor: string;
@@ -31,6 +33,11 @@ interface WidgetAppearance {
   welcomeTitle: string;
   welcomeMessage: string;
   brandName: string | null;
+}
+
+interface LocalWidgetThemeOverrides {
+  gradientFrom: string;
+  gradientTo: string;
 }
 
 interface OrgInfo {
@@ -99,6 +106,7 @@ function timeAgo(dateStr: string, t: (key: string) => string): string {
 }
 
 export default function PortalOverviewPage() {
+  void fonts;
   const { user, loading: authLoading } = usePortalAuth();
   const { t } = useI18n();
   const router = useRouter();
@@ -110,6 +118,9 @@ export default function PortalOverviewPage() {
   const [visitors, setVisitors] = useState<VisitorsData | null>(null);
   const [convCounts, setConvCounts] = useState({ unassigned: 0, myOpen: 0, solved: 0 });
   const [widgetAppearance, setWidgetAppearance] = useState<WidgetAppearance | null>(null);
+  const [widgetLauncherStyle, setWidgetLauncherStyle] = useState<"bubble" | "button">("bubble");
+  const [widgetLauncherLabel, setWidgetLauncherLabel] = useState("");
+  const [widgetThemeOverrides, setWidgetThemeOverrides] = useState<LocalWidgetThemeOverrides | null>(null);
   const [conversionSignals, setConversionSignals] = useState<{
     firstConversationAt: string | null;
     firstWidgetEmbedAt: string | null;
@@ -117,6 +128,27 @@ export default function PortalOverviewPage() {
   } | null>(null);
   const [trial, setTrial] = useState<{ daysLeft: number; isExpired: boolean; isTrialing: boolean; endsAt: string | null } | null>(null);
   const [usage, setUsage] = useState<{ usedConversations: number; limitConversations: number; usedMessages: number; limitMessages: number } | null>(null);
+
+  const syncLocalWidgetVisuals = useCallback(() => {
+    const cfg = loadWidgetConfig();
+    if (cfg) {
+      setWidgetLauncherStyle(cfg.launcher.launcherStyle === "button" ? "button" : "bubble");
+      setWidgetLauncherLabel(cfg.launcher.launcherLabel || "");
+    }
+    try {
+      const raw = window.localStorage.getItem("helvino-widget-theme-overrides");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<LocalWidgetThemeOverrides>;
+      if (parsed.gradientFrom && parsed.gradientTo) {
+        setWidgetThemeOverrides({
+          gradientFrom: parsed.gradientFrom,
+          gradientTo: parsed.gradientTo,
+        });
+      }
+    } catch {
+      // ignore local parse errors
+    }
+  }, []);
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -159,11 +191,40 @@ export default function PortalOverviewPage() {
       .then((d) => { if (d) setVisitors(d); })
       .catch(() => {});
 
-    portalApiFetch("/portal/widget/settings")
+    portalApiFetch(`/portal/widget/settings?_t=${Date.now()}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d?.settings) setWidgetAppearance(d.settings); })
       .catch(() => {});
-  }, [authLoading, user]);
+
+    syncLocalWidgetVisuals();
+  }, [authLoading, user, syncLocalWidgetVisuals]);
+
+  useEffect(() => {
+    const reloadWidgetVisuals = () => {
+      portalApiFetch(`/portal/widget/settings?_t=${Date.now()}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d?.settings) setWidgetAppearance(d.settings); })
+        .catch(() => {});
+      syncLocalWidgetVisuals();
+    };
+
+    const onUpdated = () => reloadWidgetVisuals();
+    const onStorage = (event: StorageEvent) => {
+      if (
+        event.key === "helvino-widget-config" ||
+        event.key === "helvino-widget-theme-overrides"
+      ) {
+        reloadWidgetVisuals();
+      }
+    };
+
+    window.addEventListener("widget-settings-updated", onUpdated);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("widget-settings-updated", onUpdated);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [syncLocalWidgetVisuals]);
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -208,8 +269,10 @@ export default function PortalOverviewPage() {
   const widgetConnected = !!conversionSignals?.firstWidgetEmbedAt;
   const domainsConfigured = !!org && ((org.allowedDomains?.length ?? 0) > 0 || org.allowLocalhost);
   const userName = user?.email?.split("@")[0] || "";
-  const planKey = stats?.plan || "FREE";
-  const isPro = planKey === "PRO" || planKey === "ENTERPRISE";
+  const rawPlanKey = String(stats?.plan || "free");
+  const normalizedPlanKey = rawPlanKey.trim().toLowerCase();
+  const isPro = ["pro", "business", "enterprise", "unlimited"].includes(normalizedPlanKey);
+  const planLabel = normalizedPlanKey === "free" ? t("dashboard.currentUsage.freeTrial") : rawPlanKey.toUpperCase();
 
   const totalConversations = stats?.conversations.total ?? 0;
   const conversionRate = stats && stats.usage.visitorsReached > 0
@@ -233,11 +296,13 @@ export default function PortalOverviewPage() {
     : "0.0";
   const mobileSessions = (visitors?.live ?? []).filter((v) => v.device === "mobile").length
     + (visitors?.recent ?? []).filter((v) => v.device === "mobile").length;
+  const widgetGradientFrom = widgetThemeOverrides?.gradientFrom ?? widgetAppearance?.primaryColor ?? colors.brand.primary;
+  const widgetGradientTo = widgetThemeOverrides?.gradientTo ?? widgetAppearance?.primaryColor ?? colors.brand.secondary;
 
   const mainStats = [
-    { emoji: "💬", value: String(totalConversations), label: t("dashboard.artifact.main.totalConversations"), gradient: "linear-gradient(135deg, #FDB462, #F59E0B)" },
+    { emoji: "💬", value: String(totalConversations), label: t("dashboard.artifact.main.totalConversations"), gradient: `linear-gradient(135deg, #FDB462, ${colors.brand.primary})` },
     { emoji: "📈", value: conversionRate, label: t("dashboard.artifact.main.conversionRate"), gradient: "linear-gradient(135deg, #A78BFA, #8B5CF6)" },
-    { emoji: "⚡", value: String(activeUsers), label: t("dashboard.artifact.main.activeUsers"), gradient: "linear-gradient(135deg, #6EE7B7, #10B981)" },
+    { emoji: "⚡", value: String(activeUsers), label: t("dashboard.artifact.main.activeUsers"), gradient: `linear-gradient(135deg, #6EE7B7, ${colors.status.success})` },
     { emoji: "🎯", value: customerSatisfaction, label: t("dashboard.artifact.main.customerSatisfaction"), gradient: "linear-gradient(135deg, #FCA5A5, #F87171)" },
   ];
 
@@ -445,7 +510,7 @@ export default function PortalOverviewPage() {
                   value: retentionRate,
                   className: "border-white/30 text-white shadow-[0_10px_30px_rgba(245,158,11,0.22)]",
                   labelClassName: "text-white/90",
-                  background: "linear-gradient(135deg, #FDB462, #F59E0B)",
+                  background: `linear-gradient(135deg, #FDB462, ${colors.brand.primary})`,
                 },
                 {
                   key: "rating",
@@ -463,7 +528,7 @@ export default function PortalOverviewPage() {
                   value: mobileSessions,
                   className: "border-white/30 text-white shadow-[0_10px_30px_rgba(16,185,129,0.22)]",
                   labelClassName: "text-white/90",
-                  background: "linear-gradient(135deg, #6EE7B7, #10B981)",
+                  background: `linear-gradient(135deg, #6EE7B7, ${colors.status.success})`,
                 },
               ].map((item) => (
                 <div
@@ -524,7 +589,7 @@ export default function PortalOverviewPage() {
                 <div className="space-y-3">
                   <div className="relative min-h-[180px] overflow-hidden rounded-xl border border-amber-100 bg-white p-4">
                     <div className="origin-bottom scale-[0.85] overflow-hidden rounded-xl border border-amber-100 bg-white shadow-lg">
-                      <div className="flex items-center gap-2 px-3 py-2.5" style={{ background: `linear-gradient(135deg, ${widgetAppearance.primaryColor}, ${widgetAppearance.primaryColor}dd)` }}>
+                      <div className="flex items-center gap-2 px-3 py-2.5" style={{ background: `linear-gradient(135deg, ${widgetGradientFrom}, ${widgetGradientTo})` }}>
                         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20"><MessageSquare size={10} className="text-white" /></div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[8px] font-bold text-white">{widgetAppearance.welcomeTitle}</p>
@@ -540,7 +605,15 @@ export default function PortalOverviewPage() {
                       </div>
                       <div className="flex items-center gap-1.5 border-t border-slate-100 px-3 py-1.5">
                         <div className="flex h-4 flex-1 items-center rounded bg-[#FEF3E2] px-1.5 text-[6px] text-slate-300">...</div>
-                        <div className="flex h-4 w-4 items-center justify-center rounded" style={{ backgroundColor: widgetAppearance.primaryColor }}><Send size={6} className="text-white" /></div>
+                        <div className="flex h-4 items-center justify-center rounded px-1.5" style={{ background: `linear-gradient(135deg, ${widgetGradientFrom}, ${widgetGradientTo})` }}>
+                          {widgetLauncherStyle === "button" ? (
+                            <span className="text-[6px] font-bold text-white whitespace-nowrap">
+                              {widgetLauncherLabel || t("widgetAppearance.title")}
+                            </span>
+                          ) : (
+                            <Send size={6} className="text-white" />
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -573,7 +646,7 @@ export default function PortalOverviewPage() {
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
                   <span className="text-[12px] font-bold text-slate-700">{t("dashboard.currentUsage.customerService")}</span>
-                  <span className="rounded bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-400">{planKey === "FREE" ? t("dashboard.currentUsage.freeTrial") : planKey}</span>
+                  <span className="rounded bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-400">{planLabel}</span>
                 </div>
                 <UsageBar label={t("dashboard.currentUsage.billableConversations")} used={stats?.usage.conversations ?? 0} limit={usage?.limitConversations ?? 100} />
               </div>
@@ -586,7 +659,7 @@ export default function PortalOverviewPage() {
               <Link
                 href="/portal/billing"
                 className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-[var(--font-body)] text-[12px] font-bold text-white shadow-[0_8px_20px_rgba(245,158,11,0.28)] transition-all duration-200 hover:brightness-95"
-                style={{ background: "linear-gradient(135deg, #FDB462, #F59E0B)" }}
+                style={{ background: `linear-gradient(135deg, #FDB462, ${colors.brand.primary})` }}
               >
                 <Crown size={13} /> {t("dashboard.currentUsage.upgrade")}
               </Link>
@@ -631,57 +704,405 @@ function LiveVisitorsPanel({ visitors, isPro, onStartChat, chatLoading, onUpgrad
   const allLive = visitors?.live ?? [];
   const allRecent = visitors?.recent ?? [];
   const FREE_LIMIT = 3;
+  const prevLiveCountRef = useRef(liveCount);
+  const [pulseBurst, setPulseBurst] = useState(false);
+  const remainingFreeVisitors = Math.max(0, allLive.length - FREE_LIMIT);
+  const visibleFreeVisitors = allLive.slice(0, FREE_LIMIT);
+  const blurredPreview = allLive.slice(FREE_LIMIT, FREE_LIMIT + 2);
+  const recentTotal = allRecent.length;
+  const recentUnique = new Set(allRecent.map((v) => v.visitorKey)).size;
+  const recentAvgDurationSec = recentTotal > 0
+    ? Math.round(allRecent.reduce((sum, v) => sum + getVisitorDurationSeconds(v), 0) / recentTotal)
+    : 0;
+  const recentConverted = allRecent.filter((v) => v.conversationCount > 0).length;
+  const recentConversionRate = recentTotal > 0 ? Math.round((recentConverted / recentTotal) * 100) : 0;
+
+  useEffect(() => {
+    if (liveCount > prevLiveCountRef.current) {
+      setPulseBurst(true);
+      const timer = window.setTimeout(() => setPulseBurst(false), 900);
+      prevLiveCountRef.current = liveCount;
+      return () => window.clearTimeout(timer);
+    }
+    prevLiveCountRef.current = liveCount;
+  }, [liveCount]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-sm shadow-emerald-500/20">
-              <Eye size={18} className="text-white" />
+    <>
+      <div className="overflow-hidden rounded-2xl border border-[#F3E8D8] bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#F3E8D8] px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-[38px] w-[38px] items-center justify-center rounded-[11px] text-white"
+              style={{
+                background: "linear-gradient(135deg, #22C55E, #16A34A)",
+                boxShadow:
+                  liveCount > 0
+                    ? "0 3px 10px rgba(34,197,94,0.25)"
+                    : "0 3px 10px rgba(34,197,94,0.12)",
+              }}
+            >
+              <Eye size={17} />
             </div>
-            {liveCount > 0 && (
-              <>
-                <span className="absolute -right-1 -top-1 h-3.5 w-3.5 animate-ping rounded-full bg-emerald-400" />
-                <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" />
-              </>
-            )}
+            <div>
+              <h2 className="font-[var(--font-heading)] text-[15px] font-bold text-[#1A1D23]">
+                {t("dashboard.liveVisitors")}
+              </h2>
+              <p className="mt-0.5 text-[11px] text-[#94A3B8]">
+                {liveCount > 0 ? t("dashboard.liveVisitors.activeUsers") : t("dashboard.liveVisitors.desc")}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base font-bold text-slate-900">{t("dashboard.liveVisitors")}</h2>
-            <p className="mt-0.5 text-[11px] text-slate-400">{t("dashboard.liveVisitors.desc")}</p>
+          <div className="flex items-center gap-2">
+            {isPro ? (
+              <span className="rounded-full bg-[#FEF3C7] px-2 py-0.5 text-[10px] font-bold text-[#B45309]">
+                ⭐ PRO
+              </span>
+            ) : null}
+            <span
+              className={`h-2 w-2 rounded-full bg-[#22C55E] ${liveCount > 0 ? "animate-pulse" : ""}`}
+              style={{ opacity: liveCount > 0 ? 1 : 0.4 }}
+            />
+            <span
+              className="rounded-full bg-[#DCFCE7] px-2.5 py-0.5 text-[10px] font-bold text-[#15803D]"
+              style={{ opacity: liveCount > 0 ? 1 : 0.5 }}
+            >
+              {liveCount > 0 ? `${liveCount}` : "0"}
+            </span>
           </div>
         </div>
+
+        <div className="border-y border-[#F3E8D8] bg-gradient-to-r from-[#F0FDF4] via-[#F8FAFC] to-[#F0FDF4] px-0 py-0">
+          <PulseMonitorCanvas visitorCount={liveCount} pulseBoost={pulseBurst} />
+        </div>
+
+        {liveCount === 0 ? (
+          <div className="border-t border-[#F3E8D8] px-6 py-5 text-center">
+            <p className="text-[12px] font-semibold text-[#B0B8C4]">{t("dashboard.liveVisitors.noVisitors")}</p>
+            <p className="mt-[3px] text-[11px] text-[#CBD5E1]">{t("dashboard.liveVisitors.noVisitorsDesc")}</p>
+          </div>
+        ) : (
+          <>
+            {isPro ? (
+              <div
+                className={`${allLive.length > 5 ? "max-h-[320px] overflow-y-auto live-visitors-scrollbar" : ""}`}
+              >
+                {allLive.map((v) => (
+                  <LiveVisitorRow
+                    key={v.id}
+                    v={v}
+                    isLive
+                    onStartChat={onStartChat}
+                    chatLoading={chatLoading}
+                    t={t}
+                  />
+                ))}
+              </div>
+            ) : (
+            <div>
+                {visibleFreeVisitors.map((v) => (
+                  <LiveVisitorRow
+                    key={v.id}
+                    v={v}
+                    isLive
+                    onStartChat={onStartChat}
+                    chatLoading={chatLoading}
+                    t={t}
+                  />
+                ))}
+                {remainingFreeVisitors > 0 ? (
+                  <div className="relative overflow-hidden border-t border-[#F3E8D8]">
+                    {blurredPreview.map((v, index) => (
+                      <div
+                        key={`blurred-${v.id}`}
+                        style={{
+                          filter: `blur(${index === 0 ? 3 : 4.5}px)`,
+                          opacity: index === 0 ? 0.75 : 0.65,
+                          userSelect: "none",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        <LiveVisitorRow
+                          v={v}
+                          isLive
+                          onStartChat={onStartChat}
+                          chatLoading={chatLoading}
+                          t={t}
+                        />
+                      </div>
+                    ))}
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0.85)_70%)]">
+                      <div className="rounded-[14px] border border-[#F3E8D8] bg-white px-5 py-4 text-center shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
+                        <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-white">
+                          <Lock size={14} />
+                        </div>
+                        <p className="text-[12px] font-bold text-[#1A1D23]">
+                          {t("dashboard.liveVisitors.moreOnline").replace("{count}", String(remainingFreeVisitors))}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-[#94A3B8]">{t("dashboard.liveVisitors.unlockAll")}</p>
+                        <button
+                          type="button"
+                          onClick={onUpgrade}
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2 text-xs font-bold text-white shadow-[0_8px_18px_rgba(245,158,11,0.28)]"
+                        >
+                          {t("dashboard.liveVisitors.upgradeCta")}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            )}
+            {isPro && allLive.length > 5 ? (
+              <p className="border-t border-[#F3E8D8] px-6 py-2 text-center text-[11px] text-[#94A3B8]">
+                {t("dashboard.liveVisitors.scrollHint")}
+              </p>
+            ) : null}
+          </>
+        )}
       </div>
 
-      {allLive.length === 0 && allRecent.length === 0 ? (
-        <div className="px-6 py-16 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 shadow-inner"><Eye size={28} className="text-slate-300" /></div>
-          <p className="mb-1 text-sm font-bold text-slate-700">{t("dashboard.liveVisitors.noVisitors")}</p>
-          <p className="mx-auto max-w-xs text-xs text-slate-400">{t("dashboard.liveVisitors.noVisitorsDesc")}</p>
-        </div>
-      ) : (
-        <div>
-          {allLive.slice(0, isPro ? 50 : FREE_LIMIT).map((v) => (
-            <VRow key={v.id} v={v} isLive onStartChat={onStartChat} chatLoading={chatLoading} t={t} />
-          ))}
-          {!isPro && allLive.length > FREE_LIMIT && (
-            <div className="relative min-h-[120px]">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <button onClick={onUpgrade} className="inline-flex items-center gap-2 rounded-xl border border-slate-700/50 bg-gradient-to-r from-slate-800 to-slate-900 px-5 py-2.5 text-[13px] font-bold text-white shadow-lg shadow-slate-900/25 transition-all duration-200 hover:from-slate-700 hover:to-slate-800">
-                  <Crown size={14} className="text-amber-400" />
-                  {t("dashboard.liveVisitors.upgradePro")}
-                </button>
-              </div>
+      <div className="mt-4 overflow-hidden rounded-2xl border border-[#F3E8D8] bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#F3E8D8] px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-[38px] w-[38px] items-center justify-center rounded-[11px] text-white"
+              style={{ background: "linear-gradient(135deg, #8B5CF6, #6D28D9)" }}
+            >
+              <BarChart3 size={16} />
             </div>
+            <div>
+              <h3 className="font-[var(--font-heading)] text-[15px] font-bold text-[#1A1D23]">
+                {t("dashboard.liveVisitors.recentVisitors")}
+              </h3>
+              <p className="mt-0.5 text-[11px] text-[#94A3B8]">{t("dashboard.liveVisitors.recentDesc")}</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-[#F3E8FF] px-2.5 py-0.5 text-[10px] font-bold text-[#6D28D9]">
+            {`${recentTotal} ${t("dashboard.liveVisitors.visitsBadge")}`}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 border-b border-[#F3E8D8] px-6 py-4 md:grid-cols-3">
+          <MiniStat
+            icon="👤"
+            color="#7C3AED"
+            label={t("dashboard.liveVisitors.uniqueVisitors")}
+            value={String(recentUnique)}
+          />
+          <MiniStat
+            icon="⏱"
+            color="#6D28D9"
+            label={t("dashboard.liveVisitors.avgDuration")}
+            value={formatDurationShort(recentAvgDurationSec, t)}
+          />
+          <MiniStat
+            icon="🎯"
+            color="#22C55E"
+            label={t("dashboard.liveVisitors.conversionRate")}
+            value={`%${recentConversionRate}`}
+          />
+        </div>
+
+        <div className="px-3 py-2">
+          {allRecent.length === 0 ? (
+            <div className="px-3 py-6 text-center text-[12px] text-[#A0AAB8]">
+              {t("dashboard.liveVisitors.noRecent")}
+            </div>
+          ) : (
+            allRecent.slice(0, 8).map((v, index) => (
+              <RecentVisitorRow key={`recent-${v.id}`} v={v} index={index} t={t} />
+            ))
           )}
         </div>
-      )}
-    </div>
+        <div className="border-t border-[#F3E8D8] px-6 py-3">
+          <Link href="/portal/usage" className="text-[12px] font-semibold text-[#8B5CF6] hover:text-[#6D28D9]">
+            {t("dashboard.liveVisitors.viewHistory")}
+          </Link>
+        </div>
+      </div>
+      <style jsx>{`
+        .live-visitors-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #e8ded0 transparent;
+        }
+        .live-visitors-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+        .live-visitors-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .live-visitors-scrollbar::-webkit-scrollbar-thumb {
+          background: #e8ded0;
+          border-radius: 999px;
+        }
+      `}</style>
+    </>
   );
 }
 
-function VRow({ v, isLive, onStartChat, chatLoading, t }: {
+function PulseMonitorCanvas({
+  visitorCount,
+  pulseBoost,
+}: {
+  visitorCount: number;
+  pulseBoost: boolean;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animationRef = useRef<number | null>(null);
+  const offsetRef = useRef(0);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let reducedMotion = reducedMotionQuery.matches;
+
+    const setupCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    const draw = () => {
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      if (width <= 0 || height <= 0) return;
+
+      ctx.clearRect(0, 0, width, height);
+
+      const bg = ctx.createLinearGradient(0, 0, width, 0);
+      bg.addColorStop(0, "rgba(34,197,94,0.035)");
+      bg.addColorStop(0.5, "rgba(255,255,255,0.22)");
+      bg.addColorStop(1, "rgba(34,197,94,0.035)");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
+
+      const mid = height / 2;
+      const segW = Math.max(80, 220 - visitorCount * 16);
+      const ampRatio = Math.min(0.42, 0.15 + visitorCount * 0.05) * (pulseBoost ? 1.1 : 1);
+      const amp = Math.min(height * 0.42, height * ampRatio);
+      const lineWidth = Math.min(2.8, 1.5 + visitorCount * 0.15);
+      const glowAlpha = Math.min(0.25, 0.06 + visitorCount * 0.025) * (pulseBoost ? 1.2 : 1);
+      const glowWidth = 4 + Math.min(visitorCount * 0.6, 4);
+      const speed = visitorCount > 0 ? Math.min(0.8, 0.2 + visitorCount * 0.05) : 0.15;
+
+      const drawHeartbeatSegment = (baseX: number, first: boolean) => {
+        const u = segW / 12;
+        if (first) ctx.moveTo(baseX, mid);
+        else ctx.lineTo(baseX, mid);
+        ctx.lineTo(baseX + u * 2, mid);
+        ctx.lineTo(baseX + u * 3, mid - amp * 0.24);
+        ctx.lineTo(baseX + u * 4, mid);
+        ctx.lineTo(baseX + u * 5, mid + amp * 0.2);
+        ctx.lineTo(baseX + u * 5.6, mid - amp * 1.25);
+        ctx.lineTo(baseX + u * 6.25, mid + amp * 1.45);
+        ctx.lineTo(baseX + u * 7.2, mid - amp * 0.35);
+        ctx.lineTo(baseX + u * 8.2, mid);
+        ctx.lineTo(baseX + u * 12, mid);
+      };
+
+      const offset = offsetRef.current;
+      if (visitorCount === 0) {
+        const phase = offset % Math.max(width, 1);
+        const flatlineGradient = ctx.createLinearGradient(-phase, 0, width - phase, 0);
+        flatlineGradient.addColorStop(0, "rgba(34,197,94,0.28)");
+        flatlineGradient.addColorStop(0.5, "rgba(34,197,94,0.36)");
+        flatlineGradient.addColorStop(1, "rgba(34,197,94,0.28)");
+        ctx.strokeStyle = flatlineGradient;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, mid);
+        ctx.lineTo(width, mid);
+        ctx.stroke();
+      } else {
+        const phase = offset % segW;
+        ctx.strokeStyle = "#22C55E";
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.shadowBlur = glowWidth * 0.6;
+        ctx.shadowColor = `rgba(34,197,94,${glowAlpha * 0.65})`;
+        ctx.beginPath();
+        let first = true;
+        for (let x = -segW; x < width + segW * 2; x += segW) {
+          drawHeartbeatSegment(x - phase, first);
+          first = false;
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      offsetRef.current += speed;
+    };
+
+    const render = () => {
+      draw();
+      if (!reducedMotion) {
+        animationRef.current = window.requestAnimationFrame(render);
+      }
+    };
+
+    const onMotionChange = (e: MediaQueryListEvent) => {
+      reducedMotion = e.matches;
+      if (reducedMotion) {
+        if (animationRef.current) {
+          window.cancelAnimationFrame(animationRef.current);
+          animationRef.current = null;
+        }
+        draw();
+      } else if (!animationRef.current) {
+        animationRef.current = window.requestAnimationFrame(render);
+      }
+    };
+
+    setupCanvas();
+    render();
+    window.addEventListener("resize", setupCanvas);
+    reducedMotionQuery.addEventListener("change", onMotionChange);
+
+    return () => {
+      if (animationRef.current) window.cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+      window.removeEventListener("resize", setupCanvas);
+      reducedMotionQuery.removeEventListener("change", onMotionChange);
+    };
+  }, [visitorCount, pulseBoost]);
+
+  return <canvas ref={canvasRef} className="h-12 w-full" aria-hidden="true" />;
+}
+
+function deriveVisitorStatus(visitor: LiveVisitor): "browsing" | "reading" | "form" | "idle" {
+  const page = (visitor.currentPage || "").toLowerCase();
+  const inactiveForMs = Date.now() - new Date(visitor.lastSeenAt).getTime();
+  if (inactiveForMs > 5 * 60 * 1000) return "idle";
+  if (/(form|checkout|sign|register|contact)/.test(page)) return "form";
+  if (/(blog|docs|article|help|pricing|terms|privacy|faq)/.test(page)) return "reading";
+  return "browsing";
+}
+
+function getVisitorDurationSeconds(visitor: LiveVisitor): number {
+  const first = new Date(visitor.firstSeenAt).getTime();
+  const last = new Date(visitor.lastSeenAt).getTime();
+  if (Number.isNaN(first) || Number.isNaN(last) || last <= first) return 30;
+  return Math.max(10, Math.floor((last - first) / 1000));
+}
+
+function formatDurationShort(sec: number, t: (key: string) => string): string {
+  const safe = Math.max(0, sec);
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  if (minutes <= 0) return `${seconds}${t("dashboard.liveVisitors.shortSecond")}`;
+  if (seconds === 0) return `${minutes}${t("dashboard.liveVisitors.shortMinute")}`;
+  return `${minutes}${t("dashboard.liveVisitors.shortMinute")} ${seconds}${t("dashboard.liveVisitors.shortSecond")}`;
+}
+
+function LiveVisitorRow({ v, isLive, onStartChat, chatLoading, t }: {
   v: LiveVisitor;
   isLive: boolean;
   onStartChat: (id: string) => void;
@@ -689,35 +1110,135 @@ function VRow({ v, isLive, onStartChat, chatLoading, t }: {
   t: (key: string) => string;
 }) {
   const isLoading = chatLoading === v.id;
+  const status = deriveVisitorStatus(v);
+  const statusMap = {
+    browsing: { dot: "#22C55E", label: t("dashboard.liveVisitors.statusBrowsing"), bg: "rgba(34,197,94,0.08)", text: "#15803D" },
+    reading: { dot: "#3B82F6", label: t("dashboard.liveVisitors.statusReading"), bg: "rgba(59,130,246,0.08)", text: "#1D4ED8" },
+    form: { dot: "#F59E0B", label: t("dashboard.liveVisitors.statusForm"), bg: "rgba(245,158,11,0.12)", text: "#B45309" },
+    idle: { dot: "#94A3B8", label: t("dashboard.liveVisitors.statusIdle"), bg: "rgba(148,163,184,0.12)", text: "#64748B" },
+  } as const;
+  const ui = statusMap[status];
+
   return (
-    <div className="group grid grid-cols-12 items-center gap-3 border-b border-slate-50 px-6 py-3.5 transition-colors last:border-b-0 hover:bg-amber-50/30" onClick={() => onStartChat(v.id)}>
-      <div className="col-span-4 flex min-w-0 items-center gap-3">
-        <div className="relative flex-shrink-0">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/60 bg-slate-50 text-[18px]">{countryToFlag(v.country)}</div>
-          {isLive && <span className="absolute -bottom-px -right-px h-3 w-3 rounded-full border-[1.5px] border-white bg-emerald-500" />}
-        </div>
+    <div
+      className="group relative grid grid-cols-12 items-center gap-3 border-b border-[#F3E8D8] px-5 py-3 transition-colors last:border-b-0 hover:bg-[#FFFBF5]"
+      onClick={() => onStartChat(v.id)}
+    >
+      <div className="col-span-4 flex min-w-0 items-center gap-2.5">
+        <span className="flex w-8 justify-center text-xl leading-none">{countryToFlag(v.country)}</span>
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-semibold text-slate-800">{v.city || v.country || t("common.visitor")}</p>
-          <p className="text-[10px] text-slate-400">{v.conversationCount > 0 ? t("dashboard.liveVisitors.returningVisitor") : t("dashboard.liveVisitors.newVisitor")}</p>
+          <p className="truncate text-sm font-bold text-[#1A1D23]">
+            {v.city || v.country || t("dashboard.liveVisitors.visitor")}
+          </p>
+          <p className="truncate font-mono text-xs text-[#CBD5E1]">{v.ip || "—"}</p>
         </div>
       </div>
-      <div className="col-span-2"><span className="rounded bg-slate-50 px-1.5 py-0.5 text-[11px] font-mono text-slate-500">{v.ip || "—"}</span></div>
-      <div className="col-span-2"><span className="block truncate text-[11px] text-slate-500">{v.currentPage || "/"}</span></div>
-      <div className="col-span-2 flex items-center gap-1.5 text-[11px] text-slate-500">
-        {v.device === "mobile" ? <Smartphone size={12} className="text-slate-400" /> : <Monitor size={12} className="text-slate-400" />}
-        <span className="truncate">{v.browser} / {v.os}</span>
+      <div className="col-span-3 min-w-0">
+        <span className="inline-block max-w-full truncate rounded-[5px] border border-[#F1F5F9] bg-[#F8FAFC] px-2 py-1 font-mono text-xs text-[#64748B]">
+          {v.currentPage || "/"}
+        </span>
       </div>
-      <div className="col-span-2 flex items-center justify-end gap-2">
-        <span className="tabular-nums text-[10px] text-slate-400 group-hover:hidden">{timeAgo(v.lastSeenAt, t)}</span>
-        <button
-          onClick={(e) => { e.stopPropagation(); onStartChat(v.id); }}
-          disabled={isLoading}
-          className="hidden items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-amber-600 disabled:opacity-50 group-hover:flex"
+      <div className="col-span-2 min-w-0 truncate text-xs text-[#B0B8C4]">
+        {v.browser} / {v.os}
+      </div>
+      <div className="col-span-2 text-sm font-semibold tabular-nums text-[#64748B]">
+        {formatDurationShort(getVisitorDurationSeconds(v), t)}
+      </div>
+      <div className="col-span-1 flex justify-end">
+        <span
+          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
+          style={{ background: ui.bg, color: ui.text }}
         >
-          {isLoading ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Send size={10} />}
-          {t("dashboard.liveVisitors.startChat")}
-        </button>
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: ui.dot }} />
+          {ui.label}
+        </span>
       </div>
+
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onStartChat(v.id);
+        }}
+        disabled={isLoading}
+        className="absolute right-4 top-1/2 inline-flex -translate-y-1/2 translate-x-2 items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#22C55E] to-[#16A34A] px-3 py-1.5 text-[11px] font-semibold text-white opacity-0 shadow-[0_8px_18px_rgba(34,197,94,0.28)] transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 disabled:opacity-50"
+      >
+        {isLoading ? (
+          <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+        ) : (
+          <MessageSquare size={11} />
+        )}
+        {t("dashboard.liveVisitors.sendMessage")}
+      </button>
+      {isLive ? (
+        <span className="pointer-events-none absolute left-2 top-2 h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+      ) : null}
+    </div>
+  );
+}
+
+function MiniStat({
+  icon,
+  color,
+  label,
+  value,
+}: {
+  icon: string;
+  color: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-[#F3E8D8] bg-[#FAFAFA] px-3 py-[10px]">
+      <p className="text-xs font-semibold" style={{ color }}>
+        {icon} {label}
+      </p>
+      <p className="mt-1 text-lg font-bold text-[#1A1D23] tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function RecentVisitorRow({
+  v,
+  index,
+  t,
+}: {
+  v: LiveVisitor;
+  index: number;
+  t: (key: string) => string;
+}) {
+  const converted = v.conversationCount > 0;
+  const opacity = Math.max(0.45, 0.65 - index * 0.03);
+  return (
+    <div
+      className="flex items-center justify-between rounded-xl px-3 py-2 transition-all hover:bg-[#FAFAFA] hover:opacity-90"
+      style={{ opacity }}
+    >
+      <div className="min-w-0 flex items-center gap-2.5">
+        <span className="text-lg leading-none" style={{ filter: "grayscale(0.4)" }}>
+          {countryToFlag(v.country)}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-[#78829B]">
+            {v.city || v.country || t("dashboard.liveVisitors.visitor")}
+          </p>
+          <p className="truncate text-xs text-[#A0AAB8]">
+            {v.currentPage || "/"} · {timeAgo(v.lastSeenAt, t)}
+          </p>
+        </div>
+      </div>
+      <span
+        className="rounded-full px-2 py-0.5 text-xs font-medium"
+        style={{
+          color: converted ? "#78829B" : "#A0AAB8",
+          background: converted
+            ? "rgba(148,163,184,0.08)"
+            : "rgba(148,163,184,0.06)",
+        }}
+      >
+        {converted
+          ? t("dashboard.liveVisitors.converted")
+          : t("dashboard.liveVisitors.left")}
+      </span>
     </div>
   );
 }
@@ -755,7 +1276,10 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
       </div>
       {!isUnlimited && (
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#FEF3E2]">
-          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(135deg, #FDB462, #F59E0B)" }} />
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${pct}%`, background: `linear-gradient(135deg, #FDB462, ${colors.brand.primary})` }}
+          />
         </div>
       )}
     </div>

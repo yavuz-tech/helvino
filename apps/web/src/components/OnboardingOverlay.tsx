@@ -110,7 +110,7 @@ export default function OnboardingOverlay({
             <div
               key={i}
               className={`w-2 h-2 rounded-full transition-colors ${
-                i === step ? "bg-slate-900" : "bg-slate-200"
+                i === step ? "bg-amber-500" : "bg-amber-200"
               }`}
             />
           ))}
@@ -119,10 +119,10 @@ export default function OnboardingOverlay({
         {/* Content */}
         <div className="px-8 py-6 text-center">
           <div className="text-4xl mb-4">{current.icon}</div>
-          <h2 className="text-xl font-semibold text-slate-900 mb-2">
+          <h2 className="text-xl font-semibold text-amber-900 mb-2">
             {current.title}
           </h2>
-          <p className="text-sm text-slate-600 leading-relaxed">
+          <p className="text-sm text-amber-700 leading-relaxed">
             {current.desc}
           </p>
         </div>
@@ -133,7 +133,7 @@ export default function OnboardingOverlay({
             {step > 0 && (
               <button
                 onClick={() => setStep(step - 1)}
-                className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
+                className="flex-1 px-4 py-2.5 border border-[#F3E8D8] text-amber-800 rounded-lg hover:bg-[#FFFBF5] transition-colors text-sm font-medium"
               >
                 {t("common.back")}
               </button>
@@ -146,14 +146,14 @@ export default function OnboardingOverlay({
                   setStep(step + 1);
                 }
               }}
-              className="flex-1 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors text-sm font-medium"
+              className="flex-1 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors text-sm font-medium"
             >
               {isLast ? t("onboarding.getStarted") : t("onboarding.next")}
             </button>
           </div>
           <button
             onClick={() => dismiss(true)}
-            className="w-full text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            className="w-full text-xs text-amber-500 hover:text-amber-700 transition-colors"
           >
             {t("onboarding.dontShowAgain")}
           </button>

@@ -16,7 +16,7 @@ export default function IconRail({ activeView = "inbox", onViewChange }: IconRai
   ];
 
   return (
-    <div className="flex flex-col w-[56px] bg-[#1A1A2E] flex-shrink-0">
+    <div className="flex flex-col w-[56px] bg-gradient-to-b from-amber-500 to-amber-600 flex-shrink-0">
       <div className="flex flex-col items-center py-4 gap-1">
         {items.map((item) => {
           const Icon = item.icon;
@@ -35,7 +35,7 @@ export default function IconRail({ activeView = "inbox", onViewChange }: IconRai
               <Icon size={20} strokeWidth={2} />
               
               {/* Tooltip */}
-              <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg">
+              <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-[#1A1D23] text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg">
                 {item.label}
               </div>
 

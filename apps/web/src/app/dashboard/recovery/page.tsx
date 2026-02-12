@@ -123,7 +123,7 @@ export default function AdminRecoveryPage() {
       pending: "bg-amber-100 text-amber-800",
       approved: "bg-green-100 text-green-800",
       rejected: "bg-red-100 text-red-800",
-      expired: "bg-slate-100 text-slate-600",
+      expired: "bg-amber-50 text-amber-700",
     };
     const statusKey = `recovery.${status}` as Parameters<typeof t>[0];
     return (
@@ -139,10 +139,10 @@ export default function AdminRecoveryPage() {
     <DashboardLayout>
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
-          <Shield size={24} className="text-slate-600" />
+          <Shield size={24} className="text-[#475569]" />
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">{t("recovery.admin.title")}</h1>
-            <p className="text-sm text-slate-600">{t("recovery.admin.description")}</p>
+            <h1 className="text-2xl font-bold text-[#1A1D23] font-heading">{t("recovery.admin.title")}</h1>
+            <p className="text-sm text-[#475569]">{t("recovery.admin.description")}</p>
           </div>
         </div>
 
@@ -160,7 +160,7 @@ export default function AdminRecoveryPage() {
               <button
                 key={f}
                 onClick={() => { setFilter(f); setLoading(true); }}
-                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${filter === f ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${filter === f ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white" : "bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"}`}
               >
                 {label}
               </button>
@@ -170,31 +170,31 @@ export default function AdminRecoveryPage() {
 
         {/* Requests */}
         {loading ? (
-          <div className="text-sm text-slate-500">{t("common.loading")}</div>
+          <div className="text-sm text-[#64748B]">{t("common.loading")}</div>
         ) : requests.length === 0 ? (
-          <div className="bg-white rounded-lg border border-slate-200 p-8 text-center text-sm text-slate-500">
+          <div className="bg-white rounded-lg border border-[#F3E8D8] p-8 text-center text-sm text-[#64748B]">
             {t("recovery.admin.noRequests")}
           </div>
         ) : (
           <div className="space-y-3">
             {requests.map((req) => (
-              <div key={req.id} className="bg-white rounded-lg border border-slate-200 p-5">
+              <div key={req.id} className="bg-white rounded-lg border border-[#F3E8D8] p-5">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-3">
                     {statusBadge(req.status)}
-                    <span className="text-sm font-medium text-slate-900">{req.email}</span>
-                    <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">
+                    <span className="text-sm font-medium text-[#1A1D23]">{req.email}</span>
+                    <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-800 rounded-full">
                       {req.userType}
                     </span>
                   </div>
-                  <span className="text-xs text-slate-500" suppressHydrationWarning>
+                    <span className="text-xs text-[#64748B]" suppressHydrationWarning>
                     {new Date(req.requestedAt).toLocaleString()}
                   </span>
                 </div>
 
-                <p className="text-sm text-slate-700 mb-2">{req.reason}</p>
+                <p className="text-sm text-[#334155] mb-2">{req.reason}</p>
 
-                <div className="flex gap-4 text-xs text-slate-400 mb-3">
+                <div className="flex gap-4 text-xs text-[#94A3B8] mb-3">
                   {req.ip && <span>IP: {req.ip}</span>}
                   <span suppressHydrationWarning>{t("recovery.expiresAt")}: {new Date(req.expiresAt).toLocaleString()}</span>
                   {req.resolvedBy && (
@@ -203,7 +203,7 @@ export default function AdminRecoveryPage() {
                 </div>
 
                 {req.status === "pending" && (
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                      <div className="flex items-center gap-2 pt-2 border-t border-amber-100">
                     <button
                       onClick={() => handleApprove(req.id)}
                       disabled={processingId === req.id}
@@ -218,7 +218,7 @@ export default function AdminRecoveryPage() {
                           value={rejectReason}
                           onChange={(e) => setRejectReason(e.target.value)}
                           placeholder={t("recovery.admin.reason")}
-                          className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg"
+                          className="flex-1 px-3 py-1.5 text-sm border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500/20"
                           autoFocus
                         />
                         <button
@@ -230,7 +230,7 @@ export default function AdminRecoveryPage() {
                         </button>
                         <button
                           onClick={() => { setRejectingId(null); setRejectReason(""); }}
-                          className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900"
+                          className="px-3 py-1.5 text-sm text-[#475569] hover:text-amber-800"
                         >
                           {t("common.cancel")}
                         </button>

@@ -22,15 +22,14 @@ export default function TrialBanner({
 }: TrialBannerProps) {
   const { t } = useI18n();
   const [dismissed, setDismissed] = useState(false);
-
-  if (dismissed || (!isTrialing && !isExpired)) return null;
-
   const progressPercent = useMemo(() => {
     if (isExpired) return 0;
     const assumedTrialDays = 14;
     const pct = Math.round((daysLeft / assumedTrialDays) * 100);
     return Math.max(0, Math.min(100, pct));
   }, [daysLeft, isExpired]);
+
+  if (dismissed || (!isTrialing && !isExpired)) return null;
 
   const title = isExpired
     ? t("trial.expiredTitle")
@@ -51,8 +50,8 @@ export default function TrialBanner({
 
   return (
     <div
-      className={`relative min-h-[76px] overflow-hidden rounded-2xl px-5 py-4 shadow-[0_4px_24px_rgba(99,102,241,0.3)] ${className}`}
-      style={{ background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%)" }}
+      className={`relative min-h-[76px] overflow-hidden rounded-2xl px-5 py-4 shadow-[0_2px_8px_rgba(124,58,237,0.12)] ${className}`}
+      style={{ background: "linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)" }}
     >
       <div className="flex items-center gap-4">
         <div
@@ -77,7 +76,7 @@ export default function TrialBanner({
         </div>
         <Link
           href="/portal/billing"
-          className="ml-auto inline-flex min-w-[220px] flex-shrink-0 items-center justify-center gap-2 rounded-[10px] bg-white/95 px-5 py-2.5 text-[13px] font-bold text-[#3730A3] transition-colors hover:bg-white"
+          className="ml-auto inline-flex min-w-[220px] flex-shrink-0 items-center justify-center gap-2 rounded-[10px] bg-white px-5 py-2.5 text-[13px] font-bold text-violet-700 transition-colors hover:bg-violet-50"
         >
           {ctaLabel} <ArrowRight size={14} />
         </Link>

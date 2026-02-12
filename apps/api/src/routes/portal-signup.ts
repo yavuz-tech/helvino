@@ -9,7 +9,11 @@
 import { FastifyInstance } from "fastify";
 import crypto from "crypto";
 import { prisma } from "../prisma";
-import { hashPassword } from "../utils/password";
+import {
+  hashPassword,
+  validatePasswordStrength,
+  PASSWORD_STRENGTH_ERROR_MESSAGE,
+} from "../utils/password";
 import { sendEmailAsync, getDefaultFromAddress } from "../utils/mailer";
 import { getVerifyEmailContent, normalizeRequestLocale, extractLocaleCookie } from "../utils/email-templates";
 import { generateVerifyEmailLink, verifyEmailSignature } from "../utils/signed-links";
@@ -20,10 +24,13 @@ import {
   verifyEmailRateLimit,
   resendVerificationRateLimit,
 } from "../utils/rate-limit";
-import { validatePasswordPolicy } from "../utils/password-policy";
+import { rateLimit } from "../middleware/rate-limiter";
 import { validateJsonContentType } from "../middleware/validation";
-import { verifyHCaptchaToken } from "../utils/verify-captcha";
+import { verifyTurnstileToken } from "../utils/verify-captcha";
 import { getRealIP } from "../utils/get-real-ip";
+import { validateBody } from "../utils/validate";
+import { signupSchema } from "../utils/schemas";
+import { sanitizePlainText } from "../utils/sanitize";
 
 function generateOrgKey(orgName: string): string {
   // Create a URL-safe slug from org name + random suffix
@@ -78,14 +85,26 @@ function isDisposableEmail(email: string): boolean {
 }
 
 export async function portalSignupRoutes(fastify: FastifyInstance) {
+  const portalSignupRateLimit = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    maxRequests: 3,
+    message: "Too many registration attempts",
+  });
+
   // ─── POST /portal/auth/signup ─────────────────────────────
   fastify.post<{ Body: SignupBody }>(
     "/portal/auth/signup",
     {
-      preHandler: [signupIpRateLimit(), signupEmailRateLimit(), validateJsonContentType],
+      preHandler: [portalSignupRateLimit, signupIpRateLimit(), signupEmailRateLimit(), validateJsonContentType],
+      config: {
+        skipGlobalRateLimit: true,
+      },
     },
     async (request, reply) => {
-      const { orgName, email, password, locale, captchaToken } = request.body;
+      const parsedBody = validateBody(signupSchema, request.body, reply);
+      if (!parsedBody) return;
+
+      const { orgName, email, password, locale, captchaToken } = parsedBody;
       const cookieLang = extractLocaleCookie(request.headers.cookie as string);
       const requestedLocale = normalizeRequestLocale(locale, cookieLang, request.headers["accept-language"] as string);
       const requestId =
@@ -93,20 +112,8 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         (request.headers["x-request-id"] as string) ||
         undefined;
 
-      // Validate input
-      if (!orgName || !email || !password) {
-        reply.code(400);
-        return {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Organization name, email, and password are required",
-            requestId,
-          },
-        };
-      }
-
       const trimmedEmail = email.toLowerCase().trim();
-      const trimmedOrgName = orgName.trim();
+      const trimmedOrgName = sanitizePlainText(orgName).trim();
       const requestIp = getRealIP(request);
 
       if (!captchaToken?.trim()) {
@@ -120,7 +127,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         };
       }
 
-      const captchaValid = await verifyHCaptchaToken(captchaToken.trim(), requestIp);
+      const captchaValid = await verifyTurnstileToken(captchaToken.trim(), requestIp);
       if (!captchaValid) {
         reply.code(400);
         return {
@@ -132,39 +139,10 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         };
       }
 
-      if (trimmedOrgName.length < 2 || trimmedOrgName.length > 100) {
-        reply.code(400);
-        return {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Organization name must be 2-100 characters",
-            requestId,
-          },
-        };
-      }
-
-      const pwCheck = validatePasswordPolicy(password);
+      const pwCheck = validatePasswordStrength(password);
       if (!pwCheck.valid) {
         reply.code(400);
-        return {
-          error: {
-            code: pwCheck.code,
-            message: pwCheck.message,
-            requestId,
-          },
-        };
-      }
-
-      // Email format check (basic)
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-        reply.code(400);
-        return {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Invalid email address",
-            requestId,
-          },
-        };
+        return { error: PASSWORD_STRENGTH_ERROR_MESSAGE };
       }
 
       if (isDisposableEmail(trimmedEmail)) {
@@ -186,7 +164,6 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
 
       if (existing && existing.emailVerifiedAt) {
         // Already verified — return generic success to avoid user enumeration
-        console.log(`[signup] Email already verified: ${trimmedEmail} — returning generic success`);
         return {
           ok: true,
           message: "If this email is available, a verification link has been sent.",
@@ -217,8 +194,6 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
 
         targetOrgId = existing.orgId;
         targetLocale = requestedLocale;
-        console.log(`[signup] Unverified account updated for ${trimmedEmail} — resending verification`);
-
         writeAuditLog(
           existing.orgId,
           "portal_signup",

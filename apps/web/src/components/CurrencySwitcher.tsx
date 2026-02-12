@@ -38,7 +38,7 @@ export default function CurrencySwitcher() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-1 transition-all"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-[#334155] bg-white border border-[#F3E8D8] rounded-lg hover:bg-[#FFFBF5] hover:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:ring-offset-1 transition-all"
         aria-label="Change currency"
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -50,7 +50,7 @@ export default function CurrencySwitcher() {
         <ChevronDown
           size={14}
           strokeWidth={2}
-          className={`text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`text-[#94A3B8] transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -58,7 +58,7 @@ export default function CurrencySwitcher() {
         <div
           role="listbox"
           aria-label="Select currency"
-          className="absolute right-0 top-full mt-1.5 w-40 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 animate-in fade-in slide-in-from-top-1 duration-150"
+          className="absolute right-0 top-full mt-1.5 w-40 bg-white border border-[#F3E8D8] rounded-lg shadow-lg z-50 py-1 animate-in fade-in slide-in-from-top-1 duration-150"
         >
           {Object.entries(CURRENCIES).map(([code, currencyConfig]) => {
             const isActive = currency === code;
@@ -74,14 +74,14 @@ export default function CurrencySwitcher() {
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
                   isActive
-                    ? "bg-slate-50 text-slate-900 font-medium"
-                    : "text-slate-700 hover:bg-slate-50"
+                    ? "bg-amber-50 text-[#1A1D23] font-medium"
+                    : "text-[#334155] hover:bg-[#FFFBF5]"
                 }`}
               >
                 <span className="text-lg">{currencyConfig.symbol}</span>
                 <span className="flex-1 text-left font-semibold">{code}</span>
                 {isActive && (
-                  <div className="w-1.5 h-1.5 bg-slate-900 rounded-full" />
+                  <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
                 )}
               </button>
             );

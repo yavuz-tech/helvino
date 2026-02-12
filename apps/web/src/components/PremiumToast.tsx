@@ -66,9 +66,9 @@ const VARIANT_CONFIG: Record<ToastVariant, {
   },
   info: {
     icon: Info,
-    gradient: "from-blue-500 via-indigo-400 to-violet-500",
-    iconColor: "text-blue-500",
-    borderColor: "border-blue-200/60",
+    gradient: "from-amber-500 via-amber-400 to-orange-500",
+    iconColor: "text-amber-500",
+    borderColor: "border-amber-200/60",
     bgColor: "bg-white",
   },
 };
@@ -152,20 +152,20 @@ export default function PremiumToastProvider() {
                 </div>
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-bold text-slate-900 leading-tight">{toast.title}</p>
+                  <p className="text-[13px] font-bold text-amber-900 leading-tight">{toast.title}</p>
                   {toast.description && (
-                    <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{toast.description}</p>
+                    <p className="text-[11px] text-amber-600 mt-0.5 leading-relaxed">{toast.description}</p>
                   )}
                 </div>
                 {/* Close */}
                 <button
                   onClick={() => removeToast(toast.id)}
-                  className="flex-shrink-0 p-1 text-slate-300 hover:text-slate-500 rounded-lg transition-colors"
+                  className="flex-shrink-0 p-1 text-amber-400 hover:text-amber-600 rounded-lg transition-colors"
                 >
                   <X size={14} />
                 </button>
                 {/* Progress bar - no styled-jsx (App Router safe) */}
-                <div className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-slate-100 overflow-hidden">
+                <div className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-amber-100 overflow-hidden">
                   <div
                     className={`h-full bg-gradient-to-r ${cfg.gradient} rounded-full animate-[shrink_3s_linear_forwards]`}
                     style={{

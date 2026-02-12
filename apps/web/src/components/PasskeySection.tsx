@@ -225,15 +225,15 @@ export default function PasskeySection({ area }: PasskeySectionProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-6">
+    <div className="bg-white rounded-lg border border-[#F3E8D8] p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Fingerprint size={20} className="text-slate-600" />
-          <h2 className="text-lg font-semibold text-slate-900">{t("passkeys.title")}</h2>
+          <Fingerprint size={20} className="text-amber-700" />
+          <h2 className="text-lg font-semibold text-amber-900">{t("passkeys.title")}</h2>
         </div>
       </div>
 
-      <p className="text-sm text-slate-600 mb-4">{t("passkeys.description")}</p>
+      <p className="text-sm text-amber-700 mb-4">{t("passkeys.description")}</p>
 
       {message && (
         <div
@@ -249,9 +249,9 @@ export default function PasskeySection({ area }: PasskeySectionProps) {
 
       {/* Credentials list */}
       {loading ? (
-        <div className="text-sm text-slate-500 py-4">{t("common.loading")}</div>
+        <div className="text-sm text-amber-600 py-4">{t("common.loading")}</div>
       ) : credentials.length === 0 ? (
-        <div className="text-sm text-slate-500 py-4 border-t border-slate-100">
+        <div className="text-sm text-amber-600 py-4 border-t border-[#F3E8D8]">
           {t("passkeys.noPasskeys")}
         </div>
       ) : (
@@ -259,15 +259,15 @@ export default function PasskeySection({ area }: PasskeySectionProps) {
           {credentials.map((cred) => (
             <div
               key={cred.id}
-              className="flex items-center justify-between p-3 border border-slate-100 rounded-lg"
+              className="flex items-center justify-between p-3 border border-[#F3E8D8] rounded-lg"
             >
               <div className="flex items-center gap-3">
-                <Key size={16} className="text-slate-400" />
+                <Key size={16} className="text-amber-500" />
                 <div>
-                  <p className="text-sm font-medium text-slate-900">
+                  <p className="text-sm font-medium text-amber-900">
                     {cred.nickname || t("passkeys.title")}
                   </p>
-                  <p className="text-xs text-slate-500" suppressHydrationWarning>
+                  <p className="text-xs text-amber-600" suppressHydrationWarning>
                     {t("passkeys.createdAt")}: {new Date(cred.createdAt).toLocaleDateString()}{" "}
                     &middot; {t("passkeys.lastUsed")}: {new Date(cred.lastUsedAt).toLocaleDateString()}
                   </p>
@@ -294,19 +294,19 @@ export default function PasskeySection({ area }: PasskeySectionProps) {
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
             placeholder={t("passkeys.nicknamePlaceholder")}
-            className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+            className="flex-1 px-3 py-2 text-sm border border-[#F3E8D8] rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20"
             autoFocus
           />
           <button
             onClick={handleAdd}
             disabled={adding}
-            className="px-4 py-2 text-sm bg-slate-900 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-400 transition-colors flex items-center gap-1"
+            className="px-4 py-2 text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 disabled:opacity-50 transition-colors flex items-center gap-1"
           >
             {adding ? t("passkeys.adding") : <><Plus size={14} /> {t("passkeys.add")}</>}
           </button>
           <button
             onClick={() => { setShowNicknameInput(false); setNickname(""); }}
-            className="px-3 py-2 text-sm text-slate-600 hover:text-slate-900"
+            className="px-3 py-2 text-sm text-amber-700 hover:text-amber-900"
           >
             {t("common.cancel")}
           </button>
@@ -314,7 +314,7 @@ export default function PasskeySection({ area }: PasskeySectionProps) {
       ) : (
         <button
           onClick={() => setShowNicknameInput(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors"
         >
           <Plus size={14} />
           {t("passkeys.add")}
@@ -323,7 +323,7 @@ export default function PasskeySection({ area }: PasskeySectionProps) {
 
       {/* Lifecycle actions */}
       {credentials.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
+        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-[#F3E8D8]">
           <button
             onClick={handleRevokeAll}
             disabled={revokingAll}

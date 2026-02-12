@@ -39,10 +39,10 @@ export default function AdminWidgetHealthSummary({ data, className = "" }: Admin
   const { t } = useI18n();
 
   return (
-    <div className={`bg-white rounded-xl border border-slate-200 p-6 ${className}`}>
+    <div className={`bg-white rounded-xl border border-[#F3E8D8] p-6 ${className}`}>
       <div className="mb-4">
-        <h3 className="text-base font-semibold text-slate-900">{t("widgetHealth.adminTitle")}</h3>
-        <p className="text-xs text-slate-500 mt-0.5">{t("widgetHealth.adminSubtitle")}</p>
+        <h3 className="text-base font-semibold text-[#1A1D23]">{t("widgetHealth.adminTitle")}</h3>
+        <p className="text-xs text-[#64748B] mt-0.5">{t("widgetHealth.adminSubtitle")}</p>
       </div>
 
       {/* Status counts */}
@@ -63,29 +63,29 @@ export default function AdminWidgetHealthSummary({ data, className = "" }: Admin
 
       {/* Last Seen Distribution */}
       <div className="mb-5">
-        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+        <h4 className="text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
           {t("widgetHealth.lastSeenDist")}
         </h4>
         <div className="flex gap-4 text-sm flex-wrap">
           <div>
-            <span className="font-semibold text-slate-900">{data.lastSeenDistribution.never}</span>
-            <span className="text-slate-500 ml-1">{t("widgetHealth.never")}</span>
+            <span className="font-semibold text-[#1A1D23]">{data.lastSeenDistribution.never}</span>
+            <span className="text-[#64748B] ml-1">{t("widgetHealth.never")}</span>
           </div>
           <div>
-            <span className="font-semibold text-slate-900">{data.lastSeenDistribution.lt1h}</span>
-            <span className="text-slate-500 ml-1">{t("widgetHealth.last1h")}</span>
+            <span className="font-semibold text-[#1A1D23]">{data.lastSeenDistribution.lt1h}</span>
+            <span className="text-[#64748B] ml-1">{t("widgetHealth.last1h")}</span>
           </div>
           <div>
-            <span className="font-semibold text-slate-900">{data.lastSeenDistribution.lt24h}</span>
-            <span className="text-slate-500 ml-1">{t("widgetHealth.last24h")}</span>
+            <span className="font-semibold text-[#1A1D23]">{data.lastSeenDistribution.lt24h}</span>
+            <span className="text-[#64748B] ml-1">{t("widgetHealth.last24h")}</span>
           </div>
           <div>
-            <span className="font-semibold text-slate-900">{data.lastSeenDistribution.lt7d}</span>
-            <span className="text-slate-500 ml-1">{t("widgetHealth.last7d")}</span>
+            <span className="font-semibold text-[#1A1D23]">{data.lastSeenDistribution.lt7d}</span>
+            <span className="text-[#64748B] ml-1">{t("widgetHealth.last7d")}</span>
           </div>
           <div>
-            <span className="font-semibold text-slate-900">{data.lastSeenDistribution.gte7d}</span>
-            <span className="text-slate-500 ml-1">{t("widgetHealth.gte7d")}</span>
+            <span className="font-semibold text-[#1A1D23]">{data.lastSeenDistribution.gte7d}</span>
+            <span className="text-[#64748B] ml-1">{t("widgetHealth.gte7d")}</span>
           </div>
         </div>
       </div>
@@ -93,13 +93,13 @@ export default function AdminWidgetHealthSummary({ data, className = "" }: Admin
       {/* Top by failures (show top 3) */}
       {data.topByFailures.length > 0 && (
         <div className="mb-4">
-          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+          <h4 className="text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
             {t("widgetHealth.topFailures")}
           </h4>
           <div className="space-y-1">
             {data.topByFailures.slice(0, 3).map((o) => (
               <div key={o.orgKey} className="flex items-center justify-between text-xs">
-                <span className="text-slate-700 font-medium truncate max-w-[150px]">{o.orgName}</span>
+                <span className="text-[#334155] font-medium truncate max-w-[150px]">{o.orgName}</span>
                 <span className="text-amber-600 font-semibold">{o.failuresTotal} / {o.loadsTotal}</span>
               </div>
             ))}
@@ -110,13 +110,13 @@ export default function AdminWidgetHealthSummary({ data, className = "" }: Admin
       {/* Top by domain mismatch (show top 3) */}
       {data.topByDomainMismatch.length > 0 && (
         <div>
-          <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+          <h4 className="text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2">
             {t("widgetHealth.topDomainMismatch")}
           </h4>
           <div className="space-y-1">
             {data.topByDomainMismatch.slice(0, 3).map((o) => (
               <div key={o.orgKey} className="flex items-center justify-between text-xs">
-                <span className="text-slate-700 font-medium truncate max-w-[150px]">{o.orgName}</span>
+                <span className="text-[#334155] font-medium truncate max-w-[150px]">{o.orgName}</span>
                 <span className="text-amber-600 font-semibold">{o.domainMismatchTotal}</span>
               </div>
             ))}
@@ -125,7 +125,7 @@ export default function AdminWidgetHealthSummary({ data, className = "" }: Admin
       )}
 
       {data.totals.loadsTotal === 0 && (
-        <p className="text-xs text-slate-400 text-center py-4">{t("widgetHealth.noData")}</p>
+        <p className="text-xs text-[#94A3B8] text-center py-4">{t("widgetHealth.noData")}</p>
       )}
     </div>
   );
@@ -135,7 +135,7 @@ function StatusBox({ label, value, color }: { label: string; value: number; colo
   const colors = {
     green: "bg-green-50 text-green-700 border-green-200",
     amber: "bg-amber-50 text-amber-700 border-amber-200",
-    slate: "bg-slate-50 text-slate-600 border-slate-200",
+    slate: "bg-[#FFFBF5] text-[#475569] border-[#F3E8D8]",
   };
   return (
     <div className={`rounded-lg p-3 border ${colors[color]}`}>
@@ -147,9 +147,9 @@ function StatusBox({ label, value, color }: { label: string; value: number; colo
 
 function StatBox({ label, value, alert }: { label: string; value: number; alert?: boolean }) {
   return (
-    <div className="bg-slate-50 rounded-lg p-3">
-      <p className="text-xs text-slate-500 mb-1">{label}</p>
-      <p className={`text-xl font-bold ${alert ? "text-amber-600" : "text-slate-900"}`} suppressHydrationWarning>
+    <div className="bg-[#FFFBF5] rounded-lg p-3">
+      <p className="text-xs text-[#64748B] mb-1">{label}</p>
+      <p className={`text-xl font-bold ${alert ? "text-amber-600" : "text-[#1A1D23]"}`} suppressHydrationWarning>
         {value.toLocaleString()}
       </p>
     </div>

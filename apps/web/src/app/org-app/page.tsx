@@ -173,8 +173,8 @@ export default function OrgPortalPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">{t("common.loading")}</div>
+      <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
+        <div className="text-[#475569]">{t("common.loading")}</div>
       </div>
     );
   }
@@ -182,28 +182,28 @@ export default function OrgPortalPage() {
   return (
     <OrgPortalLayout user={user} onLogout={handleLogout}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">{t("app.conversations")}</h1>
-        <p className="text-sm text-slate-600 mt-1">
+        <h1 className="text-2xl font-bold text-[#1A1D23]">{t("app.conversations")}</h1>
+        <p className="text-sm text-[#475569] mt-1">
           {t("app.conversationsSubtitle")} {user?.orgName}
         </p>
       </div>
 
       <div className="flex gap-6 h-[calc(100vh-12rem)]">
-        <div className="w-96 bg-white rounded-lg border border-slate-200 flex flex-col">
-          <div className="px-6 py-4 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-900 mb-1">
+        <div className="w-96 bg-white rounded-lg border border-[#F3E8D8] flex flex-col">
+          <div className="px-6 py-4 border-b border-[#F3E8D8]">
+            <h2 className="text-lg font-semibold text-[#1A1D23] mb-1">
               {t("app.inbox")} ({conversations.length})
             </h2>
             <button
               onClick={fetchConversations}
               disabled={isLoading}
-              className="text-xs text-slate-600 hover:text-slate-900 disabled:text-slate-400"
+              className="text-xs text-[#475569] hover:text-[#1A1D23] disabled:text-[#94A3B8]"
             >
               {isLoading ? t("common.loading") : `↻ ${t("common.refresh")}`}
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-200">
+          <div className="flex-1 overflow-y-auto divide-y divide-[#F3E8D8]">
             {error && (
               <div className="px-6 py-4 text-sm text-red-600">
                 {error}
@@ -211,14 +211,14 @@ export default function OrgPortalPage() {
             )}
 
             {isLoading && conversations.length === 0 ? (
-              <div className="px-6 py-8 text-center text-sm text-slate-500">
+              <div className="px-6 py-8 text-center text-sm text-[#64748B]">
                 {t("dashboard.loadingConversations")}
               </div>
             ) : conversations.length === 0 ? (
               <div className="px-6 py-12 text-center">
                 <div className="text-4xl mb-3">📭</div>
-                <p className="text-sm font-medium text-slate-700 mb-1">{t("dashboard.noConversationsYet")}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-sm font-medium text-[#334155] mb-1">{t("dashboard.noConversationsYet")}</p>
+                <p className="text-xs text-[#64748B]">
                   {t("dashboard.conversationsHint")}
                 </p>
               </div>
@@ -229,19 +229,19 @@ export default function OrgPortalPage() {
                   onClick={() => selectConversation(conv.id)}
                   className={`px-6 py-4 cursor-pointer transition-colors ${
                     selectedConversationId === conv.id
-                      ? "bg-slate-100"
-                      : "hover:bg-slate-50"
+                      ? "bg-amber-100/80"
+                      : "hover:bg-[#FFFBF5]"
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <code className="text-xs font-mono text-slate-900">
+                    <code className="text-xs font-mono text-[#1A1D23]">
                       {shortId(conv.id)}
                     </code>
-                    <span className="px-1.5 py-0.5 bg-slate-200 rounded text-xs font-medium text-slate-700">
+                    <span className="px-1.5 py-0.5 bg-amber-100 rounded text-xs font-medium text-amber-800">
                       {conv.messageCount}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-500" suppressHydrationWarning>
+                  <div className="text-xs text-[#64748B]" suppressHydrationWarning>
                     {formatDate(conv.updatedAt)}
                   </div>
                 </div>
@@ -250,9 +250,9 @@ export default function OrgPortalPage() {
           </div>
         </div>
 
-        <div className="flex-1 bg-white rounded-lg border border-slate-200 flex flex-col">
+        <div className="flex-1 bg-white rounded-lg border border-[#F3E8D8] flex flex-col">
           {!selectedConversationId ? (
-            <div className="flex-1 flex items-center justify-center text-slate-400">
+            <div className="flex-1 flex items-center justify-center text-[#94A3B8]">
               <div className="text-center">
                 <div className="text-4xl mb-2">💬</div>
                 <p>{t("dashboard.selectConversation")}</p>
@@ -262,12 +262,12 @@ export default function OrgPortalPage() {
             <>
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {isLoadingDetail ? (
-                  <div className="text-center text-slate-500 py-8">
+                  <div className="text-center text-[#64748B] py-8">
                     {t("dashboard.loadingMessages")}
                   </div>
                 ) : conversationDetail ? (
                   conversationDetail.messages.length === 0 ? (
-                    <div className="text-center text-slate-400 py-8">
+                    <div className="text-center text-[#94A3B8] py-8">
                       {t("dashboard.noMessages")}
                     </div>
                   ) : (
@@ -279,12 +279,12 @@ export default function OrgPortalPage() {
                         <div
                           className={`max-w-md px-4 py-2 rounded-lg ${
                             msg.role === "user"
-                              ? "bg-slate-900 text-white"
-                              : "bg-slate-100 text-slate-900"
+                              ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white"
+                              : "bg-amber-50 text-[#1A1D23]"
                           }`}
                         >
                           <div className="text-sm mb-1">{msg.content}</div>
-                          <div className={`text-xs ${msg.role === "user" ? "text-slate-300" : "text-slate-500"}`} suppressHydrationWarning>
+                          <div className={`text-xs ${msg.role === "user" ? "text-amber-100" : "text-[#64748B]"}`} suppressHydrationWarning>
                             {new Date(msg.timestamp).toLocaleTimeString()}
                           </div>
                         </div>
@@ -294,7 +294,7 @@ export default function OrgPortalPage() {
                 ) : null}
               </div>
 
-              <div className="border-t border-slate-200 p-4">
+              <div className="border-t border-[#F3E8D8] p-4">
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -308,17 +308,17 @@ export default function OrgPortalPage() {
                     }}
                     placeholder={t("app.typeReply")}
                     disabled={isSending}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:bg-slate-100"
+                    className="flex-1 px-4 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 disabled:bg-[#F1F5F9]"
                   />
                   <button
                     onClick={sendReply}
                     disabled={isSending || !replyContent.trim()}
-                    className="bg-slate-900 text-white px-6 py-2 rounded-lg hover:bg-slate-700 transition-colors disabled:bg-slate-400"
+                    className="bg-gradient-to-r from-amber-500 to-amber-600 text-white px-6 py-2 rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors disabled:from-amber-300 disabled:to-amber-300"
                   >
                     {isSending ? t("common.sending") : t("common.send")}
                   </button>
                 </div>
-                <div className="mt-2 text-xs text-slate-500">
+                <div className="mt-2 text-xs text-[#64748B]">
                   {t("app.pressEnter")}
                 </div>
               </div>

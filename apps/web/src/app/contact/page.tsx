@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useI18n } from "@/i18n/I18nContext";
 import PublicLayout from "@/components/PublicLayout";
-import PageHeader from "@/components/PageHeader";
+import PageHeader from "@/components/ui/PageHeader";
 import SectionTitle from "@/components/SectionTitle";
-import Card from "@/components/Card";
+import Card from "@/components/ui/Card";
 import { designTokens } from "@/lib/designTokens";
 
 export default function ContactPage() {
@@ -78,14 +78,14 @@ export default function ContactPage() {
         <div className="grid sm:grid-cols-3 gap-6">
           {channels.map((ch, i) => (
             <Card key={i} padding="lg" className="text-center">
-              <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-slate-700 mx-auto mb-4">
+              <div className="w-12 h-12 bg-[#F1F5F9] rounded-lg flex items-center justify-center text-[#334155] mx-auto mb-4">
                 {ch.icon}
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">{ch.title}</h3>
-              <p className="text-sm text-slate-600 mb-4 leading-relaxed">{ch.desc}</p>
-              <p className="text-sm font-medium text-slate-800">
+              <h3 className="text-lg font-semibold text-[#1A1D23] font-heading mb-2">{ch.title}</h3>
+              <p className="text-sm text-[#475569] mb-4 leading-relaxed">{ch.desc}</p>
+              <p className="text-sm font-medium text-[#1E293B]">
                 {t("pubContact.emailLabel")}:{" "}
-                <span className="text-blue-600">{ch.email}</span>
+                <span className="text-amber-600">{ch.email}</span>
               </p>
             </Card>
           ))}
@@ -97,10 +97,10 @@ export default function ContactPage() {
         <div className="grid md:grid-cols-3 gap-6">
           {steps.map((step) => (
             <Card key={step.titleKey} padding="lg">
-              <h3 className="text-lg font-semibold text-slate-900">
+              <h3 className="text-lg font-semibold text-[#1A1D23] font-heading">
                 {t(step.titleKey as Parameters<typeof t>[0])}
               </h3>
-              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+              <p className="text-sm text-[#475569] mt-2 leading-relaxed">
                 {t(step.descKey as Parameters<typeof t>[0])}
               </p>
             </Card>
@@ -113,10 +113,10 @@ export default function ContactPage() {
         <div className="space-y-4">
           {faqs.map((faq) => (
             <Card key={faq.qKey} padding="md" variant="muted">
-              <h3 className="text-sm font-semibold text-slate-900">
+              <h3 className="text-sm font-semibold text-[#1A1D23] font-heading">
                 {t(faq.qKey as Parameters<typeof t>[0])}
               </h3>
-              <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+              <p className="text-sm text-[#475569] mt-1 leading-relaxed">
                 {t(faq.aKey as Parameters<typeof t>[0])}
               </p>
             </Card>
@@ -126,7 +126,7 @@ export default function ContactPage() {
 
       <section className="max-w-4xl mx-auto px-6 pb-14">
         <Card padding="lg" variant="outlined">
-          <h2 className="text-xl font-semibold text-slate-900 mb-6 text-center">
+          <h2 className="text-xl font-semibold text-[#1A1D23] font-heading mb-6 text-center">
             {t("pubContact.formSend")}
           </h2>
           <form
@@ -136,58 +136,58 @@ export default function ContactPage() {
             className="space-y-4"
           >
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-[#334155] mb-1">
                 {t("pubContact.formName")}
               </label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-[#334155] mb-1">
                 {t("pubContact.formEmail")}
               </label>
               <input
                 type="email"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-[#334155] mb-1">
                 {t("pubContact.formSubject")}
               </label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-[#334155] mb-1">
                 {t("pubContact.formMessage")}
               </label>
               <textarea
                 rows={4}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 resize-none"
+                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none"
               />
             </div>
             <button
               type="submit"
-              className="w-full px-4 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors"
+              className="w-full px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-medium rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors"
             >
               {t("pubContact.formSend")}
             </button>
-            <p className="text-xs text-slate-400 text-center">{t("pubContact.formNote")}</p>
+            <p className="text-xs text-[#94A3B8] text-center">{t("pubContact.formNote")}</p>
           </form>
         </Card>
       </section>
 
       <section className="max-w-5xl mx-auto px-6 pb-20">
         <Card padding="lg" variant="outlined" className="text-center">
-          <h2 className="text-2xl font-semibold text-slate-900">
+          <h2 className="text-2xl font-semibold text-[#1A1D23] font-heading">
             {t("pubContact.ctaTitle")}
           </h2>
-          <p className="text-sm text-slate-600 mt-2">
+          <p className="text-sm text-[#475569] mt-2">
             {t("pubContact.ctaSubtitle")}
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6">

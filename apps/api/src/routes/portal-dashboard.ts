@@ -241,7 +241,7 @@ export async function portalDashboardRoutes(fastify: FastifyInstance) {
           totalLoads: org?.widgetLoadsTotal || 0,
           lastSeen: org?.lastWidgetSeenAt?.toISOString() || null,
         },
-        plan: org?.planKey || "FREE",
+        plan: org?.planKey || "free",
       };
     } catch (err) {
       console.error("[Dashboard] Failed to fetch stats:", err);

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { createConversation, sendMessage, requestAiHelp, API_URL, getOrgKey, getOrgToken, Message, loadBootloader, BootloaderConfig, setOrgToken } from "./api";
-import { EMOJI_LIST } from "@helvino/shared";
+import { EMOJI_LIST, bubbleBorderRadius, resolveWidgetBubbleTheme } from "@helvino/shared";
+import { sanitizeHTML, sanitizePlainText } from "./sanitize";
 import "./App.css";
 
 const APP_NAME = "Helvion";
@@ -43,6 +44,13 @@ const UNAUTHORIZED_COPY: Record<string, { title: string; body: string }> = {
 interface AppProps {
   externalIsOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
+}
+
+function sanitizeMessage(message: Message): Message {
+  return {
+    ...message,
+    content: sanitizeHTML(message.content || ""),
+  };
 }
 
 function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
@@ -95,7 +103,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     if (!bootloaderConfig) return;
     const embedWantsBrandOff = (window as any).HELVINO_BRAND_DISABLED === true;
     if (embedWantsBrandOff && brandingRequired) {
-      console.warn("[Helvino] Branding mismatch: embed config requests branding off, but server entitlement requires branding. Enforcing branding.");
+      console.warn("[Helvion] Branding mismatch: embed config requests branding off, but server entitlement requires branding. Enforcing branding.");
     }
   }, [bootloaderConfig, brandingRequired]);
 
@@ -183,6 +191,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
           transports: ["websocket", "polling"],
           auth: {
             orgKey,
+            token: getOrgToken() || undefined,
           },
         });
 
@@ -196,7 +205,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
 
       socketRef.current.on("message:new", (data: { conversationId: string; message: Message }) => {
         if (data.conversationId === conversationIdRef.current) {
-          setMessages((prev) => [...prev, data.message]);
+          setMessages((prev) => [...prev, sanitizeMessage(data.message)]);
           setAgentTyping(false);
           // Response received → cancel AI wait timer and hide button
           if (data.message.role === "assistant") {
@@ -240,7 +249,8 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const handleSend = async () => {
     if (!inputValue.trim() || !conversationId || isLoading) return;
 
-    const userMessage = inputValue.trim();
+    const userMessage = sanitizePlainText(inputValue).trim();
+    if (!userMessage) return;
     console.log("[Widget] handleSend", { conversationId, API_URL, hasToken: !!getOrgToken() });
     setInputValue("");
     setIsLoading(true);
@@ -255,7 +265,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
       setConnectionStatus("refreshing");
       const message = await sendMessage(conversationId, userMessage);
       setConnectionStatus(null);
-      setMessages((prev) => [...prev, message]);
+      setMessages((prev) => [...prev, sanitizeMessage(message)]);
 
       // Start 30s auto-trigger timer: if no response arrives, show AI help button
       // (only if AI is enabled for this org)
@@ -337,13 +347,73 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     return null; // Widget disabled by config
   }
 
-  const primaryColor = bootloaderConfig.config.theme.primaryColor;
+  const primaryColor =
+    bootloaderConfig.config.widgetSettings?.primaryColor ||
+    bootloaderConfig.config.theme.primaryColor;
+  const bubbleTheme = resolveWidgetBubbleTheme(
+    {
+      primaryColor,
+      bubbleShape: bootloaderConfig.config.theme.bubbleShape,
+      bubbleIcon: bootloaderConfig.config.theme.bubbleIcon,
+      bubbleSize: bootloaderConfig.config.theme.bubbleSize,
+      bubblePosition: bootloaderConfig.config.theme.bubblePosition,
+      greetingText: bootloaderConfig.config.theme.greetingText,
+      greetingEnabled: bootloaderConfig.config.theme.greetingEnabled,
+    },
+    {
+      position: bootloaderConfig.config.widgetSettings?.position === "left" ? "left" : "right",
+      launcher: bootloaderConfig.config.widgetSettings?.launcher === "icon" ? "icon" : "bubble",
+      launcherLabel: bootloaderConfig.config.widgetSettings?.greetingText || "",
+    }
+  );
   const writeEnabled = bootloaderConfig.config.writeEnabled;
   const aiEnabled = bootloaderConfig.config.aiEnabled;
   const lang = bootloaderConfig.config.language || "en";
   const poweredBy = POWERED_BY[lang] || POWERED_BY.en;
   const unauthorizedCopy = UNAUTHORIZED_COPY[lang] || UNAUTHORIZED_COPY.en;
   const aiOfflineCopy = AI_OFFLINE_COPY[lang] || AI_OFFLINE_COPY.en;
+  const widgetContext = (window as unknown as { HELVINO_WIDGET_CONTEXT?: string }).HELVINO_WIDGET_CONTEXT;
+  const isLoginContext = widgetContext === "portal-login";
+  const isLeft = isLoginContext ? false : bubbleTheme.bubblePosition === "bottom-left";
+  const shouldShowGreeting = !actualIsOpen && bubbleTheme.greetingEnabled && bubbleTheme.greetingText.trim().length > 0;
+  const launcherRadius = bubbleBorderRadius(bubbleTheme.bubbleShape, bubbleTheme.bubbleSize);
+  const widgetTitle =
+    bootloaderConfig.config.widgetSettings?.brandName?.trim() ||
+    bootloaderConfig.config.branding?.widgetName ||
+    APP_NAME;
+  const widgetSubtitle = bootloaderConfig.config.branding?.widgetSubtitle || "";
+  const welcomeTitle = bootloaderConfig.config.widgetSettings?.welcomeTitle || widgetTitle;
+  const welcomeMessage =
+    bootloaderConfig.config.widgetSettings?.welcomeMessage || "How can we help you today?";
+  const chatInputPlaceholder =
+    bootloaderConfig.config.chatPageConfig?.placeholder || "Type a message...";
+
+  const renderBubbleIcon = () => {
+    if (bubbleTheme.bubbleIcon === "help") {
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.8 9.4a2.3 2.3 0 0 1 4.4.9c0 1.9-2.2 2.1-2.2 3.5" />
+          <circle cx="12" cy="17.1" r="1" fill="#FFF" stroke="none" />
+        </svg>
+      );
+    }
+    if (bubbleTheme.bubbleIcon === "message") {
+      return (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 5h16v10H8l-4 4V5z" />
+        </svg>
+      );
+    }
+    if (bubbleTheme.bubbleIcon === "custom") {
+      return <span style={{ color: "#FFF", fontWeight: 700, fontSize: 17 }}>★</span>;
+    }
+    return (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    );
+  };
 
   /** Reusable branding block */
   const poweredByBlock = brandingRequired ? (
@@ -367,31 +437,51 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
           <div className="widget-unauthorized-title">{unauthorizedCopy.title}</div>
           <div className="widget-unauthorized-body">{unauthorizedCopy.body}</div>
         </div>
-        {poweredByBlock}
       </div>
     );
   }
 
   return (
     <div className="widget-container" style={{ "--primary-color": primaryColor } as React.CSSProperties}>
-      <h1>{APP_NAME} Widget</h1>
-      <p>Embeddable AI Chat Widget</p>
-      
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="widget-button"
-        style={{ backgroundColor: primaryColor }}
-      >
-        {isOpen ? "Close" : "Open"} Chat
-      </button>
-
-      {/* Branding visible even when widget is closed */}
-      {!actualIsOpen && poweredByBlock}
+      {!actualIsOpen && (
+        <div
+          className={`widget-launcher-wrap ${isLeft ? "left" : "right"}`}
+          style={{ bottom: 24 }}
+        >
+          {shouldShowGreeting && (
+            <div className={`widget-greeting-badge ${isLeft ? "left" : "right"}`}>
+              {bubbleTheme.greetingText}
+            </div>
+          )}
+          <button
+            onClick={() => setIsOpen(true)}
+            className="widget-launcher-button"
+            style={{
+              backgroundColor: primaryColor,
+              width: bubbleTheme.bubbleSize,
+              height: bubbleTheme.bubbleSize,
+              borderRadius: launcherRadius,
+              boxShadow: `0 8px 24px ${primaryColor}55, 0 4px 10px ${primaryColor}35`,
+            }}
+            aria-label="Open chat"
+          >
+            {renderBubbleIcon()}
+          </button>
+        </div>
+      )}
 
       {actualIsOpen && (
-        <div className="chat-window">
+        <div className={isLoginContext ? "widget-auth-overlay" : undefined}>
+          <div className={`chat-window ${isLoginContext ? "auth-mode" : isLeft ? "position-left" : "position-right"}`}>
           <div className="chat-header">
-            <h3>{APP_NAME} Assistant</h3>
+            <div>
+              <h3>{widgetTitle}</h3>
+              {widgetSubtitle ? (
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b", fontWeight: 500 }}>
+                  {widgetSubtitle}
+                </p>
+              ) : null}
+            </div>
             <button onClick={() => setIsOpen(false)}>✕</button>
           </div>
           
@@ -406,7 +496,10 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
           <div className="chat-messages">
             {messages.length === 0 ? (
               <div className="welcome-message">
-                <p>👋 Hello! How can I help you today?</p>
+                <p style={{ marginBottom: "6px", fontWeight: 700, color: "#1f2937" }}>
+                  {welcomeTitle}
+                </p>
+                <p>{welcomeMessage}</p>
               </div>
             ) : (
               messages.map((msg) => (
@@ -420,7 +513,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
                       <span>AI</span>
                     </div>
                   )}
-                  <div className="message-content">{msg.content}</div>
+                  <div className="message-content" dangerouslySetInnerHTML={{ __html: msg.content }} />
                   <div className="message-time">
                     {new Date(msg.timestamp).toLocaleTimeString()}
                   </div>
@@ -483,7 +576,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Type a message..."
+                placeholder={chatInputPlaceholder}
                 value={inputValue}
                 onChange={(e) => { setInputValue(e.target.value); emitTyping(); }}
                 onKeyPress={handleKeyPress}
@@ -500,6 +593,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
 
           {/* Branding – server-enforced */}
           {poweredByBlock}
+        </div>
         </div>
       )}
     </div>

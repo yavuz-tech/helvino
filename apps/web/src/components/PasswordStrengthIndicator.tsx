@@ -50,7 +50,7 @@ function evaluatePassword(pw: string) {
 const strengthConfig: Record<Strength, { color: string; bg: string; bars: number }> = {
   weak: { color: "text-red-600", bg: "bg-red-500", bars: 1 },
   fair: { color: "text-amber-600", bg: "bg-amber-500", bars: 2 },
-  good: { color: "text-blue-600", bg: "bg-blue-500", bars: 3 },
+  good: { color: "text-amber-600", bg: "bg-amber-500", bars: 3 },
   strong: { color: "text-emerald-600", bg: "bg-emerald-500", bars: 4 },
 };
 
@@ -70,7 +70,7 @@ export default function PasswordStrengthIndicator({ password }: Props) {
             <div
               key={i}
               className={`h-1.5 flex-1 rounded-full transition-colors duration-200 ${
-                i <= config.bars ? config.bg : "bg-slate-200"
+                i <= config.bars ? config.bg : "bg-amber-100"
               }`}
             />
           ))}
@@ -87,9 +87,9 @@ export default function PasswordStrengthIndicator({ password }: Props) {
             {req.met ? (
               <Check size={12} className="text-emerald-500 shrink-0" />
             ) : (
-              <X size={12} className="text-slate-300 shrink-0" />
+              <X size={12} className="text-amber-400 shrink-0" />
             )}
-            <span className={req.met ? "text-slate-600" : "text-slate-400"}>
+            <span className={req.met ? "text-amber-700" : "text-amber-500"}>
               {t(req.key as Parameters<typeof t>[0])}
             </span>
           </li>

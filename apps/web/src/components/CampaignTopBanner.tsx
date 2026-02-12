@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Sparkles, Ticket } from "lucide-react";
+import { ArrowRight, Gift, X } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { orgApiFetch } from "@/lib/org-auth";
@@ -97,48 +97,44 @@ export default function CampaignTopBanner({ source, variant = "sticky", orgKey }
   if (variant === "inline") {
     return (
       <div
-        className="relative z-[1] mx-4 hidden min-h-[44px] items-center rounded-2xl border px-3 py-2 lg:flex"
+        className="relative z-[1] hidden min-h-[44px] items-center justify-center gap-4 rounded-xl border px-6 py-2.5 lg:flex shadow-[0_2px_8px_rgba(245,158,11,0.15)]"
         style={{
           opacity: visible ? 1 : 0,
           transform: visible ? "translateY(0)" : "translateY(-6px)",
           transition: "all 420ms ease",
-          background: "linear-gradient(135deg, #FEF3E2, #FDE8CC)",
-          borderColor: "#FDB462",
+          background: "linear-gradient(135deg, #F59E0B, #D97706)",
+          borderColor: "rgba(255,255,255,0.18)",
         }}
       >
         <div className="flex items-center gap-3">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-xl shadow-[0_8px_18px_rgba(245,158,11,0.25)]"
-            style={{ background: "linear-gradient(135deg, #FDB462, #F59E0B)" }}
-          >
-            <Sparkles size={14} className="text-white" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 p-1.5">
+            <Gift size={14} className="text-white" />
           </div>
-          <div className="min-w-0">
-            <p className="truncate font-[var(--font-heading)] text-[14px] font-bold text-[#1A1D23]">{headline}</p>
-          </div>
+          <p className="truncate font-[var(--font-heading)] text-sm font-semibold text-white">{headline}</p>
         </div>
 
-        <div
-          className="mx-3 flex items-center gap-2 rounded-xl border px-2.5 py-1.5"
-          style={{
-            background: "rgba(255,255,255,0.65)",
-            borderColor: "rgba(253,180,98,0.8)",
-          }}
-        >
-          <Ticket size={13} className="text-[#F59E0B]" />
-          <span className="font-[var(--font-body)] text-[12px] font-bold tracking-[0.1em] text-[#1A1D23]">
+        <div className="mx-1 flex items-center gap-1 rounded-md bg-white/25 px-3 py-1 text-xs font-bold tracking-[0.5px] text-white">
+          <span aria-hidden="true">🎟</span>
+          <span className="font-[var(--font-body)] tracking-[0.08em]">
             {campaign.code}
           </span>
         </div>
 
         <Link
           href={ctaHref}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-[var(--font-body)] text-[12px] font-semibold text-white transition-all duration-200 hover:brightness-95 hover:shadow-[0_10px_20px_rgba(251,146,60,0.35)]"
-          style={{ background: "linear-gradient(135deg, #FDB462, #F59E0B)" }}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-white px-4 py-1.5 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-50"
         >
           {t("campaigns.banner.cta")}
           <ArrowRight size={13} />
         </Link>
+        <button
+          type="button"
+          onClick={() => setCampaign(null)}
+          className="absolute right-4 inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/20 p-1 text-white transition-colors hover:bg-white/30"
+          aria-label={t("common.close")}
+        >
+          <X size={14} />
+        </button>
       </div>
     );
   }
@@ -146,41 +142,39 @@ export default function CampaignTopBanner({ source, variant = "sticky", orgKey }
   /* ─── STICKY: mobile + public warm premium banner ─── */
   return (
     <div
-      className="w-full border-b shadow-[0_8px_24px_rgba(245,158,11,0.12)]"
+      className="relative w-full border-b px-6 py-2.5 shadow-[0_2px_8px_rgba(245,158,11,0.15)]"
       style={{
         animation: "campaign-fade-in 600ms ease-out",
-        background: "linear-gradient(135deg, #FEF3E2, #FDE8CC)",
-        borderColor: "#FDB462",
+        background: "linear-gradient(135deg, #F59E0B, #D97706)",
+        borderColor: "rgba(180,83,9,0.35)",
       }}
     >
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-6">
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded-xl shadow-[0_8px_18px_rgba(245,158,11,0.25)]"
-          style={{ background: "linear-gradient(135deg, #FDB462, #F59E0B)" }}
-        >
-          <Sparkles size={14} className="text-white" />
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 p-1.5">
+          <Gift size={14} className="text-white" />
         </div>
-        <span className="font-[var(--font-heading)] text-[14px] font-bold text-[#1A1D23]">
+        <span className="font-[var(--font-heading)] text-sm font-semibold text-white">
           {headline}
         </span>
-        <div
-          className="flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1"
-          style={{
-            background: "rgba(255,255,255,0.65)",
-            borderColor: "rgba(253,180,98,0.8)",
-          }}
-        >
-          <Ticket size={13} className="text-[#F59E0B]" />
-          <span className="font-[var(--font-body)] text-[12px] font-bold tracking-[0.1em] text-[#1A1D23]">{campaign.code}</span>
+        <div className="flex shrink-0 items-center gap-1 rounded-md bg-white/25 px-3 py-1 text-xs font-bold tracking-[0.5px] text-white">
+          <span aria-hidden="true">🎟</span>
+          <span className="font-[var(--font-body)] tracking-[0.08em]">{campaign.code}</span>
         </div>
         <Link
           href={ctaHref}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-[var(--font-body)] text-[12px] font-semibold text-white transition-all duration-200 hover:brightness-95 hover:shadow-[0_10px_20px_rgba(251,146,60,0.35)]"
-          style={{ background: "linear-gradient(135deg, #FDB462, #F59E0B)" }}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-white px-4 py-1.5 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-50"
         >
           {t("campaigns.banner.cta")}
           <ArrowRight size={13} />
         </Link>
+        <button
+          type="button"
+          onClick={() => setCampaign(null)}
+          className="absolute right-4 inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/20 p-1 text-white transition-colors hover:bg-white/30"
+          aria-label={t("common.close")}
+        >
+          <X size={14} />
+        </button>
       </div>
       <style jsx>{`
         @keyframes campaign-fade-in {

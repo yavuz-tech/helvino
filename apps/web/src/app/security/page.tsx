@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useI18n } from "@/i18n/I18nContext";
 import PublicLayout from "@/components/PublicLayout";
-import PageHeader from "@/components/PageHeader";
+import PageHeader from "@/components/ui/PageHeader";
 import SectionTitle from "@/components/SectionTitle";
-import Card from "@/components/Card";
+import Card from "@/components/ui/Card";
 import { designTokens } from "@/lib/designTokens";
 
 const ShieldIcon = () => (
@@ -82,11 +82,11 @@ export default function SecurityPage() {
         <div className="grid sm:grid-cols-2 gap-6">
           {sections.map((s, i) => (
             <Card key={i} padding="lg">
-              <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-700 mb-4">
+              <div className="w-10 h-10 bg-[#F1F5F9] rounded-lg flex items-center justify-center text-[#334155] mb-4">
                 {s.icon}
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">{s.title}</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">{s.desc}</p>
+              <h3 className="text-lg font-semibold text-[#1A1D23] font-heading mb-2">{s.title}</h3>
+              <p className="text-sm text-[#475569] leading-relaxed">{s.desc}</p>
             </Card>
           ))}
         </div>
@@ -97,10 +97,10 @@ export default function SecurityPage() {
         <div className="grid md:grid-cols-3 gap-6">
           {steps.map((step) => (
             <Card key={step.titleKey} padding="lg">
-              <h3 className="text-lg font-semibold text-slate-900">
+              <h3 className="text-lg font-semibold text-[#1A1D23] font-heading">
                 {t(step.titleKey as Parameters<typeof t>[0])}
               </h3>
-              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+              <p className="text-sm text-[#475569] mt-2 leading-relaxed">
                 {t(step.descKey as Parameters<typeof t>[0])}
               </p>
             </Card>
@@ -113,10 +113,10 @@ export default function SecurityPage() {
         <div className="space-y-4">
           {faqs.map((faq) => (
             <Card key={faq.qKey} padding="md" variant="muted">
-              <h3 className="text-sm font-semibold text-slate-900">
+              <h3 className="text-sm font-semibold text-[#1A1D23] font-heading">
                 {t(faq.qKey as Parameters<typeof t>[0])}
               </h3>
-              <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+              <p className="text-sm text-[#475569] mt-1 leading-relaxed">
                 {t(faq.aKey as Parameters<typeof t>[0])}
               </p>
             </Card>
@@ -126,10 +126,10 @@ export default function SecurityPage() {
 
       <section className="max-w-5xl mx-auto px-6 pb-20">
         <Card padding="lg" variant="outlined" className="text-center">
-          <h2 className="text-2xl font-semibold text-slate-900">
+          <h2 className="text-2xl font-semibold text-[#1A1D23] font-heading">
             {t("pubSecurity.ctaTitle")}
           </h2>
-          <p className="text-sm text-slate-600 mt-2">
+          <p className="text-sm text-[#475569] mt-2">
             {t("pubSecurity.ctaSubtitle")}
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6">

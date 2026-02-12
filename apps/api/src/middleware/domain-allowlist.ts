@@ -9,7 +9,7 @@
 
 import { FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "../prisma";
-import { isOriginAllowed, extractDomain, isLocalhost } from "../utils/domain-validation";
+import { isOriginAllowed, extractDomain } from "../utils/domain-validation";
 
 /**
  * Domain allowlist middleware
@@ -46,6 +46,39 @@ export function validateDomainAllowlist() {
     if (!org) {
       reply.code(404);
       return reply.send({ error: "Organization not found" });
+    }
+
+    const isProduction = process.env.NODE_ENV === "production";
+    const rawAllowlist = Array.isArray(org.allowedDomains) ? org.allowedDomains : [];
+    const normalizedAllowlist = rawAllowlist
+      .map((entry) => String(entry || "").trim())
+      .filter(Boolean);
+    const hasWildcard = normalizedAllowlist.some((domain) => domain === "*" || domain.includes("*"));
+
+    // Do not allow wildcard patterns in allowlist to avoid accidental allow-all behavior.
+    if (hasWildcard) {
+      request.log.warn(
+        { orgId: org.id, siteId: org.siteId, allowedDomains: org.allowedDomains },
+        "Invalid allowlist configuration: wildcard is not allowed"
+      );
+      reply.code(403);
+      return reply.send({
+        error: "Invalid allowlist configuration",
+        message: "Wildcard domains are not allowed",
+      });
+    }
+
+    // Production safety: an empty allowlist must not allow all origins.
+    if (isProduction && normalizedAllowlist.length === 0) {
+      request.log.warn(
+        { orgId: org.id, siteId: org.siteId },
+        "Empty allowlist in production, rejecting request"
+      );
+      reply.code(403);
+      return reply.send({
+        error: "Domain allowlist is empty",
+        message: "At least one allowed domain is required in production",
+      });
     }
 
     // Get Origin or Referer header (file:// sends Origin: "null" string)
@@ -87,7 +120,7 @@ export function validateDomainAllowlist() {
     }
 
     // Validate origin against allowlist
-    if (!isOriginAllowed(requestOrigin, org.allowedDomains, org.allowLocalhost)) {
+    if (!isOriginAllowed(requestOrigin, normalizedAllowlist, org.allowLocalhost)) {
       const domain = extractDomain(requestOrigin);
 
       request.log.warn(
@@ -95,7 +128,7 @@ export function validateDomainAllowlist() {
           orgId: org.id,
           siteId: org.siteId,
           domain,
-          allowedDomains: org.allowedDomains,
+          allowedDomains: normalizedAllowlist,
           allowLocalhost: org.allowLocalhost,
           origin,
           referer,
@@ -105,6 +138,7 @@ export function validateDomainAllowlist() {
       );
 
       // Widget health: track domain mismatch (fire-and-forget)
+      // SQL-safe: parameterized query
       prisma.$executeRawUnsafe(
         `UPDATE "organizations" SET "widgetDomainMismatchTotal" = "widgetDomainMismatchTotal" + 1 WHERE "id" = $1`,
         org.id

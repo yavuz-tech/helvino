@@ -59,7 +59,7 @@ export default function PasswordStrength({ password, minLength = 8 }: Props) {
     <div className="mt-2.5 space-y-2">
       {/* ── Strength bar ── */}
       <div className="flex items-center gap-2.5">
-        <div className="flex-1 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+        <div className="flex-1 h-1.5 rounded-full bg-amber-100 overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-300 ease-out ${style.bar}`}
             style={{ width: `${pct}%` }}
@@ -77,9 +77,9 @@ export default function PasswordStrength({ password, minLength = 8 }: Props) {
             {req.met ? (
               <Check size={13} strokeWidth={2.5} className="text-emerald-500 shrink-0" />
             ) : (
-              <X size={13} strokeWidth={2.5} className="text-slate-300 shrink-0" />
+              <X size={13} strokeWidth={2.5} className="text-amber-400 shrink-0" />
             )}
-            <span className={req.met ? "text-slate-700" : "text-slate-400"}>
+            <span className={req.met ? "text-amber-800" : "text-amber-500"}>
               {t(req.key)}
             </span>
           </li>

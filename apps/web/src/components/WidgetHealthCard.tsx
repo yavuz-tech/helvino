@@ -43,8 +43,8 @@ export default function WidgetHealthCard({ data, className = "" }: WidgetHealthC
     },
     NOT_CONNECTED: {
       label: t("widgetHealth.statusNotConnected"),
-      color: "bg-slate-100 text-slate-600",
-      dot: "bg-slate-400",
+      color: "bg-amber-50/70 text-amber-700",
+      dot: "bg-amber-400",
     },
   };
 
@@ -64,12 +64,12 @@ export default function WidgetHealthCard({ data, className = "" }: WidgetHealthC
   };
 
   return (
-    <div className={`bg-white rounded-xl border border-slate-200 p-6 ${className}`}>
+    <div className={`bg-white rounded-xl border border-[#F3E8D8] p-6 ${className}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-base font-semibold text-slate-900">{t("widgetHealth.title")}</h3>
-          <p className="text-xs text-slate-500 mt-0.5">{t("widgetHealth.subtitle")}</p>
+          <h3 className="text-base font-semibold text-amber-900">{t("widgetHealth.title")}</h3>
+          <p className="text-xs text-amber-600 mt-0.5">{t("widgetHealth.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${cfg.color}`}>
@@ -103,21 +103,21 @@ export default function WidgetHealthCard({ data, className = "" }: WidgetHealthC
 
       {/* Response time */}
       {(data.responseTime.p50 !== null || data.responseTime.p95 !== null) && (
-        <div className="mt-4 pt-4 border-t border-slate-100">
-          <h4 className="text-xs font-medium text-slate-500 mb-2">{t("widgetHealth.responseTime")}</h4>
+        <div className="mt-4 pt-4 border-t border-amber-100">
+          <h4 className="text-xs font-medium text-amber-600 mb-2">{t("widgetHealth.responseTime")}</h4>
           <div className="flex gap-6">
             {data.responseTime.p50 !== null && (
               <div>
-                <span className="text-lg font-semibold text-slate-900">{data.responseTime.p50}</span>
-                <span className="text-xs text-slate-400 ml-1">{t("widgetHealth.ms")}</span>
-                <p className="text-xs text-slate-500">{t("widgetHealth.p50")}</p>
+                <span className="text-lg font-semibold text-amber-900">{data.responseTime.p50}</span>
+                <span className="text-xs text-amber-500 ml-1">{t("widgetHealth.ms")}</span>
+                <p className="text-xs text-amber-600">{t("widgetHealth.p50")}</p>
               </div>
             )}
             {data.responseTime.p95 !== null && (
               <div>
-                <span className="text-lg font-semibold text-slate-900">{data.responseTime.p95}</span>
-                <span className="text-xs text-slate-400 ml-1">{t("widgetHealth.ms")}</span>
-                <p className="text-xs text-slate-500">{t("widgetHealth.p95")}</p>
+                <span className="text-lg font-semibold text-amber-900">{data.responseTime.p95}</span>
+                <span className="text-xs text-amber-500 ml-1">{t("widgetHealth.ms")}</span>
+                <p className="text-xs text-amber-600">{t("widgetHealth.p95")}</p>
               </div>
             )}
           </div>
@@ -130,8 +130,8 @@ export default function WidgetHealthCard({ data, className = "" }: WidgetHealthC
 function MetricItem({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
   return (
     <div>
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className={`text-lg font-semibold ${alert ? "text-amber-600" : "text-slate-900"}`}>
+      <p className="text-xs text-amber-600">{label}</p>
+      <p className={`text-lg font-semibold ${alert ? "text-amber-600" : "text-amber-900"}`}>
         {value}
       </p>
     </div>

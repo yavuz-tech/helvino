@@ -28,9 +28,9 @@ export default function UpgradeModal({ isOpen, onClose, currentLimit = 100, curr
       name: t("upgrade.starter"),
       price: t("upgrade.starterPrice"),
       messages: t("upgrade.starterMessages"),
-      color: "from-blue-500 to-indigo-600",
-      bgHover: "hover:bg-blue-50",
-      border: "border-blue-200",
+      color: "from-amber-500 to-amber-600",
+      bgHover: "hover:bg-amber-50",
+      border: "border-amber-200",
       highlight: isQuotaReason ? currentPlan === "free" : requiredPlan === "starter",
     },
     {
@@ -63,11 +63,11 @@ export default function UpgradeModal({ isOpen, onClose, currentLimit = 100, curr
       {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">
         {/* Decorative top gradient */}
-        <div className="h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+        <div className="h-1.5 bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500" />
 
         {/* Close button */}
-        <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors z-10">
-          <X size={16} className="text-slate-500" />
+        <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-amber-50 hover:bg-amber-100 flex items-center justify-center transition-colors z-10">
+          <X size={16} className="text-amber-600" />
         </button>
 
         {/* Content */}
@@ -76,20 +76,20 @@ export default function UpgradeModal({ isOpen, onClose, currentLimit = 100, curr
           <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg ${
             isQuotaReason
               ? "bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/20"
-              : "bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20"
+              : "bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-500/20"
           }`}>
             {isQuotaReason ? <Bot size={28} className="text-white" /> : <Zap size={28} className="text-white" />}
           </div>
 
-          <h2 className="text-xl font-extrabold text-slate-900 text-center mb-2">
+          <h2 className="text-xl font-extrabold text-amber-900 text-center mb-2">
             {isQuotaReason ? t("upgrade.title") : t("upgrade.planRequired")}
           </h2>
-          <p className="text-sm text-slate-500 text-center mb-1">
+          <p className="text-sm text-amber-600 text-center mb-1">
             {isQuotaReason
               ? t("upgrade.description").replace("{limit}", String(currentLimit))
               : t("upgrade.planRequiredDesc").replace("{plan}", requiredPlan === "pro" ? "Pro" : "Starter+")}
           </p>
-          <p className="text-sm text-slate-600 text-center font-medium mb-6">
+          <p className="text-sm text-amber-700 text-center font-medium mb-6">
             {isQuotaReason ? t("upgrade.continue") : t("upgrade.unlockFeatures")}
           </p>
 
@@ -100,33 +100,33 @@ export default function UpgradeModal({ isOpen, onClose, currentLimit = 100, curr
                 key={plan.key}
                 href="/portal/billing"
                 onClick={onClose}
-                className={`flex items-center gap-4 p-4 rounded-xl border ${plan.border} ${plan.bgHover} transition-all ${plan.highlight ? "ring-2 ring-blue-400 ring-offset-1" : ""}`}
+                className={`flex items-center gap-4 p-4 rounded-xl border ${plan.border} ${plan.bgHover} transition-all ${plan.highlight ? "ring-2 ring-amber-400 ring-offset-1" : ""}`}
               >
                 <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${plan.color} flex items-center justify-center flex-shrink-0`}>
                   {plan.key === "enterprise" ? <Crown size={18} className="text-white" /> : <Zap size={18} className="text-white" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-bold text-slate-900">{plan.name}</p>
+                    <p className="text-sm font-bold text-amber-900">{plan.name}</p>
                     {plan.highlight && (
-                      <span className="text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                      <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
                         <Sparkles size={8} className="inline mr-0.5" />
                         Recommended
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500">{plan.messages}</p>
+                  <p className="text-xs text-amber-600">{plan.messages}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-extrabold text-slate-900">{plan.price}</p>
+                  <p className="text-sm font-extrabold text-amber-900">{plan.price}</p>
                 </div>
-                <ArrowRight size={14} className="text-slate-400 flex-shrink-0" />
+                <ArrowRight size={14} className="text-amber-500 flex-shrink-0" />
               </Link>
             ))}
           </div>
 
           {/* Maybe Later */}
-          <button onClick={onClose} className="w-full mt-4 text-sm text-slate-500 hover:text-slate-700 font-medium py-2 text-center transition-colors">
+          <button onClick={onClose} className="w-full mt-4 text-sm text-amber-600 hover:text-amber-800 font-medium py-2 text-center transition-colors">
             {t("upgrade.maybeLater")}
           </button>
         </div>

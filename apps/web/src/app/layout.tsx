@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
@@ -63,15 +64,28 @@ const CHUNK_LOAD_ERROR_RECOVERY = `
     }
     if (!value || typeof value !== 'object') return false;
     if (value instanceof Event) return true;
+    try {
+      if (typeof value.toString === 'function') {
+        var asString = value.toString();
+        if (asString === '[object Event]' || asString === '[object Object]') return true;
+      }
+    } catch (_) {}
     var msg = typeof value.message === 'string' ? value.message.trim() : '';
     if (msg) return false;
     return typeof value.type === 'string';
   }
 
+  function swallowGenericEvent(e) {
+    if (!e) return false;
+    if (typeof e.preventDefault === 'function') e.preventDefault();
+    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+    if (typeof e.stopPropagation === 'function') e.stopPropagation();
+    return true;
+  }
+
   window.addEventListener('error', function(e) {
     if (isGenericEventReason(e.error) || isGenericEventReason(e.message)) {
-      e.preventDefault();
-      return;
+      return swallowGenericEvent(e);
     }
     if (e.message && (e.message.indexOf('ChunkLoadError') !== -1 || e.message.indexOf('Loading chunk') !== -1)) {
       var key = 'helvino_chunk_retry_' + (location.pathname || '/');
@@ -81,11 +95,10 @@ const CHUNK_LOAD_ERROR_RECOVERY = `
         window.location.reload();
       }
     }
-  });
+  }, true);
   window.addEventListener('unhandledrejection', function(e) {
     if (isGenericEventReason(e.reason)) {
-      e.preventDefault();
-      return;
+      return swallowGenericEvent(e);
     }
     var msg = (e.reason && (e.reason.message || String(e.reason))) || '';
     if (msg.indexOf('ChunkLoadError') !== -1 || msg.indexOf('Loading chunk') !== -1) {
@@ -97,7 +110,22 @@ const CHUNK_LOAD_ERROR_RECOVERY = `
         window.location.reload();
       }
     }
-  });
+  }, true);
+
+  window.onerror = function(message, source, lineno, colno, error) {
+    if (isGenericEventReason(error) || isGenericEventReason(message)) {
+      return true;
+    }
+    return false;
+  };
+
+  window.onunhandledrejection = function(e) {
+    if (e && isGenericEventReason(e.reason)) {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      return true;
+    }
+    return false;
+  };
 })();
 `;
 
@@ -112,7 +140,9 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased`} suppressHydrationWarning={true}>
         <script dangerouslySetInnerHTML={{ __html: I18N_BLOCKING_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: CHUNK_LOAD_ERROR_RECOVERY }} />
-        <Providers>{children}</Providers>
+        <ErrorBoundary>
+          <Providers>{children}</Providers>
+        </ErrorBoundary>
       </body>
     </html>
   );

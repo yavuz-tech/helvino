@@ -11,8 +11,9 @@ import { prisma } from "../prisma";
 import { verifyPassword } from "../utils/password";
 import { writeAuditLog } from "../utils/audit-log";
 import { validateJsonContentType } from "../middleware/validation";
-import { verifyHCaptchaToken } from "../utils/verify-captcha";
+import { verifyTurnstileToken } from "../utils/verify-captcha";
 import { getRealIP } from "../utils/get-real-ip";
+import { rateLimit } from "../middleware/rate-limiter";
 import { isAdminMfaRequired } from "../utils/device";
 import { upsertDevice } from "../utils/device";
 import {
@@ -33,6 +34,12 @@ interface LoginBody {
 }
 
 export async function authRoutes(fastify: FastifyInstance) {
+  const adminLoginRateLimit = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    maxRequests: 3,
+    message: "Too many admin login attempts",
+  });
+
   /**
    * POST /internal/auth/login
    * 
@@ -58,9 +65,13 @@ export async function authRoutes(fastify: FastifyInstance) {
     Body: LoginBody;
   }>("/internal/auth/login", {
     preHandler: [
+      adminLoginRateLimit,
       adminRateLimitMiddleware,
       validateJsonContentType,
     ],
+    config: {
+      skipGlobalRateLimit: true,
+    },
   }, async (request, reply) => {
     const { email, password, captchaToken, fingerprint, deviceId, deviceName } = request.body;
     const normalizedEmail = (email || "").toLowerCase().trim();
@@ -126,7 +137,7 @@ export async function authRoutes(fastify: FastifyInstance) {
           },
         });
       }
-      const captchaOk = await verifyHCaptchaToken(captchaToken.trim(), requestIp);
+      const captchaOk = await verifyTurnstileToken(captchaToken.trim(), requestIp);
       if (!captchaOk) {
         return reply.status(400).send({
           error: {

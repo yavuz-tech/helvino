@@ -88,7 +88,7 @@ export function computePercentile(
  * Build the SQL to atomically increment a histogram bucket and totalCount.
  *
  * Uses JSONB manipulation to update a single bucket count in-place.
- * Returns the raw SQL string + params for $executeRawUnsafe.
+ * Returns SQL + bound params for $executeRawUnsafe using placeholders ($1/$2).
  */
 export function buildHistogramUpdateSql(
   orgId: string,

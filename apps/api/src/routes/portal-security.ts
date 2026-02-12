@@ -7,7 +7,12 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import crypto from "crypto";
 import { prisma } from "../prisma";
-import { hashPassword, verifyPassword } from "../utils/password";
+import {
+  hashPassword,
+  verifyPassword,
+  validatePasswordStrength,
+  PASSWORD_STRENGTH_ERROR_MESSAGE,
+} from "../utils/password";
 import { writeAuditLog } from "../utils/audit-log";
 import { sendEmailAsync, getDefaultFromAddress } from "../utils/mailer";
 import { generateResetLink, verifySignedLink } from "../utils/signed-links";
@@ -18,6 +23,7 @@ import {
   getPasswordChangedEmail,
 } from "../utils/email-templates";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { rateLimit } from "../middleware/rate-limiter";
 import { validateJsonContentType } from "../middleware/validation";
 import {
   requirePortalUser,
@@ -30,9 +36,10 @@ import {
   PORTAL_SESSION_TTL_MS,
   PORTAL_REFRESH_TOKEN_TTL_MS,
 } from "../utils/portal-session";
-import { validatePasswordPolicy } from "../utils/password-policy";
-import { verifyHCaptchaToken } from "../utils/verify-captcha";
+import { verifyTurnstileToken } from "../utils/verify-captcha";
 import { getRealIP } from "../utils/get-real-ip";
+import { validateBody } from "../utils/validate";
+import { forgotPasswordSchema, resetPasswordSchema } from "../utils/schemas";
 
 // ── Helpers ──
 
@@ -62,6 +69,17 @@ function isAllowedOrigin(origin: string | undefined): boolean {
 }
 
 export async function portalSecurityRoutes(fastify: FastifyInstance) {
+  const forgotPasswordRateLimit = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    maxRequests: 3,
+    message: "Too many forgot-password attempts",
+  });
+  const resetPasswordRateLimit = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    maxRequests: 5,
+    message: "Too many reset-password attempts",
+  });
+
   // ──────────────────────────────────────────────────────
   // POST /portal/auth/forgot-password
   // ──────────────────────────────────────────────────────
@@ -69,8 +87,12 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
     "/portal/auth/forgot-password",
     {
       preHandler: [
+        forgotPasswordRateLimit,
         validateJsonContentType,
       ],
+      config: {
+        skipGlobalRateLimit: true,
+      },
     },
     async (request, reply) => {
       const origin = request.headers.origin as string | undefined;
@@ -80,8 +102,10 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
       }
 
       const startedAt = Date.now();
-      const body = request.body as { email?: string; locale?: string; captchaToken?: string };
-      const email = body.email?.toLowerCase().trim();
+      const body = validateBody(forgotPasswordSchema, request.body, reply);
+      if (!body) return;
+
+      const email = body.email.toLowerCase().trim();
       const cookieLang = extractLocaleCookie(request.headers.cookie as string);
       const ipAddress = getRealIP(request);
       const userAgent = (request.headers["user-agent"] as string | undefined)?.substring(0, 256) ?? null;
@@ -96,18 +120,6 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
         }
         return payload;
       };
-
-      if (!email || !email.includes("@")) {
-        await prisma.passwordResetAttempt.create({
-          data: {
-            email: email || "invalid-email",
-            ipAddress,
-            userAgent,
-            success: false,
-          },
-        });
-        return completeWithMinDelay(genericResponse);
-      }
 
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -164,7 +176,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
           };
         }
 
-        const captchaOk = await verifyHCaptchaToken(body.captchaToken, ipAddress);
+        const captchaOk = await verifyTurnstileToken(body.captchaToken, ipAddress);
         if (!captchaOk) {
           await prisma.passwordResetAttempt.create({
             data: {
@@ -324,9 +336,12 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
     "/portal/auth/reset-password",
     {
       preHandler: [
-        createRateLimitMiddleware({ limit: 5, windowMs: 60000 }),
+        resetPasswordRateLimit,
         validateJsonContentType,
       ],
+      config: {
+        skipGlobalRateLimit: true,
+      },
     },
     async (request, reply) => {
       const origin = request.headers.origin as string | undefined;
@@ -335,17 +350,13 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
         return { error: "Forbidden: Invalid origin" };
       }
 
-      const body = request.body as { token?: string; newPassword?: string; expires?: string; sig?: string };
+      const body = validateBody(resetPasswordSchema, request.body, reply);
+      if (!body) return;
 
-      if (!body.token || !body.newPassword) {
-        reply.code(400);
-        return { error: "Token and newPassword are required" };
-      }
-
-      const pwCheck = validatePasswordPolicy(body.newPassword);
+      const pwCheck = validatePasswordStrength(body.newPassword);
       if (!pwCheck.valid) {
         reply.code(400);
-        return { error: { code: pwCheck.code, message: pwCheck.message, requestId: request.requestId } };
+        return { error: PASSWORD_STRENGTH_ERROR_MESSAGE };
       }
 
       // When expires + sig are provided, verify signed link (prevents tampered URLs)
@@ -513,10 +524,10 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
       return { error: "Current password and new password are required" };
     }
 
-    const pwCheck = validatePasswordPolicy(body.newPassword);
+    const pwCheck = validatePasswordStrength(body.newPassword);
     if (!pwCheck.valid) {
       reply.code(400);
-      return { error: { code: pwCheck.code, message: pwCheck.message, requestId: request.requestId } };
+      return { error: PASSWORD_STRENGTH_ERROR_MESSAGE };
     }
 
     const user = await prisma.orgUser.findUnique({

@@ -84,7 +84,7 @@ export default function LanguageSwitcher() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex h-10 items-center gap-1.5 rounded-xl border border-black/[0.06] bg-black/[0.03] px-3.5 text-sm font-semibold text-[#1A1D23] transition-all hover:bg-black/[0.06] hover:border-black/[0.1] focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-1"
+        className="flex h-10 items-center gap-1.5 rounded-xl border border-[#F3E8D8] bg-[#FFFBF5]/50 px-3.5 text-sm font-semibold text-[#1A1D23] transition-all hover:bg-amber-50/70 hover:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:ring-offset-1"
         aria-label="Change language"
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -104,7 +104,7 @@ export default function LanguageSwitcher() {
         <div
           role="listbox"
           aria-label="Select language"
-          className="absolute right-0 top-full mt-1.5 w-44 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 animate-in fade-in slide-in-from-top-1 duration-150"
+          className="absolute right-0 top-full mt-1.5 w-44 bg-white border border-[#F3E8D8] rounded-lg shadow-lg z-50 py-1 animate-in fade-in slide-in-from-top-1 duration-150"
         >
           {LOCALES.map((loc) => {
             const meta = LOCALE_META[loc];
@@ -122,14 +122,14 @@ export default function LanguageSwitcher() {
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
                   isActive
-                    ? "bg-slate-50 text-slate-900 font-medium"
-                    : "text-slate-700 hover:bg-slate-50"
+                    ? "bg-amber-50 text-amber-900 font-medium"
+                    : "text-amber-800 hover:bg-[#FFFBF5]"
                 }`}
               >
                 <Flag />
                 <span className="flex-1 text-left">{meta.nativeName}</span>
                 {isActive && (
-                  <div className="w-1.5 h-1.5 bg-slate-900 rounded-full" />
+                  <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
                 )}
               </button>
             );

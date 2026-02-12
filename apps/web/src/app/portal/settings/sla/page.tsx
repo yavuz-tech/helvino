@@ -57,12 +57,17 @@ export default function PortalSettingsSlaPage() {
     );
 
   return (
-    <div className={p.sectionGap}>
+    <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
       <PageHeader
         title={t("settingsPortal.sla")}
         subtitle={t("settingsPortal.slaSubtitle")}
         action={
-          <button onClick={save} disabled={saving} className={p.btnPrimary}>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 rounded-[10px] px-4 py-2.5 text-[12px] font-semibold text-white transition-all hover:scale-[1.02] disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+          >
             <Save size={13} />
             {saving ? t("common.saving") : t("portal.saveSettings")}
           </button>
@@ -75,7 +80,7 @@ export default function PortalSettingsSlaPage() {
         <StatCard label={t("settingsPortal.resolutionMinutes")} value={`${policy.resolutionMinutes} ${t("common.min")}`} icon={Target} color="indigo" />
       </div>
 
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
         <div className="mb-4 flex items-center gap-2.5">
           <div className={`${p.iconSm} ${p.iconAmber}`}><ShieldCheck size={13} /></div>
           <h2 className={p.h2}>{t("settingsPortal.sla")}</h2>

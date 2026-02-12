@@ -26,7 +26,7 @@ async function main() {
       writeEnabled: true,
       aiEnabled: true,
       primaryColor: "#0F5C5C",
-      widgetName: "Helvino",
+      widgetName: "Helvion",
       widgetSubtitle: "Smart AI Chat",
       language: "en",
       messageRetentionDays: 365,
@@ -56,7 +56,7 @@ async function main() {
       writeEnabled: true,
       aiEnabled: true,
       primaryColor: "#0F5C5C",
-      widgetName: "Helvino",
+      widgetName: "Helvion",
       widgetSubtitle: "Smart AI Chat",
       language: "en",
       messageRetentionDays: 365,
@@ -128,7 +128,7 @@ async function main() {
 
   // Create default admin user from environment variables
   const adminEmail = process.env.ADMIN_EMAIL || "admin@helvion.io";
-  const adminPassword = process.env.ADMIN_PASSWORD || "helvino_admin_2026";
+  const adminPassword = process.env.ADMIN_PASSWORD || "helvion_admin_2026";
 
   if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) {
     console.warn("⚠️  ADMIN_EMAIL and/or ADMIN_PASSWORD not set in .env");

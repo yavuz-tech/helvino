@@ -29,16 +29,32 @@ const EN_DEFAULTS = {
 };
 
 export default function PortalSettingsChatPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [config, setConfig] = useState<ChatPageConfig | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const normalizeEnglishDefaults = (cfg: ChatPageConfig): ChatPageConfig => {
+    if (locale === "en") return cfg;
+    return {
+      ...cfg,
+      title: cfg.title === EN_DEFAULTS.title ? t("settingsPortal.chatTitleDefault") : cfg.title,
+      subtitle:
+        cfg.subtitle === EN_DEFAULTS.subtitle
+          ? t("settingsPortal.chatSubtitleDefault")
+          : cfg.subtitle,
+      placeholder:
+        cfg.placeholder === EN_DEFAULTS.placeholder
+          ? t("settingsPortal.chatPlaceholderDefault")
+          : cfg.placeholder,
+    };
+  };
 
   useEffect(() => {
     portalApiFetch("/portal/settings/chat-page")
       .then((r) => r.json())
-      .then((data) => setConfig(data.config))
+      .then((data) => setConfig(normalizeEnglishDefaults(data.config)))
       .catch(() => {});
-  }, []);
+  }, [locale, t]);
 
   const save = async () => {
     if (!config) return;
@@ -86,7 +102,7 @@ export default function PortalSettingsChatPage() {
     );
 
   return (
-    <div className={p.sectionGap}>
+    <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
       <PageHeader
         title={t("settingsPortal.chatPage")}
         subtitle={t("settingsPortal.chatPageSubtitle")}
@@ -96,7 +112,12 @@ export default function PortalSettingsChatPage() {
               <RotateCcw size={12} />
               {t("settingsPortal.resetToLocaleDefaults")}
             </button>
-            <button onClick={save} disabled={saving} className={p.btnPrimary}>
+            <button
+              onClick={save}
+              disabled={saving}
+              className="inline-flex items-center gap-1.5 rounded-[10px] px-4 py-2.5 text-[12px] font-semibold text-white transition-all hover:scale-[1.02] disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+            >
               <Save size={13} />
               {saving ? t("common.saving") : t("portal.saveSettings")}
             </button>
@@ -129,7 +150,7 @@ export default function PortalSettingsChatPage() {
         <StatCard label={t("settingsPortal.showOperatingHours")} value={config.showOperatingHours ? t("common.yes") : t("common.no")} icon={Clock3} color="emerald" />
       </div>
 
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
         <div className="mb-4 flex items-center gap-2.5">
           <div className={`${p.iconSm} ${p.iconBlue}`}><MessageSquare size={13} /></div>
           <h2 className={p.h2}>{t("settingsPortal.chatPage")}</h2>
@@ -158,7 +179,7 @@ export default function PortalSettingsChatPage() {
         </div>
       </Card>
 
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
         <div className="mb-4 flex items-center gap-2.5">
           <div className={`${p.iconSm} ${p.iconViolet}`}><Users size={13} /></div>
           <h2 className={p.h2}>{t("settingsPortal.general")}</h2>

@@ -63,7 +63,7 @@ export default function PortalSettingsMacrosPage() {
   const enabledCount = items.filter((m) => m.enabled).length;
 
   return (
-    <div className={p.sectionGap}>
+    <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
       <PageHeader title={t("settingsPortal.macros")} subtitle={t("settingsPortal.macrosSubtitle")} />
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -72,7 +72,7 @@ export default function PortalSettingsMacrosPage() {
         <StatCard label={t("common.disabled")} value={String(items.length - enabledCount)} icon={FileText} color="slate" />
       </div>
 
-      <Card>
+      <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
         <div className="mb-4 flex items-center gap-2.5">
           <div className={`${p.iconSm} ${p.iconIndigo}`}><Plus size={13} /></div>
           <h2 className={p.h2}>{t("settingsPortal.addMacro")}</h2>
@@ -80,14 +80,21 @@ export default function PortalSettingsMacrosPage() {
         <div className="space-y-3">
           <InputField label={t("settingsPortal.macroTitle")} value={title} onChange={setTitle} placeholder={t("settingsPortal.macroTitle")} />
           <TextareaField label={t("settingsPortal.macroContent")} value={content} onChange={setContent} placeholder={t("settingsPortal.macroContent")} />
-          <button onClick={create} className={p.btnPrimary}><Plus size={13} />{t("settingsPortal.addMacro")}</button>
+          <button
+            onClick={create}
+            className="inline-flex items-center gap-1.5 rounded-[10px] border px-4 py-2 text-[12px] font-semibold transition-all"
+            style={{ borderColor: "#F59E0B", color: "#D97706", background: "#FFFBEB" }}
+          >
+            <Plus size={13} />
+            ➕ {t("settingsPortal.addMacro")}
+          </button>
         </div>
       </Card>
 
-      {items.length > 0 && (
+      {items.length > 0 ? (
         <div className="space-y-2">
           {items.map((item) => (
-            <Card key={item.id}>
+            <Card key={item.id} className="border-[#F3E8D8] hover:border-[#E8D5BC]">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-2.5 min-w-0 flex-1">
                   <div className={`${p.iconSm} ${item.enabled ? p.iconIndigo : p.iconSlate} mt-0.5`}><FileText size={13} /></div>
@@ -104,6 +111,11 @@ export default function PortalSettingsMacrosPage() {
             </Card>
           ))}
         </div>
+      ) : (
+        <Card className="border-[#F3E8D8] text-center">
+          <p style={{ fontSize: 34, marginBottom: 8 }}>⌨️</p>
+          <p className="text-sm font-semibold text-slate-800">{t("settings.macros.empty")}</p>
+        </Card>
       )}
     </div>
   );

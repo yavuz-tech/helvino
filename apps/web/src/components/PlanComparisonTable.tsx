@@ -123,8 +123,8 @@ export default function PlanComparisonTable({
             onClick={() => setBillingCycle("monthly")}
             className={`px-5 py-2.5 text-sm font-semibold rounded-full transition-all duration-150 ${
               billingCycle === "monthly"
-                ? "bg-[#1A1A2E] text-white shadow-lg"
-                : "bg-white text-slate-600 border-2 border-slate-200 hover:border-slate-300"
+                ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg"
+                : "bg-white text-amber-700 border-2 border-[#F3E8D8] hover:border-amber-300"
             }`}
           >
             {t("pricing.monthly")}
@@ -133,8 +133,8 @@ export default function PlanComparisonTable({
             onClick={() => setBillingCycle("yearly")}
             className={`px-5 py-2.5 text-sm font-semibold rounded-full transition-all duration-150 ${
               billingCycle === "yearly"
-                ? "bg-[#1A1A2E] text-white shadow-lg"
-                : "bg-white text-slate-600 border-2 border-slate-200 hover:border-slate-300"
+                ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg"
+                : "bg-white text-amber-700 border-2 border-[#F3E8D8] hover:border-amber-300"
             }`}
           >
             {t("pricing.yearly")}
@@ -167,12 +167,12 @@ export default function PlanComparisonTable({
               key={plan.key}
               className={`relative rounded-3xl border-2 p-10 flex flex-col min-h-[560px] transition-all duration-150 ${
                 popular
-                  ? "border-slate-900 shadow-2xl scale-[1.03] bg-white"
+                  ? "border-amber-500 shadow-2xl scale-[1.03] bg-white"
                   : isCurrent
                     ? "border-emerald-400 bg-emerald-50/40 shadow-lg"
                     : isRecommended
-                      ? "border-blue-400 bg-blue-50/40 shadow-lg"
-                      : "border-slate-200 hover:border-slate-300 hover:shadow-xl"
+                      ? "border-amber-400 bg-amber-50/40 shadow-lg"
+                      : "border-[#F3E8D8] hover:border-amber-300 hover:shadow-xl"
               }`}
             >
               {/* Popular badge */}
@@ -202,7 +202,7 @@ export default function PlanComparisonTable({
               {/* Recommended plan badge */}
               {isRecommended && !popular && (
               <div className="absolute -top-5 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-full shadow-xl">
+                  <span className="inline-flex items-center gap-1.5 px-5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-bold rounded-full shadow-xl">
                     {t("pricing.recommended")}
                   </span>
                 </div>
@@ -210,34 +210,34 @@ export default function PlanComparisonTable({
 
               {/* Plan header */}
               <div className="text-center mb-10 pt-2">
-                <h3 className="text-2xl font-semibold text-slate-900 mb-5">
+                <h3 className="text-2xl font-semibold text-amber-900 mb-5">
                   {translatePlanName(plan.key, plan.name)}
                 </h3>
                 <div className="mt-2">
                   {displayPrice > 0 ? (
                     <div>
                       <div className="flex items-baseline justify-center gap-1">
-                        <span className="text-6xl font-semibold text-slate-900">
+                        <span className="text-6xl font-semibold text-amber-900">
                           {formatUsd(displayPrice, { decimals: 0 })}
                         </span>
-                        <span className="text-slate-500 text-base font-semibold">
+                        <span className="text-amber-600 text-base font-semibold">
                           {billingCycle === "yearly"
                             ? t("pricing.perMonth")
                             : t("pricing.perMonth")}
                         </span>
                       </div>
                       {billingCycle === "yearly" && (
-                        <p className="text-sm text-slate-500 mt-2 font-medium">
+                        <p className="text-sm text-amber-600 mt-2 font-medium">
                           ${displayPrice * 12} {t("pricing.perYear")}
                         </p>
                       )}
                     </div>
                   ) : (
                     <div>
-                      <span className="text-6xl font-semibold text-slate-900">
+                      <span className="text-6xl font-semibold text-amber-900">
                         {t("billing.free")}
                       </span>
-                      <p className="text-sm text-slate-500 mt-2 font-medium">
+                      <p className="text-sm text-amber-600 mt-2 font-medium">
                         {t("billing.freeForever")}
                       </p>
                     </div>
@@ -254,7 +254,7 @@ export default function PlanComparisonTable({
                 ) : mode === "public" && plan.key === "free" ? (
                   <Link
                     href="/portal/login?reauth=1"
-                    className="block w-full px-6 py-3.5 text-center text-base font-semibold bg-slate-100 text-slate-700 rounded-2xl hover:bg-slate-200 transition-all duration-150"
+                    className="block w-full px-6 py-3.5 text-center text-base font-semibold bg-amber-50 text-amber-800 rounded-2xl hover:bg-amber-100 transition-all duration-150"
                   >
                     {t("pricing.startFree")}
                   </Link>
@@ -265,7 +265,7 @@ export default function PlanComparisonTable({
                     className={`w-full px-6 py-3.5 text-base font-semibold rounded-2xl transition-all duration-150 disabled:opacity-50 ${
                       popular
                         ? "bg-[#1A1A2E] text-white hover:bg-[#15152A] shadow-xl hover:shadow-2xl"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        : "bg-amber-50 text-amber-800 hover:bg-amber-100"
                     }`}
                   >
                     {upgradeLoading === plan.key
@@ -278,7 +278,7 @@ export default function PlanComparisonTable({
                     className={`block w-full px-6 py-3.5 text-center text-base font-semibold rounded-2xl transition-all duration-150 ${
                       popular
                         ? "bg-[#1A1A2E] text-white hover:bg-[#15152A] shadow-xl hover:shadow-2xl"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        : "bg-amber-50 text-amber-800 hover:bg-amber-100"
                     }`}
                   >
                     {t("pricing.upgrade")}
@@ -287,8 +287,8 @@ export default function PlanComparisonTable({
               </div>
 
               {/* Feature list */}
-              <div className="flex-1 border-t border-slate-200 pt-6">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">
+              <div className="flex-1 border-t border-[#F3E8D8] pt-6">
+                <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-4">
                   {t("pricing.features")}
                 </p>
                 <ul className="space-y-3">
@@ -326,7 +326,7 @@ export default function PlanComparisonTable({
                           </svg>
                         ) : (
                           <svg
-                            className="w-5 h-5 text-slate-300 mt-0.5 shrink-0"
+                            className="w-5 h-5 text-amber-400 mt-0.5 shrink-0"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -341,7 +341,7 @@ export default function PlanComparisonTable({
                         )}
                         <span
                           className={
-                            isIncluded ? "text-slate-700 font-medium" : "text-slate-400"
+                            isIncluded ? "text-amber-800 font-medium" : "text-amber-500"
                           }
                         >
                           {typeof value === "string" && value !== "true" && value !== "false"
@@ -360,7 +360,7 @@ export default function PlanComparisonTable({
 
       {/* Trust badges footer */}
       <div className="mt-8 text-center">
-        <p className="text-xs text-slate-500 mb-3">
+        <p className="text-xs text-amber-600 mb-3">
           {t("pricing.trustBadges")}
         </p>
         <div className="flex justify-center">

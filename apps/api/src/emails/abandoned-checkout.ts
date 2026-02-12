@@ -16,13 +16,13 @@ export function renderAbandonedCheckoutEmail(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Helvino planiniz sizi bekliyor!</title>
+  <title>Helvion planiniz sizi bekliyor!</title>
 </head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 12px;background:#f8fafc;">
     <tr><td align="center">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-        <tr><td style="padding:24px 28px;background:#0F5C5C;color:#fff;font-size:24px;font-weight:700;">Helvino</td></tr>
+        <tr><td style="padding:24px 28px;background:#0F5C5C;color:#fff;font-size:24px;font-weight:700;">Helvion</td></tr>
         <tr><td style="padding:30px 28px;color:#111827;">
           <p style="margin:0 0 12px 0;font-size:16px;">Merhaba ${name},</p>
           <p style="margin:0 0 18px 0;font-size:22px;line-height:1.35;font-weight:700;">Tam bir adim kalmisti! 🚀</p>
