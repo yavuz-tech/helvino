@@ -5,8 +5,10 @@
  * host header injection / cache poisoning / password reset poisoning.
  *
  * Config:
- *   TRUSTED_HOSTS  — comma-separated list of trusted host values
- *   APP_PUBLIC_URL — canonical public URL (its host is auto-trusted)
+ *   TRUSTED_HOSTS          — comma-separated list of trusted host values
+ *   APP_PUBLIC_URL          — frontend public URL (its host is auto-trusted)
+ *   API_URL                 — API's own public URL (auto-trusted)
+ *   RAILWAY_PUBLIC_DOMAIN   — auto-provided by Railway (auto-trusted)
  *
  * In development (NODE_ENV !== production):
  *   localhost, localhost:PORT, and 127.0.0.1:PORT are auto-trusted.
@@ -34,7 +36,7 @@ function buildTrustedHosts(): Set<string> {
     });
   }
 
-  // 2. From APP_PUBLIC_URL / NEXT_PUBLIC_WEB_URL (extract host)
+  // 2. From APP_PUBLIC_URL / NEXT_PUBLIC_WEB_URL (extract host — frontend)
   const publicUrl = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL;
   if (publicUrl) {
     try {
@@ -43,7 +45,22 @@ function buildTrustedHosts(): Set<string> {
     } catch { /* invalid URL, skip */ }
   }
 
-  // 3. Dev defaults: always trust localhost variants
+  // 3. From API_URL (the API's own public URL — may differ from frontend)
+  const apiUrl = process.env.API_URL;
+  if (apiUrl) {
+    try {
+      const url = new URL(apiUrl);
+      hosts.add(url.host.toLowerCase());
+    } catch { /* invalid URL, skip */ }
+  }
+
+  // 4. Railway auto-provides RAILWAY_PUBLIC_DOMAIN (e.g. "myapp-production.up.railway.app")
+  const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
+  if (railwayDomain) {
+    hosts.add(railwayDomain.toLowerCase());
+  }
+
+  // 5. Dev defaults: always trust localhost variants
   if (!isProduction) {
     const port = process.env.PORT || "4000";
     hosts.add("localhost");
