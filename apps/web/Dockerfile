@@ -45,9 +45,7 @@ RUN cp apps/widget/dist/embed.js apps/web/public/embed.js
 ENV NEXT_PUBLIC_API_URL=https://helvino-production.up.railway.app
 ENV NEXT_PUBLIC_SOCKET_URL=https://helvino-production.up.railway.app
 ENV NEXT_PUBLIC_WEB_URL=https://gracious-expression-production-7caa.up.railway.app
-# NOTE: NEXT_PUBLIC_TURNSTILE_SITE_KEY intentionally omitted until
-# Cloudflare Turnstile widget is configured with the Railway domain.
-# Add it back once the domain is whitelisted in Cloudflare dashboard.
+ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 
 # Build Next.js app with standalone output
 ENV NEXT_TELEMETRY_DISABLED=1
