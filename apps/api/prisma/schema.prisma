@@ -107,6 +107,15 @@ model OrganizationSettings {
   @@map("organization_settings")
 }
 
+model Waitlist {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  type      String
+  createdAt DateTime @default(now())
+
+  @@map("waitlist")
+}
+
 model CheckoutSession {
   id                  String       @id // Stripe checkout session id
   organizationId      String

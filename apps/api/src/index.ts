@@ -55,6 +55,7 @@ import { portalSettingsConsistencyRoutes } from "./routes/portal-settings-consis
 import { promoCodesRoutes } from "./routes/promo-codes";
 import { emailRoutes } from "./routes/emails";
 import { organizationSettingsRoutes } from "./routes/organization-settings";
+import { waitlistRoutes } from "./routes/waitlist";
 import { upsertVisitor } from "./utils/visitor";
 import { requestContextPlugin } from "./plugins/request-context";
 import { metricsTracker } from "./utils/metrics";
@@ -177,6 +178,10 @@ const corsPolicy = buildCorsPolicy(process.env.NODE_ENV, [
   process.env.FRONTEND_URL,
   // Railway production frontend — hardcoded fallback
   "https://gracious-expression-production-7caa.up.railway.app",
+  // Helvion landing origins
+  "https://helvion.io",
+  "https://www.helvion.io",
+  "https://helvion-landing.pages.dev",
 ]);
 let corsWarned = false;
 let corsWildcardWarned = false;
@@ -355,6 +360,7 @@ fastify.register(portalSettingsConsistencyRoutes); // Portal settings: consisten
 fastify.register(promoCodesRoutes, { prefix: "/api/promo-codes" }); // Promo code API
 fastify.register(emailRoutes, { prefix: "/emails" }); // Email previews
 fastify.register(organizationSettingsRoutes); // Organization-level toggles
+fastify.register(waitlistRoutes); // Public waitlist
 
 // Root info
 fastify.get("/", async () => {

@@ -65,6 +65,8 @@ function buildTrustedHosts(): Set<string> {
   // are missing or not propagated to the API service.
   hosts.add("api.helvion.io");
   hosts.add("app.helvion.io");
+  hosts.add("helvion.io");
+  hosts.add("www.helvion.io");
 
   // 5. Dev defaults: always trust localhost variants
   if (!isProduction) {
