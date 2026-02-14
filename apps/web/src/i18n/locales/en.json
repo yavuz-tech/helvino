@@ -1950,6 +1950,8 @@
   "signup.resendRemaining": "{remaining} resend attempt(s) remaining",
   "signup.resendSent": "Verification email sent again.",
   "signup.resendVerification": "Resend verification email",
+  "signup.iVerifiedCta": "I verified my email, continue",
+  "signup.verificationStillPending": "Your email is not verified yet. Complete verification from your inbox, then try again.",
   "signup.disposableEmailBlocked": "Temporary/disposable email addresses are not allowed. Please use a real email address.",
   "signup.fullName": "Full Name",
   "signup.fullNamePlaceholder": "John Doe",

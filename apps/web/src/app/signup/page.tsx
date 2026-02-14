@@ -26,13 +26,14 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
+  const [verifyChecking, setVerifyChecking] = useState(false);
   const [resendCount, setResendCount] = useState(0);
   const [resendLocked, setResendLocked] = useState(false);
   const [resendError, setResendError] = useState<string | null>(null);
   const [resendSuccess, setResendSuccess] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaRenderNonce, setCaptchaRenderNonce] = useState(0);
-  const MAX_RESEND = 3;
+  const MAX_RESEND = 6;
 
   const websitePattern = /^(https?:\/\/)?(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
   const websitePatternText = "(https?:\\/\\/)?(www\\.)?[a-z0-9-]+(\\.[a-z0-9-]+)+";
@@ -201,6 +202,50 @@ export default function SignupPage() {
     }
   };
 
+  const handleVerifiedContinue = async () => {
+    if (!email || !password) {
+      setResendError(t("signup.verificationStillPending"));
+      return;
+    }
+
+    setVerifyChecking(true);
+    setResendError(null);
+
+    try {
+      const response = await fetch(`${API_URL}/portal/auth/login`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+          locale,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok && data?.ok) {
+        window.location.href = "/portal";
+        return;
+      }
+
+      const errorCode = typeof data?.error === "object" ? data.error?.code : undefined;
+      if (errorCode === "EMAIL_VERIFICATION_REQUIRED") {
+        setResendError(t("signup.verificationStillPending"));
+        return;
+      }
+
+      setResendError(
+        (typeof data?.error === "object" ? data.error?.message : data?.error) || t("signup.error")
+      );
+    } catch {
+      setResendError(t("common.networkError"));
+    } finally {
+      setVerifyChecking(false);
+    }
+  };
+
   return (
     <motion.div
       className="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8"
@@ -314,6 +359,14 @@ export default function SignupPage() {
                         )}
                       </div>
                     ) : null}
+                    <button
+                      type="button"
+                      onClick={handleVerifiedContinue}
+                      disabled={verifyChecking}
+                      className="w-full rounded-xl border border-emerald-300/80 bg-emerald-50/80 px-4 py-2.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-60"
+                    >
+                      {verifyChecking ? t("common.loading") : t("signup.iVerifiedCta")}
+                    </button>
                     <Link
                       href="/portal/login"
                       className="block w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 px-4 py-3 text-center text-sm font-semibold text-[var(--primary)] shadow-[0_12px_28px_rgba(245,158,11,0.35)] transition-all hover:brightness-105"

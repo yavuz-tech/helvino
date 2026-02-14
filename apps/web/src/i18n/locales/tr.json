@@ -1950,6 +1950,8 @@
   "signup.resendRemaining": "Kalan gönderim hakkınız: {remaining}",
   "signup.resendSent": "Doğrulama e-postası tekrar gönderildi.",
   "signup.resendVerification": "Doğrulama e-postasını tekrar gönder",
+  "signup.iVerifiedCta": "E-postamı doğruladım, devam et",
+  "signup.verificationStillPending": "E-posta henüz doğrulanmadı. Gelen kutunuzdan doğrulamayı tamamlayıp tekrar deneyin.",
   "signup.disposableEmailBlocked": "Geçici/tek kullanımlık e-posta adresleri kabul edilmiyor. Lütfen gerçek bir e-posta adresi kullanın.",
   "signup.fullName": "Ad Soyad",
   "signup.fullNamePlaceholder": "Ahmet Yilmaz",
