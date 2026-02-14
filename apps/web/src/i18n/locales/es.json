@@ -91,7 +91,7 @@
   "auth.loggedInAs": "Sesión iniciada como",
   "auth.loginFailed": "Inicio de sesión fallido",
   "auth.networkError": "No se pudo conectar al servidor",
-  "auth.networkErrorHint": "Asegúrate de que el servidor API esté en ejecución (ej. puerto 4000). Inícialo con: pnpm --filter @helvino/api dev",
+  "auth.networkErrorHint": "No se puede conectar al servidor API. Inténtelo de nuevo en breve.",
   "auth.loginHere": "Inicie sesión aquí",
   "auth.needAccess": "¿Necesita acceso? Contacte al administrador de su organización.",
   "auth.orgPortal": "Portal de Organización",

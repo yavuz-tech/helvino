@@ -91,7 +91,7 @@
   "auth.loggedInAs": "Logged in as",
   "auth.loginFailed": "Login failed",
   "auth.networkError": "Could not reach the server",
-  "auth.networkErrorHint": "Ensure the API server is running on port 4000.",
+  "auth.networkErrorHint": "Unable to reach the API server. Please try again shortly.",
   "auth.loginHere": "Login here",
   "auth.needAccess": "Need access? Contact your organization admin.",
   "auth.orgPortal": "Organization Portal",

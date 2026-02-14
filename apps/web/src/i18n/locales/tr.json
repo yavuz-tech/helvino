@@ -91,7 +91,7 @@
   "auth.loggedInAs": "Giriş yapan",
   "auth.loginFailed": "Giriş başarısız",
   "auth.networkError": "Sunucuya bağlanılamadı",
-  "auth.networkErrorHint": "API sunucusunun çalıştığından emin olun (örn. port 4000). Başlatmak için: pnpm --filter @helvino/api dev",
+  "auth.networkErrorHint": "API sunucusuna ulaşılamıyor. Lütfen kısa bir süre sonra tekrar deneyin.",
   "auth.loginHere": "Buradan giriş yapın",
   "auth.needAccess": "Erişim gerekli mi? Organizasyon yöneticinizle iletişime geçin.",
   "auth.orgPortal": "Organizasyon Portalı",
