@@ -87,7 +87,7 @@ function isDisposableEmail(email: string): boolean {
 export async function portalSignupRoutes(fastify: FastifyInstance) {
   const portalSignupRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
-    maxRequests: 3,
+    maxRequests: 30,
     message: "Too many registration attempts",
   });
 
@@ -95,7 +95,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: SignupBody }>(
     "/portal/auth/signup",
     {
-      preHandler: [portalSignupRateLimit, signupIpRateLimit(), signupEmailRateLimit(), validateJsonContentType],
+      preHandler: [portalSignupRateLimit, validateJsonContentType],
       config: {
         skipGlobalRateLimit: true,
       },
