@@ -217,18 +217,44 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
         return { error: "Invalid request body", requestId };
       }
 
-      // SECURITY: Limit configJson payload size to prevent oversized data storage
+      // SECURITY: Limit configJson payload size to prevent oversized data storage.
+      // Widget configs can include custom CSS and page rules; 64KB was too tight in practice.
       const bodyJson = JSON.stringify(body);
-      if (bodyJson.length > 64 * 1024) {
+      if (bodyJson.length > 256 * 1024) {
         reply.code(400);
-        return { error: "Request body exceeds maximum size (64KB)", requestId };
+        return { error: "Request body exceeds maximum size (256KB)", requestId };
       }
 
-      // SECURITY: Validate string fields have reasonable max lengths
+      // SECURITY: Validate string fields have reasonable max lengths.
+      // Allow larger values for CSS/text-heavy fields while still preventing abuse.
+      const MAX_DEFAULT_STRING = 2_000;
+      const MAX_LARGE_STRING = 50_000;
+      const LARGE_STRING_KEYS = new Set([
+        "customCss",
+        "aiWelcome",
+        "welcomeMsg",
+        "offlineMsg",
+        "autoReplyMsg",
+        "subText",
+        "headerText",
+        "launcherLabel",
+        "attGrabberText",
+        "consentText",
+      ]);
       for (const [key, value] of Object.entries(body)) {
-        if (typeof value === "string" && value.length > 2000) {
+        if (typeof value === "string") {
+          const maxLen = LARGE_STRING_KEYS.has(key) ? MAX_LARGE_STRING : MAX_DEFAULT_STRING;
+          if (value.length > maxLen) {
+            reply.code(400);
+            return {
+              error: `Field "${key}" exceeds maximum length (${maxLen} characters)`,
+              requestId,
+            };
+          }
+        }
+        if (Array.isArray(value) && value.length > 250) {
           reply.code(400);
-          return { error: `Field "${key}" exceeds maximum length (2000 characters)`, requestId };
+          return { error: `Field "${key}" exceeds maximum items (250)`, requestId };
         }
       }
 
