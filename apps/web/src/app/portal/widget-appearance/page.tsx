@@ -50,7 +50,6 @@ export default function PortalWidgetAppearancePage() {
         throw new Error(data?.error || t("common.error"));
       }
       if (data?.settings && typeof data.settings === "object") {
-        console.log("[FETCH] API response settings:", data.settings);
         setSettings(data.settings as WidgetSettings);
         setSettingsVersion((v) => v + 1);
       }
@@ -138,7 +137,7 @@ export default function PortalWidgetAppearancePage() {
       {domainMismatchCount > 0 ? (
         <Card>
           <div style={{ padding: 12, fontSize: 12, color: "#B45309" }}>
-            Domain allowlist uyumsuzlugu algilandi.
+            {t("widgetAppearance.domainMismatchWarning")}
           </div>
         </Card>
       ) : null}

@@ -2944,6 +2944,7 @@
   "widgetAppearance.saved": "Saved!",
   "widgetAppearance.reset": "Reset to Default",
   "widgetAppearance.unsaved": "You have unsaved changes",
+  "widgetAppearance.domainMismatchWarning": "Domain allowlist mismatch detected. Please review your allowed domains in Widget Settings.",
   "widgetAppearance.planBadge.free": "Free",
   "widgetAppearance.planBadge.starter": "Starter",
   "widgetAppearance.planBadge.pro": "PRO",

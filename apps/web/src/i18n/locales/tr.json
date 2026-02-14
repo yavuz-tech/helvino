@@ -2944,6 +2944,7 @@
   "widgetAppearance.saved": "Kaydedildi!",
   "widgetAppearance.reset": "Varsayılana Sıfırla",
   "widgetAppearance.unsaved": "Kaydedilmemiş değişiklikler var",
+  "widgetAppearance.domainMismatchWarning": "Domain allowlist uyumsuzluğu algılandı. Lütfen Widget Ayarları'ndan izin verilen domain listenizi kontrol edin.",
   "widgetAppearance.planBadge.free": "Ücretsiz",
   "widgetAppearance.planBadge.starter": "Başlangıç",
   "widgetAppearance.planBadge.pro": "PRO",

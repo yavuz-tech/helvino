@@ -2944,6 +2944,7 @@
   "widgetAppearance.saved": "¡Guardado!",
   "widgetAppearance.reset": "Restablecer",
   "widgetAppearance.unsaved": "Tienes cambios sin guardar",
+  "widgetAppearance.domainMismatchWarning": "Se detecto un desajuste en la lista de dominios permitidos. Revisa los dominios permitidos en Configuracion del Widget.",
   "widgetAppearance.planBadge.free": "Gratis",
   "widgetAppearance.planBadge.starter": "Inicial",
   "widgetAppearance.planBadge.pro": "PRO",

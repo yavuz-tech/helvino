@@ -338,9 +338,6 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
   // Hydrate ALL component states from API settings
   // Fires when settingsVersion changes (meaning page.tsx fetched fresh data from API)
   useEffect(() => {
-    console.log("[HYDRATION] initialSettings:", initialSettings);
-    console.log("[HYDRATION] settingsVersion:", settingsVersion);
-    console.log("[HYDRATION] lastHydratedVersion:", lastHydratedVersionRef.current);
     // Guard: skip if no data, or if we already hydrated this version
     if (!initialSettings || settingsVersion === 0) return;
     if (lastHydratedVersionRef.current >= settingsVersion) return;
@@ -412,7 +409,6 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
   const markChanged = useCallback(() => { setHasChanges(true); setSaved(false); }, []);
 
   const handleSave = async () => {
-    console.log("[SAVE] about to save");
     const selectedThemeIsPremium = Boolean(theme?.pro);
     if (isFree && selectedThemeIsPremium) {
       showUpgrade(`${theme.name} Tema`);
@@ -513,8 +509,13 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
       setSaved(true);
       setHasChanges(false);
       setTimeout(() => setSaved(false), 2500);
-    } catch {
-      showToast("⚠️ Kaydetme başarısız oldu. Lütfen tekrar deneyin.");
+    } catch (err) {
+      // Bubble up the actual API error message when possible.
+      const msg =
+        err && typeof err === "object" && "message" in err && typeof err.message === "string"
+          ? err.message
+          : null;
+      showToast(msg || "⚠️ Kaydetme başarısız oldu. Lütfen tekrar deneyin.");
     } finally {
       setSaving(false);
     }
