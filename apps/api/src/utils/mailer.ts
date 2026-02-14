@@ -163,10 +163,15 @@ function getProviderChain(): EmailProvider[] {
     providers.push(new SmtpEmailProvider());
   }
 
-  // Console only when no real provider — dev/local without .env
+  // Console only when no real provider in non-production.
+  // In production, fail closed so delivery issues are visible instead of silently "succeeding".
   if (providers.length === 0) {
-    console.warn("[mailer] No email provider configured (RESEND_API_KEY, POSTMARK_SERVER_TOKEN, or SMTP_HOST). Emails will only be logged.");
-    providers.push(new ConsoleEmailProvider());
+    if (process.env.NODE_ENV === "production") {
+      console.error("[mailer] No email provider configured in production (RESEND_API_KEY, POSTMARK_SERVER_TOKEN, or SMTP_HOST). Email delivery disabled.");
+    } else {
+      console.warn("[mailer] No email provider configured (RESEND_API_KEY, POSTMARK_SERVER_TOKEN, or SMTP_HOST). Emails will only be logged.");
+      providers.push(new ConsoleEmailProvider());
+    }
   }
 
   _cachedProviders = providers;

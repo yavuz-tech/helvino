@@ -14,13 +14,11 @@ import {
   validatePasswordStrength,
   PASSWORD_STRENGTH_ERROR_MESSAGE,
 } from "../utils/password";
-import { sendEmailAsync, getDefaultFromAddress } from "../utils/mailer";
+import { sendEmail, getDefaultFromAddress } from "../utils/mailer";
 import { getVerifyEmailContent, normalizeRequestLocale, extractLocaleCookie } from "../utils/email-templates";
 import { generateVerifyEmailLink, verifyEmailSignature } from "../utils/signed-links";
 import { writeAuditLog } from "../utils/audit-log";
 import {
-  signupEmailRateLimit,
-  signupIpRateLimit,
   verifyEmailRateLimit,
   resendVerificationRateLimit,
 } from "../utils/rate-limit";
@@ -262,8 +260,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
 
       const emailContent = getVerifyEmailContent(targetLocale, verifyLink);
 
-      // Fire-and-forget: don't block signup response
-      sendEmailAsync({
+      const sendResult = await sendEmail({
         to: targetEmail,
         from: getDefaultFromAddress(),
         subject: emailContent.subject,
@@ -271,6 +268,25 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         text: emailContent.text,
         tags: ["signup", "verify-email"],
       });
+
+      if (!sendResult.success) {
+        writeAuditLog(
+          targetOrgId,
+          "portal_signup",
+          "portal.email_verification_send_failed",
+          { ownerEmail: targetEmail, provider: sendResult.provider, error: sendResult.error || "unknown" },
+          requestId
+        ).catch(() => {});
+
+        reply.code(503);
+        return {
+          error: {
+            code: "EMAIL_DELIVERY_FAILED",
+            message: "Verification email could not be delivered. Please try again in a few minutes.",
+            requestId,
+          },
+        };
+      }
 
       return {
         ok: true,
@@ -351,8 +367,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         );
         const emailContent = getVerifyEmailContent(requestedLocale, verifyLink);
 
-        // Fire-and-forget: don't block resend response
-        sendEmailAsync({
+        const resendResult = await sendEmail({
           to: trimmedEmail,
           from: getDefaultFromAddress(),
           subject: emailContent.subject,
@@ -360,6 +375,16 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
           text: emailContent.text,
           tags: ["resend-verification"],
         });
+
+        if (!resendResult.success) {
+          writeAuditLog(
+            user.orgId,
+            trimmedEmail,
+            "portal.email_verification_resend_failed",
+            { provider: resendResult.provider, error: resendResult.error || "unknown" },
+            requestId
+          ).catch(() => {});
+        }
 
         writeAuditLog(
           user.orgId,
