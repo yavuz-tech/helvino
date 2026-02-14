@@ -174,9 +174,9 @@ const corsPolicy = buildCorsPolicy(process.env.NODE_ENV, [
   process.env.APP_PUBLIC_URL,
   process.env.NEXT_PUBLIC_WEB_URL,
   process.env.ALLOWED_ORIGINS,
-  // Railway auto-provides RAILWAY_PUBLIC_DOMAIN for each service.
-  // If a separate web frontend domain is known, trust it for CORS.
   process.env.FRONTEND_URL,
+  // Railway production frontend — hardcoded fallback
+  "https://gracious-expression-production-7caa.up.railway.app",
 ]);
 let corsWarned = false;
 let corsWildcardWarned = false;
@@ -256,6 +256,8 @@ fastify.register(helmet, {
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://api.fontshare.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.fontshare.com"],
     },
   },
   frameguard: { action: "deny" },
