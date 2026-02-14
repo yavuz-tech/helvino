@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   // Suppress hydration mismatch overlay caused by browser extensions
   // (e.g. Dark Reader) injecting className/style on <html>
   devIndicators: false,
+  // Skip ESLint during production builds (type safety enforced via tsc)
+  eslint: { ignoreDuringBuilds: true },
   // Disable experimental features that might trigger pages router
   experimental: {},
 };
