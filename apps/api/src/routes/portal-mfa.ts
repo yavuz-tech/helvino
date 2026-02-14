@@ -28,6 +28,7 @@ import {
   createPortalTokenPair,
   createPortalSessionWithLimit,
   verifyPortalSessionToken,
+  getPortalCookiePolicy,
 } from "../utils/portal-session";
 import { upsertDevice } from "../utils/device";
 import { createEmergencyLockToken } from "../utils/emergency-lock-token";
@@ -338,12 +339,12 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
           loginCountry: null,
           loginCity: null,
         });
-        const isProduction = process.env.NODE_ENV === "production";
+        const { sameSite, secure } = getPortalCookiePolicy();
         reply.setCookie(PORTAL_SESSION_COOKIE, tokens.accessToken, {
           path: "/",
           httpOnly: true,
-          sameSite: "lax",
-          secure: isProduction,
+          sameSite,
+          secure,
           maxAge: Math.floor(PORTAL_ACCESS_TOKEN_TTL_MS / 1000),
         });
         reply.clearCookie(MFA_SETUP_COOKIE, { path: "/" });
@@ -669,12 +670,12 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
         },
       });
 
-      const isProduction = process.env.NODE_ENV === "production";
+      const { sameSite, secure } = getPortalCookiePolicy();
       reply.setCookie(PORTAL_SESSION_COOKIE, tokens.accessToken, {
         path: "/",
         httpOnly: true,
-        sameSite: "lax",
-        secure: isProduction,
+        sameSite,
+        secure,
         maxAge: Math.floor(PORTAL_SESSION_TTL_MS / 1000),
       });
 

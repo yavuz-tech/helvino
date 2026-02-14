@@ -43,6 +43,7 @@ import {
   PORTAL_SESSION_COOKIE,
   createPortalTokenPair,
   createPortalSessionWithLimit,
+  getPortalCookiePolicy,
   PORTAL_SESSION_TTL_MS,
   PORTAL_REFRESH_TOKEN_TTL_MS,
 } from "../utils/portal-session";
@@ -342,12 +343,12 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
           loginCity,
         });
 
-        const isProduction = process.env.NODE_ENV === "production";
+        const { sameSite, secure } = getPortalCookiePolicy();
         reply.setCookie(PORTAL_SESSION_COOKIE, tokens.accessToken, {
           path: "/",
           httpOnly: true,
-          sameSite: "lax",
-          secure: isProduction,
+          sameSite,
+          secure,
           maxAge: Math.floor(PORTAL_SESSION_TTL_MS / 1000),
         });
 

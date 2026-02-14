@@ -77,6 +77,46 @@ type ActivePortalSession = {
   userAgent: string | null;
 };
 
+type PortalSameSite = "lax" | "none";
+
+function getOrigin(value?: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
+function resolveApiOrigin(): string | null {
+  const explicitApiUrl =
+    process.env.API_URL ||
+    process.env.APP_API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    null;
+  const explicitOrigin = getOrigin(explicitApiUrl);
+  if (explicitOrigin) return explicitOrigin;
+
+  const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
+  if (railwayDomain) {
+    return `https://${railwayDomain}`;
+  }
+  return null;
+}
+
+export function getPortalCookiePolicy(): { sameSite: PortalSameSite; secure: boolean } {
+  const isProduction = process.env.NODE_ENV === "production";
+  const webOrigin = getOrigin(process.env.NEXT_PUBLIC_WEB_URL || process.env.APP_PUBLIC_URL || null);
+  const apiOrigin = resolveApiOrigin();
+
+  const isCrossOrigin = Boolean(webOrigin && apiOrigin && webOrigin !== apiOrigin);
+  const sameSite: PortalSameSite = isProduction && isCrossOrigin ? "none" : "lax";
+  const secure = isProduction || sameSite === "none";
+
+  return { sameSite, secure };
+}
+
 function normalizeValue(value?: string | null): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
