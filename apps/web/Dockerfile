@@ -41,13 +41,10 @@ RUN pnpm --filter @helvino/shared build
 RUN pnpm --filter @helvino/widget build
 RUN cp apps/widget/dist/embed.js apps/web/public/embed.js
 
-# Bake NEXT_PUBLIC_* env vars into the Next.js build (build-time only)
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_SOCKET_URL
-ARG NEXT_PUBLIC_WEB_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
-ENV NEXT_PUBLIC_WEB_URL=$NEXT_PUBLIC_WEB_URL
+# Bake NEXT_PUBLIC_* env vars into the Next.js build
+ENV NEXT_PUBLIC_API_URL=https://helvino-production.up.railway.app
+ENV NEXT_PUBLIC_SOCKET_URL=https://helvino-production.up.railway.app
+ENV NEXT_PUBLIC_WEB_URL=https://gracious-expression-production-7caa.up.railway.app
 
 # Build Next.js app with standalone output
 ENV NEXT_TELEMETRY_DISABLED=1
