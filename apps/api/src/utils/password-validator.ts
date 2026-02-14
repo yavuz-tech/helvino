@@ -16,7 +16,7 @@ const MIN_LENGTH = 8;
 const HAS_UPPERCASE = /[A-Z]/;
 const HAS_LOWERCASE = /[a-z]/;
 const HAS_NUMBER = /\d/;
-const HAS_SPECIAL = /[!@#$%^&*]/;
+const HAS_SPECIAL = /[^A-Za-z0-9]/;
 
 /**
  * Top 200 most common passwords from multiple breach databases.
