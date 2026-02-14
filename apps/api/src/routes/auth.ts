@@ -11,7 +11,7 @@ import { prisma } from "../prisma";
 import { verifyPassword } from "../utils/password";
 import { writeAuditLog } from "../utils/audit-log";
 import { validateJsonContentType } from "../middleware/validation";
-import { verifyTurnstileToken } from "../utils/verify-captcha";
+import { verifyTurnstileToken, isCaptchaConfigured } from "../utils/verify-captcha";
 import { getRealIP } from "../utils/get-real-ip";
 import { rateLimit } from "../middleware/rate-limiter";
 import { isAdminMfaRequired } from "../utils/device";
@@ -127,7 +127,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
     }
 
-    const captchaRequired = await isAdminCaptchaRequired(normalizedEmail);
+    const captchaRequired = isCaptchaConfigured() && await isAdminCaptchaRequired(normalizedEmail);
     if (captchaRequired) {
       if (!captchaToken?.trim()) {
         return reply.status(400).send({

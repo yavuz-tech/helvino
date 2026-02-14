@@ -33,7 +33,7 @@ import {
 } from "../utils/email-templates";
 import { getDefaultFromAddress, sendEmailAsync } from "../utils/mailer";
 import { writeAuditLog } from "../utils/audit-log";
-import { verifyTurnstileToken } from "../utils/verify-captcha";
+import { verifyTurnstileToken, isCaptchaConfigured } from "../utils/verify-captcha";
 import { isKnownDeviceFingerprint } from "../utils/check-device-trust";
 import { createEmergencyLockToken, verifyEmergencyLockToken } from "../utils/emergency-lock-token";
 import { getRealIP } from "../utils/get-real-ip";
@@ -180,7 +180,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         return { error: "Invalid email or password" };
       }
 
-      const captchaRequired = orgUser.loginAttempts >= 3;
+      const captchaRequired = isCaptchaConfigured() && orgUser.loginAttempts >= 3;
       let captchaErrorCode: "CAPTCHA_REQUIRED" | "INVALID_CAPTCHA" | null = null;
       if (captchaRequired) {
         if (!captchaToken?.trim()) {

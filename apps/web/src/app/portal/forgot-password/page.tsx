@@ -63,10 +63,17 @@ export default function ForgotPasswordPage() {
         const code = typeof data?.error === "object" ? data.error?.code : undefined;
         const msg = typeof data?.error === "object" ? data.error?.message : data?.error;
         if (code === "CAPTCHA_REQUIRED") {
-          setShowCaptcha(true);
-          setError(t("security.resetCaptchaRequired"));
+          if (captchaSiteKey) {
+            setShowCaptcha(true);
+            setError(t("security.resetCaptchaRequired"));
+          } else {
+            setShowCaptcha(false);
+            setError(t("security.resetCaptchaMissingKey"));
+          }
         } else if (code === "INVALID_CAPTCHA") {
-          setShowCaptcha(true);
+          if (captchaSiteKey) {
+            setShowCaptcha(true);
+          }
           setCaptchaToken(null);
           setCaptchaRenderNonce((v) => v + 1);
           setError(t("security.resetCaptchaInvalid"));
@@ -219,7 +226,7 @@ export default function ForgotPasswordPage() {
                   <button
                     type="submit"
                     className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 px-4 py-3 text-sm font-semibold text-[var(--primary)] shadow-[0_12px_28px_rgba(245,158,11,0.35)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isLoading || (showCaptcha && (!captchaSiteKey || !captchaToken))}
+                    disabled={isLoading || (showCaptcha && !captchaToken)}
                   >
                     {isLoading ? t("security.sendingResetLink") : t("security.sendResetLink")}
                   </button>

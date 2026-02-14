@@ -36,7 +36,7 @@ import {
   PORTAL_SESSION_TTL_MS,
   PORTAL_REFRESH_TOKEN_TTL_MS,
 } from "../utils/portal-session";
-import { verifyTurnstileToken } from "../utils/verify-captcha";
+import { verifyTurnstileToken, isCaptchaConfigured } from "../utils/verify-captcha";
 import { getRealIP } from "../utils/get-real-ip";
 import { validateBody } from "../utils/validate";
 import { forgotPasswordSchema, resetPasswordSchema } from "../utils/schemas";
@@ -157,7 +157,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
         };
       }
 
-      if (ipHourlyAttempts >= CAPTCHA_REQUIRED_ATTEMPTS_PER_HOUR) {
+      if (isCaptchaConfigured() && ipHourlyAttempts >= CAPTCHA_REQUIRED_ATTEMPTS_PER_HOUR) {
         if (!body.captchaToken) {
           await prisma.passwordResetAttempt.create({
             data: {

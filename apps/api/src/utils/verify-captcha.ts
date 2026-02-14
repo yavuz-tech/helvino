@@ -3,7 +3,9 @@ interface TurnstileVerifyResponse {
 }
 
 export function isCaptchaConfigured(): boolean {
-  return Boolean(process.env.TURNSTILE_SECRET_KEY);
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  const siteKey = process.env.TURNSTILE_SITE_KEY || process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  return Boolean(secret && siteKey);
 }
 
 export async function verifyTurnstileToken(token: string, remoteIp?: string): Promise<boolean> {
