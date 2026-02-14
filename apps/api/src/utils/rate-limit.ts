@@ -198,10 +198,10 @@ export function verifyEmailRateLimit(routeName?: string) {
   });
 }
 
-/** Resend verification: 3 attempts per email per 2 hours, then locked out */
+/** Resend verification: 6 attempts per email per 2 hours, then locked out */
 export function resendVerificationRateLimit(routeName?: string) {
   return createRateLimitMiddleware({
-    limit: 3,
+    limit: 6,
     windowMs: 7_200_000, // 2 hours
     keyBuilder: emailOnlyKey,
     routeName: routeName || "resend-verification",

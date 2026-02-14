@@ -500,7 +500,10 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         }
       }
 
-      const { sameSite, secure } = getPortalCookiePolicy();
+      const { sameSite, secure } = getPortalCookiePolicy({
+        requestOrigin: (request.headers.origin as string | undefined) || null,
+        requestHost: (request.headers.host as string | undefined) || null,
+      });
       reply.setCookie(PORTAL_SESSION_COOKIE, tokens.accessToken, {
         path: "/",
         httpOnly: true,
@@ -701,7 +704,10 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       loginCity: null,
     });
 
-    const { sameSite, secure } = getPortalCookiePolicy();
+    const { sameSite, secure } = getPortalCookiePolicy({
+      requestOrigin: (request.headers.origin as string | undefined) || null,
+      requestHost: (request.headers.host as string | undefined) || null,
+    });
     reply.setCookie(PORTAL_SESSION_COOKIE, tokens.accessToken, {
       path: "/",
       httpOnly: true,
@@ -864,7 +870,10 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         },
       });
 
-      const { sameSite, secure } = getPortalCookiePolicy();
+      const { sameSite, secure } = getPortalCookiePolicy({
+        requestOrigin: (request.headers.origin as string | undefined) || null,
+        requestHost: (request.headers.host as string | undefined) || null,
+      });
       reply.setCookie(PORTAL_SESSION_COOKIE, tokens.accessToken, {
         path: "/",
         httpOnly: true,

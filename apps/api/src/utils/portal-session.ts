@@ -105,12 +105,25 @@ function resolveApiOrigin(): string | null {
   return null;
 }
 
-export function getPortalCookiePolicy(): { sameSite: PortalSameSite; secure: boolean } {
+export function getPortalCookiePolicy(input?: {
+  requestOrigin?: string | null;
+  requestHost?: string | null;
+}): { sameSite: PortalSameSite; secure: boolean } {
   const isProduction = process.env.NODE_ENV === "production";
-  const webOrigin = getOrigin(process.env.NEXT_PUBLIC_WEB_URL || process.env.APP_PUBLIC_URL || null);
-  const apiOrigin = resolveApiOrigin();
 
-  const isCrossOrigin = Boolean(webOrigin && apiOrigin && webOrigin !== apiOrigin);
+  // Optional hard override via env for emergency debugging.
+  const forced = (process.env.PORTAL_COOKIE_SAMESITE || "").toLowerCase().trim();
+  if (forced === "none") return { sameSite: "none", secure: true };
+  if (forced === "lax") return { sameSite: "lax", secure: isProduction };
+
+  const requestOrigin = getOrigin(input?.requestOrigin || null);
+  const requestHost = (input?.requestHost || "").trim();
+  const apiOriginFromHost = requestHost ? `https://${requestHost}` : null;
+  const apiOrigin = getOrigin(apiOriginFromHost) || resolveApiOrigin();
+
+  // Browser fetch() sends Origin on cross-site requests. Use it when available;
+  // it's more reliable than env inference on Railway.
+  const isCrossOrigin = Boolean(requestOrigin && apiOrigin && requestOrigin !== apiOrigin);
   const sameSite: PortalSameSite = isProduction && isCrossOrigin ? "none" : "lax";
   const secure = isProduction || sameSite === "none";
 
