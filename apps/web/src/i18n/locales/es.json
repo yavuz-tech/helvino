@@ -810,6 +810,8 @@
   "nav.organizations": "Sitios Web",
   "nav.overview": "Resumen",
   "nav.landingWidget": "Widget de Landing",
+  "nav.widget": "Widget",
+  "nav.widgetAppearance": "Apariencia del Widget",
   "nav.pricing": "Precios",
   "nav.product": "Producto",
   "nav.product.aiAgent": "Agente IA",

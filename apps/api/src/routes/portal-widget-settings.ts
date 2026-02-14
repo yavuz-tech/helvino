@@ -13,6 +13,7 @@ import { prisma } from "../prisma";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { rateLimit } from "../middleware/rate-limiter";
 import { requirePortalUser } from "../middleware/require-portal-user";
+import { requireAdmin } from "../middleware/require-admin";
 import { writeAuditLog } from "../utils/audit-log";
 
 // Legacy fields stored in dedicated columns (backward compat)
@@ -101,11 +102,30 @@ function getDefaultV3Config(): Record<string, unknown> {
 }
 
 export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
+  async function resolveAdminOrgIdFromHeader(orgKeyHeader: unknown): Promise<{ orgId: string; orgKey: string } | null> {
+    const orgKey = typeof orgKeyHeader === "string" ? orgKeyHeader.trim().toLowerCase() : "";
+    if (!orgKey) return null;
+    const org = await prisma.organization.findUnique({
+      where: { key: orgKey },
+      select: { id: true, key: true },
+    });
+    if (!org) return null;
+    return { orgId: org.id, orgKey: org.key };
+  }
+
   const portalSettingsWriteRateLimit = rateLimit({
     windowMs: 60 * 1000,
     maxRequests: 20,
     message: "Too many settings update requests",
     keyBuilder: (request) => request.portalUser?.id || "anonymous-user",
+  });
+
+  const adminSettingsWriteRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    maxRequests: 40,
+    message: "Too many admin settings update requests",
+    keyPrefix: "ADMIN_WIDGET_SETTINGS_WRITE",
+    keyBuilder: (request) => (request.session as any)?.adminUserId || "anonymous-admin",
   });
 
   /**
@@ -178,6 +198,212 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
         domainMismatchCount: orgInfo?.widgetDomainMismatchTotal ?? 0,
         requestId,
       };
+    }
+  );
+
+  // ─── INTERNAL (ADMIN): widget appearance settings (no plan gating) ─────────
+  fastify.get(
+    "/internal/widget/settings",
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const requestId =
+        (request as any).requestId || (request.headers["x-request-id"] as string) || undefined;
+
+      const resolved = await resolveAdminOrgIdFromHeader(request.headers["x-org-key"]);
+      if (!resolved) {
+        reply.code(400);
+        return { error: { code: "ORG_KEY_REQUIRED", message: "x-org-key header is required", requestId } };
+      }
+
+      const orgId = resolved.orgId;
+      const existing = await prisma.widgetSettings.findUnique({ where: { orgId } });
+
+      const defaults = getDefaultV3Config();
+      const storedConfig = (existing?.configJson as Record<string, unknown>) || {};
+      const settings: Record<string, unknown> = { ...defaults, ...storedConfig };
+
+      if (existing) {
+        settings.primaryColor = existing.primaryColor;
+        settings.position = existing.position;
+        settings.launcher = existing.launcher;
+        settings.welcomeTitle = existing.welcomeTitle;
+        settings.welcomeMessage = existing.welcomeMessage;
+        settings.brandName = existing.brandName;
+      }
+
+      return {
+        settings,
+        // Admin: always treat as "enterprise" so UI unlocks everything.
+        planKey: "enterprise",
+        brandingRequired: false,
+        domainMismatchCount: 0,
+        requestId,
+      };
+    }
+  );
+
+  fastify.put(
+    "/internal/widget/settings",
+    {
+      preHandler: [
+        requireAdmin,
+        adminSettingsWriteRateLimit,
+        createRateLimitMiddleware({ limit: 40, windowMs: 60000 }),
+      ],
+      config: { skipGlobalRateLimit: true },
+    },
+    async (request, reply) => {
+      const requestId =
+        (request as any).requestId || (request.headers["x-request-id"] as string) || undefined;
+
+      const resolved = await resolveAdminOrgIdFromHeader(request.headers["x-org-key"]);
+      if (!resolved) {
+        reply.code(400);
+        return { error: { code: "ORG_KEY_REQUIRED", message: "x-org-key header is required", requestId } };
+      }
+
+      const orgId = resolved.orgId;
+      const body = request.body as Record<string, unknown>;
+
+      if (!body || typeof body !== "object") {
+        reply.code(400);
+        return { error: "Invalid request body", requestId };
+      }
+
+      // Same payload limits as portal route
+      const bodyJson = JSON.stringify(body);
+      if (bodyJson.length > 256 * 1024) {
+        reply.code(400);
+        return { error: "Request body exceeds maximum size (256KB)", requestId };
+      }
+
+      const MAX_DEFAULT_STRING = 2_000;
+      const MAX_LARGE_STRING = 50_000;
+      const LARGE_STRING_KEYS = new Set([
+        "customCss",
+        "aiWelcome",
+        "welcomeMsg",
+        "offlineMsg",
+        "autoReplyMsg",
+        "subText",
+        "headerText",
+        "launcherLabel",
+        "attGrabberText",
+        "consentText",
+      ]);
+      for (const [key, value] of Object.entries(body)) {
+        if (typeof value === "string") {
+          const maxLen = LARGE_STRING_KEYS.has(key) ? MAX_LARGE_STRING : MAX_DEFAULT_STRING;
+          if (value.length > maxLen) {
+            reply.code(400);
+            return {
+              error: `Field "${key}" exceeds maximum length (${maxLen} characters)`,
+              requestId,
+            };
+          }
+        }
+        if (Array.isArray(value) && value.length > 250) {
+          reply.code(400);
+          return { error: `Field "${key}" exceeds maximum items (250)`, requestId };
+        }
+      }
+
+      const legacyUpdate: Record<string, unknown> = {};
+      const configPayload: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(body)) {
+        if (LEGACY_COLUMN_FIELDS.has(key)) legacyUpdate[key] = value;
+        configPayload[key] = value;
+      }
+
+      if (legacyUpdate.primaryColor !== undefined) {
+        if (
+          typeof legacyUpdate.primaryColor !== "string" ||
+          !/^#([0-9A-Fa-f]{3}){1,2}$/.test(legacyUpdate.primaryColor)
+        ) {
+          reply.code(400);
+          return { error: "Invalid hex color format", field: "primaryColor", requestId };
+        }
+      }
+      if (legacyUpdate.position !== undefined) {
+        if (!["right", "left"].includes(String(legacyUpdate.position))) {
+          reply.code(400);
+          return { error: "Invalid position value", field: "position", requestId };
+        }
+      }
+
+      const existing = await prisma.widgetSettings.findUnique({
+        where: { orgId },
+        select: { configJson: true },
+      });
+      const existingConfig = (existing?.configJson as Record<string, unknown>) || {};
+      const mergedConfig = { ...existingConfig, ...configPayload };
+
+      const upsertData: Record<string, unknown> = { configJson: mergedConfig };
+      for (const [key, value] of Object.entries(legacyUpdate)) upsertData[key] = value;
+
+      const THEME_COLORS: Record<string, string> = {
+        amber: "#F59E0B", ocean: "#0EA5E9", emerald: "#10B981", violet: "#8B5CF6",
+        rose: "#F43F5E", slate: "#475569", teal: "#14B8A6", indigo: "#6366F1",
+        sunset: "#F97316", aurora: "#06B6D4", midnight: "#1E293B", cherry: "#BE123C",
+      };
+
+      if (configPayload.primaryColor !== undefined) {
+        upsertData.primaryColor = String(configPayload.primaryColor);
+      } else if (configPayload.useCustomColor === true && configPayload.customColor !== undefined) {
+        upsertData.primaryColor = String(configPayload.customColor);
+      } else if (typeof configPayload.themeId === "string" && THEME_COLORS[configPayload.themeId]) {
+        upsertData.primaryColor = THEME_COLORS[configPayload.themeId];
+      }
+
+      if (configPayload.position !== undefined) {
+        upsertData.position = String(configPayload.position);
+      } else if (configPayload.positionId !== undefined) {
+        upsertData.position = configPayload.positionId === "bl" ? "left" : "right";
+      }
+
+      if (configPayload.welcomeTitle !== undefined) {
+        upsertData.welcomeTitle = String(configPayload.welcomeTitle);
+      } else if (configPayload.headerText !== undefined) {
+        upsertData.welcomeTitle = String(configPayload.headerText);
+      }
+
+      if (configPayload.welcomeMessage !== undefined) {
+        upsertData.welcomeMessage = String(configPayload.welcomeMessage);
+      } else if (configPayload.welcomeMsg !== undefined) {
+        upsertData.welcomeMessage = String(configPayload.welcomeMsg);
+      }
+
+      const updatedSettings = await prisma.widgetSettings.upsert({
+        where: { orgId },
+        create: { orgId, ...upsertData },
+        update: upsertData,
+        select: {
+          configJson: true,
+          primaryColor: true,
+          position: true,
+          launcher: true,
+          welcomeTitle: true,
+          welcomeMessage: true,
+          brandName: true,
+        },
+      });
+
+      const adminEmail = (request.session as any)?.adminEmail as string | undefined;
+      writeAuditLog(
+        orgId,
+        adminEmail || "admin",
+        "admin.widget.settings.updated",
+        { updatedFields: Object.keys(configPayload), requestId },
+        requestId
+      ).catch(() => {});
+
+      const defaults = getDefaultV3Config();
+      const returnSettings = {
+        ...defaults,
+        ...((updatedSettings.configJson as Record<string, unknown>) || {}),
+      };
+
+      return { ok: true, settings: returnSettings, requestId };
     }
   );
 

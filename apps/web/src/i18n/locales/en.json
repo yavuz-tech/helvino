@@ -810,6 +810,8 @@
   "nav.organizations": "Websites",
   "nav.overview": "Overview",
   "nav.landingWidget": "Landing Widget",
+  "nav.widget": "Widget",
+  "nav.widgetAppearance": "Widget Appearance",
   "nav.pricing": "Pricing",
   "nav.product": "Product",
   "nav.product.aiAgent": "AI Agent",

@@ -11,6 +11,7 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import { requirePortalUser, requirePortalRole } from "../middleware/require-portal-user";
 import { requireStepUp } from "../middleware/require-step-up";
+import { requireAdmin } from "../middleware/require-admin";
 import { writeAuditLog } from "../utils/audit-log";
 import { genericRateLimit } from "../utils/rate-limit";
 
@@ -92,6 +93,17 @@ function computeWidgetStatus(org: {
 }
 
 export async function portalWidgetConfigRoutes(fastify: FastifyInstance) {
+  async function resolveAdminOrgIdFromHeader(orgKeyHeader: unknown): Promise<{ orgId: string; orgKey: string } | null> {
+    const orgKey = typeof orgKeyHeader === "string" ? orgKeyHeader.trim().toLowerCase() : "";
+    if (!orgKey) return null;
+    const org = await prisma.organization.findUnique({
+      where: { key: orgKey },
+      select: { id: true, key: true },
+    });
+    if (!org) return null;
+    return { orgId: org.id, orgKey: org.key };
+  }
+
   // ─── GET /portal/widget/config ────────────────────────
   fastify.get(
     "/portal/widget/config",
@@ -138,6 +150,198 @@ export async function portalWidgetConfigRoutes(fastify: FastifyInstance) {
         },
         requestId,
       };
+    }
+  );
+
+  // ─── INTERNAL (ADMIN): widget config + domains ─────────
+  fastify.get(
+    "/internal/widget/config",
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const requestId = (request as any).requestId || (request.headers["x-request-id"] as string) || undefined;
+      const resolved = await resolveAdminOrgIdFromHeader(request.headers["x-org-key"]);
+      if (!resolved) {
+        reply.code(400);
+        return { error: { code: "ORG_KEY_REQUIRED", message: "x-org-key header is required", requestId } };
+      }
+
+      const org = await prisma.organization.findUnique({
+        where: { id: resolved.orgId },
+        select: {
+          siteId: true,
+          widgetEnabled: true,
+          allowedDomains: true,
+          allowLocalhost: true,
+          lastWidgetSeenAt: true,
+          firstWidgetEmbedAt: true,
+          widgetLoadsTotal: true,
+          widgetLoadFailuresTotal: true,
+          widgetDomainMismatchTotal: true,
+        },
+      });
+      if (!org) {
+        reply.code(404);
+        return { error: { code: "NOT_FOUND", message: "Organization not found", requestId } };
+      }
+
+      const status = computeWidgetStatus(org);
+      return {
+        widgetEnabled: org.widgetEnabled,
+        allowedDomains: org.allowedDomains,
+        allowLocalhost: org.allowLocalhost,
+        embedSnippet: {
+          html: `<!-- Helvion Chat Widget -->\n<script>window.HELVINO_SITE_ID="${org.siteId}";</script>\n<script src="${EMBED_CDN}/embed.js"></script>`,
+          scriptSrc: `${EMBED_CDN}/embed.js`,
+          siteId: org.siteId,
+        },
+        lastWidgetSeenAt: org.lastWidgetSeenAt?.toISOString() || null,
+        health: {
+          status,
+          failuresTotal: org.widgetLoadFailuresTotal,
+          domainMismatchTotal: org.widgetDomainMismatchTotal,
+        },
+        requestId,
+      };
+    }
+  );
+
+  fastify.patch<{ Body: { widgetEnabled?: boolean } }>(
+    "/internal/widget/config",
+    { preHandler: [requireAdmin, widgetDomainRateLimit()] },
+    async (request, reply) => {
+      const requestId = (request as any).requestId || (request.headers["x-request-id"] as string) || undefined;
+      const resolved = await resolveAdminOrgIdFromHeader(request.headers["x-org-key"]);
+      if (!resolved) {
+        reply.code(400);
+        return { error: { code: "ORG_KEY_REQUIRED", message: "x-org-key header is required", requestId } };
+      }
+
+      const { widgetEnabled } = request.body || {};
+      if (typeof widgetEnabled !== "boolean") {
+        reply.code(400);
+        return { error: { code: "VALIDATION_ERROR", message: "widgetEnabled must be boolean", requestId } };
+      }
+
+      const updated = await prisma.organization.update({
+        where: { id: resolved.orgId },
+        data: { widgetEnabled },
+        select: { widgetEnabled: true },
+      });
+
+      const adminEmail = (request.session as any)?.adminEmail as string | undefined;
+      writeAuditLog(
+        resolved.orgId,
+        adminEmail || "admin",
+        "admin.widget.config.updated",
+        { widgetEnabled },
+        requestId
+      ).catch(() => {});
+
+      return { ok: true, widgetEnabled: updated.widgetEnabled, requestId };
+    }
+  );
+
+  fastify.post<{ Body: { domain: string } }>(
+    "/internal/widget/domains",
+    { preHandler: [requireAdmin, widgetDomainRateLimit()] },
+    async (request, reply) => {
+      const requestId = (request as any).requestId || (request.headers["x-request-id"] as string) || undefined;
+      const resolved = await resolveAdminOrgIdFromHeader(request.headers["x-org-key"]);
+      if (!resolved) {
+        reply.code(400);
+        return { error: { code: "ORG_KEY_REQUIRED", message: "x-org-key header is required", requestId } };
+      }
+
+      const { domain } = request.body || {};
+      if (!domain || typeof domain !== "string") {
+        reply.code(400);
+        return { error: { code: "VALIDATION_ERROR", message: "domain is required", requestId } };
+      }
+
+      const validation = validateDomain(domain);
+      if (!validation.valid) {
+        reply.code(400);
+        return { error: { code: "INVALID_DOMAIN", message: validation.error, requestId } };
+      }
+
+      const org = await prisma.organization.findUnique({
+        where: { id: resolved.orgId },
+        select: { allowedDomains: true },
+      });
+      if (!org) {
+        reply.code(404);
+        return { error: { code: "NOT_FOUND", message: "Organization not found", requestId } };
+      }
+      if (org.allowedDomains.includes(validation.normalized)) {
+        return { ok: true, allowedDomains: org.allowedDomains, requestId };
+      }
+
+      const updated = await prisma.organization.update({
+        where: { id: resolved.orgId },
+        data: { allowedDomains: { push: validation.normalized } },
+        select: { allowedDomains: true },
+      });
+
+      const adminEmail = (request.session as any)?.adminEmail as string | undefined;
+      writeAuditLog(
+        resolved.orgId,
+        adminEmail || "admin",
+        "admin.widget.domain.added",
+        { domain: validation.normalized },
+        requestId
+      ).catch(() => {});
+
+      return { ok: true, allowedDomains: updated.allowedDomains, requestId };
+    }
+  );
+
+  fastify.delete<{ Body: { domain: string } }>(
+    "/internal/widget/domains",
+    { preHandler: [requireAdmin, widgetDomainRateLimit()] },
+    async (request, reply) => {
+      const requestId = (request as any).requestId || (request.headers["x-request-id"] as string) || undefined;
+      const resolved = await resolveAdminOrgIdFromHeader(request.headers["x-org-key"]);
+      if (!resolved) {
+        reply.code(400);
+        return { error: { code: "ORG_KEY_REQUIRED", message: "x-org-key header is required", requestId } };
+      }
+
+      const { domain } = request.body || {};
+      if (!domain || typeof domain !== "string") {
+        reply.code(400);
+        return { error: { code: "VALIDATION_ERROR", message: "domain is required", requestId } };
+      }
+
+      const normalized = normalizeDomain(domain);
+      const org = await prisma.organization.findUnique({
+        where: { id: resolved.orgId },
+        select: { allowedDomains: true },
+      });
+      if (!org) {
+        reply.code(404);
+        return { error: { code: "NOT_FOUND", message: "Organization not found", requestId } };
+      }
+      if (!org.allowedDomains.includes(normalized)) {
+        return { ok: true, allowedDomains: org.allowedDomains, requestId };
+      }
+
+      const newDomains = org.allowedDomains.filter((d) => d !== normalized);
+      const updated = await prisma.organization.update({
+        where: { id: resolved.orgId },
+        data: { allowedDomains: newDomains },
+        select: { allowedDomains: true },
+      });
+
+      const adminEmail = (request.session as any)?.adminEmail as string | undefined;
+      writeAuditLog(
+        resolved.orgId,
+        adminEmail || "admin",
+        "admin.widget.domain.removed",
+        { domain: normalized },
+        requestId
+      ).catch(() => {});
+
+      return { ok: true, allowedDomains: updated.allowedDomains, requestId };
     }
   );
 
