@@ -158,31 +158,31 @@ export function changePasswordRateLimit(routeName?: string) {
   });
 }
 
-/** Signup: 5/min per IP + 3/min per email */
+/** Signup: 10/min per IP+email combo */
 export function signupRateLimit(routeName?: string) {
   return createRateLimitMiddleware({
-    limit: 5,
+    limit: 10,
     windowMs: 60_000,
     keyBuilder: ipEmailKey,
     routeName: routeName || "signup",
   });
 }
 
-/** Signup strict IP rule: 3 signups per hour */
+/** Signup strict IP rule: 20 signups per hour */
 export function signupIpRateLimit(routeName?: string) {
   return createRateLimitMiddleware({
-    limit: 3,
+    limit: 20,
     windowMs: 3_600_000,
     keyBuilder: ipKey,
     routeName: routeName || "signup-ip",
   });
 }
 
-/** Signup strict email rule: 1 signup per 24h per email */
+/** Signup strict email rule: 5 signups per hour per email */
 export function signupEmailRateLimit(routeName?: string) {
   return createRateLimitMiddleware({
-    limit: 1,
-    windowMs: 86_400_000,
+    limit: 5,
+    windowMs: 3_600_000,
     keyBuilder: emailOnlyKey,
     routeName: routeName || "signup-email",
   });
