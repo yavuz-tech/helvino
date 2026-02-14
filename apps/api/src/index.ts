@@ -198,6 +198,8 @@ fastify.register(cors, {
     return cb(null, isOriginAllowedByCorsPolicy(origin, corsPolicy));
   },
   credentials: true, // Allow cookies in CORS requests
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "x-internal-key"],
+  exposedHeaders: ["retry-after", "x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset", "x-request-id", "x-helvino-portal-cookie-samesite", "x-helvino-portal-cookie-secure"],
 });
 
 // Register cookie support (required for sessions)

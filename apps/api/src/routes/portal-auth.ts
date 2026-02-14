@@ -607,6 +607,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
 
       return {
         ok: true,
+        accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         refreshExpiresInSec: Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000),
         showSecurityOnboarding: !orgUser.mfaEnabled && !orgUser.securityOnboardingDismissedAt,
@@ -728,6 +729,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
 
     return {
       ok: true,
+      accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       refreshExpiresInSec: Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000),
       user: {
@@ -893,6 +895,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
 
       return {
         ok: true,
+        accessToken: tokens.accessToken,
         refreshToken: shouldRotateRefresh ? tokens.refreshToken : session.refreshToken,
         refreshExpiresInSec: shouldRotateRefresh ? Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000) : undefined,
         showSecurityOnboarding:

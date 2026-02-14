@@ -12,6 +12,7 @@ const REQUEST_TIMEOUT_MS = 12000;
 // Trade-off: Full page refresh loses the refresh token, but the httpOnly
 // access token cookie (60 min) still maintains the session.
 let memoryRefreshToken: string | null = null;
+let memoryAccessToken: string | null = null;
 
 function saveRefreshToken(token: string | null) {
   memoryRefreshToken = token;
@@ -29,6 +30,10 @@ function saveRefreshToken(token: string | null) {
 
 export function storePortalRefreshToken(token: string | null) {
   saveRefreshToken(token);
+}
+
+export function storePortalAccessToken(token: string | null) {
+  memoryAccessToken = token;
 }
 
 export function markPortalOnboardingDeferredForSession() {
@@ -49,6 +54,11 @@ export function isPortalOnboardingDeferredForSession(): boolean {
 function readRefreshToken(): string | null {
   // Only read from memory — never from sessionStorage (XSS mitigation).
   return memoryRefreshToken;
+}
+
+function readAccessToken(): string | null {
+  // Access token in-memory fallback for browsers blocking cross-site cookies.
+  return memoryAccessToken;
 }
 
 export interface PortalUser {
@@ -79,8 +89,10 @@ async function fetchWithTimeout(
 
 export async function checkPortalAuth(): Promise<PortalUser | null> {
   try {
+    const accessToken = readAccessToken();
     let response = await fetchWithTimeout(`${API_URL}/portal/auth/me`, {
       credentials: "include",
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     });
     if (!response.ok) {
       const data = await response.json().catch(() => null);
@@ -90,8 +102,10 @@ export async function checkPortalAuth(): Promise<PortalUser | null> {
       if (response.status === 401) {
         const refreshed = await portalRefreshAccessToken();
         if (!refreshed.ok) return null;
+        const refreshedAccessToken = readAccessToken();
         response = await fetchWithTimeout(`${API_URL}/portal/auth/me`, {
           credentials: "include",
+          headers: refreshedAccessToken ? { Authorization: `Bearer ${refreshedAccessToken}` } : undefined,
         });
         if (!response.ok) return null;
       } else if (code !== "TOKEN_EXPIRED") {
@@ -156,6 +170,9 @@ export async function portalLogin(
     if (data.refreshToken) {
       saveRefreshToken(data.refreshToken);
     }
+    if (data.accessToken) {
+      storePortalAccessToken(data.accessToken);
+    }
     return { ok: true, user: data.user, showSecurityOnboarding: Boolean(data.showSecurityOnboarding) };
   } catch {
     return { ok: false, error: "Network error", errorCode: "NETWORK_ERROR" };
@@ -165,6 +182,7 @@ export async function portalLogin(
 export async function portalLogout(): Promise<void> {
   try {
     saveRefreshToken(null);
+    storePortalAccessToken(null);
     clearPortalOnboardingDeferredForSession();
     await fetchWithTimeout(`${API_URL}/portal/auth/logout`, {
       method: "POST",
@@ -192,11 +210,15 @@ export async function portalRefreshAccessToken(): Promise<{ ok: boolean; refresh
     if (!response.ok) {
       if (response.status === 401) {
         saveRefreshToken(null);
+        storePortalAccessToken(null);
       }
       return { ok: false };
     }
     if (data.refreshToken) {
       saveRefreshToken(data.refreshToken);
+    }
+    if (data.accessToken) {
+      storePortalAccessToken(data.accessToken);
     }
     return { ok: true, refreshToken: data.refreshToken };
   } catch {
@@ -208,22 +230,26 @@ export async function portalApiFetch(
   path: string,
   options: RequestInit = {}
 ) {
+  const accessToken = readAccessToken();
   let response = await fetchWithTimeout(`${API_URL}${path}`, {
     ...options,
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...options.headers,
     },
   });
   if (response.status === 401) {
     const refreshed = await portalRefreshAccessToken();
     if (refreshed.ok) {
+      const refreshedAccessToken = readAccessToken();
       response = await fetchWithTimeout(`${API_URL}${path}`, {
         ...options,
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          ...(refreshedAccessToken ? { Authorization: `Bearer ${refreshedAccessToken}` } : {}),
           ...options.headers,
         },
       });

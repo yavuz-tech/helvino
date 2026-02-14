@@ -419,6 +419,7 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
         return {
           ok: true,
           showSecurityOnboarding: !orgUser.mfaEnabled && !orgUser.securityOnboardingDismissedAt,
+          accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
           refreshExpiresInSec: Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000),
           user: {

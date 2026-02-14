@@ -491,6 +491,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
       return {
         ok: true,
         message: "Password reset successfully",
+        accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         refreshExpiresInSec: Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000),
         user: {

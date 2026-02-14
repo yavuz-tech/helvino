@@ -353,6 +353,7 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
         reply.clearCookie(MFA_SETUP_COOKIE, { path: "/" });
         return {
           ok: true,
+          accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
           refreshExpiresInSec: Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000),
           user: {
@@ -748,6 +749,7 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
 
       return {
         ok: true,
+        accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         refreshExpiresInSec: Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000),
         user: {

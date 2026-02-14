@@ -37,7 +37,13 @@ export async function requirePortalUser(
     return reply.status(500).send({ error: "SESSION_SECRET not configured" });
   }
 
-  const token = request.cookies[PORTAL_SESSION_COOKIE];
+  const authHeader = request.headers.authorization;
+  const bearer =
+    typeof authHeader === "string" && authHeader.toLowerCase().startsWith("bearer ")
+      ? authHeader.slice("bearer ".length).trim()
+      : null;
+
+  const token = bearer || request.cookies[PORTAL_SESSION_COOKIE];
   if (!token) {
     return reply.status(401).send({ error: "Authentication required" });
   }
