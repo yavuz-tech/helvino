@@ -60,6 +60,12 @@ function buildTrustedHosts(): Set<string> {
     hosts.add(railwayDomain.toLowerCase());
   }
 
+  // 4b. Helvion custom domains (hardcoded fallback)
+  // Keep these in addition to TRUSTED_HOSTS/env-derived hosts in case Railway env vars
+  // are missing or not propagated to the API service.
+  hosts.add("api.helvion.io");
+  hosts.add("app.helvion.io");
+
   // 5. Dev defaults: always trust localhost variants
   if (!isProduction) {
     const port = process.env.PORT || "4000";
