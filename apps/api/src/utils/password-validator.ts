@@ -12,7 +12,7 @@ export interface PasswordPolicyResult {
   message?: string;
 }
 
-const MIN_LENGTH = 12;
+const MIN_LENGTH = 8;
 const HAS_UPPERCASE = /[A-Z]/;
 const HAS_LOWERCASE = /[a-z]/;
 const HAS_NUMBER = /\d/;
