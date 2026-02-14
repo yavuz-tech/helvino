@@ -45,6 +45,7 @@ RUN cp apps/widget/dist/embed.js apps/web/public/embed.js
 ENV NEXT_PUBLIC_API_URL=https://helvino-production.up.railway.app
 ENV NEXT_PUBLIC_SOCKET_URL=https://helvino-production.up.railway.app
 ENV NEXT_PUBLIC_WEB_URL=https://gracious-expression-production-7caa.up.railway.app
+ENV NEXT_PUBLIC_HCAPTCHA_SITE_KEY=3b22d26c-14a4-4478-a78c-8d949c921e9a
 
 # Build Next.js app with standalone output
 ENV NEXT_TELEMETRY_DISABLED=1
