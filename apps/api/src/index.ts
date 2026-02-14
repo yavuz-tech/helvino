@@ -174,6 +174,9 @@ const corsPolicy = buildCorsPolicy(process.env.NODE_ENV, [
   process.env.APP_PUBLIC_URL,
   process.env.NEXT_PUBLIC_WEB_URL,
   process.env.ALLOWED_ORIGINS,
+  // Railway auto-provides RAILWAY_PUBLIC_DOMAIN for each service.
+  // If a separate web frontend domain is known, trust it for CORS.
+  process.env.FRONTEND_URL,
 ]);
 let corsWarned = false;
 let corsWildcardWarned = false;

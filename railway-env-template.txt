@@ -23,6 +23,7 @@ NODE_ENV=production
 # ── Public URLs [REQUIRED] ──
 APP_PUBLIC_URL=https://app.helvion.io
 NEXT_PUBLIC_WEB_URL=https://app.helvion.io
+FRONTEND_URL=https://app.helvion.io
 ALLOWED_ORIGINS=https://app.helvion.io,https://helvion.io
 
 # ── Security [REQUIRED — generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"] ──
