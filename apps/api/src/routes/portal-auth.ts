@@ -413,8 +413,9 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         Boolean(previousSession?.ip) &&
         requestIp !== "unknown" &&
         previousSession?.ip === requestIp;
-      // Avoid spamming on routine sign-ins from the same device and IP.
-      const shouldSendLoginNotification = !(sameDevice && sameIp);
+      // Avoid spamming "new login" emails when only IP changes (mobile/WiFi/VPN).
+      // Only notify when the device is actually different.
+      const shouldSendLoginNotification = !sameDevice;
 
       // Update lastLoginAt
       await prisma.orgUser.update({

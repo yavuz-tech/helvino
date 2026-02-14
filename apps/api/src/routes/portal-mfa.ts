@@ -642,7 +642,8 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
       const sameDevice =
         Boolean(previousSession?.userAgent) &&
         previousSession?.userAgent === requestUa;
-      const shouldSendLoginNotification = !(sameDevice && sameIp);
+      // Avoid spamming when IP changes on same device.
+      const shouldSendLoginNotification = !sameDevice;
       const sessionResult = await createPortalSessionWithLimit({
         orgUserId: user.id,
         accessToken: tokens.accessToken,

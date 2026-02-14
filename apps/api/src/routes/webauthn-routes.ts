@@ -329,7 +329,8 @@ export async function webauthnRoutes(fastify: FastifyInstance) {
         const sameDevice =
           Boolean(previousSession?.userAgent) &&
           previousSession?.userAgent === requestUa;
-        const shouldSendLoginNotification = !(sameDevice && sameIp);
+        // Avoid spamming when IP changes on same device.
+        const shouldSendLoginNotification = !sameDevice;
         const sessionResult = await createPortalSessionWithLimit({
           orgUserId: orgUser.id,
           accessToken: tokens.accessToken,

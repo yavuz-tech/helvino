@@ -427,11 +427,9 @@ export async function adminMfaRoutes(fastify: FastifyInstance) {
         requestIp
       );
 
-      const sameIp =
-        Boolean(existingDevice?.lastIp) &&
-        requestIp !== "unknown" &&
-        existingDevice?.lastIp === requestIp;
-      const shouldSendLoginNotification = !sameIp || !existingDevice;
+      // Avoid spamming when admin IP changes (office/home/VPN).
+      // Only notify when we haven't seen this device before.
+      const shouldSendLoginNotification = !existingDevice;
       const geo = requestIp !== "unknown" ? geoip.lookup(requestIp) : null;
       const loginCountry = geo?.country || null;
       const loginCity = geo?.city || null;
