@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -36,21 +36,11 @@ function VerifyEmailContent() {
   const [resending, setResending] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
   const [resendSuccess, setResendSuccess] = useState(false);
-  const [code, setCode] = useState<string[]>(Array(6).fill(""));
-  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const hasAutoVerified = useRef(false);
 
   const token = searchParams.get("token") || "";
   const expires = searchParams.get("expires") || "";
   const sig = searchParams.get("sig") || "";
-  const tokenCode = useMemo(
-    () =>
-      token
-        .replace(/[^A-Za-z0-9]/g, "")
-        .slice(0, 6)
-        .toUpperCase(),
-    [token]
-  );
-  const enteredCode = code.join("").toUpperCase();
 
   useEffect(() => {
     if (!token || !expires || !sig) {
@@ -58,10 +48,11 @@ function VerifyEmailContent() {
       setErrorMessage(t("verifyEmail.failed"));
       return;
     }
-    if (tokenCode.length === 6) {
-      setCode(tokenCode.split(""));
+    // token is the signed email payload; prefill resend field for convenience.
+    if (token.includes("@")) {
+      setResendEmail(token);
     }
-  }, [token, expires, sig, tokenCode, t]);
+  }, [token, expires, sig, t]);
 
   useEffect(() => {
     if (!resendCountdown) return;
@@ -83,16 +74,6 @@ function VerifyEmailContent() {
     if (!token || !expires || !sig) {
       setStatus("error");
       setErrorMessage(t("verifyEmail.failed"));
-      return;
-    }
-    if (enteredCode.length !== 6) {
-      setStatus("error");
-      setErrorMessage(t("verifyEmail.codeInvalid"));
-      return;
-    }
-    if (tokenCode.length === 6 && enteredCode !== tokenCode) {
-      setStatus("error");
-      setErrorMessage(t("verifyEmail.codeInvalid"));
       return;
     }
 
@@ -127,44 +108,12 @@ function VerifyEmailContent() {
     }
   };
 
-  const handleDigitChange = (index: number, value: string) => {
-    const clean = value.replace(/[^A-Za-z0-9]/g, "").slice(-1).toUpperCase();
-    const next = [...code];
-    next[index] = clean;
-    setCode(next);
-    if (clean && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !code[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-    if (e.key === "ArrowLeft" && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-    if (e.key === "ArrowRight" && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    const pasted = e.clipboardData
-      .getData("text")
-      .replace(/[^A-Za-z0-9]/g, "")
-      .slice(0, 6)
-      .toUpperCase();
-    if (!pasted) return;
-    e.preventDefault();
-    const next = Array(6).fill("");
-    pasted.split("").forEach((char, i) => {
-      next[i] = char;
-    });
-    setCode(next);
-    const targetIndex = Math.min(pasted.length, 5);
-    inputRefs.current[targetIndex]?.focus();
-  };
+  useEffect(() => {
+    if (hasAutoVerified.current) return;
+    if (!token || !expires || !sig) return;
+    hasAutoVerified.current = true;
+    void verifyWithLink();
+  }, [token, expires, sig]);
 
   const handleResend = async () => {
     if (!resendEmail || resendCountdown > 0) return;
@@ -252,30 +201,9 @@ function VerifyEmailContent() {
                     />
                   ) : null}
 
-                  <div className="mb-3">
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
-                      {t("verifyEmail.codeLabel")}
-                    </label>
-                    <div className="grid grid-cols-6 gap-2">
-                      {code.map((digit, index) => (
-                        <input
-                          key={index}
-                          ref={(el) => {
-                            inputRefs.current[index] = el;
-                          }}
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={1}
-                          value={digit}
-                          onChange={(e) => handleDigitChange(index, e.target.value)}
-                          onKeyDown={(e) => handleDigitKeyDown(index, e)}
-                          onPaste={handlePaste}
-                          className="h-11 rounded-xl border border-amber-200/70 bg-white/85 text-center text-base font-semibold text-[var(--text-primary)] outline-none transition-all focus:border-amber-300 focus:ring-2 focus:ring-amber-200"
-                        />
-                      ))}
-                    </div>
-                    <p className="mt-2 text-xs text-[var(--text-muted)]">{t("verifyEmail.codeHint")}</p>
-                  </div>
+                  <p className="mb-3 text-sm text-[var(--text-secondary)]">
+                    {status === "verifying" ? t("verifyEmail.verifying") : t("verifyEmail.subtitle")}
+                  </p>
 
                   <button
                     type="button"
