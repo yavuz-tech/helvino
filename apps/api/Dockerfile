@@ -16,6 +16,7 @@ WORKDIR /app
 # Copy workspace config + package.json files for install
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/api/package.json apps/api/package.json
+COPY apps/widget/package.json apps/widget/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
 # Install ALL dependencies (dev included — needed for tsc build)
@@ -24,6 +25,7 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY packages/shared/ packages/shared/
 COPY apps/api/ apps/api/
+COPY apps/widget/ apps/widget/
 
 # Build shared package (API depends on it)
 RUN pnpm --filter @helvino/shared build
@@ -33,6 +35,9 @@ RUN cd apps/api && npx prisma generate
 
 # Build API (tsc → dist/)
 RUN pnpm --filter @helvino/api build
+
+# Build widget embed.js so API can serve it
+RUN pnpm --filter @helvino/widget build
 
 # ── Stage 2: Runner ───────────────────────────────────────
 FROM node:20-alpine AS runner
@@ -60,6 +65,9 @@ COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 
 # Copy API-level node_modules (contains generated .prisma client)
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
+
+# Copy widget build output (embed.js)
+COPY --from=builder /app/apps/widget/dist ./apps/widget/dist
 
 WORKDIR /app/apps/api
 ENV NODE_ENV=production

@@ -16,6 +16,7 @@ import {
   FileText,
   ShieldAlert,
   Tag,
+  MessageCircle,
 } from "lucide-react";
 import { useOrg } from "@/contexts/OrgContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -35,6 +36,7 @@ const navItemDefs: NavItemDef[] = [
   { labelKey: "nav.organizations", href: "/dashboard/orgs", icon: Building2 },
   { labelKey: "nav.settings", href: "/dashboard/settings", icon: Settings },
   { labelKey: "nav.campaigns", href: "/dashboard/campaigns", icon: Tag },
+  { labelKey: "nav.landingWidget", href: "/dashboard/landing-widget", icon: MessageCircle },
   { labelKey: "nav.security", href: "/dashboard/settings/security", icon: Shield },
   { labelKey: "nav.auditLog", href: "/dashboard/audit", icon: FileText },
   { labelKey: "nav.recovery", href: "/dashboard/recovery", icon: ShieldAlert },

@@ -116,6 +116,25 @@ model Waitlist {
   @@map("waitlist")
 }
 
+model LandingWidgetConfig {
+  id             String   @id @default(cuid())
+  orgKey          String   @unique
+  enabled        Boolean  @default(true)
+  welcomeMessage String   @default("Merhaba! 👋 Size nasil yardimci olabilirim?")
+  primaryColor   String   @default("#F59E0B")
+  position       String   @default("br") // br|bl
+  aiAutoReply    Boolean  @default(true)
+  aiProvider     String   @default("gemini") // gemini|openai|claude
+  hoursEnabled   Boolean  @default(false)
+  timezone       String   @default("Europe/Istanbul")
+  hoursJson      Json?
+  offlineMessage String   @default("Su an cevrimdisiyiz. Mesajinizi birakin, en kisa surede donelim.")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("landing_widget_config")
+}
+
 model CheckoutSession {
   id                  String       @id // Stripe checkout session id
   organizationId      String

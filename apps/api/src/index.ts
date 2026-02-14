@@ -56,6 +56,8 @@ import { promoCodesRoutes } from "./routes/promo-codes";
 import { emailRoutes } from "./routes/emails";
 import { organizationSettingsRoutes } from "./routes/organization-settings";
 import { waitlistRoutes } from "./routes/waitlist";
+import { embedRoutes } from "./routes/embed";
+import { landingWidgetRoutes } from "./routes/landing-widget";
 import { upsertVisitor } from "./utils/visitor";
 import { requestContextPlugin } from "./plugins/request-context";
 import { metricsTracker } from "./utils/metrics";
@@ -361,6 +363,8 @@ fastify.register(promoCodesRoutes, { prefix: "/api/promo-codes" }); // Promo cod
 fastify.register(emailRoutes, { prefix: "/emails" }); // Email previews
 fastify.register(organizationSettingsRoutes); // Organization-level toggles
 fastify.register(waitlistRoutes); // Public waitlist
+fastify.register(embedRoutes); // Widget embed.js (public)
+fastify.register(landingWidgetRoutes); // Landing widget config (admin + public)
 
 // Root info
 fastify.get("/", async () => {
