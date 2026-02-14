@@ -124,6 +124,15 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       },
     },
     async (request, reply) => {
+      // Debug aid for cross-origin deployments: expose the cookie policy decision
+      // so we can validate SameSite behavior without needing a successful login.
+      const cookiePolicy = getPortalCookiePolicy({
+        requestOrigin: (request.headers.origin as string | undefined) || null,
+        requestHost: (request.headers.host as string | undefined) || null,
+      });
+      reply.header("X-Helvino-Portal-Cookie-SameSite", cookiePolicy.sameSite);
+      reply.header("X-Helvino-Portal-Cookie-Secure", cookiePolicy.secure ? "1" : "0");
+
       const parsedBody = validateBody(loginSchema, request.body, reply);
       if (!parsedBody) return;
 
