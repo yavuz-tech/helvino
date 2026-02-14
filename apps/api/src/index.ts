@@ -99,6 +99,7 @@ import { runWorkflowsForTrigger } from "./utils/workflow-engine";
 import { sanitizeHTML } from "./utils/sanitize";
 import { validateBody } from "./utils/validate";
 import { widgetSendMessageSchema } from "./utils/schemas";
+import { hashPassword } from "./utils/password";
 import type {
   CreateConversationResponse,
   CreateMessageRequest,
@@ -928,9 +929,49 @@ fastify.ready().then(() => {
 // ── Background Jobs ──
 import { scheduleAiQuotaReset } from "./jobs/reset-ai-quota";
 
+async function seedAdminUserOnStartup(): Promise<void> {
+  const rawEmail = process.env.ADMIN_EMAIL;
+  const rawPassword = process.env.ADMIN_PASSWORD;
+
+  const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
+  const password = typeof rawPassword === "string" ? rawPassword : "";
+
+  if (!email || !password) {
+    // Don't block startup; just inform. Production should set these.
+    console.warn("[admin-seed] ADMIN_EMAIL / ADMIN_PASSWORD not set; skipping admin seed");
+    return;
+  }
+
+  try {
+    const existing = await prisma.adminUser.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (existing) return;
+
+    const passwordHash = await hashPassword(password);
+    await prisma.adminUser.create({
+      data: { email, passwordHash, role: "owner" },
+      select: { id: true },
+    });
+
+    // Requested log line (do not log password).
+    console.log(`Admin user seeded: ${email}`);
+  } catch (err) {
+    // If multiple instances start concurrently, one may win the create.
+    const code = err && typeof err === "object" && "code" in err ? (err as any).code : null;
+    if (code === "P2002") return;
+    console.error("[admin-seed] Failed to seed admin user:", err);
+  }
+}
+
 // Start server
 const start = async () => {
   try {
+    // Railway production DB may not have admin user yet.
+    // Ensure one exists before we start accepting requests.
+    await seedAdminUserOnStartup();
+
     await fastify.listen({ port: PORT, host: HOST });
     console.log(`\n🚀 ${APP_NAME} API is running!`);
     console.log(`📡 Health check: http://localhost:${PORT}/health`);
