@@ -26,7 +26,7 @@ import {
 } from "../utils/rate-limit";
 import { rateLimit } from "../middleware/rate-limiter";
 import { validateJsonContentType } from "../middleware/validation";
-import { verifyTurnstileToken } from "../utils/verify-captcha";
+import { verifyTurnstileToken, isCaptchaConfigured } from "../utils/verify-captcha";
 import { getRealIP } from "../utils/get-real-ip";
 import { validateBody } from "../utils/validate";
 import { signupSchema } from "../utils/schemas";
@@ -116,27 +116,30 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
       const trimmedOrgName = sanitizePlainText(orgName).trim();
       const requestIp = getRealIP(request);
 
-      if (!captchaToken?.trim()) {
-        reply.code(400);
-        return {
-          error: {
-            code: "CAPTCHA_REQUIRED",
-            message: "CAPTCHA verification is required",
-            requestId,
-          },
-        };
-      }
+      // Captcha validation — skip if TURNSTILE_SECRET_KEY is not configured
+      if (isCaptchaConfigured()) {
+        if (!captchaToken?.trim()) {
+          reply.code(400);
+          return {
+            error: {
+              code: "CAPTCHA_REQUIRED",
+              message: "CAPTCHA verification is required",
+              requestId,
+            },
+          };
+        }
 
-      const captchaValid = await verifyTurnstileToken(captchaToken.trim(), requestIp);
-      if (!captchaValid) {
-        reply.code(400);
-        return {
-          error: {
-            code: "INVALID_CAPTCHA",
-            message: "CAPTCHA verification failed",
-            requestId,
-          },
-        };
+        const captchaValid = await verifyTurnstileToken(captchaToken.trim(), requestIp);
+        if (!captchaValid) {
+          reply.code(400);
+          return {
+            error: {
+              code: "INVALID_CAPTCHA",
+              message: "CAPTCHA verification failed",
+              requestId,
+            },
+          };
+        }
       }
 
       const pwCheck = validatePasswordStrength(password);

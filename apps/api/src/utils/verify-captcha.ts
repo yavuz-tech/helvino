@@ -2,10 +2,15 @@ interface TurnstileVerifyResponse {
   success?: boolean;
 }
 
+export function isCaptchaConfigured(): boolean {
+  return Boolean(process.env.TURNSTILE_SECRET_KEY);
+}
+
 export async function verifyTurnstileToken(token: string, remoteIp?: string): Promise<boolean> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) {
-    return false;
+    // Captcha not configured — skip verification (allow request through)
+    return true;
   }
 
   try {

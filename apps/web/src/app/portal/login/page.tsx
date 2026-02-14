@@ -517,7 +517,7 @@ export default function PortalLoginPage() {
         <button
           type="submit"
           className={premiumPrimaryBtn}
-          disabled={isLoading || (showCaptcha && !captchaToken)}
+          disabled={isLoading}
         >
           {isLoading ? t("auth.signingIn") : t("auth.signIn")}
         </button>

@@ -484,12 +484,12 @@ export default function SignupPage() {
                         <span>{t("signup.termsText")}</span>
                       </label>
 
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
-                          {t("portalLogin.captchaLabel")}
-                        </label>
-                        <div className="rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] p-2.5">
-                          {TURNSTILE_SITE_KEY ? (
+                      {TURNSTILE_SITE_KEY && (
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+                            {t("portalLogin.captchaLabel")}
+                          </label>
+                          <div className="rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] p-2.5">
                             <TurnstileWidget
                               key={captchaRenderNonce}
                               siteKey={TURNSTILE_SITE_KEY}
@@ -497,15 +497,13 @@ export default function SignupPage() {
                               onExpire={() => setCaptchaToken(null)}
                               onError={() => setCaptchaToken(null)}
                             />
-                          ) : (
-                            <p className="text-xs text-amber-700">{t("portalLogin.captchaMissingKey")}</p>
-                          )}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       <button
                         type="submit"
-                        disabled={isLoading || !captchaToken}
+                        disabled={isLoading}
                         className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 px-4 py-3 text-sm font-semibold text-[var(--primary)] shadow-[0_12px_28px_rgba(245,158,11,0.35)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isLoading ? t("signup.submitting") : t("signup.startFree")}
