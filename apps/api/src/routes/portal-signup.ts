@@ -14,7 +14,7 @@ import {
   validatePasswordStrength,
   PASSWORD_STRENGTH_ERROR_MESSAGE,
 } from "../utils/password";
-import { sendEmail, getDefaultFromAddress } from "../utils/mailer";
+import { sendEmail, getDefaultFromAddress, isMailProviderConfigured } from "../utils/mailer";
 import { getVerifyEmailContent, normalizeRequestLocale, extractLocaleCookie } from "../utils/email-templates";
 import { generateVerifyEmailLink, verifyEmailSignature } from "../utils/signed-links";
 import { writeAuditLog } from "../utils/audit-log";
@@ -109,6 +109,17 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         (request as any).requestId ||
         (request.headers["x-request-id"] as string) ||
         undefined;
+
+      if (process.env.NODE_ENV === "production" && !isMailProviderConfigured()) {
+        reply.code(503);
+        return {
+          error: {
+            code: "EMAIL_PROVIDER_NOT_CONFIGURED",
+            message: "Email service is temporarily unavailable. Please contact support.",
+            requestId,
+          },
+        };
+      }
 
       const trimmedEmail = email.toLowerCase().trim();
       const trimmedOrgName = sanitizePlainText(orgName).trim();
@@ -327,6 +338,17 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         (request as any).requestId ||
         (request.headers["x-request-id"] as string) ||
         undefined;
+
+      if (process.env.NODE_ENV === "production" && !isMailProviderConfigured()) {
+        reply.code(503);
+        return {
+          error: {
+            code: "EMAIL_PROVIDER_NOT_CONFIGURED",
+            message: "Email service is temporarily unavailable. Please contact support.",
+            requestId,
+          },
+        };
+      }
 
       if (!email) {
         reply.code(400);

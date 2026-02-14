@@ -35,6 +35,14 @@ export interface EmailProvider {
 
 // ── Helpers ──
 
+export function isMailProviderConfigured(): boolean {
+  return Boolean(
+    process.env.RESEND_API_KEY ||
+    process.env.POSTMARK_SERVER_TOKEN ||
+    process.env.SMTP_HOST
+  );
+}
+
 function getDefaultFrom(): string {
   return process.env.MAIL_FROM || process.env.EMAIL_FROM || "noreply@helvion.io";
 }
