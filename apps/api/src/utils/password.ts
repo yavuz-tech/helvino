@@ -60,7 +60,7 @@ export function validatePasswordStrength(
   if (!/[0-9]/.test(value)) {
     errors.push("number");
   }
-  if (!/[!@#$%^&*()_+\-=]/.test(value)) {
+  if (!/[^A-Za-z0-9]/.test(value)) {
     errors.push("special");
   }
 
