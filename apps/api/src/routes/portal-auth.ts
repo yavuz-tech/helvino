@@ -174,8 +174,10 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
           success: false,
           failReason: "account_locked",
         }).catch(() => {/* ignore */});
-        reply.code(423);
-        return { error: "Account is locked. Check your email for unlock instructions." };
+        // Return generic error to prevent user enumeration.
+        // The user has already received an unlock email when the account was locked.
+        reply.code(401);
+        return { error: "Invalid email or password" };
       }
 
       const captchaRequired = orgUser.loginAttempts >= 3;
@@ -292,7 +294,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         };
       }
 
-      // Check if user is active
+      // Check if user is active — return generic error to prevent user enumeration
       if (orgUser.isActive === false) {
         await logLoginAttempt({
           email: normalizedEmail,
@@ -301,11 +303,12 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
           success: false,
           failReason: "account_deactivated",
         }).catch(() => {/* ignore */});
-        reply.code(403);
-        return { error: "Account is deactivated" };
+        reply.code(401);
+        return { error: "Invalid email or password" };
       }
 
       // Check email verification (Step 11.36)
+      // Return error code for frontend UX, but keep message generic to limit enumeration.
       if (!orgUser.emailVerifiedAt) {
         await logLoginAttempt({
           email: normalizedEmail,
@@ -314,11 +317,11 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
           success: false,
           failReason: "email_verification_required",
         }).catch(() => {/* ignore */});
-        reply.code(403);
+        reply.code(401);
         return {
           error: {
             code: "EMAIL_VERIFICATION_REQUIRED",
-            message: "Please verify your email address before logging in.",
+            message: "Invalid email or password",
             requestId,
           },
         };
@@ -327,7 +330,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       const secret = process.env.SESSION_SECRET;
       if (!secret) {
         reply.code(500);
-        return { error: "SESSION_SECRET not configured" };
+        return { error: "Internal server configuration error" };
       }
 
       // Check if MFA is enabled
@@ -663,7 +666,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
     const secret = process.env.SESSION_SECRET;
     if (!secret) {
       reply.code(500);
-      return { error: "SESSION_SECRET not configured" };
+      return { error: "Internal server configuration error" };
     }
 
     const orgUser = await prisma.orgUser.findUnique({
@@ -836,7 +839,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       const secret = process.env.SESSION_SECRET;
       if (!secret) {
         reply.code(500);
-        return { error: "SESSION_SECRET not configured" };
+        return { error: "Internal server configuration error" };
       }
 
       const now = Date.now();
@@ -1065,7 +1068,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
     const secret = process.env.SESSION_SECRET;
     if (!secret) {
       reply.code(500);
-      return { error: "SESSION_SECRET not configured" };
+      return { error: "Internal server configuration error" };
     }
 
     const parsed = verifyPortalSessionToken(token, secret, { ignoreExpiration: true });

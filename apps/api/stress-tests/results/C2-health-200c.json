@@ -1,0 +1,12 @@
+{
+  "label": "C2-health-200c",
+  "url": "http://localhost:4000/health",
+  "connections": 200,
+  "duration": 15,
+  "requests": { "total": 4727, "perSecond": 315 },
+  "latency": { "average": 274.2, "p50": 144.0, "p95": 904.0, "p99": 1401.0, "max": 2748.0 },
+  "ok": 2207,
+  "non2xx": 2520,
+  "errors": 0,
+  "errorRate": 53.3
+}

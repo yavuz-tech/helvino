@@ -1,0 +1,12 @@
+{
+  "label": "A3-health-50c",
+  "url": "http://localhost:4000/health",
+  "connections": 50,
+  "duration": 10,
+  "requests": { "total": 2598, "perSecond": 259 },
+  "latency": { "average": 96.8, "p50": 86.0, "p95": 188.0, "p99": 254.0, "max": 364.0 },
+  "ok": 182,
+  "non2xx": 2416,
+  "errors": 0,
+  "errorRate": 93.0
+}

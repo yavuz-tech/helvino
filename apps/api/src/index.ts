@@ -280,19 +280,12 @@ fastify.addHook("onRequest", async (request, reply) => {
   }
 });
 const socketCorsOrigin = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL;
-let socketCorsWarned = false;
 fastify.register(socketioServer, {
   cors: {
+    // SECURITY: In production, NEVER allow all origins for WebSocket.
+    // If origin is not configured, restrict to same-origin only (false).
     origin: isProduction
-      ? (socketCorsOrigin
-          ? [socketCorsOrigin]
-          : (function allowAllWithWarning() {
-              if (!socketCorsWarned) {
-                socketCorsWarned = true;
-                fastify.log.warn("Socket.IO CORS origin not configured in production. Allowing all origins until configured.");
-              }
-              return true;
-            })())
+      ? (socketCorsOrigin ? [socketCorsOrigin] : false)
       : true,
     credentials: true,
   },

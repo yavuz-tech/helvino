@@ -75,7 +75,7 @@ export default function TrialBanner({
           </div>
         </div>
         <Link
-          href="/portal/billing"
+          href="/portal/pricing"
           className="ml-auto inline-flex min-w-[220px] flex-shrink-0 items-center justify-center gap-2 rounded-[10px] bg-white px-5 py-2.5 text-[13px] font-bold text-violet-700 transition-colors hover:bg-violet-50"
         >
           {ctaLabel} <ArrowRight size={14} />

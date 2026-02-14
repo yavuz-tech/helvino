@@ -1,0 +1,12 @@
+{
+  "label": "C1-health-100c",
+  "url": "http://localhost:4000/health",
+  "connections": 100,
+  "duration": 15,
+  "requests": { "total": 4642, "perSecond": 309 },
+  "latency": { "average": 143.0, "p50": 108.0, "p95": 363.0, "p99": 577.0, "max": 947.0 },
+  "ok": 1995,
+  "non2xx": 2647,
+  "errors": 0,
+  "errorRate": 57.0
+}

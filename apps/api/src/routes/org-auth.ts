@@ -1,8 +1,10 @@
 /**
- * Org User Authentication Routes (Customer Portal)
- * 
- * Separate from internal admin auth.
- * Uses separate session cookie to avoid conflicts.
+ * Org User Authentication Routes (Customer Portal) — LEGACY
+ *
+ * @deprecated Use /portal/auth/* routes instead (portal-auth.ts).
+ * This legacy route is kept for backward compatibility with org-app pages.
+ * It has been hardened with: stricter rate limiting, account lockout check,
+ * active status check, generic error messages, and deprecation logging.
  */
 
 import { FastifyInstance } from "fastify";
@@ -30,18 +32,21 @@ interface LoginResponse {
 export async function orgAuthRoutes(fastify: FastifyInstance) {
   /**
    * POST /org/auth/login
-   * 
-   * Authenticate org user (customer portal)
-   * Sets session cookie (separate from internal admin)
+   *
+   * @deprecated Use POST /portal/auth/login instead.
+   * Legacy org user authentication with security hardening.
    */
   fastify.post<{ Body: LoginRequest; Reply: LoginResponse | { error: string } }>(
     "/org/auth/login",
     {
       preHandler: [
-        createRateLimitMiddleware({ limit: 10, windowMs: 60000 }), // 10 per minute per IP
+        // Stricter rate limit: 5 per 15 minutes per IP (matching portal-auth)
+        createRateLimitMiddleware({ limit: 5, windowMs: 15 * 60 * 1000 }),
       ],
     },
     async (request, reply) => {
+      request.log.warn("DEPRECATED: /org/auth/login called — migrate to /portal/auth/login");
+
       const { email, password } = request.body;
 
       // Validate input
@@ -64,8 +69,20 @@ export async function orgAuthRoutes(fastify: FastifyInstance) {
         },
       });
 
+      // Generic error for user-not-found (prevent enumeration)
       if (!orgUser) {
-        request.log.warn({ email }, "Org user login failed: user not found");
+        reply.code(401);
+        return { error: "Invalid email or password" };
+      }
+
+      // Account lockout check (missing in original)
+      if (orgUser.isLocked) {
+        reply.code(401);
+        return { error: "Invalid email or password" };
+      }
+
+      // Active status check (missing in original)
+      if (orgUser.isActive === false) {
         reply.code(401);
         return { error: "Invalid email or password" };
       }
@@ -74,33 +91,33 @@ export async function orgAuthRoutes(fastify: FastifyInstance) {
       const isValid = await verifyPassword(orgUser.passwordHash, password);
 
       if (!isValid) {
-        request.log.warn({ email, userId: orgUser.id }, "Org user login failed: invalid password");
+        // Increment login attempts for lockout tracking
+        const nextAttempts = orgUser.loginAttempts + 1;
+        await prisma.orgUser.update({
+          where: { id: orgUser.id },
+          data: {
+            loginAttempts: nextAttempts,
+            lastFailedLoginAt: new Date(),
+            ...(nextAttempts >= 5 ? { isLocked: true, lockedAt: new Date() } : {}),
+          },
+        }).catch(() => {/* best-effort */});
+
         reply.code(401);
         return { error: "Invalid email or password" };
       }
 
-      // Check Origin header for CSRF protection
-      const origin = request.headers.origin || request.headers.referer;
-      if (origin && process.env.NODE_ENV === "production") {
-        // In production, verify origin matches expected domain
-        // For now, we'll allow all origins in development
-        request.log.info({ origin }, "Login origin check");
+      // Reset login attempts on success
+      if (orgUser.loginAttempts > 0) {
+        await prisma.orgUser.update({
+          where: { id: orgUser.id },
+          data: { loginAttempts: 0, lastFailedLoginAt: null },
+        }).catch(() => {/* best-effort */});
       }
 
       // Set session
       request.session.orgUserId = orgUser.id;
       request.session.orgId = orgUser.orgId;
       request.session.orgRole = orgUser.role;
-
-      request.log.info(
-        {
-          userId: orgUser.id,
-          email: orgUser.email,
-          role: orgUser.role,
-          orgId: orgUser.orgId,
-        },
-        "Org user login successful"
-      );
 
       return {
         ok: true,

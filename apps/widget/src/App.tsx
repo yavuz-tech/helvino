@@ -12,13 +12,6 @@ const STORAGE_KEY = "helvino_conversation_id";
 const RECENT_EMOJI_KEY = "helvino_recent_emojis";
 const MAX_RECENT = 16;
 
-/** Language-aware branding strings */
-const POWERED_BY: Record<string, { before: string; after: string }> = {
-  en: { before: "Powered by ", after: "" },
-  tr: { before: "", after: " tarafından desteklenmektedir" },
-  es: { before: "Desarrollado por ", after: "" },
-};
-
 /** AI offline help strings */
 const AI_OFFLINE_COPY: Record<string, { button: string; joined: string; systemMsg: string }> = {
   en: { button: "No operators available. Get AI help now", joined: "AI Assistant has joined to help you", systemMsg: "No operators available. AI Assistant will help." },
@@ -60,6 +53,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
 
   // Use external control if provided, otherwise internal state
   const actualIsOpen = externalIsOpen !== undefined ? externalIsOpen : isOpen;
+  useEffect(() => { console.log("[Widget] isOpen changed:", isOpen, "actualIsOpen:", actualIsOpen); }, [isOpen, actualIsOpen]);
   const setIsOpen = (open: boolean) => {
     setIsOpenInternal(open);
     onOpenChange?.(open);
@@ -128,7 +122,8 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     setEmojiOpen(false);
   };
 
-  // Load bootloader config on mount
+  // Load bootloader config on mount and refresh when widget opens
+  const bootloaderLoadedRef = useRef(false);
   useEffect(() => {
     const initBootloader = async () => {
       try {
@@ -143,6 +138,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
         }
         
         setBootloaderConfig(config);
+        bootloaderLoadedRef.current = true;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Failed to load bootloader";
         console.error("❌ Bootloader error:", errorMessage);
@@ -153,61 +149,39 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     initBootloader();
   }, []);
 
-  // Initialize conversation and Socket.IO on widget open
+  // Connect Socket.IO on mount — stays connected so we always receive config updates
   useEffect(() => {
-    if (!actualIsOpen) return;
+    if (socketRef.current) return;
+    try {
+      const orgKey = getOrgKey();
+      socketRef.current = io(API_URL, {
+        transports: ["websocket", "polling"],
+        auth: { orgKey, token: getOrgToken() || undefined },
+      });
+      socketRef.current.on("connect", () => {
+        console.log("✅ Connected to Socket.IO with orgKey:", orgKey);
+      });
+      socketRef.current.on("disconnect", () => {
+        console.log("❌ Disconnected from Socket.IO");
+      });
 
-    // Get or create conversation
-    const initConversation = async () => {
-      const storedId = localStorage.getItem(STORAGE_KEY);
-      
-      if (storedId) {
-        console.log("[Widget] using stored conversationId", storedId);
-        setConversationId(storedId);
-      } else {
-        try {
-          setConnectionStatus("refreshing");
-          console.log("[Widget] creating new conversation...", { API_URL });
-          const conv = await createConversation();
-          console.log("[Widget] conversation created", conv.id);
-          setConversationId(conv.id);
-          localStorage.setItem(STORAGE_KEY, conv.id);
-          setConnectionStatus(null);
-        } catch (error) {
-          console.error("[Widget] create conversation failed", error);
-          setConnectionStatus("error");
-          setTimeout(() => setConnectionStatus(null), 3000);
-        }
-      }
-    };
+      // Real-time config updates: when portal user saves settings, widget updates instantly
+      socketRef.current.on("widget:config-updated", () => {
+        console.log("[Widget] Config updated via socket — refreshing...");
+        loadBootloader()
+          .then((config) => {
+            if (config.orgToken) setOrgToken(config.orgToken);
+            setBootloaderConfig(config);
+            console.log("[Widget] Config refreshed after portal save");
+          })
+          .catch((err) => console.warn("[Widget] Failed to refresh config:", err));
+      });
 
-    initConversation();
-
-    // Connect to Socket.IO with orgKey auth
-    if (!socketRef.current) {
-      try {
-        const orgKey = getOrgKey();
-        socketRef.current = io(API_URL, {
-          transports: ["websocket", "polling"],
-          auth: {
-            orgKey,
-            token: getOrgToken() || undefined,
-          },
-        });
-
-        socketRef.current.on("connect", () => {
-          console.log("✅ Connected to Socket.IO with orgKey:", orgKey);
-        });
-      } catch (error) {
-        console.error("Failed to connect Socket.IO:", error);
-        return;
-      }
-
+      // Chat event listeners — always registered, filtered by conversationId
       socketRef.current.on("message:new", (data: { conversationId: string; message: Message }) => {
         if (data.conversationId === conversationIdRef.current) {
           setMessages((prev) => [...prev, sanitizeMessage(data.message)]);
           setAgentTyping(false);
-          // Response received → cancel AI wait timer and hide button
           if (data.message.role === "assistant") {
             gotResponseSinceLastMsgRef.current = true;
             setShowAiHelpButton(false);
@@ -215,8 +189,6 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
           }
         }
       });
-
-      // Agent typing indicator (supports AI vs human distinction)
       socketRef.current.on("agent:typing", (data: { conversationId: string; isAI?: boolean }) => {
         if (data.conversationId === conversationIdRef.current) {
           setAgentTyping(true);
@@ -232,19 +204,40 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
           if (agentTypingTimerRef.current) clearTimeout(agentTypingTimerRef.current);
         }
       });
-
-      socketRef.current.on("disconnect", () => {
-        console.log("❌ Disconnected from Socket.IO");
-      });
+    } catch (error) {
+      console.error("Failed to connect Socket.IO:", error);
     }
-
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
     };
-  }, [actualIsOpen, conversationId]);
+  }, []);
+
+  // Initialize conversation on widget open (no socket logic here — socket is always connected above)
+  useEffect(() => {
+    if (!actualIsOpen) return;
+    const initConversation = async () => {
+      const storedId = localStorage.getItem(STORAGE_KEY);
+      if (storedId) {
+        setConversationId(storedId);
+      } else {
+        try {
+          setConnectionStatus("refreshing");
+          const conv = await createConversation();
+          setConversationId(conv.id);
+          localStorage.setItem(STORAGE_KEY, conv.id);
+          setConnectionStatus(null);
+        } catch (error) {
+          console.error("[Widget] create conversation failed", error);
+          setConnectionStatus("error");
+          setTimeout(() => setConnectionStatus(null), 3000);
+        }
+      }
+    };
+    initConversation();
+  }, [actualIsOpen]);
 
   const handleSend = async () => {
     if (!inputValue.trim() || !conversationId || isLoading) return;
@@ -347,6 +340,8 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     return null; // Widget disabled by config
   }
 
+  const ws = bootloaderConfig.config.widgetSettings;
+  const v3 = (ws || {}) as any;
   const primaryColor =
     bootloaderConfig.config.widgetSettings?.primaryColor ||
     bootloaderConfig.config.theme.primaryColor;
@@ -369,22 +364,68 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const writeEnabled = bootloaderConfig.config.writeEnabled;
   const aiEnabled = bootloaderConfig.config.aiEnabled;
   const lang = bootloaderConfig.config.language || "en";
-  const poweredBy = POWERED_BY[lang] || POWERED_BY.en;
   const unauthorizedCopy = UNAUTHORIZED_COPY[lang] || UNAUTHORIZED_COPY.en;
   const aiOfflineCopy = AI_OFFLINE_COPY[lang] || AI_OFFLINE_COPY.en;
   const widgetContext = (window as unknown as { HELVINO_WIDGET_CONTEXT?: string }).HELVINO_WIDGET_CONTEXT;
   const isLoginContext = widgetContext === "portal-login";
   const isLeft = isLoginContext ? false : bubbleTheme.bubblePosition === "bottom-left";
-  const shouldShowGreeting = !actualIsOpen && bubbleTheme.greetingEnabled && bubbleTheme.greetingText.trim().length > 0;
   const launcherRadius = bubbleBorderRadius(bubbleTheme.bubbleShape, bubbleTheme.bubbleSize);
-  const widgetTitle =
-    bootloaderConfig.config.widgetSettings?.brandName?.trim() ||
-    bootloaderConfig.config.branding?.widgetName ||
-    APP_NAME;
-  const widgetSubtitle = bootloaderConfig.config.branding?.widgetSubtitle || "";
-  const welcomeTitle = bootloaderConfig.config.widgetSettings?.welcomeTitle || widgetTitle;
-  const welcomeMessage =
-    bootloaderConfig.config.widgetSettings?.welcomeMessage || "How can we help you today?";
+  const THEME_COLORS: Record<string, { color: string; dark: string }> = {
+    amber: { color: "#F59E0B", dark: "#D97706" },
+    ocean: { color: "#0EA5E9", dark: "#0284C7" },
+    emerald: { color: "#10B981", dark: "#059669" },
+    violet: { color: "#8B5CF6", dark: "#7C3AED" },
+    rose: { color: "#F43F5E", dark: "#E11D48" },
+    slate: { color: "#475569", dark: "#334155" },
+    teal: { color: "#14B8A6", dark: "#0D9488" },
+    indigo: { color: "#6366F1", dark: "#4F46E5" },
+    sunset: { color: "#F97316", dark: "#C2410C" },
+    aurora: { color: "#06B6D4", dark: "#0E7490" },
+    midnight: { color: "#1E293B", dark: "#0F172A" },
+    cherry: { color: "#BE123C", dark: "#9F1239" },
+  };
+  const themeId = v3.themeId || "amber";
+  const themeColors = THEME_COLORS[themeId] || THEME_COLORS.amber;
+  const useCustom = v3.useCustomColor === true;
+  const ac = useCustom ? (v3.customColor || "#F59E0B") : themeColors.color;
+  const ad = useCustom ? (v3.customColor || "#F59E0B") : themeColors.dark;
+  const ag = `linear-gradient(135deg, ${ac}, ${ad})`;
+  const hexRgb = (hex: string) => {
+    const h = hex.replace("#", "");
+    return `${parseInt(h.substring(0, 2), 16)},${parseInt(h.substring(2, 4), 16)},${parseInt(h.substring(4, 6), 16)}`;
+  };
+  const acRgb = hexRgb(ac);
+  const headerText = v3.headerText || ws?.welcomeTitle || "Nasıl yardımcı olabiliriz?";
+  const subText = v3.subText || "Genellikle birkaç dakika içinde yanıt veriyoruz";
+  const welcomeMsg = v3.welcomeMsg || ws?.welcomeMessage || "Merhaba! 👋";
+  const offlineMsg = v3.offlineMsg || "Şu an çevrimdışıyız. Mesajınızı bırakın.";
+  const starters = v3.starters || [];
+  const activeStarters = Array.isArray(starters) ? starters.filter((s: any) => s.active) : [];
+  const botAvatar = v3.botAvatar || "🤖";
+  const aiName = v3.aiName || "Helvion AI";
+  const aiLabelEnabled = v3.aiLabel !== false;
+  const aiSuggestions = v3.aiSuggestions !== false;
+  const showBrandingFlag = v3.showBranding !== false;
+  const attGrabberId = v3.attGrabberId || "none";
+  const attGrabberText = v3.attGrabberText || "Merhaba! Yardıma ihtiyacınız var mı? 👋";
+  const launcherLabel = v3.launcherLabel || "Bize yazın";
+  const launcherId = v3.launcherId || "rounded";
+  const positionId = v3.positionId || (isLeft ? "bl" : "br");
+  const isLeftV3 = positionId === "bl";
+  const LAUNCHER_SIZES: Record<string, { w: number; h: number; radius: string; hasText: boolean }> = {
+    rounded: { w: 60, h: 60, radius: "50%", hasText: false },
+    squircle: { w: 60, h: 60, radius: "16px", hasText: false },
+    pill: { w: 140, h: 52, radius: "28px", hasText: true },
+    bar: { w: 180, h: 48, radius: "14px", hasText: true },
+  };
+  const launcherDef = LAUNCHER_SIZES[launcherId] || LAUNCHER_SIZES.rounded;
+  const WIDGET_SIZES: Record<string, { w: number; h: number }> = {
+    compact: { w: 350, h: 480 },
+    standard: { w: 380, h: 560 },
+    large: { w: 420, h: 620 },
+  };
+  const widgetSizeId = v3.widgetSizeId || "standard";
+  const widgetDim = WIDGET_SIZES[widgetSizeId] || WIDGET_SIZES.standard;
   const chatInputPlaceholder =
     bootloaderConfig.config.chatPageConfig?.placeholder || "Type a message...";
 
@@ -415,17 +456,6 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     );
   };
 
-  /** Reusable branding block */
-  const poweredByBlock = brandingRequired ? (
-    <div className="widget-powered-by" role="contentinfo">
-      {poweredBy.before}
-      <a href={HELVINO_SITE_URL} target="_blank" rel="noopener noreferrer" className="widget-powered-by-brand">
-        {APP_NAME}
-      </a>
-      {poweredBy.after}
-    </div>
-  ) : null;
-
   // Unauthorized domain: show safe disabled state
   if (bootloaderConfig.config.unauthorizedDomain) {
     return (
@@ -443,28 +473,59 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
 
   return (
     <div className="widget-container" style={{ "--primary-color": primaryColor } as React.CSSProperties}>
-      {!actualIsOpen && (
-        <div
-          className={`widget-launcher-wrap ${isLeft ? "left" : "right"}`}
-          style={{ bottom: 24 }}
-        >
-          {shouldShowGreeting && (
-            <div className={`widget-greeting-badge ${isLeft ? "left" : "right"}`}>
-              {bubbleTheme.greetingText}
+      {!actualIsOpen && attGrabberId !== "none" && (
+        <div className={`widget-att-grabber ${isLeftV3 ? "left" : "right"}`}
+          style={{
+            position: "fixed",
+            bottom: launcherDef.h + 36,
+            [isLeftV3 ? "left" : "right"]: 24,
+            zIndex: 9997,
+            animation: attGrabberId === "bounce" ? "attBounce 1s ease infinite" : attGrabberId === "pulse" ? "attPulse 1.5s ease infinite" : "attFadeUp 0.4s ease both",
+          }}>
+          {attGrabberId === "wave" && (
+            <div style={{ fontSize: 32, animation: "attShake 1s ease infinite", cursor: "pointer" }}
+              onClick={() => setIsOpen(true)}>👋</div>
+          )}
+          {attGrabberId === "message" && (
+            <div onClick={() => setIsOpen(true)}
+              style={{ background: "#FFF", borderRadius: 14, padding: "10px 14px", boxShadow: "0 4px 20px rgba(0,0,0,0.1)", maxWidth: 220, cursor: "pointer", fontSize: 13, color: "#1A1D23", lineHeight: 1.4 }}>
+              {attGrabberText}
             </div>
           )}
+          {attGrabberId === "bounce" && (
+            <div onClick={() => setIsOpen(true)}
+              style={{ background: ag, width: 14, height: 14, borderRadius: "50%", cursor: "pointer", boxShadow: `0 0 12px rgba(${acRgb}, 0.4)` }} />
+          )}
+          {attGrabberId === "pulse" && (
+            <div onClick={() => setIsOpen(true)}
+              style={{ background: ag, width: 14, height: 14, borderRadius: "50%", cursor: "pointer", boxShadow: `0 0 12px rgba(${acRgb}, 0.4)` }} />
+          )}
+        </div>
+      )}
+      {!actualIsOpen && (
+        <div
+          className={`widget-launcher-wrap ${isLeftV3 ? "left" : "right"}`}
+          style={{ bottom: 24 }}
+        >
           <button
-            onClick={() => setIsOpen(true)}
+            onClick={() => { console.log("[Widget] Launcher clicked"); setIsOpen(true); }}
             className="widget-launcher-button"
             style={{
-              backgroundColor: primaryColor,
-              width: bubbleTheme.bubbleSize,
-              height: bubbleTheme.bubbleSize,
-              borderRadius: launcherRadius,
-              boxShadow: `0 8px 24px ${primaryColor}55, 0 4px 10px ${primaryColor}35`,
+              background: ag,
+              width: launcherDef.w,
+              height: launcherDef.h,
+              borderRadius: launcherDef.radius || launcherRadius,
+              boxShadow: `0 8px 28px rgba(${acRgb}, 0.3)`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
             }}
             aria-label="Open chat"
           >
+            {launcherDef.hasText && (
+              <span style={{ color: "#FFF", fontSize: 14, fontWeight: 700 }}>{launcherLabel}</span>
+            )}
             {renderBubbleIcon()}
           </button>
         </div>
@@ -472,96 +533,118 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
 
       {actualIsOpen && (
         <div className={isLoginContext ? "widget-auth-overlay" : undefined}>
-          <div className={`chat-window ${isLoginContext ? "auth-mode" : isLeft ? "position-left" : "position-right"}`}>
-          <div className="chat-header">
-            <div>
-              <h3>{widgetTitle}</h3>
-              {widgetSubtitle ? (
-                <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b", fontWeight: 500 }}>
-                  {widgetSubtitle}
-                </p>
-              ) : null}
+          <div className={`chat-window ${isLoginContext ? "auth-mode" : isLeftV3 ? "position-left" : "position-right"}`} style={{ width: widgetDim.w, height: widgetDim.h }}>
+          <div className="chat-header-v3" style={{ background: ag, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 85% 15%, rgba(255,255,255,0.12), transparent 60%)" }} />
+            <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, border: "1px solid rgba(255,255,255,0.15)" }}>{botAvatar}</div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "#FFF" }}>{headerText}</div>
+                  <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", gap: 4 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80" }} />{subText}
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setIsOpen(false)} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
-            <button onClick={() => setIsOpen(false)}>✕</button>
           </div>
           
           {/* Connection status banner */}
           {connectionStatus && (
             <div className={`connection-status ${connectionStatus}`}>
-              {connectionStatus === "refreshing" && "🔄 Connecting..."}
-              {connectionStatus === "error" && "⚠️ Connection issue, retrying..."}
+              {connectionStatus === "refreshing" && "🔄 Bağlanıyor..."}
+              {connectionStatus === "error" && "⚠️ Bağlantı sorunu, yeniden deneniyor..."}
             </div>
           )}
           
           <div className="chat-messages">
             {messages.length === 0 ? (
-              <div className="welcome-message">
-                <p style={{ marginBottom: "6px", fontWeight: 700, color: "#1f2937" }}>
-                  {welcomeTitle}
-                </p>
-                <p>{welcomeMessage}</p>
+              <div className="widget-home-view">
+                <div style={{ textAlign: "center", padding: "16px 12px 8px" }}>
+                  <p style={{ fontWeight: 700, fontSize: 15, color: "#1A1D23", marginBottom: 4 }}>{headerText}</p>
+                  <p style={{ fontSize: 12.5, color: "#64748B" }}>{welcomeMsg}</p>
+                </div>
+                {activeStarters.length > 0 && (
+                  <div style={{ padding: "8px 14px" }}>
+                    {activeStarters.slice(0, 4).map((st: any) => (
+                      <div
+                        key={st.id}
+                        onClick={() => { setInputValue(st.text.replace(/^[^\s]+\s/, "")); }}
+                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderRadius: 11, marginBottom: 7, background: "#FAFAF8", border: "1px solid #F1F5F9", cursor: "pointer", fontSize: 13.5, fontWeight: 500, color: "#1A1D23", transition: "all 0.2s" }}
+                      >
+                        {st.text}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
-              messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`message ${msg.role}${msg.role === "assistant" ? " ai-message" : ""}`}
-                >
-                  {msg.role === "assistant" && (
-                    <div className="ai-badge">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
-                      <span>AI</span>
+              <>
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`message ${msg.role}${msg.role === "assistant" ? " ai-message" : ""}`}
+                  >
+                    {msg.role === "assistant" && aiLabelEnabled && (
+                      <div className="ai-badge-v3" style={{ background: `rgba(${acRgb}, 0.08)`, color: ac }}>
+                        <span style={{ fontSize: 10, fontWeight: 700 }}>{aiName}</span>
+                        <span style={{ fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 4, background: `rgba(${acRgb}, 0.12)`, color: ac }}>AI</span>
+                      </div>
+                    )}
+                    <div className="message-content" dangerouslySetInnerHTML={{ __html: msg.content }} />
+                    <div className="message-time">
+                      {new Date(msg.timestamp).toLocaleTimeString()}
                     </div>
-                  )}
-                  <div className="message-content" dangerouslySetInnerHTML={{ __html: msg.content }} />
-                  <div className="message-time">
-                    {new Date(msg.timestamp).toLocaleTimeString()}
                   </div>
-                </div>
-              ))
+                ))}
+                {aiSuggestions && messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "4px 0" }}>
+                    {["💰 Planları gör", "📞 İletişim"].map((s, i) => (
+                      <div key={i} onClick={() => setInputValue(s.replace(/^[^\s]+\s/, ""))}
+                        style={{ fontSize: 11, fontWeight: 700, padding: "6px 10px", borderRadius: 9, background: `rgba(${acRgb}, 0.06)`, border: `1.5px solid rgba(${acRgb}, 0.12)`, color: ac, cursor: "pointer" }}>{s}</div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
-            {/* AI auto-joined system message */}
             {aiAutoJoinedShown && (
               <div className="ai-system-message">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
                 <span>{aiOfflineCopy.joined}</span>
               </div>
             )}
-
-            {/* "Get AI Help" button when no response after 30s */}
             {showAiHelpButton && aiEnabled && (
               <div className="ai-help-prompt">
-                <button className="ai-help-button" onClick={handleAiHelp} disabled={aiHelpLoading}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                <button className="ai-help-button" style={{ background: ag }} onClick={handleAiHelp} disabled={aiHelpLoading}>
                   {aiHelpLoading ? "..." : aiOfflineCopy.button}
-                  {!aiHelpLoading && <span className="ai-help-zap">⚡</span>}
                 </button>
               </div>
             )}
-
             {agentTyping && (
               <div className={`typing-indicator${aiTyping ? " ai-typing" : ""}`}>
                 <span className="typing-dot" />
                 <span className="typing-dot" />
                 <span className="typing-dot" />
-                <span className="typing-label">{aiTyping ? "AI Assistant is typing..." : "Agent is typing..."}</span>
+                <span className="typing-label">{aiTyping ? `${aiName} yazıyor...` : "Agent yazıyor..."}</span>
               </div>
             )}
           </div>
           
           {!writeEnabled ? (
             <div className="chat-disabled-notice">
-              💬 Chat is temporarily unavailable.
+              {offlineMsg}
             </div>
           ) : (
-            <div className="chat-input" style={{ position: "relative" }}>
+            <div className="chat-input-v3" style={{ borderTop: `1px solid rgba(${acRgb}, 0.08)` }}>
               <button
                 className="chat-emoji-btn"
                 onClick={() => setEmojiOpen((v) => !v)}
                 aria-label="Insert emoji"
                 type="button"
               >
-                😀
+                😊
               </button>
               {emojiOpen && (
                 <div className="chat-emoji-picker">
@@ -581,18 +664,28 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
                 onChange={(e) => { setInputValue(e.target.value); emitTyping(); }}
                 onKeyPress={handleKeyPress}
                 disabled={isLoading || !conversationId}
+                style={{ borderColor: `rgba(${acRgb}, 0.15)` }}
               />
               <button
                 onClick={handleSend}
                 disabled={isLoading || !conversationId || !inputValue.trim()}
+                style={{ background: ag, borderRadius: 10 }}
               >
-                {isLoading ? "..." : "Send"}
+                {isLoading ? "..." : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>}
               </button>
             </div>
           )}
 
-          {/* Branding – server-enforced */}
-          {poweredByBlock}
+          {(brandingRequired || showBrandingFlag) && (
+            <div className="widget-powered-by-v3" style={{ borderTop: `1px solid rgba(${acRgb}, 0.06)` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 12px 4px 8px", borderRadius: 20, background: `rgba(${acRgb}, 0.04)` }}>
+                <div style={{ width: 16, height: 16, borderRadius: 5, background: ag, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/></svg>
+                </div>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: "#9CA3AF" }}>Powered by <a href={HELVINO_SITE_URL} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 800, color: ac, textDecoration: "none" }}>{APP_NAME}</a></span>
+              </div>
+            </div>
+          )}
         </div>
         </div>
       )}

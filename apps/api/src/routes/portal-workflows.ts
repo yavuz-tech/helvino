@@ -50,13 +50,22 @@ export async function portalWorkflowRoutes(fastify: FastifyInstance) {
       const actor = request.portalUser!;
       const { name, trigger, enabled, conditionsJson, actionsJson } = request.body || {};
       if (!name || !trigger) return reply.status(400).send({ error: "name and trigger are required" });
+      // SECURITY: Input validation — max lengths and JSON size
+      const trimmedName = String(name).trim();
+      if (trimmedName.length > 200) return reply.status(400).send({ error: "name exceeds maximum length (200)" });
       if (!SUPPORTED_TRIGGERS.includes(trigger as (typeof SUPPORTED_TRIGGERS)[number])) {
         return reply.status(400).send({ error: "unsupported trigger" });
+      }
+      if (conditionsJson && JSON.stringify(conditionsJson).length > 32 * 1024) {
+        return reply.status(400).send({ error: "conditionsJson exceeds maximum size (32KB)" });
+      }
+      if (actionsJson && JSON.stringify(actionsJson).length > 32 * 1024) {
+        return reply.status(400).send({ error: "actionsJson exceeds maximum size (32KB)" });
       }
       const created = await prisma.workflowRule.create({
         data: {
           orgId: actor.orgId,
-          name: String(name).trim(),
+          name: trimmedName,
           trigger,
           enabled: enabled ?? true,
           conditionsJson: (conditionsJson ?? {}) as Prisma.InputJsonValue,

@@ -108,8 +108,6 @@
 .chat-window {
   position: fixed;
   bottom: 24px;
-  width: 380px;
-  height: 600px;
   background: white;
   border-radius: 1rem;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
@@ -588,4 +586,112 @@
 .ai-system-message svg {
   flex-shrink: 0;
   color: #6366f1;
+}
+
+/* ── v3-ultimate styles ── */
+.chat-header-v3 {
+  padding: 18px 16px;
+  border-radius: 16px 16px 0 0;
+}
+
+.chat-window {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.12), 0 4px 20px rgba(0,0,0,0.06);
+  border: none;
+}
+
+.ai-badge-v3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+
+.chat-input-v3 {
+  padding: 12px 14px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: #FFFCF8;
+  position: relative;
+}
+
+.chat-input-v3 input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1.5px solid #E8E0D4;
+  border-radius: 11px;
+  outline: none;
+  font-size: 13px;
+  background: #FFF;
+  transition: border-color 0.2s;
+}
+
+.chat-input-v3 input:focus {
+  border-color: currentColor;
+}
+
+.chat-input-v3 button:not(.chat-emoji-btn) {
+  width: 36px;
+  height: 36px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #FFF;
+  flex-shrink: 0;
+}
+
+.chat-input-v3 button:not(.chat-emoji-btn):disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.widget-powered-by-v3 {
+  padding: 9px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.widget-home-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.message.user .message-content {
+  border-radius: 14px 14px 4px 14px;
+}
+
+.message.assistant .message-content {
+  border-radius: 14px 14px 14px 4px;
+}
+
+/* ── Attention Grabber Animations ── */
+@keyframes attShake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(20deg); }
+  50% { transform: rotate(-15deg); }
+  75% { transform: rotate(10deg); }
+}
+
+@keyframes attBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes attPulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes attFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }

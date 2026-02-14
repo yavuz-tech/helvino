@@ -1,0 +1,52 @@
+# Dependencies (installed in Docker)
+node_modules/
+**/node_modules/
+
+# Build output (built in Docker)
+dist/
+**/dist/
+.next/
+**/.next/
+.next-verify/
+
+# Environment files (secrets injected via Railway)
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+.cursor/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test & Dev artifacts
+coverage/
+*.log
+*.pid
+*.seed
+*.tsbuildinfo
+.turbo
+.vercel
+.verify-logs/
+
+# Documentation (not needed in container)
+docs/
+*.md
+!README.md
+HANDOFF.md
+WIDGET-AUDIT-REPORT.md
+
+# Stress tests
+apps/api/stress-tests/
+
+# Playwright
+playwright-report/
+test-results/

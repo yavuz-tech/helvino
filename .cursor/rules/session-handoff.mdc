@@ -1,0 +1,101 @@
+---
+description: Session handoff protocol — ensures smooth context transfer between chat sessions
+globs: 
+alwaysApply: true
+---
+
+# Session Handoff Protocol (ZORUNLU)
+
+## KURAL 1: Yeni sohbet başladığında
+
+Kullanıcı "devam et", "kaldığın yerden devam", "HANDOFF oku" gibi bir şey derse:
+
+1. **ÖNCE** `HANDOFF.md` dosyasını oku (proje kök dizininde)
+2. **SONRA** `pending-tasks.mdc` dosyasını oku
+3. Kullanıcıya kısa özet ver: "Part X'in Y adımında kalmışız. Z dosyası değişmiş. Devam edeyim mi?"
+4. Onay alınca devam et
+
+## KURAL 2: Her Part/adım BAŞLARKEN HANDOFF.md güncelle
+
+Multi-part bir görev yapılıyorsa, her part'a **BAŞLAMADAN ÖNCE** `HANDOFF.md`'yi güncelle:
+
+```markdown
+## AKTIF ÇALIŞMA
+**Part:** 3/5 — Widget preview panel polish
+**Başlangıç:** 2026-02-12 19:45 UTC
+**Durum:** BAŞLADI
+**Bu part'ta yapılacaklar:**
+1. [ ] preview panel responsive layout
+2. [ ] theme color live preview
+3. [ ] launcher style preview
+**Değişecek dosyalar:**
+- `apps/web/src/app/portal/widget-appearance/widget-appearance-v3-ultimate.jsx`
+```
+
+## KURAL 3: Her Part/adım BİTİNCE HANDOFF.md güncelle
+
+Part tamamlandığında checklist'i güncelle ve bir sonraki adımı yaz:
+
+```markdown
+## AKTIF ÇALIŞMA
+**Part:** 3/5 — Widget preview panel polish
+**Durum:** TAMAMLANDI ✅
+**Bu part'ta yapılanlar:**
+1. [x] preview panel responsive layout
+2. [x] theme color live preview
+3. [x] launcher style preview
+**Değişen dosyalar:**
+- `apps/web/.../widget-appearance-v3-ultimate.jsx` — preview panel JSX yeniden yazıldı (satır 800-950)
+
+## BİR SONRAKİ ADIM
+**Part:** 4/5 — Final save/reset wiring
+```
+
+## KURAL 4: Sohbet çok uzadığında UYAR
+
+Eğer sohbet 15+ tool call'a ulaştıysa ve daha işin yarısındaysan:
+- Kullanıcıya de: "Sohbet şişmeye başladı. HANDOFF.md'yi güncelleyip yeni sohbete geçmek ister misin?"
+- Kullanıcı kabul ederse: HANDOFF.md'yi güncel yaz, "yeni sohbette `HANDOFF.md oku ve devam et` de" mesajı ver
+
+## HANDOFF.md YAPISI
+
+```markdown
+# Helvino — Session Handoff
+**Son güncelleme:** [tarih saat]
+
+## AKTIF ÇALIŞMA
+**Görev:** [görev adı]
+**Part:** [X/Y] — [part açıklaması]
+**Durum:** BAŞLADI | DEVAM EDİYOR | TAMAMLANDI
+**Checklist:**
+1. [x] yapılan adım
+2. [ ] yapılmamış adım
+
+## SON DEĞİŞEN DOSYALAR
+[dosya yolu — 1 satır açıklama]
+
+## YARI KALAN İŞ (crash durumu için)
+[Eğer part ortasında crash olduysa: hangi dosyada hangi satırda ne yapılıyordu]
+[Hangi dosyalar değişti ama test edilmedi]
+[Hangi build/restart gerekiyor]
+
+## BİLİNEN SORUNLAR
+[açık buglar]
+
+## TEST KOMUTLARI
+[doğrulama komutları]
+
+## SUNUCU DURUMU
+[son bilinen durum]
+
+## DB / KİMLİK BİLGİLERİ
+[test kullanıcı, org key, vb.]
+```
+
+## ÖNEMLİ
+
+- HANDOFF.md her Part başında ve sonunda güncellenmeli — sohbet patlamasına karşı koruma
+- Soyut ifade YASAK: "Part 3 yapıldı" değil → "v3-ultimate.jsx satır 800-950 preview panel JSX yeniden yazıldı"
+- Değişen dosyalarda SATIRLAR belirt — yeni agent diff görmeden anlasın
+- Yarı kalan iş varsa açıkça yaz: "Bu dosyada X değişti ama Y henüz yapılmadı"
+- Test komutları MUTLAKA olmalı

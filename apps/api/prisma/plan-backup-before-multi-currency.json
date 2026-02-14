@@ -1,0 +1,36 @@
+{
+  "backedUpAt": "2026-02-13T00:31:06.477Z",
+  "count": 3,
+  "rows": [
+    {
+      "id": "cmla7cnxp0000lj6bouyjxfvm",
+      "key": "free",
+      "name": "Free",
+      "stripePriceId": null,
+      "monthlyPriceUsd": null,
+      "maxConversationsPerMonth": 100,
+      "maxMessagesPerMonth": 500,
+      "maxAgents": 3
+    },
+    {
+      "id": "cmlb9wc0i0002m95ivzhebn5y",
+      "key": "pro",
+      "name": "Pro",
+      "stripePriceId": null,
+      "monthlyPriceUsd": 49,
+      "maxConversationsPerMonth": 2000,
+      "maxMessagesPerMonth": 20000,
+      "maxAgents": 10
+    },
+    {
+      "id": "cmlb9wc0k0003m95ilupkrhqs",
+      "key": "business",
+      "name": "Business",
+      "stripePriceId": null,
+      "monthlyPriceUsd": 199,
+      "maxConversationsPerMonth": 10000,
+      "maxMessagesPerMonth": 100000,
+      "maxAgents": 50
+    }
+  ]
+}

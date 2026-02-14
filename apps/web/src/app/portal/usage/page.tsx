@@ -660,7 +660,7 @@ export default function PortalUsagePage() {
                 <p>✅ {t("usage.messages")}</p>
               </div>
               <Link
-                href="/portal/billing"
+                href="/portal/pricing"
                 className="inline-flex items-center gap-2 mt-5"
                 style={{
                   background: `linear-gradient(135deg,${colors.brand.primary},${colors.brand.secondary})`,

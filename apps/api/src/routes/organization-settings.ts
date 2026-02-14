@@ -26,6 +26,8 @@ export async function organizationSettingsRoutes(fastify: FastifyInstance) {
 
       return {
         campaignsEnabled: settings.campaignsEnabled,
+        globalDiscountPercent: settings.globalDiscountPercent,
+        globalDiscountActive: settings.globalDiscountActive,
       };
     }
   );
@@ -53,7 +55,11 @@ export async function organizationSettingsRoutes(fastify: FastifyInstance) {
         create: { organizationId: orgId },
       });
 
-      return { campaignsEnabled: settings.campaignsEnabled };
+      return {
+        campaignsEnabled: settings.campaignsEnabled,
+        globalDiscountPercent: settings.globalDiscountPercent,
+        globalDiscountActive: settings.globalDiscountActive,
+      };
     }
   );
 
@@ -72,25 +78,67 @@ export async function organizationSettingsRoutes(fastify: FastifyInstance) {
         reply.code(404);
         return { error: "Organization not found" };
       }
-      const body = (request.body || {}) as { campaignsEnabled?: boolean };
+      const body = (request.body || {}) as {
+        campaignsEnabled?: boolean;
+        globalDiscountPercent?: number;
+        globalDiscountActive?: boolean;
+      };
+      const updateData: {
+        campaignsEnabled?: boolean;
+        globalDiscountPercent?: number;
+        globalDiscountActive?: boolean;
+      } = {};
 
-      if (typeof body.campaignsEnabled !== "boolean") {
+      if ("campaignsEnabled" in body) {
+        if (typeof body.campaignsEnabled !== "boolean") {
+          reply.code(400);
+          return { error: "campaignsEnabled must be boolean" };
+        }
+        updateData.campaignsEnabled = body.campaignsEnabled;
+      }
+
+      if ("globalDiscountActive" in body) {
+        if (typeof body.globalDiscountActive !== "boolean") {
+          reply.code(400);
+          return { error: "globalDiscountActive must be boolean" };
+        }
+        updateData.globalDiscountActive = body.globalDiscountActive;
+      }
+
+      if ("globalDiscountPercent" in body) {
+        if (
+          typeof body.globalDiscountPercent !== "number" ||
+          !Number.isInteger(body.globalDiscountPercent) ||
+          body.globalDiscountPercent < 0 ||
+          body.globalDiscountPercent > 100
+        ) {
+          reply.code(400);
+          return { error: "globalDiscountPercent must be an integer between 0 and 100" };
+        }
+        updateData.globalDiscountPercent = body.globalDiscountPercent;
+      }
+
+      if (Object.keys(updateData).length === 0) {
         reply.code(400);
-        return { error: "campaignsEnabled must be boolean" };
+        return { error: "No valid fields provided for update" };
       }
 
       const settings = await prisma.organizationSettings.upsert({
         where: { organizationId: orgId },
-        update: { campaignsEnabled: body.campaignsEnabled },
+        update: updateData,
         create: {
           organizationId: orgId,
-          campaignsEnabled: body.campaignsEnabled,
+          campaignsEnabled: updateData.campaignsEnabled ?? false,
+          globalDiscountPercent: updateData.globalDiscountPercent ?? 0,
+          globalDiscountActive: updateData.globalDiscountActive ?? false,
         },
       });
 
       return {
         ok: true,
         campaignsEnabled: settings.campaignsEnabled,
+        globalDiscountPercent: settings.globalDiscountPercent,
+        globalDiscountActive: settings.globalDiscountActive,
       };
     }
   );

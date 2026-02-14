@@ -77,7 +77,7 @@ export default function PortalSettingsApiKeysPage() {
               {t("settings.apiKeys.businessRequired")}
             </p>
             <Link
-              href="/portal/billing"
+              href="/portal/pricing"
               style={{
                 display: "inline-flex",
                 alignItems: "center",

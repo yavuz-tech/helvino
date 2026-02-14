@@ -31,7 +31,7 @@ export default function CampaignTopBanner({ source, variant = "sticky", orgKey }
   const { t } = useI18n();
   const [campaign, setCampaign] = useState<CampaignPayload | null>(null);
   const [visible, setVisible] = useState(false);
-  const ctaHref = source === "portal" ? "/portal/billing" : "/pricing";
+  const ctaHref = source === "portal" ? "/portal/pricing" : "/pricing";
 
   const load = async () => {
     try {

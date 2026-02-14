@@ -98,7 +98,7 @@ export default function UpgradeModal({ isOpen, onClose, currentLimit = 100, curr
             {plans.map((plan) => (
               <Link
                 key={plan.key}
-                href="/portal/billing"
+                href="/portal/pricing"
                 onClick={onClose}
                 className={`flex items-center gap-4 p-4 rounded-xl border ${plan.border} ${plan.bgHover} transition-all ${plan.highlight ? "ring-2 ring-amber-400 ring-offset-1" : ""}`}
               >

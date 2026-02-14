@@ -34,7 +34,13 @@ function getAppUrl(): string {
 }
 
 function getSigningSecret(): string {
-  return process.env.SIGNED_LINK_SECRET || process.env.SESSION_SECRET || "dev-signing-secret";
+  const secret = process.env.SIGNED_LINK_SECRET || process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error(
+      "CRITICAL: SIGNED_LINK_SECRET or SESSION_SECRET environment variable is required for signed links"
+    );
+  }
+  return secret;
 }
 
 // ── Link Types ──

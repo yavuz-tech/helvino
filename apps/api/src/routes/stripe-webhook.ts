@@ -136,9 +136,37 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
           // Idempotency: skip if we already processed this event
           if (org.lastStripeEventId === eventId) break;
 
-          // Resolve plan from metadata or price
+          // Resolve plan/period/currency context from metadata
           const metaPlanKey = session.metadata?.planKey;
           const planKey = metaPlanKey || org.planKey;
+          const period = session.metadata?.period || "monthly";
+          const expectedCurrency = (session.metadata?.expectedCurrency || "").toLowerCase();
+          const actualCurrency = (session.currency || "").toLowerCase();
+
+          // Safety-net logging: TR card should generally pay in TRY.
+          let cardCountry: string | null = null;
+          if (isStripeConfigured() && typeof session.payment_intent === "string") {
+            try {
+              const stripe = getStripeClient();
+              const paymentIntent = await stripe.paymentIntents.retrieve(
+                session.payment_intent
+              );
+              const paymentMethodId = paymentIntent.payment_method;
+              if (typeof paymentMethodId === "string") {
+                const paymentMethod = await stripe.paymentMethods.retrieve(
+                  paymentMethodId
+                );
+                cardCountry = paymentMethod.card?.country || null;
+              }
+            } catch (err) {
+              console.warn("[stripe-webhook] card country lookup failed:", err);
+            }
+          }
+          if (cardCountry === "TR" && actualCurrency && actualCurrency !== "try") {
+            console.warn(
+              `[BILLING] TR card used with ${actualCurrency} — unexpected`
+            );
+          }
 
           await prisma.organization.update({
             where: { id: org.id },
@@ -146,15 +174,22 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
               stripeCustomerId: session.customer || org.stripeCustomerId,
               stripeSubscriptionId:
                 session.subscription || org.stripeSubscriptionId,
-              stripePriceId:
-                session.metadata?.stripePriceId || org.stripePriceId,
+              // Legacy field kept for compatibility only.
+              stripePriceId: null,
               billingStatus: "active",
               planKey,
               planStatus: "active",
+              ...(session.metadata?.foundingMember === "true"
+                ? {
+                    isFoundingMember: true,
+                    foundingMemberAt: new Date(),
+                  }
+                : {}),
               lastStripeEventAt: now,
               lastStripeEventId: eventId,
             },
           });
+          console.log(`[Webhook] Plan activated: ${org.id} -> ${planKey}`);
           if (checkoutSessionId) {
             await prisma.checkoutSession.updateMany({
               where: {
@@ -176,6 +211,10 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
             stripeSubscriptionId: session.subscription || null,
             stripeCustomerId: session.customer || null,
             planKey,
+            period,
+            expectedCurrency,
+            actualCurrency,
+            cardCountry,
             promoCode,
           });
           if (promoCode) {
@@ -216,16 +255,21 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
             const mapped = await mapPriceToplanKey(priceId);
             if (mapped) planKey = mapped;
           }
+          if (event.type === "customer.subscription.deleted") {
+            planKey = "free";
+          }
 
           // Derive planStatus from billingStatus
           const planStatus =
-            newStatus === "active" || newStatus === "trialing"
-              ? "active"
-              : newStatus === "past_due"
-                ? "past_due"
-                : newStatus === "canceled"
-                  ? "canceled"
-                  : "inactive";
+            event.type === "customer.subscription.deleted"
+              ? "canceled"
+              : newStatus === "active" || newStatus === "trialing"
+                ? "active"
+                : newStatus === "past_due"
+                  ? "past_due"
+                  : newStatus === "canceled"
+                    ? "canceled"
+                    : "inactive";
 
           const isPastDueOrUnpaid = newStatus === "past_due" || newStatus === "unpaid";
           const isActive = newStatus === "active" || newStatus === "trialing";

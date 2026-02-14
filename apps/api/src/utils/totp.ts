@@ -7,6 +7,7 @@
 
 import crypto from "crypto";
 import * as OTPAuth from "otpauth";
+import { encryptMfaSecret, decryptMfaSecret } from "./mfa-encryption";
 
 const ISSUER = "Helvion";
 const TOTP_PERIOD = 30; // seconds
@@ -82,6 +83,15 @@ export function tryConsumeBackupCode(
   remaining.splice(index, 1);
   return remaining;
 }
+
+// ── MFA Secret Encryption Helpers ──
+
+/**
+ * Encrypt an MFA secret before storing in database.
+ * When MFA_ENCRYPTION_KEY is set, the secret is AES-256-GCM encrypted.
+ * Without the key, it falls back to plaintext (legacy mode).
+ */
+export { encryptMfaSecret, decryptMfaSecret };
 
 // ── Step-Up ──
 

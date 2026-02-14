@@ -387,7 +387,7 @@ export default function PortalTeamPage() {
                     {t("team.agentLimitUsage")}: {inviteLimitState.current}/{inviteLimitState.maxAgents}
                   </p>
                 </div>
-                <Link href="/portal/billing" className={p.btnPrimary}>
+                <Link href="/portal/pricing" className={p.btnPrimary}>
                   <Crown size={13} />
                   {t("billing.upgradeNow")}
                 </Link>

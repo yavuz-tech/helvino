@@ -108,10 +108,13 @@ export function createRateLimitMiddleware(config: RateLimitConfig) {
 
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const realIp = getRealIP(request);
-    // Skip rate limiting for authenticated internal admin session or internal key
+    // Skip rate limiting for authenticated internal admin session or validated internal key.
+    // SECURITY: x-internal-key MUST match the server's INTERNAL_API_KEY — presence alone is NOT sufficient.
     const internalKey = request.headers["x-internal-key"] as string | undefined;
+    const validInternalKey = process.env.INTERNAL_API_KEY;
+    const isValidInternalKey = !!(internalKey && validInternalKey && internalKey === validInternalKey);
     const adminUserId = request.session?.adminUserId;
-    if (internalKey || adminUserId) {
+    if (isValidInternalKey || adminUserId) {
       if (shouldAudit) {
         const route = config.routeName || request.routeOptions?.url || request.url;
         const orgId = (request as any).portalUser?.orgId
@@ -125,7 +128,7 @@ export function createRateLimitMiddleware(config: RateLimitConfig) {
           orgId,
           actor,
           "security.rate_limit_bypass",
-          { route, reason: internalKey ? "internal_key" : "admin_session", ip: realIp },
+          { route, reason: isValidInternalKey ? "internal_key" : "admin_session", ip: realIp },
           request.requestId
         ).catch(() => { /* best-effort */ });
       }

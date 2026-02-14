@@ -152,7 +152,7 @@ export default function AIUsageStats({ prominent = false, compact = false, onUpg
       {(isNearLimit || isExceeded) && (
         <div className="px-6 pb-4">
           <Link
-            href="/portal/billing"
+            href="/portal/pricing"
             className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-[var(--font-heading)] text-xs font-bold text-white transition-all ${
               isExceeded ? "bg-red-600 hover:bg-red-700" : "bg-amber-600 hover:bg-amber-700"
             }`}

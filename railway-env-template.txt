@@ -1,0 +1,107 @@
+# ═══════════════════════════════════════════════════════════
+# HELVION — Railway Environment Variables Template
+# ═══════════════════════════════════════════════════════════
+# Copy these into Railway Dashboard → Service → Variables
+# Values marked [REQUIRED] must be set before deploy
+# Values marked [AUTO] are provided by Railway plugins
+# ═══════════════════════════════════════════════════════════
+
+# ══════════════════════════════════════
+# ── API SERVICE (helvion-api) ──
+# ══════════════════════════════════════
+
+# ── Database [AUTO — Railway PostgreSQL plugin] ──
+DATABASE_URL=${PGDATABASE_URL}
+
+# ── Redis [AUTO — Railway Redis plugin] ──
+REDIS_URL=${REDIS_URL}
+
+# ── Server ──
+NODE_ENV=production
+# PORT is auto-injected by Railway — do NOT set manually
+
+# ── Public URLs [REQUIRED] ──
+APP_PUBLIC_URL=https://app.helvion.io
+NEXT_PUBLIC_WEB_URL=https://app.helvion.io
+ALLOWED_ORIGINS=https://app.helvion.io,https://helvion.io
+
+# ── Security [REQUIRED — generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"] ──
+SESSION_SECRET=
+INTERNAL_API_KEY=
+ORG_TOKEN_SECRET=
+SIGNED_LINK_SECRET=
+
+# ── Cloudflare Turnstile [REQUIRED] ──
+TURNSTILE_SECRET_KEY=
+
+# ── Trusted Hosts ──
+TRUSTED_HOSTS=app.helvion.io,api.helvion.io,helvion.io
+TRUSTED_PROXIES=
+
+# ── Email [REQUIRED] ──
+MAIL_PROVIDER=resend
+RESEND_API_KEY=
+EMAIL_FROM=Helvion <support@helvion.io>
+MAIL_FROM=Helvion <support@helvion.io>
+FORCE_RESEND_DEV_FROM=false
+
+# ── Stripe [REQUIRED for billing] ──
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_PRO=
+STRIPE_PRICE_BUSINESS=
+STRIPE_PRICE_ID_STARTER=
+STRIPE_SUCCESS_URL=https://app.helvion.io/portal/billing?success=true
+STRIPE_CANCEL_URL=https://app.helvion.io/portal/billing?canceled=true
+GRACE_DAYS=7
+
+# ── WebAuthn/Passkeys [REQUIRED for MFA] ──
+WEBAUTHN_RP_NAME=Helvion
+WEBAUTHN_RP_ID=app.helvion.io
+WEBAUTHN_ORIGIN=https://app.helvion.io
+
+# ── MFA Policy ──
+ADMIN_MFA_REQUIRED=true
+PORTAL_MFA_RECOMMENDED=true
+
+# ── MFA Encryption [REQUIRED — generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"] ──
+MFA_ENCRYPTION_KEY=
+
+# ── AI Providers [at least one REQUIRED] ──
+GEMINI_API_KEY=
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+
+# ── Widget Embed CDN ──
+EMBED_CDN_URL=https://app.helvion.io
+
+# ── Rate Limiting ──
+RATE_LIMIT_DEV_MULTIPLIER=1
+
+# ── Feature Flags ──
+INTERNAL_OVERRIDE_WRITES=false
+
+# ── Logging ──
+LOG_LEVEL=warn
+
+# ══════════════════════════════════════
+# ── WEB SERVICE (helvion-web) ──
+# ══════════════════════════════════════
+
+# NEXT_PUBLIC_API_URL=https://api.helvion.io
+# NEXT_PUBLIC_TURNSTILE_SITE_KEY=
+# NEXT_PUBLIC_DEFAULT_WIDGET_SITE_ID=
+# NEXT_PUBLIC_DEFAULT_WIDGET_ORG_KEY=
+# NEXT_PUBLIC_DEFAULT_ORG_KEY=
+
+# ═══════════════════════════════════════════════════════════
+# NOTES:
+# 1. DATABASE_URL: Railway auto-populates ${PGDATABASE_URL} when
+#    you add a PostgreSQL plugin and reference it.
+# 2. REDIS_URL: Same — auto-populated by Railway Redis plugin.
+# 3. Secrets: Generate EACH one independently. Never reuse.
+# 4. Stripe webhook: Create endpoint in Stripe Dashboard pointing
+#    to https://api.helvion.io/stripe/webhook, then copy the signing secret.
+# 5. CORS: APP_PUBLIC_URL and ALLOWED_ORIGINS must include all
+#    frontend domains that will access the API.
+# ═══════════════════════════════════════════════════════════

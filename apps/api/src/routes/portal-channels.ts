@@ -63,6 +63,11 @@ export async function portalChannelRoutes(fastify: FastifyInstance) {
         return reply.status(400).send({ error: "enabled must be boolean" });
       }
 
+      // SECURITY: Validate settingsJson size to prevent oversized data storage
+      if (settingsJson && JSON.stringify(settingsJson).length > 16 * 1024) {
+        return reply.status(400).send({ error: "settingsJson exceeds maximum size (16KB)" });
+      }
+
       const row = await prisma.channelConfig.upsert({
         where: { orgId_channelType: { orgId: actor.orgId, channelType } },
         create: {

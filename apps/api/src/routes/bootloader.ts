@@ -60,6 +60,8 @@ interface BootloaderResponse {
       welcomeTitle: string;
       welcomeMessage: string;
       brandName: string | null;
+      // v3-ultimate extended settings (from configJson)
+      [key: string]: unknown;
     };
     chatPageConfig?: {
       title: string;
@@ -232,7 +234,7 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
       // Branding entitlement: Free plan = branding required (cannot be removed)
       const brandingRequired = org.planKey === "free";
 
-      // Load widget appearance settings (Step 11.52)
+      // Load widget appearance settings (Step 11.52) — includes v3 configJson
       const widgetSettings = await prisma.widgetSettings.findUnique({
         where: { orgId: org.id },
         select: {
@@ -248,6 +250,7 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
           welcomeTitle: true,
           welcomeMessage: true,
           brandName: true,
+          configJson: true,
         },
       });
       const chatPageConfig = await prisma.chatPageConfig.findUnique({
@@ -297,17 +300,31 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
           writeEnabled: org.writeEnabled,
           aiEnabled: org.aiEnabled,
           language: org.language, // From DB
-          theme: {
-            // Use widget appearance color when available so launcher/bubble
-            // always reflects what user saved in Widget Appearance.
-            primaryColor: widgetSettings?.primaryColor || org.primaryColor,
-            bubbleShape: widgetSettings?.bubbleShape || "circle",
-            bubbleIcon: widgetSettings?.bubbleIcon || "chat",
-            bubbleSize: widgetSettings?.bubbleSize || 60,
-            bubblePosition: widgetSettings?.bubblePosition || (widgetSettings?.position === "left" ? "bottom-left" : "bottom-right"),
-            greetingText: widgetSettings?.greetingText || "",
-            greetingEnabled: widgetSettings?.greetingEnabled || false,
-          },
+          theme: (() => {
+            // Derive effective color from v3 configJson (themeId or customColor) when available
+            const v3Config = (widgetSettings?.configJson as Record<string, unknown>) || {};
+            const THEME_COLORS: Record<string, string> = {
+              amber: "#F59E0B", ocean: "#0EA5E9", emerald: "#10B981", violet: "#8B5CF6",
+              rose: "#F43F5E", slate: "#475569", teal: "#14B8A6", indigo: "#6366F1",
+              sunset: "#F97316", aurora: "#06B6D4", midnight: "#1E293B", cherry: "#BE123C",
+            };
+            let effectiveColor = widgetSettings?.primaryColor || org.primaryColor;
+            if (v3Config.useCustomColor === true && typeof v3Config.customColor === "string") {
+              effectiveColor = v3Config.customColor;
+            } else if (typeof v3Config.themeId === "string" && THEME_COLORS[v3Config.themeId]) {
+              effectiveColor = THEME_COLORS[v3Config.themeId];
+            }
+            const effectivePosition = widgetSettings?.position === "left" ? "bottom-left" : "bottom-right";
+            return {
+              primaryColor: effectiveColor,
+              bubbleShape: widgetSettings?.bubbleShape || "circle",
+              bubbleIcon: widgetSettings?.bubbleIcon || "chat",
+              bubbleSize: widgetSettings?.bubbleSize || 60,
+              bubblePosition: widgetSettings?.bubblePosition || effectivePosition,
+              greetingText: widgetSettings?.greetingText || "",
+              greetingEnabled: widgetSettings?.greetingEnabled || false,
+            };
+          })(),
           branding: {
             widgetName: org.widgetName, // From DB
             widgetSubtitle: org.widgetSubtitle, // From DB
@@ -317,21 +334,38 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
           brandingRequired,
           maxAgents,
           unauthorizedDomain,
-          // Widget appearance settings (Step 11.52)
-          widgetSettings: widgetSettings || {
-            primaryColor: "#0F5C5C",
-            position: "right",
-            launcher: "bubble",
-            bubbleShape: "circle",
-            bubbleIcon: "chat",
-            bubbleSize: 60,
-            bubblePosition: "bottom-right",
-            greetingText: "",
-            greetingEnabled: false,
-            welcomeTitle: "Welcome",
-            welcomeMessage: "How can we help you today?",
-            brandName: null,
-          },
+          // Widget appearance settings (Step 11.52) — includes v3 extended config
+          widgetSettings: widgetSettings
+            ? {
+                primaryColor: widgetSettings.primaryColor,
+                position: widgetSettings.position,
+                launcher: widgetSettings.launcher,
+                bubbleShape: widgetSettings.bubbleShape,
+                bubbleIcon: widgetSettings.bubbleIcon,
+                bubbleSize: widgetSettings.bubbleSize,
+                bubblePosition: widgetSettings.bubblePosition,
+                greetingText: widgetSettings.greetingText,
+                greetingEnabled: widgetSettings.greetingEnabled,
+                welcomeTitle: widgetSettings.welcomeTitle,
+                welcomeMessage: widgetSettings.welcomeMessage,
+                brandName: widgetSettings.brandName,
+                // v3-ultimate extended config (theme, launcher style, starters, AI, etc.)
+                ...((widgetSettings.configJson as Record<string, unknown>) || {}),
+              }
+            : {
+                primaryColor: "#0F5C5C",
+                position: "right",
+                launcher: "bubble",
+                bubbleShape: "circle",
+                bubbleIcon: "chat",
+                bubbleSize: 60,
+                bubblePosition: "bottom-right",
+                greetingText: "",
+                greetingEnabled: false,
+                welcomeTitle: "Welcome",
+                welcomeMessage: "How can we help you today?",
+                brandName: null,
+              },
           chatPageConfig: chatPageConfig || {
             title: "Chat with us",
             subtitle: "We reply as soon as possible",

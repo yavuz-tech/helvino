@@ -25,7 +25,11 @@ export async function portalAiInboxRoutes(fastify: FastifyInstance) {
     if (result.code === "QUOTA_EXCEEDED") {
       return reply.code(402).send({ error: result.error, code: "QUOTA_EXCEEDED" });
     }
-    return reply.code(500).send({ error: result.error, code: result.code });
+    // Sanitize error: never leak internal error details to the client
+    const safeError = typeof result.error === "string" && result.error.length < 200
+      ? result.error
+      : "AI service encountered an error";
+    return reply.code(500).send({ error: safeError, code: result.code || "AI_ERROR" });
   };
 
   // ─── POST /portal/conversations/:id/ai-suggest ────────────────

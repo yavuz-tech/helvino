@@ -1,0 +1,14 @@
+{
+  "baseUrl": "http://localhost:4000",
+  "tests": [
+    { "label": "A1-health-10c",    "path": "/health",                          "conns": 10,  "duration": 10 },
+    { "label": "A2-health-30c",    "path": "/health",                          "conns": 30,  "duration": 10 },
+    { "label": "A3-health-50c",    "path": "/health",                          "conns": 50,  "duration": 10 },
+    { "label": "B1-founding-30c",  "path": "/api/founding-member-status",      "conns": 30,  "duration": 10 },
+    { "label": "B2-currency-30c",  "path": "/api/currency",                    "conns": 30,  "duration": 10 },
+    { "label": "B3-discount-30c",  "path": "/api/active-discount?orgKey=demo", "conns": 30,  "duration": 10 },
+    { "label": "C1-health-100c",   "path": "/health",                          "conns": 100, "duration": 15 },
+    { "label": "C2-health-200c",   "path": "/health",                          "conns": 200, "duration": 15 },
+    { "label": "C3-health-500c",   "path": "/health",                          "conns": 500, "duration": 10 }
+  ]
+}

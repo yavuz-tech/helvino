@@ -1,0 +1,12 @@
+{
+  "label": "A1-health-10c",
+  "url": "http://localhost:4000/health",
+  "connections": 10,
+  "duration": 10,
+  "requests": { "total": 2726, "perSecond": 272 },
+  "latency": { "average": 20.4, "p50": 20.0, "p95": 25.0, "p99": 32.0, "max": 55.0 },
+  "ok": 1982,
+  "non2xx": 744,
+  "errors": 0,
+  "errorRate": 27.3
+}

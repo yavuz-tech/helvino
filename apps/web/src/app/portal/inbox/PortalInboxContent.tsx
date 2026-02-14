@@ -2702,7 +2702,7 @@ export default function PortalInboxContent() {
 
             <button
               onClick={() => {
-                window.location.href = "/portal/billing";
+                window.location.href = "/portal/pricing";
                 setUpgradeModal(null);
               }}
               style={{

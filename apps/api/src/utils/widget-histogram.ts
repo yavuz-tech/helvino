@@ -95,6 +95,11 @@ export function buildHistogramUpdateSql(
   durationMs: number
 ): { sql: string; params: [string, number] } {
   const idx = bucketIndex(durationMs);
+  // SECURITY: idx is always 0-6 from bucketIndex(), but guard against injection
+  // in case the function is ever modified to accept external input.
+  if (!Number.isInteger(idx) || idx < 0 || idx >= BUCKET_BOUNDS.length) {
+    throw new Error(`Invalid histogram bucket index: ${idx}`);
+  }
   // Atomically increment the specific bucket count using jsonb_set
   // and also increment widgetRtTotalCount
   const sql = `

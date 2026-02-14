@@ -48,7 +48,7 @@ export default function UsageNudge({
         <BarChart3 size={15} className={`${iconColor} flex-shrink-0`} />
       )}
       <p className={`text-xs font-medium flex-1 ${textColor}`}>{message}</p>
-      <Link href="/portal/billing"
+      <Link href="/portal/pricing"
         className={`flex items-center gap-1 text-[11px] font-semibold whitespace-nowrap ${
           isOver ? "px-2.5 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700" :
           isWarn ? "px-2.5 py-1 bg-amber-600 text-white rounded-lg hover:bg-amber-700" :

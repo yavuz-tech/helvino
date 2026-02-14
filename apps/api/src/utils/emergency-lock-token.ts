@@ -6,7 +6,13 @@ interface EmergencyLockPayload {
 }
 
 function getSecret(): string {
-  return process.env.SIGNED_LINK_SECRET || process.env.SESSION_SECRET || "dev-emergency-lock-secret";
+  const secret = process.env.SIGNED_LINK_SECRET || process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error(
+      "CRITICAL: SIGNED_LINK_SECRET or SESSION_SECRET environment variable is required for emergency lock tokens"
+    );
+  }
+  return secret;
 }
 
 function base64UrlEncode(input: Buffer): string {

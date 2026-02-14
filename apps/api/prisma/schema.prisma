@@ -45,6 +45,8 @@ model Organization {
   lastWidgetSeenAt      DateTime?
   planKey               String         @default("free")
   planStatus            String         @default("inactive") // "active" | "inactive" | "past_due" | "canceled"
+  isFoundingMember      Boolean        @default(false)
+  foundingMemberAt      DateTime?
   allowedDomains        String[]       @default([])
   allowLocalhost        Boolean        @default(true) // Allow localhost/127.0.0.1 for development
   widgetEnabled         Boolean        @default(true)
@@ -96,6 +98,8 @@ model OrganizationSettings {
   organizationId   String       @unique
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   campaignsEnabled Boolean      @default(false)
+  globalDiscountPercent Int     @default(0) // 0 = none, 1-100 = percent discount
+  globalDiscountActive Boolean  @default(false)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
@@ -150,13 +154,29 @@ model PromoCode {
 
 model Plan {
   id                        String  @id @default(cuid())
-  key                       String  @unique // "free" | "pro" | "business"
+  key                       String  @unique // "free" | "starter" | "pro" | "business"
   name                      String
-  stripePriceId             String? @unique // Stripe Price ID mapping
+
+  // Stripe Price IDs — monthly/yearly x USD/TRY
+  stripePriceMonthlyUsd     String?
+  stripePriceYearlyUsd      String?
+  stripePriceMonthlyTry     String?
+  stripePriceYearlyTry      String?
+
+  // Prices (cent/kurus)
   monthlyPriceUsd           Int?
+  yearlyPriceUsd            Int?
+  monthlyPriceTry           Int?
+  yearlyPriceTry            Int?
+
+  // Limits
+  maxAgents                 Int
   maxConversationsPerMonth  Int
   maxMessagesPerMonth       Int
-  maxAgents                 Int
+  maxAiMessagesPerMonth     Int
+
+  // Ordering for plan comparison
+  sortOrder                 Int     @default(0)
 
   @@map("plans")
 }
@@ -607,6 +627,7 @@ model WidgetSettings {
   welcomeTitle   String       @default("Welcome") @db.VarChar(60)
   welcomeMessage String       @default("How can we help you today?") @db.VarChar(240)
   brandName      String?      @db.VarChar(40)
+  configJson     Json         @default("{}") // v3-ultimate extended widget config (all 50+ settings)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

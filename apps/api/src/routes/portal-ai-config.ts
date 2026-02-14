@@ -67,6 +67,17 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
 
       const currentConfig = parseAiConfig(org.aiConfigJson);
 
+      // SECURITY: Input validation — max lengths for AI config string fields
+      if (body.systemPrompt !== undefined && typeof body.systemPrompt === "string" && body.systemPrompt.length > 10000) {
+        reply.code(400); return { error: "systemPrompt exceeds maximum length (10000 characters)" };
+      }
+      if (body.greeting !== undefined && typeof body.greeting === "string" && body.greeting.length > 1000) {
+        reply.code(400); return { error: "greeting exceeds maximum length (1000 characters)" };
+      }
+      if (body.fallbackMessage !== undefined && typeof body.fallbackMessage === "string" && body.fallbackMessage.length > 1000) {
+        reply.code(400); return { error: "fallbackMessage exceeds maximum length (1000 characters)" };
+      }
+
       const newConfig: AiConfig = {
         ...currentConfig,
         ...(body.systemPrompt !== undefined && { systemPrompt: body.systemPrompt }),

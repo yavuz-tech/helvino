@@ -304,7 +304,7 @@ export default function AvatarSelector({ currentPlan, onAvatarChange }: AvatarSe
           </p>
           <button
             type="button"
-            onClick={() => router.push("/portal/billing")}
+            onClick={() => router.push("/portal/pricing")}
             data-testid="avatar-banner-upgrade"
             className="inline-flex shrink-0 items-center rounded-[8px] px-[14px] py-[6px] text-[11px] font-bold text-white transition hover:brightness-105"
             style={{
@@ -356,7 +356,7 @@ export default function AvatarSelector({ currentPlan, onAvatarChange }: AvatarSe
                   </button>
                   <button
                     type="button"
-                    onClick={() => router.push("/portal/billing")}
+                    onClick={() => router.push("/portal/pricing")}
                     data-testid="avatar-pro-modal-upgrade"
                     className="rounded-[10px] px-5 py-2.5 text-[13px] font-bold text-white"
                     style={{ background: "linear-gradient(135deg, #8B5CF6, #6D28D9)" }}

@@ -6,70 +6,50 @@ alwaysApply: true
 
 # Helvino — Pending Tasks & Current Status
 
+> **YENİ SOHBET İÇİN:** Önce `/HANDOFF.md` dosyasını oku — orada tam bağlam, son değişen dosyalar, test komutları ve bir sonraki adım var.
+
+## IN PROGRESS: Widget Appearance v3-ultimate Redesign
+
+### Tamamlanan İşler
+- Part 1–7/9: Tüm UI bölümleri (tema, launcher, AI, starters, hours, PRO gating, embed, page rules)
+- Backend entegrasyonu: `configJson` kolonu, PUT/GET handler yeniden yazımı, legacy sync
+- Bootloader: v3 configJson'dan renk/pozisyon derive etme
+- Socket real-time: `widget:config-updated` event (mount'ta bağlanıyor)
+- Hydration fix: version-based guard (settingsVersion counter)
+- PRO toggle gating fix: disabled → gated (tıklanabilir ama upgrade modal gösterir)
+- Widget rebuild + embed.js kopyalama
+- Test sayfası: `apps/web/public/widget-test.html`
+
+### Kalan İşler
+1. **Debug log'ları temizle** — 6 adet geçici console.log var (detay HANDOFF.md'de)
+2. **Part 8/9:** Right panel live preview polish
+3. **Part 9/9:** Final regression testi (HANDOFF.md'deki test komutlarını çalıştır)
+4. **i18n audit:** v3-ultimate.jsx'te hardcoded Türkçe label varsa taşı
+5. **Git push:** workflow scope sorunu çöz
+
+### Kritik Dosyalar (Değişiklik Yapılacaksa Bunları Oku)
+- `apps/api/src/routes/portal-widget-settings.ts` — PUT/GET handler
+- `apps/api/src/routes/bootloader.ts` — müşteri widget'ın veri kaynağı
+- `apps/widget/src/App.tsx` — embed widget ana component
+- `apps/web/src/app/portal/widget-appearance/page.tsx` — portal wrapper (state, fetch, save)
+- `apps/web/src/app/portal/widget-appearance/widget-appearance-v3-ultimate.jsx` — portal UI (hydration, handleSave)
+
 ## IN PROGRESS: Abandoned Checkout + Promotion Code System
 
-### Current Implementation Status (Updated)
+### Durum: Büyük oranda tamamlandı, validation bekliyor
+- CheckoutSession + PromotionCode modelleri schema'da ✅
+- Migration var ✅
+- Checkout tracking (start/complete) ✅
+- Abandoned job + email ✅
+- Admin promo API'ları ✅
+- **Bekleyen:** Stripe live/test key validation, integration test coverage
 
-#### Done
-- `CheckoutSession` and `PromotionCode` models are present in `apps/api/prisma/schema.prisma`.
-- Migration exists for checkout/promo foundation:
-  - `apps/api/prisma/migrations/20260210083000_add_checkout_abandon_and_promo/migration.sql`
-- Checkout tracking is implemented in Stripe utility:
-  - `apps/api/src/utils/stripe.ts` -> `createCheckoutSession()` upserts `CheckoutSession` with `status: "started"`.
-- Checkout completion is wired in webhook:
-  - `apps/api/src/routes/stripe-webhook.ts` handles `checkout.session.completed`.
-  - Matching `CheckoutSession` is updated to `status: "completed"` with `completedAt`.
-- Abandoned checkout job is implemented:
-  - `apps/api/src/jobs/checkAbandonedCheckouts.ts`
-  - Marks old `started` sessions as `abandoned`, sends email, records audit.
-  - Registered in `apps/api/src/index.ts` via cron (`* * * * *`).
-- Abandoned checkout email flow exists:
-  - Sender: `apps/api/src/emails/send-abandoned-email.ts`
-  - Template provider: `apps/api/src/utils/email-templates.ts` -> `getAbandonedCheckoutEmail(...)`
-- Admin promo code APIs exist in:
-  - `apps/api/src/routes/internal-admin.ts`
-  - `GET /internal/promo-codes`
-  - `POST /internal/promo-codes`
-  - `PATCH /internal/promo-codes/:id`
-- Admin promo UI section exists in:
-  - `apps/web/src/app/dashboard/settings/page.tsx`
-- Checkout supports promo usage in Stripe:
-  - `apps/api/src/utils/stripe.ts` uses `allow_promotion_codes: true`.
-
-#### Partially Done / Needs Validation
-- Stripe-side coupon/promotion code sync is implemented, but should be validated in real Stripe environment for all edge cases (usage limits, expiration, inactive codes).
-- End-to-end checkout-abandon-recovery flow needs explicit integration test coverage.
-- Production migration/application status should be confirmed per environment (local code has migration; deployment state may vary).
-
-#### Remaining Work (Actionable)
-1. Add or expand automated integration tests for:
-   - checkout start -> `CheckoutSession(status="started")`
-   - webhook completion -> `status="completed"`
-   - abandoned job -> `status="abandoned"` + promo creation + email send
-2. Validate full Stripe behavior with live/test keys:
-   - promotion code attach, checkout acceptance, webhook attribution.
-3. Optional cleanup:
-   - review legacy abandoned email artifacts (`apps/api/src/emails/abandoned-checkout.ts`, `apps/api/src/emails/abandonedCheckout.tsx`) and keep only the canonical path.
-
-## LATEST COMPLETED (Security/Tech Debt)
-
-- Strong password validation added in API (`validatePasswordStrength`) and enforced on signup/reset/change/invite accept flows.
-- CORS and domain allowlist hardening completed:
-  - empty allowlist blocked in production,
-  - localhost-only behavior in development for empty lists,
-  - wildcard allowlist entries blocked/ignored.
-- Non-essential `console.log` cleanup completed across API/Web; startup-level logs retained.
-
-## COMPLETED FEATURES (for reference)
+## COMPLETED (Referans)
 - Full portal UI overhaul (Tidio/Intercom level)
 - Stripe billing (checkout, webhooks, invoices, portal)
-- Team management with premium UI
-- Security page with MFA/WebAuthn
-- Audit logs with premium UI
+- Team management, Security (MFA/WebAuthn), Audit logs
 - Settings suite (15+ sub-pages)
 - i18n system (EN/TR/ES) with build-time parity
-- Dev server watchdog with auto-recovery
-- Floating widget bubble preview
-- Premium toast notifications
-- Email templates (invite, reset, verify, recovery)
-- Multi-currency display
+- Dev server watchdog, Floating widget preview, Premium toast
+- Email templates, Multi-currency display
+- Strong password validation, CORS hardening, console.log cleanup

@@ -7,16 +7,24 @@ const PORTAL_REFRESH_TOKEN_STORAGE_KEY = "helvino_portal_refresh_token";
 const PORTAL_ONBOARDING_DEFER_STORAGE_KEY = "helvino_portal_onboarding_deferred";
 const REQUEST_TIMEOUT_MS = 12000;
 
+// Security: Refresh token is stored ONLY in memory (closure variable).
+// This prevents XSS attacks from stealing the long-lived refresh token.
+// Trade-off: Full page refresh loses the refresh token, but the httpOnly
+// access token cookie (60 min) still maintains the session.
 let memoryRefreshToken: string | null = null;
 
 function saveRefreshToken(token: string | null) {
   memoryRefreshToken = token;
-  if (typeof window === "undefined") return;
-  if (!token) {
-    window.sessionStorage.removeItem(PORTAL_REFRESH_TOKEN_STORAGE_KEY);
-    return;
+  // Intentionally NOT persisting to sessionStorage — XSS mitigation.
+  // On full page reload, the httpOnly access token cookie handles auth.
+  // Clean up any legacy sessionStorage entry:
+  if (typeof window !== "undefined") {
+    try {
+      window.sessionStorage.removeItem(PORTAL_REFRESH_TOKEN_STORAGE_KEY);
+    } catch {
+      // ignore — may be blocked in some contexts
+    }
   }
-  window.sessionStorage.setItem(PORTAL_REFRESH_TOKEN_STORAGE_KEY, token);
 }
 
 export function storePortalRefreshToken(token: string | null) {
@@ -39,14 +47,8 @@ export function isPortalOnboardingDeferredForSession(): boolean {
 }
 
 function readRefreshToken(): string | null {
-  if (memoryRefreshToken) return memoryRefreshToken;
-  if (typeof window === "undefined") return null;
-  const stored = window.sessionStorage.getItem(PORTAL_REFRESH_TOKEN_STORAGE_KEY);
-  if (stored) {
-    memoryRefreshToken = stored;
-    return stored;
-  }
-  return null;
+  // Only read from memory — never from sessionStorage (XSS mitigation).
+  return memoryRefreshToken;
 }
 
 export interface PortalUser {
@@ -56,6 +58,7 @@ export interface PortalUser {
   orgId: string;
   orgKey: string;
   orgName: string;
+  planKey?: string;
   mfaEnabled?: boolean;
   showSecurityOnboarding?: boolean;
 }

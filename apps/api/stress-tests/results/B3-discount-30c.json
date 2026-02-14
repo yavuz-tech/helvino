@@ -1,0 +1,12 @@
+{
+  "label": "B3-discount-30c",
+  "url": "http://localhost:4000/api/active-discount?orgKey=demo",
+  "connections": 30,
+  "duration": 10,
+  "requests": { "total": 2857, "perSecond": 285 },
+  "latency": { "average": 55.9, "p50": 54.0, "p95": 78.0, "p99": 94.0, "max": 170.0 },
+  "ok": 1995,
+  "non2xx": 862,
+  "errors": 0,
+  "errorRate": 30.2
+}

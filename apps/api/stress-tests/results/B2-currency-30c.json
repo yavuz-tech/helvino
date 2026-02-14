@@ -1,0 +1,12 @@
+{
+  "label": "B2-currency-30c",
+  "url": "http://localhost:4000/api/currency",
+  "connections": 30,
+  "duration": 10,
+  "requests": { "total": 2628, "perSecond": 262 },
+  "latency": { "average": 62.8, "p50": 60.0, "p95": 90.0, "p99": 110.0, "max": 151.0 },
+  "ok": 1997,
+  "non2xx": 631,
+  "errors": 0,
+  "errorRate": 24.0
+}

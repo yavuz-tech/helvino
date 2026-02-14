@@ -1,8 +1,11 @@
 /**
- * Portal Widget Settings Routes — Step 11.52
+ * Portal Widget Settings Routes — Step 11.52 (v3-ultimate)
  *
  * GET  /portal/widget/settings - Get widget appearance settings
  * PUT  /portal/widget/settings - Update widget appearance settings
+ *
+ * All v3-ultimate settings (50+ fields) are stored in the `configJson` column.
+ * Legacy fields (primaryColor, position, etc.) are kept for backward compatibility.
  */
 
 import { FastifyInstance } from "fastify";
@@ -11,42 +14,89 @@ import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { rateLimit } from "../middleware/rate-limiter";
 import { requirePortalUser } from "../middleware/require-portal-user";
 import { writeAuditLog } from "../utils/audit-log";
-import { sanitizePlainText } from "../utils/sanitize";
 
-interface WidgetSettingsUpdateBody {
-  primaryColor?: string;
-  position?: "right" | "left";
-  launcher?: "bubble" | "icon";
-  bubbleShape?: "circle" | "rounded-square";
-  bubbleIcon?: "chat" | "message" | "help" | "custom";
-  bubbleSize?: number;
-  bubblePosition?: "bottom-right" | "bottom-left";
-  greetingText?: string;
-  greetingEnabled?: boolean;
-  welcomeTitle?: string;
-  welcomeMessage?: string;
-  brandName?: string | null;
-}
+// Legacy fields stored in dedicated columns (backward compat)
+const LEGACY_COLUMN_FIELDS = new Set([
+  "primaryColor",
+  "position",
+  "launcher",
+  "bubbleShape",
+  "bubbleIcon",
+  "bubbleSize",
+  "bubblePosition",
+  "greetingText",
+  "greetingEnabled",
+  "welcomeTitle",
+  "welcomeMessage",
+  "brandName",
+]);
 
-// Validation helpers
-function isValidHexColor(color: string): boolean {
-  return /^#([0-9A-Fa-f]{3}){1,2}$/.test(color);
-}
-
-function getDefaultSettings() {
+// Default v3-ultimate config
+function getDefaultV3Config(): Record<string, unknown> {
   return {
-    primaryColor: "#0F5C5C",
-    position: "right" as const,
-    launcher: "bubble" as const,
-    bubbleShape: "circle" as const,
-    bubbleIcon: "chat" as const,
-    bubbleSize: 60,
-    bubblePosition: "bottom-right" as const,
-    greetingText: "",
-    greetingEnabled: false,
-    welcomeTitle: "Welcome",
-    welcomeMessage: "How can we help you today?",
-    brandName: null,
+    themeId: "amber",
+    customColor: "#F59E0B",
+    useCustomColor: false,
+    launcherId: "rounded",
+    positionId: "br",
+    widgetSizeId: "standard",
+    headerText: "Nasıl yardımcı olabiliriz?",
+    subText: "Genellikle birkaç dakika içinde yanıt veriyoruz",
+    welcomeMsg: "Merhaba! 👋 Size nasıl yardımcı olabilirim?",
+    offlineMsg: "Şu an çevrimdışıyız. Mesajınızı bırakın, en kısa sürede dönelim.",
+    launcherLabel: "Bize yazın",
+    starters: [
+      { id: 1, text: "💰 Fiyatlandırma hakkında bilgi", active: true },
+      { id: 2, text: "🛠️ Teknik destek istiyorum", active: true },
+      { id: 3, text: "📦 Siparişimi takip etmek istiyorum", active: true },
+    ],
+    botAvatar: "🤖",
+    agentAvatar: "👩‍💼",
+    bgPatternId: "none",
+    attGrabberId: "none",
+    attGrabberText: "Merhaba! Yardıma ihtiyacınız var mı? 👋",
+    attGrabberDelay: 5,
+    hoursEnabled: false,
+    timezone: "Europe/Istanbul",
+    hours: [
+      { day: "Pzt", on: true, start: "09:00", end: "18:00" },
+      { day: "Sal", on: true, start: "09:00", end: "18:00" },
+      { day: "Çar", on: true, start: "09:00", end: "18:00" },
+      { day: "Per", on: true, start: "09:00", end: "18:00" },
+      { day: "Cum", on: true, start: "09:00", end: "18:00" },
+      { day: "Cmt", on: false, start: "09:00", end: "18:00" },
+      { day: "Paz", on: false, start: "09:00", end: "18:00" },
+    ],
+    showBranding: true,
+    showOnMobile: true,
+    showOffline: true,
+    soundEnabled: true,
+    autoOpen: false,
+    showUnread: true,
+    preChatEnabled: false,
+    typingIndicator: true,
+    fileUpload: true,
+    emojiPicker: true,
+    readReceipts: true,
+    responseTime: true,
+    transcriptEmail: false,
+    visitorNotes: true,
+    aiName: "Helvion AI",
+    aiTone: "friendly",
+    aiLength: "standard",
+    aiEmoji: true,
+    aiLabel: true,
+    aiWelcome: "Merhaba! Ben Helvion AI asistanınız 🤖 Size nasıl yardımcı olabilirim?",
+    aiModel: "auto",
+    aiSuggestions: true,
+    csat: false,
+    whiteLabel: false,
+    autoReply: false,
+    autoReplyMsg: "Mesajınız alındı! En kısa sürede dönüş yapacağız.",
+    customCss: "",
+    consentEnabled: false,
+    consentText: "Sohbet başlayarak gizlilik politikamızı kabul edersiniz.",
+    pageRules: [],
   };
 }
 
@@ -60,7 +110,7 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
 
   /**
    * GET /portal/widget/settings
-   * Returns widget appearance settings for the org (defaults if not set)
+   * Returns all v3 settings merged from configJson + legacy columns
    */
   fastify.get(
     "/portal/widget/settings",
@@ -84,28 +134,31 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
 
       const orgId = portalUser.orgId;
 
-      // Try to fetch existing settings
-      const existingSettings = await prisma.widgetSettings.findUnique({
+      // Fetch existing settings
+      const existing = await prisma.widgetSettings.findUnique({
         where: { orgId },
-        select: {
-          primaryColor: true,
-          position: true,
-          launcher: true,
-          bubbleShape: true,
-          bubbleIcon: true,
-          bubbleSize: true,
-          bubblePosition: true,
-          greetingText: true,
-          greetingEnabled: true,
-          welcomeTitle: true,
-          welcomeMessage: true,
-          brandName: true,
-        },
       });
 
-      const settings = existingSettings || getDefaultSettings();
+      // Build settings: defaults -> configJson -> legacy columns
+      const defaults = getDefaultV3Config();
+      const storedConfig = (existing?.configJson as Record<string, unknown>) || {};
 
-      // Fetch plan info for branding entitlement + maxAgents
+      const settings: Record<string, unknown> = {
+        ...defaults,
+        ...storedConfig,
+      };
+
+      // Also overlay legacy columns if they have non-default values
+      if (existing) {
+        settings.primaryColor = existing.primaryColor;
+        settings.position = existing.position;
+        settings.launcher = existing.launcher;
+        settings.welcomeTitle = existing.welcomeTitle;
+        settings.welcomeMessage = existing.welcomeMessage;
+        settings.brandName = existing.brandName;
+      }
+
+      // Fetch plan info
       const orgInfo = await prisma.organization.findUnique({
         where: { id: orgId },
         select: { planKey: true, widgetDomainMismatchTotal: true },
@@ -130,9 +183,9 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
 
   /**
    * PUT /portal/widget/settings
-   * Updates widget appearance settings
+   * Stores ALL v3 settings in configJson, plus updates legacy columns for backward compat
    */
-  fastify.put<{ Body: WidgetSettingsUpdateBody }>(
+  fastify.put(
     "/portal/widget/settings",
     {
       preHandler: [
@@ -157,161 +210,107 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
       }
 
       const orgId = portalUser.orgId;
-      const body = request.body;
-      const normalizedBody: WidgetSettingsUpdateBody = { ...body };
+      const body = request.body as Record<string, unknown>;
 
-      if (normalizedBody.greetingText !== undefined) {
-        normalizedBody.greetingText = sanitizePlainText(normalizedBody.greetingText);
-      }
-      if (normalizedBody.welcomeTitle !== undefined) {
-        normalizedBody.welcomeTitle = sanitizePlainText(normalizedBody.welcomeTitle);
-      }
-      if (normalizedBody.welcomeMessage !== undefined) {
-        normalizedBody.welcomeMessage = sanitizePlainText(normalizedBody.welcomeMessage);
-      }
-      if (normalizedBody.brandName !== undefined && normalizedBody.brandName !== null) {
-        normalizedBody.brandName = sanitizePlainText(normalizedBody.brandName);
-      }
-
-      // Validate primaryColor
-      if (normalizedBody.primaryColor !== undefined) {
-        if (!isValidHexColor(normalizedBody.primaryColor)) {
-          reply.code(400);
-          return {
-            error: "Invalid hex color format",
-            field: "primaryColor",
-            requestId,
-          };
-        }
-      }
-
-      // Validate position
-      if (normalizedBody.position !== undefined) {
-        if (!["right", "left"].includes(normalizedBody.position)) {
-          reply.code(400);
-          return {
-            error: "Invalid position value",
-            field: "position",
-            allowedValues: ["right", "left"],
-            requestId,
-          };
-        }
-      }
-
-      // Validate launcher
-      if (normalizedBody.launcher !== undefined) {
-        if (!["bubble", "icon"].includes(normalizedBody.launcher)) {
-          reply.code(400);
-          return {
-            error: "Invalid launcher value",
-            field: "launcher",
-            allowedValues: ["bubble", "icon"],
-            requestId,
-          };
-        }
-      }
-
-      if (normalizedBody.bubbleShape !== undefined) {
-        if (!["circle", "rounded-square"].includes(normalizedBody.bubbleShape)) {
-          reply.code(400);
-          return {
-            error: "Invalid bubbleShape value",
-            field: "bubbleShape",
-            allowedValues: ["circle", "rounded-square"],
-            requestId,
-          };
-        }
-      }
-
-      if (normalizedBody.bubbleIcon !== undefined) {
-        if (!["chat", "message", "help", "custom"].includes(normalizedBody.bubbleIcon)) {
-          reply.code(400);
-          return {
-            error: "Invalid bubbleIcon value",
-            field: "bubbleIcon",
-            allowedValues: ["chat", "message", "help", "custom"],
-            requestId,
-          };
-        }
-      }
-
-      if (normalizedBody.bubbleSize !== undefined) {
-        if (!Number.isInteger(normalizedBody.bubbleSize) || normalizedBody.bubbleSize < 40 || normalizedBody.bubbleSize > 96) {
-          reply.code(400);
-          return {
-            error: "bubbleSize must be an integer between 40 and 96",
-            field: "bubbleSize",
-            requestId,
-          };
-        }
-      }
-
-      if (normalizedBody.bubblePosition !== undefined) {
-        if (!["bottom-right", "bottom-left"].includes(normalizedBody.bubblePosition)) {
-          reply.code(400);
-          return {
-            error: "Invalid bubblePosition value",
-            field: "bubblePosition",
-            allowedValues: ["bottom-right", "bottom-left"],
-            requestId,
-          };
-        }
-      }
-
-      if (normalizedBody.greetingText !== undefined) {
-        if (normalizedBody.greetingText.length > 120) {
-          reply.code(400);
-          return {
-            error: "greetingText exceeds maximum length of 120 characters",
-            field: "greetingText",
-            requestId,
-          };
-        }
-      }
-
-      if (normalizedBody.greetingEnabled !== undefined && typeof normalizedBody.greetingEnabled !== "boolean") {
+      if (!body || typeof body !== "object") {
         reply.code(400);
-        return {
-          error: "greetingEnabled must be boolean",
-          field: "greetingEnabled",
-          requestId,
-        };
+        return { error: "Invalid request body", requestId };
       }
 
-      // Validate welcomeTitle length
-      if (normalizedBody.welcomeTitle !== undefined) {
-        if (normalizedBody.welcomeTitle.length > 60) {
+      // SECURITY: Limit configJson payload size to prevent oversized data storage
+      const bodyJson = JSON.stringify(body);
+      if (bodyJson.length > 64 * 1024) {
+        reply.code(400);
+        return { error: "Request body exceeds maximum size (64KB)", requestId };
+      }
+
+      // SECURITY: Validate string fields have reasonable max lengths
+      for (const [key, value] of Object.entries(body)) {
+        if (typeof value === "string" && value.length > 2000) {
           reply.code(400);
-          return {
-            error: "welcomeTitle exceeds maximum length of 60 characters",
-            field: "welcomeTitle",
-            requestId,
-          };
+          return { error: `Field "${key}" exceeds maximum length (2000 characters)`, requestId };
         }
       }
 
-      // Validate welcomeMessage length
-      if (normalizedBody.welcomeMessage !== undefined) {
-        if (normalizedBody.welcomeMessage.length > 240) {
+      // Separate legacy column fields from v3 extended fields
+      const legacyUpdate: Record<string, unknown> = {};
+      const configPayload: Record<string, unknown> = {};
+
+      for (const [key, value] of Object.entries(body)) {
+        if (LEGACY_COLUMN_FIELDS.has(key)) {
+          legacyUpdate[key] = value;
+        }
+        // Store everything in configJson (including legacy fields for a complete snapshot)
+        configPayload[key] = value;
+      }
+
+      // Basic validation for legacy fields
+      if (legacyUpdate.primaryColor !== undefined) {
+        if (typeof legacyUpdate.primaryColor !== "string" || !/^#([0-9A-Fa-f]{3}){1,2}$/.test(legacyUpdate.primaryColor)) {
           reply.code(400);
-          return {
-            error: "welcomeMessage exceeds maximum length of 240 characters",
-            field: "welcomeMessage",
-            requestId,
-          };
+          return { error: "Invalid hex color format", field: "primaryColor", requestId };
         }
       }
 
-      // Validate brandName length
-      if (normalizedBody.brandName !== undefined && normalizedBody.brandName !== null) {
-        if (normalizedBody.brandName.length > 40) {
+      if (legacyUpdate.position !== undefined) {
+        if (!["right", "left"].includes(String(legacyUpdate.position))) {
           reply.code(400);
-          return {
-            error: "brandName exceeds maximum length of 40 characters",
-            field: "brandName",
-            requestId,
-          };
+          return { error: "Invalid position value", field: "position", requestId };
         }
+      }
+
+      // Fetch existing configJson to merge (don't overwrite unmentioned fields)
+      const existing = await prisma.widgetSettings.findUnique({
+        where: { orgId },
+        select: { configJson: true },
+      });
+      const existingConfig = (existing?.configJson as Record<string, unknown>) || {};
+      const mergedConfig = { ...existingConfig, ...configPayload };
+
+      // Build the upsert data — only include legacy fields that were actually sent
+      const upsertData: Record<string, unknown> = {
+        configJson: mergedConfig,
+      };
+      for (const [key, value] of Object.entries(legacyUpdate)) {
+        upsertData[key] = value;
+      }
+
+      // Sync v3 fields → legacy columns so embedded widget (bootloader) always sees latest values
+      // Theme colors lookup for themeId → primaryColor sync
+      const THEME_COLORS: Record<string, string> = {
+        amber: "#F59E0B", ocean: "#0EA5E9", emerald: "#10B981", violet: "#8B5CF6",
+        rose: "#F43F5E", slate: "#475569", teal: "#14B8A6", indigo: "#6366F1",
+        sunset: "#F97316", aurora: "#06B6D4", midnight: "#1E293B", cherry: "#BE123C",
+      };
+
+      // primaryColor sync: explicit > customColor > themeId lookup > existing
+      if (configPayload.primaryColor !== undefined) {
+        upsertData.primaryColor = String(configPayload.primaryColor);
+      } else if (configPayload.useCustomColor === true && configPayload.customColor !== undefined) {
+        upsertData.primaryColor = String(configPayload.customColor);
+      } else if (typeof configPayload.themeId === "string" && THEME_COLORS[configPayload.themeId]) {
+        upsertData.primaryColor = THEME_COLORS[configPayload.themeId];
+      }
+
+      // position sync: v3 positionId → legacy position column
+      if (configPayload.position !== undefined) {
+        upsertData.position = String(configPayload.position);
+      } else if (configPayload.positionId !== undefined) {
+        upsertData.position = configPayload.positionId === "bl" ? "left" : "right";
+      }
+
+      // welcomeTitle sync: v3 headerText → legacy welcomeTitle
+      if (configPayload.welcomeTitle !== undefined) {
+        upsertData.welcomeTitle = String(configPayload.welcomeTitle);
+      } else if (configPayload.headerText !== undefined) {
+        upsertData.welcomeTitle = String(configPayload.headerText);
+      }
+
+      // welcomeMessage sync: v3 welcomeMsg → legacy welcomeMessage
+      if (configPayload.welcomeMessage !== undefined) {
+        upsertData.welcomeMessage = String(configPayload.welcomeMessage);
+      } else if (configPayload.welcomeMsg !== undefined) {
+        upsertData.welcomeMessage = String(configPayload.welcomeMsg);
       }
 
       // Upsert settings
@@ -319,19 +318,14 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
         where: { orgId },
         create: {
           orgId,
-          ...normalizedBody,
+          ...upsertData,
         },
-        update: normalizedBody,
+        update: upsertData,
         select: {
+          configJson: true,
           primaryColor: true,
           position: true,
           launcher: true,
-          bubbleShape: true,
-          bubbleIcon: true,
-          bubbleSize: true,
-          bubblePosition: true,
-          greetingText: true,
-          greetingEnabled: true,
           welcomeTitle: true,
           welcomeMessage: true,
           brandName: true,
@@ -343,12 +337,40 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
         orgId,
         `${portalUser.email}`,
         "widget.settings.updated",
-        { updatedFields: Object.keys(normalizedBody), requestId }
+        { updatedFields: Object.keys(configPayload), requestId }
       ).catch(() => {});
+
+      // Return merged settings
+      const defaults = getDefaultV3Config();
+      const returnSettings = {
+        ...defaults,
+        ...((updatedSettings.configJson as Record<string, unknown>) || {}),
+      };
+
+      // Emit real-time event so connected widgets refresh their config instantly
+      try {
+        const orgInfo = await prisma.organization.findUnique({
+          where: { id: orgId },
+          select: { key: true },
+        });
+        if (orgInfo && fastify.io) {
+          // Emit to both org:id and org:key rooms so both widget and portal receive
+          fastify.io.to(`org:${orgId}`).emit("widget:config-updated", {
+            settings: returnSettings,
+            timestamp: new Date().toISOString(),
+          });
+          fastify.io.to(`org:${orgInfo.key}`).emit("widget:config-updated", {
+            settings: returnSettings,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      } catch {
+        // Best-effort — don't fail the save if socket emit fails
+      }
 
       return {
         ok: true,
-        settings: updatedSettings,
+        settings: returnSettings,
         requestId,
       };
     }

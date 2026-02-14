@@ -560,7 +560,8 @@ export async function getAvailablePlans() {
   return plans.map((p) => ({
     key: p.key,
     name: p.name,
-    stripePriceId: p.stripePriceId,
+    // Legacy field for older consumers.
+    stripePriceId: p.stripePriceMonthlyUsd || p.stripePriceYearlyUsd || null,
     monthlyPriceUsd: p.monthlyPriceUsd,
     maxConversationsPerMonth: p.maxConversationsPerMonth,
     maxMessagesPerMonth: p.maxMessagesPerMonth,

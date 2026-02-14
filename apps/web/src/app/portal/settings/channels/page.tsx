@@ -190,7 +190,7 @@ export default function PortalSettingsChannelsPage() {
                 {/* Toggle or Upgrade CTA */}
                 {isLocked ? (
                   <Link
-                    href="/portal/billing"
+                    href="/portal/pricing"
                     className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white transition-colors"
                     style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
                   >

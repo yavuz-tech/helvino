@@ -23,6 +23,9 @@ export interface CheckoutSessionResult {
   email: string;
 }
 
+export type CheckoutCurrency = "usd" | "try";
+export type CheckoutPeriod = "monthly" | "yearly";
+
 export function extractPromoPercentFromCode(code: string): number | null {
   const normalized = code.trim().toUpperCase();
   const match = normalized.match(/(\d{1,3})$/);
@@ -255,7 +258,10 @@ function normalizePlanType(planKey: string): string {
 async function resolvePriceId(planKey: string): Promise<string> {
   // Look up from Plan table first
   const plan = await prisma.plan.findUnique({ where: { key: planKey } });
-  if (plan?.stripePriceId) return plan.stripePriceId;
+  if (plan) {
+    const monthlyUsd = plan.stripePriceMonthlyUsd;
+    if (monthlyUsd) return monthlyUsd;
+  }
 
   // Env fallbacks
   const envMap: Record<string, string | undefined> = {
@@ -279,15 +285,45 @@ async function resolvePriceId(planKey: string): Promise<string> {
  * Looks up the Plan table; falls back to env var matching.
  */
 export async function mapPriceToplanKey(priceId: string): Promise<string | null> {
-  const plan = await prisma.plan.findFirst({ where: { stripePriceId: priceId } });
+  const plan = await prisma.plan.findFirst({
+    where: {
+      OR: [
+        { stripePriceMonthlyUsd: priceId },
+        { stripePriceYearlyUsd: priceId },
+        { stripePriceMonthlyTry: priceId },
+        { stripePriceYearlyTry: priceId },
+      ],
+    },
+  });
   if (plan) return plan.key;
 
   // Env fallback
-  if (priceId === process.env.STRIPE_PRICE_PRO || priceId === process.env.STRIPE_PRICE_ID_STARTER) {
+  if (
+    priceId === process.env.STRIPE_PRICE_PRO ||
+    priceId === process.env.STRIPE_PRICE_ID_STARTER ||
+    priceId === process.env.STRIPE_PRICE_PRO_MONTHLY_USD ||
+    priceId === process.env.STRIPE_PRICE_PRO_YEARLY_USD ||
+    priceId === process.env.STRIPE_PRICE_PRO_MONTHLY_TRY ||
+    priceId === process.env.STRIPE_PRICE_PRO_YEARLY_TRY
+  ) {
     return "pro";
   }
-  if (priceId === process.env.STRIPE_PRICE_BUSINESS) {
+  if (
+    priceId === process.env.STRIPE_PRICE_BUSINESS ||
+    priceId === process.env.STRIPE_PRICE_BUSINESS_MONTHLY_USD ||
+    priceId === process.env.STRIPE_PRICE_BUSINESS_YEARLY_USD ||
+    priceId === process.env.STRIPE_PRICE_BUSINESS_MONTHLY_TRY ||
+    priceId === process.env.STRIPE_PRICE_BUSINESS_YEARLY_TRY
+  ) {
     return "business";
+  }
+  if (
+    priceId === process.env.STRIPE_PRICE_STARTER_MONTHLY_USD ||
+    priceId === process.env.STRIPE_PRICE_STARTER_YEARLY_USD ||
+    priceId === process.env.STRIPE_PRICE_STARTER_MONTHLY_TRY ||
+    priceId === process.env.STRIPE_PRICE_STARTER_YEARLY_TRY
+  ) {
+    return "starter";
   }
 
   return null;

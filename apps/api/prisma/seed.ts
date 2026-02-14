@@ -77,54 +77,102 @@ async function main() {
   console.log(`   Write enabled: ${demoOrg.writeEnabled}`);
   console.log(`   AI enabled: ${demoOrg.aiEnabled}`);
 
-  // Seed plans (free/pro/business)
-  // Stripe Price IDs are read from env vars; null in dev is fine
-  const STRIPE_PRICE_PRO = process.env.STRIPE_PRICE_PRO || null;
-  const STRIPE_PRICE_BUSINESS = process.env.STRIPE_PRICE_BUSINESS || null;
-
-  await prisma.plan.upsert({
-    where: { key: "free" },
-    update: { stripePriceId: null, maxAgents: 3 },
-    create: {
+  // Seed plans (free/starter/pro/business) — key-based upsert
+  const plans = [
+    {
       key: "free",
       name: "Free",
-      stripePriceId: null,
+      stripePriceMonthlyUsd: null,
+      stripePriceYearlyUsd: null,
+      stripePriceMonthlyTry: null,
+      stripePriceYearlyTry: null,
       monthlyPriceUsd: 0,
-      maxConversationsPerMonth: 200,
-      maxMessagesPerMonth: 2000,
+      yearlyPriceUsd: 0,
+      monthlyPriceTry: 0,
+      yearlyPriceTry: 0,
       maxAgents: 3,
+      maxConversationsPerMonth: 200,
+      maxMessagesPerMonth: 1000,
+      maxAiMessagesPerMonth: 20,
+      sortOrder: 0,
     },
-  });
-
-  await prisma.plan.upsert({
-    where: { key: "pro" },
-    update: { stripePriceId: STRIPE_PRICE_PRO },
-    create: {
+    {
+      key: "starter",
+      name: "Starter",
+      stripePriceMonthlyUsd: process.env.STRIPE_PRICE_STARTER_MONTHLY_USD || null,
+      stripePriceYearlyUsd: process.env.STRIPE_PRICE_STARTER_YEARLY_USD || null,
+      stripePriceMonthlyTry: process.env.STRIPE_PRICE_STARTER_MONTHLY_TRY || null,
+      stripePriceYearlyTry: process.env.STRIPE_PRICE_STARTER_YEARLY_TRY || null,
+      monthlyPriceUsd: 1500,
+      yearlyPriceUsd: 1200,
+      monthlyPriceTry: 27900,
+      yearlyPriceTry: 21900,
+      maxAgents: 5,
+      maxConversationsPerMonth: 1500,
+      maxMessagesPerMonth: 15000,
+      maxAiMessagesPerMonth: 100,
+      sortOrder: 1,
+    },
+    {
       key: "pro",
       name: "Pro",
-      stripePriceId: STRIPE_PRICE_PRO,
-      monthlyPriceUsd: 49,
-      maxConversationsPerMonth: 2000,
-      maxMessagesPerMonth: 20000,
-      maxAgents: 10,
+      stripePriceMonthlyUsd: process.env.STRIPE_PRICE_PRO_MONTHLY_USD || null,
+      stripePriceYearlyUsd: process.env.STRIPE_PRICE_PRO_YEARLY_USD || null,
+      stripePriceMonthlyTry: process.env.STRIPE_PRICE_PRO_MONTHLY_TRY || null,
+      stripePriceYearlyTry: process.env.STRIPE_PRICE_PRO_YEARLY_TRY || null,
+      monthlyPriceUsd: 3900,
+      yearlyPriceUsd: 2900,
+      monthlyPriceTry: 69900,
+      yearlyPriceTry: 52900,
+      maxAgents: 15,
+      maxConversationsPerMonth: 5000,
+      maxMessagesPerMonth: 50000,
+      maxAiMessagesPerMonth: 500,
+      sortOrder: 2,
     },
-  });
-
-  await prisma.plan.upsert({
-    where: { key: "business" },
-    update: { stripePriceId: STRIPE_PRICE_BUSINESS },
-    create: {
+    {
       key: "business",
       name: "Business",
-      stripePriceId: STRIPE_PRICE_BUSINESS,
-      monthlyPriceUsd: 199,
-      maxConversationsPerMonth: 10000,
-      maxMessagesPerMonth: 100000,
+      stripePriceMonthlyUsd: process.env.STRIPE_PRICE_BUSINESS_MONTHLY_USD || null,
+      stripePriceYearlyUsd: process.env.STRIPE_PRICE_BUSINESS_YEARLY_USD || null,
+      stripePriceMonthlyTry: process.env.STRIPE_PRICE_BUSINESS_MONTHLY_TRY || null,
+      stripePriceYearlyTry: process.env.STRIPE_PRICE_BUSINESS_YEARLY_TRY || null,
+      monthlyPriceUsd: 11900,
+      yearlyPriceUsd: 8900,
+      monthlyPriceTry: 214900,
+      yearlyPriceTry: 159900,
       maxAgents: 50,
+      maxConversationsPerMonth: -1,
+      maxMessagesPerMonth: -1,
+      maxAiMessagesPerMonth: 2000,
+      sortOrder: 3,
     },
-  });
+  ] as const;
 
-  console.log("✅ Seeded plans: free, pro, business");
+  for (const plan of plans) {
+    await prisma.plan.upsert({
+      where: { key: plan.key },
+      update: {
+        name: plan.name,
+        stripePriceMonthlyUsd: plan.stripePriceMonthlyUsd,
+        stripePriceYearlyUsd: plan.stripePriceYearlyUsd,
+        stripePriceMonthlyTry: plan.stripePriceMonthlyTry,
+        stripePriceYearlyTry: plan.stripePriceYearlyTry,
+        monthlyPriceUsd: plan.monthlyPriceUsd,
+        yearlyPriceUsd: plan.yearlyPriceUsd,
+        monthlyPriceTry: plan.monthlyPriceTry,
+        yearlyPriceTry: plan.yearlyPriceTry,
+        maxAgents: plan.maxAgents,
+        maxConversationsPerMonth: plan.maxConversationsPerMonth,
+        maxMessagesPerMonth: plan.maxMessagesPerMonth,
+        maxAiMessagesPerMonth: plan.maxAiMessagesPerMonth,
+        sortOrder: plan.sortOrder,
+      },
+      create: { ...plan },
+    });
+  }
+
+  console.log("✅ Seeded plans: free, starter, pro, business");
 
   // Create default admin user from environment variables
   const adminEmail = process.env.ADMIN_EMAIL || "admin@helvion.io";

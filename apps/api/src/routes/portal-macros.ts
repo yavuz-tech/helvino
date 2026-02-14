@@ -41,11 +41,16 @@ export async function portalMacroRoutes(fastify: FastifyInstance) {
       if (!title || !content) {
         return reply.status(400).send({ error: "title and content are required" });
       }
+      // SECURITY: Input validation — max lengths
+      const trimmedTitle = String(title).trim();
+      const trimmedContent = String(content).trim();
+      if (trimmedTitle.length > 200) return reply.status(400).send({ error: "title exceeds maximum length (200)" });
+      if (trimmedContent.length > 5000) return reply.status(400).send({ error: "content exceeds maximum length (5000)" });
       const created = await prisma.macro.create({
         data: {
           orgId: actor.orgId,
-          title: String(title).trim(),
-          content: String(content).trim(),
+          title: trimmedTitle,
+          content: trimmedContent,
           enabled: enabled ?? true,
           createdById: actor.id,
         },

@@ -62,6 +62,9 @@ export default function DashboardCampaignsPage() {
   const [loading, setLoading] = useState(true);
   const [campaignsEnabled, setCampaignsEnabled] = useState(false);
   const [savingGlobal, setSavingGlobal] = useState(false);
+  const [globalDiscountActive, setGlobalDiscountActive] = useState(false);
+  const [globalDiscountPercent, setGlobalDiscountPercent] = useState("0");
+  const [savingDiscount, setSavingDiscount] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -94,8 +97,14 @@ export default function DashboardCampaignsPage() {
       orgKey: selectedOrg.key,
     });
     if (res.ok) {
-      const data = (await res.json()) as { campaignsEnabled?: boolean };
+      const data = (await res.json()) as {
+        campaignsEnabled?: boolean;
+        globalDiscountActive?: boolean;
+        globalDiscountPercent?: number;
+      };
       setCampaignsEnabled(Boolean(data.campaignsEnabled));
+      setGlobalDiscountActive(Boolean(data.globalDiscountActive));
+      setGlobalDiscountPercent(String(data.globalDiscountPercent ?? 0));
     }
   }, [selectedOrg]);
 
@@ -158,6 +167,48 @@ export default function DashboardCampaignsPage() {
       });
     } finally {
       setSavingGlobal(false);
+    }
+  };
+
+  const saveGlobalDiscount = async () => {
+    if (!selectedOrg) return;
+    const percent = Number(globalDiscountPercent);
+    if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
+      premiumToast.error({
+        title: t("toast.settingsFailed"),
+        description: t("campaigns.globalDiscountValidation"),
+      });
+      return;
+    }
+
+    setSavingDiscount(true);
+    try {
+      const res = await apiFetch("/internal/organization/settings", {
+        method: "PATCH",
+        orgKey: selectedOrg.key,
+        body: JSON.stringify({
+          globalDiscountActive,
+          globalDiscountPercent: percent,
+        }),
+      });
+      if (!res.ok) throw new Error("save_discount_failed");
+      const data = (await res.json()) as {
+        globalDiscountActive?: boolean;
+        globalDiscountPercent?: number;
+      };
+      setGlobalDiscountActive(Boolean(data.globalDiscountActive));
+      setGlobalDiscountPercent(String(data.globalDiscountPercent ?? 0));
+      premiumToast.success({
+        title: t("toast.settingsSaved"),
+        description: t("toast.settingsSavedDesc"),
+      });
+    } catch {
+      premiumToast.error({
+        title: t("toast.settingsFailed"),
+        description: t("toast.settingsFailedDesc"),
+      });
+    } finally {
+      setSavingDiscount(false);
     }
   };
 
@@ -364,6 +415,61 @@ export default function DashboardCampaignsPage() {
                 {t("campaigns.disabledAlert")}
               </div>
             )}
+          </Card>
+
+          <Card>
+            <div className="space-y-4">
+              <div>
+                <p className={p.h3}>{t("campaigns.globalDiscountTitle")}</p>
+                <p className={`${p.body} mt-1`}>{t("campaigns.globalDiscountSubtitle")}</p>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <label className={p.label}>{t("campaigns.globalDiscountActiveLabel")}</label>
+                <button
+                  type="button"
+                  onClick={() => setGlobalDiscountActive((prev) => !prev)}
+                  disabled={savingDiscount}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    globalDiscountActive ? "bg-emerald-600" : "bg-amber-200"
+                  } ${savingDiscount ? "opacity-60" : ""}`}
+                  aria-label={t("campaigns.globalDiscountActiveLabel")}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      globalDiscountActive ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="max-w-xs">
+                <label className={p.label}>{t("campaigns.globalDiscountPercentLabel")}</label>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <input
+                    className={p.input}
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={globalDiscountPercent}
+                    onChange={(e) => setGlobalDiscountPercent(e.target.value)}
+                  />
+                  <span className="text-sm font-semibold text-[#64748B]">%</span>
+                </div>
+                <p className="mt-1 text-xs text-[#94A3B8]">{t("campaigns.globalDiscountHelp")}</p>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className={p.btnPrimary}
+                  onClick={saveGlobalDiscount}
+                  disabled={savingDiscount}
+                >
+                  {savingDiscount ? t("common.saving") : t("common.saveChanges")}
+                </button>
+              </div>
+            </div>
           </Card>
 
           <Card noPadding>

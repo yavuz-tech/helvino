@@ -165,6 +165,16 @@ function BillingIcon({ className }: { className?: string }) {
   );
 }
 
+function PricingIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+      <path d="M12 7v10" stroke="var(--icon-stroke)" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M15 9.5c0-1.1-1.34-2-3-2s-3 .9-3 2 1.34 2 3 2 3 .9 3 2-1.34 2-3 2-3-.9-3-2" stroke="var(--icon-stroke)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 const navSections: NavSectionDef[] = [
   {
     sectionKey: "nav.section.main",
@@ -196,7 +206,10 @@ const navSections: NavSectionDef[] = [
   },
   {
     sectionKey: "nav.section.account",
-    items: [{ labelKey: "nav.billing", href: "/portal/billing", icon: BillingIcon }],
+    items: [
+      { labelKey: "nav.billing", href: "/portal/billing", icon: BillingIcon },
+      { labelKey: "nav.pricing", href: "/portal/pricing", icon: PricingIcon },
+    ],
   },
 ];
 
@@ -639,7 +652,7 @@ export default function PortalLayout({
                 <p className="mt-1 truncate font-[var(--font-body)] text-[10.5px] text-[#B45309]/70">{t("billing.subtitle")}</p>
               </div>
               <Link
-                href="/portal/billing"
+                href="/portal/pricing"
                 className="inline-flex flex-shrink-0 items-center rounded-lg bg-gradient-to-br from-[#F59E0B] to-[#D97706] px-2.5 py-1.5 font-[var(--font-heading)] text-[11px] font-bold text-white shadow-[0_3px_10px_rgba(245,158,11,0.28)]"
                 onClick={() => setMobileSidebarOpen(false)}
               >

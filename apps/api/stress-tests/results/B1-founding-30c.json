@@ -1,0 +1,12 @@
+{
+  "label": "B1-founding-30c",
+  "url": "http://localhost:4000/api/founding-member-status",
+  "connections": 30,
+  "duration": 10,
+  "requests": { "total": 2563, "perSecond": 256 },
+  "latency": { "average": 62.6, "p50": 58.0, "p95": 98.0, "p99": 149.0, "max": 190.0 },
+  "ok": 1977,
+  "non2xx": 586,
+  "errors": 0,
+  "errorRate": 22.9
+}

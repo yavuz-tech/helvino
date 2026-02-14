@@ -1,15 +1,18 @@
-import { FastifyRequest } from "fastify";
+/**
+ * Secure IP extraction utility.
+ *
+ * IMPORTANT: This relies on Fastify's `trustProxy` setting (configured in index.ts)
+ * to safely resolve the client IP from proxy headers. When `trustProxy` is set,
+ * `request.ip` already contains the correct client IP after Fastify validates
+ * the proxy chain. We must NOT manually parse X-Forwarded-For or X-Real-IP
+ * because those headers can be spoofed by untrusted clients to bypass rate limiting.
+ *
+ * The only exception is `cf-connecting-ip` which is set by Cloudflare's edge
+ * and is trustworthy when the application is behind Cloudflare (Cloudflare strips
+ * any client-set cf-connecting-ip header).
+ */
 
-function readHeader(value: string | string[] | undefined): string | null {
-  if (Array.isArray(value)) {
-    const first = value.find((item) => typeof item === "string" && item.trim().length > 0);
-    return first ? first.trim() : null;
-  }
-  if (typeof value === "string" && value.trim().length > 0) {
-    return value.trim();
-  }
-  return null;
-}
+import { FastifyRequest } from "fastify";
 
 function normalizeIp(value: string): string {
   const trimmed = value.trim();
@@ -20,19 +23,16 @@ function normalizeIp(value: string): string {
 }
 
 export function getRealIP(request: FastifyRequest): string {
-  const cfIp = readHeader(request.headers["cf-connecting-ip"]);
-  if (cfIp) return normalizeIp(cfIp);
-
-  const forwarded = readHeader(request.headers["x-forwarded-for"]);
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return normalizeIp(first);
+  // Primary: Use Fastify's request.ip which respects the trustProxy configuration.
+  // This safely resolves the real client IP based on trusted proxy chain.
+  if (request.ip) {
+    return normalizeIp(request.ip);
   }
 
-  const xRealIp = readHeader(request.headers["x-real-ip"]);
-  if (xRealIp) return normalizeIp(xRealIp);
+  // Fallback: raw socket address
+  if (request.raw?.socket?.remoteAddress) {
+    return normalizeIp(request.raw.socket.remoteAddress);
+  }
 
-  if (request.ip) return normalizeIp(request.ip);
-  if (request.raw?.socket?.remoteAddress) return normalizeIp(request.raw.socket.remoteAddress);
   return "unknown";
 }

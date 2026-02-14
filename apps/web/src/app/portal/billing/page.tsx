@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { useI18n } from "@/i18n/I18nContext";
@@ -107,8 +108,12 @@ export default function PortalBillingPage() {
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
   const [applyingPromo, setApplyingPromo] = useState(false);
   const [showPromoInput, setShowPromoInput] = useState(false);
+  const [showCheckoutSuccess, setShowCheckoutSuccess] = useState(false);
   const { t } = useI18n();
   const { withStepUp } = useStepUp();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (authLoading) return;
@@ -164,6 +169,17 @@ export default function PortalBillingPage() {
       setPromoCodeInput("");
     }
   }, [showPromoInput]);
+
+  useEffect(() => {
+    if (searchParams.get("checkout") !== "success") return;
+    setShowCheckoutSuccess(true);
+    const timer = setTimeout(() => setShowCheckoutSuccess(false), 5000);
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("checkout");
+    const queryString = nextParams.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname);
+    return () => clearTimeout(timer);
+  }, [searchParams, pathname, router]);
 
   const handleApplyCode = async () => {
     const normalizedCode = promoCodeInput.trim().toUpperCase();
@@ -268,6 +284,11 @@ export default function PortalBillingPage() {
       )}
 
       {error && <ErrorBanner message={error} requestId={errorRequestId} onDismiss={() => { setError(null); setErrorRequestId(null); }} />}
+      {showCheckoutSuccess && (
+        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-emerald-100 px-6 py-4 shadow-sm">
+          <p className="text-sm font-bold text-emerald-800">{t("billing.checkoutSuccess")}</p>
+        </div>
+      )}
 
       {loading || !billing ? (
         <div className="flex items-center justify-center py-24"><div className="flex flex-col items-center gap-3"><div className="h-8 w-8 animate-spin rounded-full border-2 border-[#F3E8D8] border-t-amber-600" /><p className="text-sm text-[#94A3B8]">{t("billing.loadingBilling")}</p></div></div>
@@ -351,6 +372,13 @@ export default function PortalBillingPage() {
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">{t("billing.currentPlan")}</p>
                       <h2 className="text-xl font-bold text-[#1A1D23]">{tPlan(billing.plan.key, billing.plan.name)}</h2>
+                      <p className="mt-1 text-xs text-[#64748B]">
+                        {t("billing.planActive")}: {(() => {
+                          const statusKey = `billing.status.${billing.subscription.planStatus}` as TranslationKey;
+                          const label = t(statusKey);
+                          return label === statusKey ? billing.subscription.planStatus : label;
+                        })()}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -586,7 +614,7 @@ export default function PortalBillingPage() {
                     <p className="text-[10px] text-[#94A3B8]">{t("dashboard.currentUsage.unlimited")}</p>
                   </div>
 
-                  <Link href="/portal/billing#plans-section" className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 py-3 text-sm font-bold text-white hover:from-amber-600 hover:to-amber-700">
+                  <Link href="/portal/pricing" className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 py-3 text-sm font-bold text-white hover:from-amber-600 hover:to-amber-700">
                     <Crown size={14} /> {t("dashboard.currentUsage.upgrade")}
                   </Link>
                 </div>

@@ -657,7 +657,7 @@ export default function PortalOverviewPage() {
                 <UsageBar label={t("dashboard.currentUsage.aiConversations")} used={stats?.ai.monthlyUsage ?? 0} limit={stats?.ai.monthlyLimit ?? 100} />
               </div>
               <Link
-                href="/portal/billing"
+                href="/portal/pricing"
                 className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 font-[var(--font-body)] text-[12px] font-bold text-white shadow-[0_8px_20px_rgba(245,158,11,0.28)] transition-all duration-200 hover:brightness-95"
                 style={{ background: `linear-gradient(135deg, #FDB462, ${colors.brand.primary})` }}
               >
