@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Check, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { Check, Eye, EyeOff, ShieldCheck, Sparkles, Users } from "lucide-react";
 import ErrorBanner from "@/components/ErrorBanner";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -33,6 +33,7 @@ export default function SignupPage() {
   const [resendSuccess, setResendSuccess] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaRenderNonce, setCaptchaRenderNonce] = useState(0);
+  const [showPassword, setShowPassword] = useState(false);
   const MAX_RESEND = 6;
   const POLL_INTERVAL_MS = 3000;
   const [autoChecking, setAutoChecking] = useState(false);
@@ -546,15 +547,26 @@ export default function SignupPage() {
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
                           {t("signup.password")}
                         </label>
-                        <input
-                          type="password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder={t("signup.passwordPlaceholder")}
-                          required
-                          minLength={8}
-                          className="w-full rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all focus:border-amber-300 focus:ring-2 focus:ring-amber-200"
-                        />
+                        <div className="relative">
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder={t("signup.passwordPlaceholder")}
+                            required
+                            minLength={8}
+                            className="w-full rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] px-3.5 py-2.5 pr-10 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all focus:border-amber-300 focus:ring-2 focus:ring-amber-200"
+                          />
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            onClick={() => setShowPassword((v) => !v)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
 
                         {password ? (
                           <div className="mt-3 rounded-xl border border-amber-100/80 bg-white/80 p-3">

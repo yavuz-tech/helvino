@@ -127,7 +127,8 @@ export async function portalLogin(
   email: string,
   password: string,
   captchaToken?: string,
-  device?: { fingerprint?: string; deviceId?: string; deviceName?: string }
+  device?: { fingerprint?: string; deviceId?: string; deviceName?: string },
+  locale?: string,
 ): Promise<{ ok: boolean; user?: PortalUser; error?: string; errorCode?: string; statusCode?: number; mfaRequired?: boolean; mfaToken?: string; mfaSetupToken?: string; showSecurityOnboarding?: boolean; isRateLimited?: boolean; retryAfterSec?: number; requestId?: string; loginAttempts?: number; refreshToken?: string }> {
   try {
     // New login should re-enable onboarding checks unless user chooses "later" again.
@@ -136,7 +137,7 @@ export async function portalLogin(
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, captchaToken, ...device }),
+      body: JSON.stringify({ email, password, captchaToken, locale, ...device }),
     });
 
     const data = await response.json();
