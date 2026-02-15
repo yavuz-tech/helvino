@@ -85,6 +85,13 @@ const initWidget = () => {
     rootElement.id = "helvino-widget-root";
     document.body.appendChild(rootElement);
   }
+  // Mark for easier debugging in DOM
+  rootElement.setAttribute("data-helvion-widget-root", "1");
+
+  // Debug mode: show additional UI (e.g. unauthorized-domain warning card)
+  if (w.HELVION_DEBUG_WIDGET === true || w.HELVINO_DEBUG_WIDGET === true) {
+    document.documentElement.setAttribute("data-helvion-debug-widget", "1");
+  }
 
   // Create React root and render
   root = ReactDOM.createRoot(rootElement);

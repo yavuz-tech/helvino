@@ -51,6 +51,8 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const [bootloaderConfig, setBootloaderConfig] = useState<BootloaderConfig | null>(null);
   const [bootloaderError, setBootloaderError] = useState<string | null>(null);
   const [isOpen, setIsOpenInternal] = useState(false);
+  const warnedDisabledRef = useRef(false);
+  const warnedUnauthorizedRef = useRef(false);
 
   // Use external control if provided, otherwise internal state
   const actualIsOpen = externalIsOpen !== undefined ? externalIsOpen : isOpen;
@@ -149,6 +151,28 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
 
     initBootloader();
   }, []);
+
+  // Surface "silent" non-render conditions in the console to make production
+  // debugging easier for customers who embedded the script correctly.
+  useEffect(() => {
+    if (!bootloaderConfig) return;
+
+    if (!bootloaderConfig.config.widgetEnabled && !warnedDisabledRef.current) {
+      warnedDisabledRef.current = true;
+      console.warn(
+        "[Helvion Widget] widgetEnabled=false — widget UI will not render. Enable the widget in the portal settings."
+      );
+    }
+
+    if (bootloaderConfig.config.unauthorizedDomain && !warnedUnauthorizedRef.current) {
+      warnedUnauthorizedRef.current = true;
+      console.warn(
+        `[Helvion Widget] Unauthorized domain detected (${window.location.hostname}). ` +
+          "Widget UI is hidden by default. Add this domain to the allowlist in the portal, " +
+          "or set window.HELVION_DEBUG_WIDGET=true before loading embed.js to show the warning card."
+      );
+    }
+  }, [bootloaderConfig]);
 
   // Connect Socket.IO on mount — stays connected so we always receive config updates
   useEffect(() => {
