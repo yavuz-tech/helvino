@@ -195,6 +195,28 @@ export function getNextResetDate(currentPeriodEnd?: Date | string | null): strin
   return next.toISOString();
 }
 
+// Hardcoded free-plan fallback so the widget ALWAYS works even when the
+// Plan table is empty (seed not run, fresh deploy, etc.).  This matches
+// the values in prisma/seed.ts — keep them in sync.
+const FREE_PLAN_FALLBACK = {
+  id: "builtin-free",
+  key: "free",
+  name: "Free",
+  stripePriceMonthlyUsd: null,
+  stripePriceYearlyUsd: null,
+  stripePriceMonthlyTry: null,
+  stripePriceYearlyTry: null,
+  monthlyPriceUsd: 0,
+  yearlyPriceUsd: 0,
+  monthlyPriceTry: 0,
+  yearlyPriceTry: 0,
+  maxAgents: 3,
+  maxConversationsPerMonth: 200,
+  maxMessagesPerMonth: 1000,
+  maxAiMessagesPerMonth: 20,
+  sortOrder: 0,
+} as const;
+
 async function getOrgAndPlan(orgId: string) {
   const org = await prisma.organization.findUnique({
     where: { id: orgId },
@@ -217,7 +239,8 @@ async function getOrgAndPlan(orgId: string) {
   // If plan lookup fails, fall back to free plan limits (fail closed).
   const plan =
     (await prisma.plan.findUnique({ where: { key: org.planKey } })) ||
-    (await prisma.plan.findUnique({ where: { key: "free" } }));
+    (await prisma.plan.findUnique({ where: { key: "free" } })) ||
+    FREE_PLAN_FALLBACK;
 
   return { org, plan };
 }
@@ -547,11 +570,10 @@ export async function getPlanLimits(orgId: string) {
 
   if (!org) return null;
 
-  const plan = await prisma.plan.findUnique({
-    where: { key: org.planKey },
-  });
-
-  if (!plan) return null;
+  const plan =
+    (await prisma.plan.findUnique({ where: { key: org.planKey } })) ||
+    (await prisma.plan.findUnique({ where: { key: "free" } })) ||
+    FREE_PLAN_FALLBACK;
 
   const metering = getMeteringLimitsForPlan(plan.key);
 
