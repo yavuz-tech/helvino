@@ -159,6 +159,75 @@ function sanitizeConversationDetail(detail: ConversationDetail): ConversationDet
   };
 }
 
+function conversationSignature(c: ConversationListItem): string {
+  // Include only fields that affect rendering and ordering.
+  return [
+    c.id,
+    c.status,
+    c.assignedToOrgUserId || "",
+    c.closedAt || "",
+    c.updatedAt,
+    String(c.messageCount),
+    c.lastMessageAt,
+    String(c.noteCount),
+    c.hasUnreadMessages ? "1" : "0",
+    c.preview?.from || "",
+    c.preview?.text || "",
+    c.slaStatus || "",
+    c.slaDueAt || "",
+  ].join("|");
+}
+
+function areConversationListsEquivalent(a: ConversationListItem[], b: ConversationListItem[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (conversationSignature(a[i]!) !== conversationSignature(b[i]!)) return false;
+  }
+  return true;
+}
+
+function mergeConversationDetail(prev: ConversationDetail | null, nextRaw: ConversationDetail): ConversationDetail | null {
+  const next = sanitizeConversationDetail(nextRaw);
+  if (!prev || prev.id !== next.id) return next;
+
+  // Merge messages by id (append-only in normal operation). Avoid replacing the array if unchanged
+  // to preserve scroll position and prevent jitter.
+  const prevMsgs = prev.messages || [];
+  const nextMsgs = next.messages || [];
+  if (prevMsgs.length === 0) return next;
+  if (nextMsgs.length === 0) return prev;
+
+  const prevById = new Set(prevMsgs.map((m) => m.id));
+  let hasNew = false;
+  const merged: Message[] = [...prevMsgs];
+  for (const m of nextMsgs) {
+    if (!prevById.has(m.id)) {
+      merged.push(m);
+      hasNew = true;
+    }
+  }
+  // Keep chronological order (API should already do this, but be safe)
+  if (hasNew) {
+    merged.sort((x, y) => new Date(x.timestamp).getTime() - new Date(y.timestamp).getTime());
+  }
+
+  const metaChanged =
+    prev.updatedAt !== next.updatedAt ||
+    prev.messageCount !== next.messageCount ||
+    prev.status !== next.status ||
+    prev.closedAt !== next.closedAt ||
+    (prev.assignedTo?.id || null) !== (next.assignedTo?.id || null);
+
+  if (!hasNew && !metaChanged) return prev;
+
+  return {
+    ...prev,
+    ...next,
+    messages: hasNew ? merged : prevMsgs,
+  };
+}
+
 /* ═══════════════════════════════════════════════════════════════ */
 export default function PortalInboxContent() {
   void fonts;
@@ -187,6 +256,9 @@ export default function PortalInboxContent() {
   const [conversationDetail, setConversationDetail] = useState<ConversationDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const fetchDetailAbortRef = useRef<AbortController | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const shouldAutoScrollRef = useRef(true);
+  const lastMessageIdRef = useRef<string | null>(null);
 
   // Notes
   const [notes, setNotes] = useState<Note[]>([]);
@@ -466,7 +538,10 @@ export default function PortalInboxContent() {
   // Fetch conversations
   const fetchConversations = useCallback(async (cursorVal?: string, append = false) => {
     try {
-      if (!append) setIsLoading(true);
+      // During background polling we don't want to flip loading state because it
+      // forces layout changes and contributes to scroll jitter.
+      const isBackgroundRefresh = !append && Boolean(cursorVal === undefined);
+      if (!append && !isBackgroundRefresh) setIsLoading(true);
       setError(null);
       const p = new URLSearchParams();
       p.set("status", statusFilter);
@@ -478,8 +553,17 @@ export default function PortalInboxContent() {
       const res = await portalApiFetch(`/portal/conversations?${p.toString()}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
-      if (append) setConversations(prev => sortConversations([...prev, ...(data.items || [])]));
-      else setConversations(sortConversations(data.items || []));
+      const nextList = sortConversations(data.items || []);
+      if (append) {
+        setConversations((prev) => {
+          const merged = new Map<string, ConversationListItem>();
+          for (const c of prev) merged.set(c.id, c);
+          for (const c of nextList) merged.set(c.id, c);
+          return sortConversations(Array.from(merged.values()));
+        });
+      } else {
+        setConversations((prev) => (areConversationListsEquivalent(prev, nextList) ? prev : nextList));
+      }
       setNextCursor(data.nextCursor || null);
       fetchViewCounts();
     } catch { setError(t("dashboard.failedLoadConversations")); }
@@ -509,7 +593,7 @@ export default function PortalInboxContent() {
   // Poll for new conversations (e.g. from widget) so inbox updates without manual refresh
   useEffect(() => {
     if (authLoading || !user) return;
-    const interval = setInterval(fetchConversations, 15000);
+    const interval = setInterval(() => { fetchConversations(); }, 15000);
     return () => clearInterval(interval);
   }, [authLoading, user, fetchConversations]);
 
@@ -530,7 +614,7 @@ export default function PortalInboxContent() {
       if (!res.ok) throw new Error();
       const detail = await res.json();
       if (controller.signal.aborted) return;
-      setConversationDetail(sanitizeConversationDetail(detail));
+      setConversationDetail((prev) => mergeConversationDetail(prev, detail));
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") return;
     }
@@ -690,7 +774,32 @@ export default function PortalInboxContent() {
     return () => window.removeEventListener("portal-inbox-message-new", onMessageNew as EventListener);
   }, [fetchConversationDetail, fetchConversations]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [conversationDetail?.messages]);
+  const handleMessagesScroll = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
+    shouldAutoScrollRef.current = distanceFromBottom < 120;
+  }, []);
+
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    const msgs = conversationDetail?.messages || [];
+    if (!el || msgs.length === 0) return;
+
+    const lastId = msgs[msgs.length - 1]?.id || null;
+    const isFirstLoadForThisThread = lastMessageIdRef.current === null;
+    const didChange = Boolean(lastId && lastMessageIdRef.current && lastId !== lastMessageIdRef.current);
+    lastMessageIdRef.current = lastId;
+
+    // Only auto-scroll if user is already near the bottom. Otherwise preserve scroll position.
+    if (!didChange && !isFirstLoadForThisThread) return;
+    if (!shouldAutoScrollRef.current) return;
+
+    // Use rAF to wait for DOM paint.
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    });
+  }, [conversationDetail?.id, conversationDetail?.messages]);
 
   // Listen for user typing events
   useEffect(() => {
@@ -1779,7 +1888,11 @@ export default function PortalInboxContent() {
             )}
 
             {/* ── Messages ── */}
-            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-3 bg-[#FFFBF5]">
+            <div
+              ref={messagesContainerRef}
+              onScroll={handleMessagesScroll}
+              className="flex-1 overflow-y-auto px-5 py-5 space-y-3 bg-[#FFFBF5]"
+            >
               {isLoadingDetail ? (
                 <div className="flex items-center justify-center py-12"><div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" /></div>
               ) : conversationDetail?.messages.length === 0 ? (
