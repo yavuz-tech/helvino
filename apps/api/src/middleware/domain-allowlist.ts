@@ -96,6 +96,20 @@ export function validateDomainAllowlist() {
     // Get Origin or Referer header (file:// sends Origin: "null" string)
     const origin = request.headers.origin as string | undefined;
     const referer = request.headers.referer as string | undefined;
+
+    // Helvion platform domains are always allowed (widget demo on our own site).
+    const PLATFORM_DOMAINS = ["app.helvion.io", "helvion.io", "www.helvion.io"];
+    const rawOrigin = origin || referer;
+    if (rawOrigin) {
+      const dom = extractDomain(rawOrigin);
+      if (dom && PLATFORM_DOMAINS.includes(dom)) {
+        request.log.info(
+          { orgId: org.id, domain: dom },
+          "Helvion platform domain — bypassing domain allowlist"
+        );
+        return; // Always allow
+      }
+    }
     let requestOrigin = origin || referer;
     if (requestOrigin === "null" || requestOrigin === "file://") {
       requestOrigin = undefined; // Treat file:// like no origin for allowlist check

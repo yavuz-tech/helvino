@@ -196,9 +196,18 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
       const requestOrigin = origin || referer;
       let unauthorizedDomain = false;
 
-      // Only run the check when the org has explicitly configured domains.
+      // Helvion platform domains are always allowed — the widget demo on our
+      // own site must never be blocked by a customer's domain allowlist.
+      const PLATFORM_DOMAINS = ["app.helvion.io", "helvion.io", "www.helvion.io"];
+      const originDomain = requestOrigin ? extractDomain(requestOrigin) : null;
+      const isPlatformDomain =
+        (originDomain && PLATFORM_DOMAINS.includes(originDomain)) ||
+        (parentHost && PLATFORM_DOMAINS.includes(parentHost));
+
+      // Only run the check when the org has explicitly configured domains
+      // AND the request is NOT from the Helvion platform itself.
       // Empty list = "not configured yet" = allow everything (soft mode).
-      if (org.allowedDomains.length > 0) {
+      if (org.allowedDomains.length > 0 && !isPlatformDomain) {
         // Check Origin/Referer against allowlist
         if (requestOrigin) {
           if (!isOriginAllowed(requestOrigin, org.allowedDomains, org.allowLocalhost)) {
