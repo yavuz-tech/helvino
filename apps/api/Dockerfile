@@ -63,8 +63,12 @@ COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 
-# Copy Prisma schema + migrations (for migrate deploy)
+# Copy Prisma schema + migrations + seed (for migrate deploy + seed)
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+
+# Copy source (needed by prisma/seed.ts which imports from ../src/utils/)
+COPY --from=builder /app/apps/api/src ./apps/api/src
+COPY --from=builder /app/apps/api/tsconfig.json ./apps/api/tsconfig.json
 
 # Copy API-level node_modules (contains generated .prisma client)
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
@@ -78,4 +82,4 @@ ENV NODE_ENV=production
 # Railway injects PORT automatically
 EXPOSE ${PORT:-4000}
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed.ts && node dist/index.js"]
