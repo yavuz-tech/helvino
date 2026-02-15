@@ -191,6 +191,8 @@ const corsPolicy = buildCorsPolicy(process.env.NODE_ENV, [
   process.env.FRONTEND_URL,
   // Railway production frontend — hardcoded fallback
   "https://gracious-expression-production-7caa.up.railway.app",
+  // Helvion app (portal/dashboard)
+  "https://app.helvion.io",
   // Helvion landing origins
   "https://helvion.io",
   "https://www.helvion.io",

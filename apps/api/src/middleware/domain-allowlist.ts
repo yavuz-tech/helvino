@@ -65,29 +65,47 @@ export function validateDomainAllowlist() {
     const normalizedAllowlist = rawAllowlist
       .map((entry) => String(entry || "").trim())
       .filter(Boolean);
-    const hasWildcard = normalizedAllowlist.some((domain) => domain === "*" || domain.includes("*"));
+    // Allow subdomain wildcards in a constrained form: "*.example.com"
+    // - Disallow global "*" (allow-all) and other wildcard shapes.
+    // - If the allowlist only contains invalid entries, treat it like "not configured yet"
+    //   so the widget can work on first embed (bootloader uses the same soft approach).
+    const wildcardEntries = normalizedAllowlist.filter((d) => d.includes("*"));
+    const hasGlobalWildcard = normalizedAllowlist.includes("*");
+    const invalidWildcardEntries = wildcardEntries.filter((d) => {
+      if (d === "*") return true;
+      if (!d.startsWith("*.")) return true;
+      // Prevent multiple wildcards / weird patterns like "*.*.com"
+      return d.slice(2).includes("*");
+    });
 
-    // Do not allow wildcard patterns in allowlist to avoid accidental allow-all behavior.
-    if (hasWildcard) {
+    if (wildcardEntries.length > 0) {
       request.log.warn(
-        { orgId: org.id, siteId: org.siteId, allowedDomains: org.allowedDomains },
-        "Invalid allowlist configuration: wildcard is not allowed"
+        {
+          orgId: org.id,
+          siteId: org.siteId,
+          allowedDomains: org.allowedDomains,
+          invalidWildcardEntries,
+          hasGlobalWildcard,
+        },
+        "Allowlist contains wildcard entries; sanitizing"
       );
-      reply.code(403);
-      return reply.send({
-        error: "Invalid allowlist configuration",
-        message: "Wildcard domains are not allowed",
-      });
     }
 
-    // If allowedDomains is empty the org hasn't configured their allowlist yet.
+    const effectiveAllowlist = normalizedAllowlist.filter((d) => {
+      if (d === "*") return false;
+      if (!d.includes("*")) return true;
+      // Keep only "*.example.com"
+      return d.startsWith("*.") && !d.slice(2).includes("*");
+    });
+
+    // If allowedDomains is empty (or sanitized to empty) the org hasn't configured their allowlist yet.
     // Allow the request so the widget works on first embed — the bootloader
     // already flags this as a soft warning, and the portal prompts the owner
     // to add their domain.  Once they add at least one domain, the strict
     // check below kicks in.
-    if (normalizedAllowlist.length === 0) {
+    if (effectiveAllowlist.length === 0) {
       request.log.info(
-        { orgId: org.id, siteId: org.siteId },
+        { orgId: org.id, siteId: org.siteId, hadWildcard: wildcardEntries.length > 0 },
         "Empty allowlist — allowing request (org hasn't configured domains yet)"
       );
       return; // Allow request
@@ -146,7 +164,7 @@ export function validateDomainAllowlist() {
     }
 
     // Validate origin against allowlist
-    if (!isOriginAllowed(requestOrigin, normalizedAllowlist, org.allowLocalhost)) {
+    if (!isOriginAllowed(requestOrigin, effectiveAllowlist, org.allowLocalhost)) {
       const domain = extractDomain(requestOrigin);
 
       request.log.warn(
@@ -154,7 +172,7 @@ export function validateDomainAllowlist() {
           orgId: org.id,
           siteId: org.siteId,
           domain,
-          allowedDomains: normalizedAllowlist,
+          allowedDomains: effectiveAllowlist,
           allowLocalhost: org.allowLocalhost,
           origin,
           referer,
