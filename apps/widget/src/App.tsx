@@ -174,14 +174,17 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     }
   }, [bootloaderConfig]);
 
-  // Connect Socket.IO on mount — stays connected so we always receive config updates
+  // Connect Socket.IO only after bootloader token is available.
+  // Otherwise the handshake fails and we never receive real-time updates.
   useEffect(() => {
+    const token = bootloaderConfig?.orgToken || getOrgToken();
+    if (!token) return;
     if (socketRef.current) return;
     try {
       const siteId = getSiteId();
       const orgKey = getOrgKey();
       const auth: Record<string, unknown> = {
-        token: getOrgToken() || undefined,
+        token,
         visitorId: getVisitorId(),
       };
       if (siteId) auth.siteId = siteId;
@@ -246,7 +249,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
         socketRef.current = null;
       }
     };
-  }, []);
+  }, [bootloaderConfig?.orgToken]);
 
   // Join the visitor's conversation room once we have a conversationId
   useEffect(() => {
