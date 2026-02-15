@@ -15,10 +15,12 @@ import type { NextRequest } from "next/server";
  *   Strict-Transport-Security, X-Content-Type-Options, Referrer-Policy,
  *   Permissions-Policy, X-Frame-Options
  *
- * CSP notes (ZAP findings):
+ * CSP notes:
  *   - script-src 'unsafe-inline': REQUIRED by Next.js inline scripts.
- *     We add 'strict-dynamic' so CSP-3 browsers ignore unsafe-inline
- *     and propagate trust via nonces, while older browsers fall back.
+ *     'strict-dynamic' is NOT used because Next.js App Router does not
+ *     generate CSP nonces by default — adding 'strict-dynamic' causes
+ *     CSP3 browsers to ignore 'self' and 'unsafe-inline', blocking ALL
+ *     scripts and breaking the site entirely.
  *   - style-src 'unsafe-inline': REQUIRED by Next.js + Tailwind CSS
  *     for runtime-injected <style> blocks.  Cannot be removed without
  *     breaking the UI.
@@ -55,12 +57,12 @@ function buildCsp(opts: {
 }): string {
   const { isProduction, frameAncestors } = opts;
 
-  // script-src: 'unsafe-inline' is required by Next.js.
-  // 'strict-dynamic' (CSP Level 3) makes compliant browsers ignore
-  // 'unsafe-inline' and instead propagate trust via nonce/hash,
-  // while older browsers gracefully fall back to 'unsafe-inline'.
+  // script-src: 'unsafe-inline' is required by Next.js inline scripts.
+  // DO NOT add 'strict-dynamic' — Next.js App Router doesn't generate
+  // CSP nonces, so 'strict-dynamic' causes CSP3 browsers to ignore
+  // 'self' + 'unsafe-inline' and block ALL scripts (site goes blank).
   const scriptSrc = isProduction
-    ? "script-src 'self' 'unsafe-inline' 'strict-dynamic'"
+    ? "script-src 'self' 'unsafe-inline'"
     : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
 
   // connect-src: In production, limit to HTTPS/WSS schemes.
@@ -110,6 +112,7 @@ export function middleware(request: NextRequest) {
   const isDashboardOrPortal =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/portal") ||
+    pathname.startsWith("/admin") ||
     pathname.startsWith("/login");
 
   // Widget embed routes need to be frameable from customer domains
