@@ -13,7 +13,6 @@ import { useRouter } from "next/navigation";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 
 const SOUND_STORAGE_KEY = "helvino_portal_sound_enabled";
-const PORTAL_SOCKET_TOKEN_STORAGE_KEY = "helvino_portal_refresh_token";
 
 interface PortalInboxNotificationContextValue {
   soundEnabled: boolean;
@@ -209,17 +208,19 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
         if (cancelled) return;
 
         setSocketStatus("connecting");
-        const portalSocketToken =
-          typeof window !== "undefined"
-            ? window.sessionStorage.getItem(PORTAL_SOCKET_TOKEN_STORAGE_KEY) || undefined
-            : undefined;
+        // Use the in-memory access token (portal-auth stores tokens in memory for XSS safety,
+        // NOT in sessionStorage). This is the same JWT used for API calls.
+        const { getPortalAccessToken } = await import("@/lib/portal-auth");
+        const portalSocketToken = getPortalAccessToken() || undefined;
         socketInstance = io(API_URL, {
           transports: ["polling", "websocket"],
           auth: { orgKey: user.orgKey, token: portalSocketToken },
           reconnection: true,
-          reconnectionAttempts: 10,
+          reconnectionAttempts: Infinity,
           reconnectionDelay: 3000,
-          timeout: 10000,
+          reconnectionDelayMax: 30000,
+          randomizationFactor: 0.3,
+          timeout: 15000,
           withCredentials: true,
         });
         socketRef.current = socketInstance;

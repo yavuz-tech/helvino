@@ -191,8 +191,14 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
       else if (orgKey) auth.orgKey = orgKey;
 
       socketRef.current = io(API_URL, {
-        transports: ["websocket", "polling"],
+        transports: ["polling", "websocket"],
         auth,
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 30000,
+        randomizationFactor: 0.3,
+        timeout: 15000,
       });
       socketRef.current.on("connect", () => {
         console.log("✅ Connected to Socket.IO", { siteId, orgKey });

@@ -366,6 +366,10 @@ fastify.register(socketioServer, {
   pingTimeout: 20_000,
   pingInterval: 25_000,
   allowEIO3: false,
+  // Railway (and many PaaS) reverse-proxies may not support WebSocket upgrade reliably.
+  // Start with long-polling, then upgrade to WebSocket if available.
+  transports: ["polling", "websocket"],
+  allowUpgrades: true,
   cors: {
     // SECURITY:
     // - We cannot know org allowlist at CORS-evaluation time (before auth).

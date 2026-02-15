@@ -41,9 +41,17 @@ export function DebugProvider({ children }: { children: React.ReactNode }) {
     if (process.env.NODE_ENV !== "development") return;
 
     setSocketStatus("connecting");
-    const token = window.sessionStorage.getItem("helvino_portal_refresh_token") || undefined;
+    // Use in-memory access token (portal-auth no longer stores to sessionStorage for XSS safety)
+    let token: string | undefined;
+    try {
+      // Dynamic import to avoid circular deps
+      const { getPortalAccessToken } = require("@/lib/portal-auth");
+      token = getPortalAccessToken() || undefined;
+    } catch {
+      token = undefined;
+    }
     const socketInstance = io(apiUrl, {
-      transports: ["websocket", "polling"],
+      transports: ["polling", "websocket"],
       auth: {
         orgKey,
         token,

@@ -358,8 +358,10 @@ export default function PortalLayout({
 
     const schedule = () => {
       if (!mounted) return;
-      // Base poll: inbox page more frequent, elsewhere less frequent.
-      const baseMs = pathname === "/portal/inbox" ? 5_000 : 30_000;
+      // Base poll: inbox page somewhat frequent, elsewhere infrequent.
+      // Socket.IO events trigger on-demand refreshes via "portal-inbox-unread-refresh",
+      // so this poll is just a safety net.
+      const baseMs = pathname === "/portal/inbox" ? 15_000 : 30_000;
       // Backoff: 1x, 2x, 4x, 8x, ... up to 2 minutes.
       const factor = Math.min(16, Math.pow(2, Math.max(0, consecutiveFailures - 1)));
       const nextMs = Math.min(120_000, baseMs * factor);

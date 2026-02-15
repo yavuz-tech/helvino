@@ -61,6 +61,11 @@ function readAccessToken(): string | null {
   return memoryAccessToken;
 }
 
+/** Public read-only accessor so Socket.IO auth can attach the token. */
+export function getPortalAccessToken(): string | null {
+  return memoryAccessToken;
+}
+
 export interface PortalUser {
   id: string;
   email: string;

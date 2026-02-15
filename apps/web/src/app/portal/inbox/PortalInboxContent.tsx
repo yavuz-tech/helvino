@@ -590,12 +590,15 @@ export default function PortalInboxContent() {
 
   useEffect(() => { if (!authLoading) fetchConversations(); }, [authLoading, fetchConversations]);
 
-  // Poll for new conversations (e.g. from widget) so inbox updates without manual refresh
+  // Background poll for new conversations — only as a safety net.
+  // When socket is connected, poll very infrequently (60s).
+  // When socket is disconnected, the fallback-polling effect above handles it.
   useEffect(() => {
     if (authLoading || !user) return;
-    const interval = setInterval(() => { fetchConversations(); }, 15000);
+    if (!socketStatus.startsWith("connected")) return; // fallback effect handles disconnected state
+    const interval = setInterval(() => { fetchConversations(); }, 60_000);
     return () => clearInterval(interval);
-  }, [authLoading, user, fetchConversations]);
+  }, [authLoading, user, socketStatus, fetchConversations]);
 
   useEffect(() => {
     if (!authLoading && user) fetchViewCounts();
@@ -704,10 +707,14 @@ export default function PortalInboxContent() {
     if (c && !selectedConversationId && conversations.find(cv => cv.id === c)) selectConversation(c);
   }, [authLoading, conversations, searchParams, selectedConversationId, selectConversation]);
 
-  // Fallback polling when Socket.IO is not connected
+  // Fallback polling when Socket.IO is not connected (gentle, with backoff)
   useEffect(() => {
     if (socketStatus.startsWith("connected")) return;
-    const interval = setInterval(() => {
+    let cancelled = false;
+    let delay = 15_000; // start at 15s, back off to max 60s
+    const maxDelay = 60_000;
+    const tick = () => {
+      if (cancelled) return;
       fetchConversations();
       if (selectedConversationId) {
         fetchConversationDetail(selectedConversationId);
@@ -715,8 +722,11 @@ export default function PortalInboxContent() {
       try {
         window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
       } catch { /* */ }
-    }, 5000);
-    return () => clearInterval(interval);
+      delay = Math.min(delay * 1.3, maxDelay);
+      timer = setTimeout(tick, delay);
+    };
+    let timer = setTimeout(tick, delay);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [socketStatus, selectedConversationId, fetchConversations, fetchConversationDetail]);
 
   // If a new message arrives:
