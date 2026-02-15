@@ -147,7 +147,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       const requestIp = getRealIP(request);
       const requestUa = ((request.headers["user-agent"] as string) || "unknown").substring(0, 256);
       const cookieLang = extractLocaleCookie(request.headers.cookie as string);
-      const reqLocale = getRequestLocale(request);
+      const reqLocale = getRequestLocale(request, locale);
       const preferredLocale = normalizeRequestLocale(
         locale,
         cookieLang,

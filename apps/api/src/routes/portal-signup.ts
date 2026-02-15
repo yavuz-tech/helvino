@@ -112,7 +112,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         (request.headers["x-request-id"] as string) ||
         undefined;
 
-      const loc = getRequestLocale(request);
+      const loc = getRequestLocale(request, locale);
 
       if (process.env.NODE_ENV === "production" && !isMailProviderConfigured()) {
         reply.code(503);
@@ -384,7 +384,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         (request.headers["x-request-id"] as string) ||
         undefined;
 
-      const loc = getRequestLocale(request);
+      const loc = getRequestLocale(request, locale);
       if (process.env.NODE_ENV === "production" && !isMailProviderConfigured()) {
         reply.code(503);
         return {

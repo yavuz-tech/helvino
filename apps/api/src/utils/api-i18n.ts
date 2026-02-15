@@ -336,13 +336,15 @@ export function t(
 }
 
 /**
- * Detect request locale from cookie / Accept-Language header.
+ * Detect request locale from body → cookie → Accept-Language header.
  * Re-uses the same priority chain as email templates.
+ *
+ * @param bodyLocale - Explicit locale from request body (highest priority)
  */
-export function getRequestLocale(request: FastifyRequest): Locale {
+export function getRequestLocale(request: FastifyRequest, bodyLocale?: string): Locale {
   const cookieLang = extractLocaleCookie(request.headers.cookie as string);
   return normalizeRequestLocale(
-    undefined,
+    bodyLocale,
     cookieLang,
     request.headers["accept-language"] as string
   );
