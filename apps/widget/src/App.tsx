@@ -83,6 +83,9 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const lastUserMsgTimeRef = useRef<number>(0);
   const gotResponseSinceLastMsgRef = useRef(false);
 
+  // Attention grabber delay — show only after N seconds
+  const [attGrabberVisible, setAttGrabberVisible] = useState(false);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const conversationIdRef = useRef<string | null>(null);
@@ -103,6 +106,29 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
       console.warn("[Helvion] Branding mismatch: embed config requests branding off, but server entitlement requires branding. Enforcing branding.");
     }
   }, [bootloaderConfig, brandingRequired]);
+
+  // Auto-open widget on first load if configured in portal
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!bootloaderConfig || autoOpenedRef.current) return;
+    const _v3s = (bootloaderConfig.config.widgetSettings || {}) as Record<string, unknown>;
+    if (_v3s.autoOpen === true) {
+      autoOpenedRef.current = true;
+      const timer = setTimeout(() => setIsOpen(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [bootloaderConfig]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Attention grabber delay — show after configured seconds
+  useEffect(() => {
+    if (!bootloaderConfig) return;
+    const _v3s = (bootloaderConfig.config.widgetSettings || {}) as Record<string, unknown>;
+    const grabId = _v3s.attGrabberId || "none";
+    if (grabId === "none") { setAttGrabberVisible(false); return; }
+    const delaySec = typeof _v3s.attGrabberDelay === "number" ? _v3s.attGrabberDelay : 3;
+    const timer = setTimeout(() => setAttGrabberVisible(true), delaySec * 1000);
+    return () => clearTimeout(timer);
+  }, [bootloaderConfig]);
 
   const pickEmoji = (emoji: string) => {
     // Insert at cursor position
@@ -231,6 +257,24 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
         if (data.conversationId === conversationIdRef.current) {
           setMessages((prev) => [...prev, sanitizeMessage(data.message)]);
           setAgentTyping(false);
+          // Play notification sound if enabled and message is from agent/AI
+          if (data.message.role === "assistant") {
+            try {
+              const _sws = (bootloaderConfig?.config?.widgetSettings || {}) as Record<string, unknown>;
+              if (_sws.soundEnabled !== false) {
+                const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 800;
+                osc.type = "sine";
+                gain.gain.value = 0.1;
+                osc.start();
+                osc.stop(ctx.currentTime + 0.12);
+              }
+            } catch { /* sound not critical */ }
+          }
           if (data.message.role === "assistant") {
             gotResponseSinceLastMsgRef.current = true;
             setShowAiHelpButton(false);
@@ -407,6 +451,14 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     return null; // Widget disabled by config
   }
 
+  // v3 mobile visibility check — read here before full v3 extraction
+  const _ws = bootloaderConfig.config.widgetSettings;
+  const _v3 = (_ws || {}) as Record<string, unknown>;
+  const _showOnMobile = _v3.showOnMobile !== false;
+  if (!_showOnMobile && typeof window !== "undefined" && window.innerWidth <= 640) {
+    return null; // Widget hidden on mobile by portal setting
+  }
+
   const ws = bootloaderConfig.config.widgetSettings;
   const v3 = (ws || {}) as any;
   const primaryColor =
@@ -469,14 +521,28 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const starters = v3.starters || [];
   const activeStarters = Array.isArray(starters) ? starters.filter((s: any) => s.active) : [];
   const botAvatar = v3.botAvatar || "🤖";
+  const agentAvatar = v3.agentAvatar || "👩‍💼";
   const aiName = v3.aiName || "Helvion AI";
+  const aiTone = v3.aiTone || "professional";
   const aiLabelEnabled = v3.aiLabel !== false;
   const aiSuggestions = v3.aiSuggestions !== false;
   const showBrandingFlag = v3.showBranding !== false;
+  const showOnMobile = v3.showOnMobile !== false;
+  const soundEnabled = v3.soundEnabled !== false;
+  const autoOpenWidget = v3.autoOpen === true;
+  const showEmojiPicker = v3.emojiPicker !== false;
+  const customCss = typeof v3.customCss === "string" ? v3.customCss : "";
+  const bgPatternId = v3.bgPatternId || "none";
   const attGrabberId = v3.attGrabberId || "none";
   const attGrabberText = v3.attGrabberText || "Merhaba! Yardıma ihtiyacınız var mı? 👋";
+  const attGrabberDelay = typeof v3.attGrabberDelay === "number" ? v3.attGrabberDelay : 3;
   const launcherLabel = v3.launcherLabel || "Bize yazın";
   const launcherId = v3.launcherId || "rounded";
+  const consentEnabled = v3.consentEnabled === true;
+  const consentText = v3.consentText || "";
+  // Suppress unused but planned variables
+  void agentAvatar; void aiTone; void soundEnabled; void autoOpenWidget;
+  void consentEnabled; void consentText; void attGrabberDelay;
   const positionId = v3.positionId || (isLeft ? "bl" : "br");
   const isLeftV3 = positionId === "bl";
   const LAUNCHER_SIZES: Record<string, { w: number; h: number; radius: string; hasText: boolean }> = {
@@ -528,9 +594,19 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   // middleware, so there's no security risk in showing the launcher.
   const isUnauthorized = bootloaderConfig.config.unauthorizedDomain;
 
+  // Background pattern SVG for home view
+  const BG_PATTERNS: Record<string, string> = {
+    dots: `url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='2' cy='2' r='1' fill='rgba(${acRgb},0.06)'/%3E%3C/svg%3E")`,
+    grid: `url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0H0v20' fill='none' stroke='rgba(${acRgb},0.04)' stroke-width='0.5'/%3E%3C/svg%3E")`,
+    waves: `url("data:image/svg+xml,%3Csvg width='40' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 10c5-4 10-4 15 0s10 4 15 0s10-4 15 0' fill='none' stroke='rgba(${acRgb},0.05)' stroke-width='0.5'/%3E%3C/svg%3E")`,
+  };
+  const bgPatternStyle = bgPatternId !== "none" && BG_PATTERNS[bgPatternId] ? { backgroundImage: BG_PATTERNS[bgPatternId] } : {};
+
   return (
     <div className="widget-container" style={{ "--primary-color": primaryColor } as React.CSSProperties}>
-      {!actualIsOpen && attGrabberId !== "none" && (
+      {/* Custom CSS from portal */}
+      {customCss && <style dangerouslySetInnerHTML={{ __html: customCss }} />}
+      {!actualIsOpen && attGrabberId !== "none" && attGrabberVisible && (
         <div className={`widget-att-grabber ${isLeftV3 ? "left" : "right"}`}
           style={{
             position: "fixed",
@@ -617,7 +693,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
             </div>
           )}
           
-          <div className="chat-messages">
+          <div className="chat-messages" style={bgPatternStyle}>
             {isUnauthorized && (
               <div style={{ margin: "8px 12px", padding: "10px 14px", borderRadius: 10, background: "#FEF3C7", border: "1px solid #FCD34D", fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
                 <strong style={{ display: "block", marginBottom: 4 }}>{unauthorizedCopy.title}</strong>
@@ -701,15 +777,17 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
             </div>
           ) : (
             <div className="chat-input-v3" style={{ borderTop: `1px solid rgba(${acRgb}, 0.08)` }}>
-              <button
-                className="chat-emoji-btn"
-                onClick={() => setEmojiOpen((v) => !v)}
-                aria-label="Insert emoji"
-                type="button"
-              >
-                😊
-              </button>
-              {emojiOpen && (
+              {showEmojiPicker && (
+                <button
+                  className="chat-emoji-btn"
+                  onClick={() => setEmojiOpen((v) => !v)}
+                  aria-label="Insert emoji"
+                  type="button"
+                >
+                  😊
+                </button>
+              )}
+              {showEmojiPicker && emojiOpen && (
                 <div className="chat-emoji-picker">
                   {recentEmojis.length > 0 && recentEmojis.map((e, i) => (
                     <button key={`r-${i}`} className="chat-emoji-picker-item" onClick={() => pickEmoji(e)} type="button">{e}</button>
