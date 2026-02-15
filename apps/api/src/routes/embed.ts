@@ -37,6 +37,8 @@ export async function embedRoutes(fastify: FastifyInstance) {
         // CORS: must be loadable from any customer domain
         .header("Access-Control-Allow-Origin", "*")
         .header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        // Allow cross-origin embedding (fixes ERR_BLOCKED_BY_RESPONSE.NotSameOrigin)
+        .header("Cross-Origin-Resource-Policy", "cross-origin")
         .header("Cache-Control", "public, max-age=3600")
         .header("X-Content-Type-Options", "nosniff")
         .type("application/javascript; charset=utf-8");
@@ -65,6 +67,7 @@ export async function embedRoutes(fastify: FastifyInstance) {
     reply
       .header("Access-Control-Allow-Origin", "*")
       .header("Access-Control-Allow-Methods", "GET, OPTIONS")
+      .header("Cross-Origin-Resource-Policy", "cross-origin")
       .header("Access-Control-Max-Age", "86400")
       .code(204)
       .send();
