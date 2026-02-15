@@ -36,9 +36,11 @@ const CANONICAL_HOST = "helvion.io";
 const CSP_COMMON_DIRECTIVES = [
   "default-src 'self'",
   "img-src 'self' data: https:",
-  "font-src 'self' data:",
+  // Google Fonts (woff2) + Fontshare (woff2) + inline data: URIs
+  "font-src 'self' data: https://fonts.gstatic.com https://cdn.fontshare.com",
   // Next.js + Tailwind inject inline <style>; cannot remove 'unsafe-inline'.
-  "style-src 'self' 'unsafe-inline'",
+  // Google Fonts + Fontshare serve CSS stylesheets that must be allowed.
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com",
   // Block <object>, <embed>, <applet>
   "object-src 'none'",
   // Restrict <base> to same-origin
@@ -61,8 +63,9 @@ function buildCsp(opts: {
   // DO NOT add 'strict-dynamic' — Next.js App Router doesn't generate
   // CSP nonces, so 'strict-dynamic' causes CSP3 browsers to ignore
   // 'self' + 'unsafe-inline' and block ALL scripts (site goes blank).
+  // Cloudflare Web Analytics (static.cloudflareinsights.com) is allowed explicitly.
   const scriptSrc = isProduction
-    ? "script-src 'self' 'unsafe-inline'"
+    ? "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com"
     : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
 
   // connect-src: In production, limit to HTTPS/WSS schemes.

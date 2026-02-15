@@ -631,8 +631,8 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
         <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
         <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
         <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid #F3E8D8", borderTopColor: "#F59E0B", animation: "spin 0.8s linear infinite" }} />
-        <div style={{ fontFamily: "'Satoshi',sans-serif", fontSize: 14, fontWeight: 700, color: "#92400E" }}>{t("wA.loading")}</div>
-        <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: "#94A3B8" }}>{t("wA.pleaseWait")}</div>
+        <div style={{ fontFamily: "'Satoshi',sans-serif", fontSize: 14, fontWeight: 700, color: "#92400E" }}>{_t("wA.loading")}</div>
+        <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: "#94A3B8" }}>{_t("wA.pleaseWait")}</div>
       </div>
     );
   }
@@ -679,28 +679,28 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
       }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-            <span style={{ fontSize: 11, color: "#94A3B8" }}>{t("wA.breadcrumb.settings")}</span>
+            <span style={{ fontSize: 11, color: "#94A3B8" }}>{_t("wA.breadcrumb.settings")}</span>
             <span style={{ color: "#CBD5E1", fontSize: 10 }}>/</span>
-            <span style={{ fontSize: 11, color: ac, fontWeight: 600 }}>{t("wA.title")}</span>
+            <span style={{ fontSize: 11, color: ac, fontWeight: 600 }}>{_t("wA.title")}</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <h1 style={{ fontFamily: s.fontH, fontSize: 22, fontWeight: 800, color: "#1A1D23", margin: 0 }}>{t("wA.title")}</h1>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: "linear-gradient(135deg,#FEF3C7,#FDE68A)", color: "#92400E" }}>{t("wA.sectionsCount")}</span>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: "linear-gradient(135deg,#EDE9FE,#DDD6FE)", color: "#7C3AED" }}>{t("wA.settingsCount")}</span>
+            <h1 style={{ fontFamily: s.fontH, fontSize: 22, fontWeight: 800, color: "#1A1D23", margin: 0 }}>{_t("wA.title")}</h1>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: "linear-gradient(135deg,#FEF3C7,#FDE68A)", color: "#92400E" }}>{_t("wA.sectionsCount")}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: "linear-gradient(135deg,#EDE9FE,#DDD6FE)", color: "#7C3AED" }}>{_t("wA.settingsCount")}</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {hasChanges && (
             <div style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600, display: "flex", alignItems: "center", gap: 5, animation: "fadeUp 0.3s ease both" }}>
               <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#F59E0B", animation: "pulse 1.5s infinite" }} />
-              {t("wA.unsaved")}
+              {_t("wA.unsaved")}
             </div>
           )}
           <button onClick={() => setShowEmbed(!showEmbed)} style={{
             padding: "8px 14px", borderRadius: 9, border: "1px solid #E2E8F0",
             background: showEmbed ? al : "#FFF", fontFamily: s.font, fontSize: 12, fontWeight: 600,
             color: showEmbed ? ac : "#64748B", cursor: "pointer", transition: "all 0.2s",
-          }}>{"</>"} {t("wA.embedCode")}</button>
+          }}>{"</>"} {_t("wA.embedCode")}</button>
           <button onClick={handleSave} disabled={saving} style={{
             fontFamily: s.fontH, fontSize: 13, fontWeight: 700,
             padding: "9px 20px", borderRadius: 10, border: "none",
