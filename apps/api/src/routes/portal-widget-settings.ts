@@ -591,6 +591,25 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
         },
       });
 
+      // Auto-detect content language from v3 text fields and sync to org.language
+      // This ensures the bootloader returns the correct language for the widget.
+      const contentSample = [
+        configPayload.headerText,
+        configPayload.welcomeMsg,
+        configPayload.subText,
+      ].filter((s) => typeof s === "string").join("");
+      const TURKISH_CHARS_RE = /[ğışöüçĞİŞÖÜÇ]/;
+      const SPANISH_CHARS_RE = /[áéíóúñ¿¡]/;
+      const detectedLanguage = TURKISH_CHARS_RE.test(contentSample) ? "tr"
+        : SPANISH_CHARS_RE.test(contentSample) ? "es"
+        : null; // null = don't change
+      if (detectedLanguage) {
+        prisma.organization.update({
+          where: { id: orgId },
+          data: { language: detectedLanguage },
+        }).catch(() => {});
+      }
+
       // Audit log (best-effort)
       writeAuditLog(
         orgId,

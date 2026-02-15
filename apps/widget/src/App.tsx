@@ -497,7 +497,16 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   );
   const writeEnabled = bootloaderConfig.config.writeEnabled;
   const aiEnabled = bootloaderConfig.config.aiEnabled;
-  const lang = bootloaderConfig.config.language || "en";
+  // Detect actual content language from v3 text fields (headerText, welcomeMsg, subText).
+  // The org table's `language` field may be stale (e.g. "en" while all content is Turkish).
+  const orgLang = bootloaderConfig.config.language || "en";
+  const v3ContentSample = `${v3.headerText || ""}${v3.welcomeMsg || ""}${v3.subText || ""}`;
+  const TURKISH_CHARS = /[ğışöüçĞİŞÖÜÇ]/;
+  const SPANISH_CHARS = /[áéíóúñ¿¡]/;
+  const detectedLang = TURKISH_CHARS.test(v3ContentSample) ? "tr"
+    : SPANISH_CHARS.test(v3ContentSample) ? "es"
+    : orgLang;
+  const lang = detectedLang;
   const unauthorizedCopy = UNAUTHORIZED_COPY[lang] || UNAUTHORIZED_COPY.en;
   const aiOfflineCopy = AI_OFFLINE_COPY[lang] || AI_OFFLINE_COPY.en;
   const widgetContext = (window as unknown as { HELVINO_WIDGET_CONTEXT?: string }).HELVINO_WIDGET_CONTEXT;
@@ -579,10 +588,14 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     de: "Nachricht eingeben...",
     fr: "Tapez un message...",
   };
-  const chatInputPlaceholder =
-    bootloaderConfig.config.chatPageConfig?.placeholder ||
-    DEFAULT_PLACEHOLDERS[lang] ||
-    DEFAULT_PLACEHOLDERS.en;
+  // chatPageConfig.placeholder is often an English default that was never updated.
+  // Only use it if it was explicitly customized (differs from known defaults).
+  const rawChatPlaceholder = bootloaderConfig.config.chatPageConfig?.placeholder;
+  const KNOWN_DEFAULT_PLACEHOLDERS = new Set(["Write your message...", "Type a message...", "Type your message..."]);
+  const isCustomPlaceholder = rawChatPlaceholder && !KNOWN_DEFAULT_PLACEHOLDERS.has(rawChatPlaceholder);
+  const chatInputPlaceholder = isCustomPlaceholder
+    ? rawChatPlaceholder
+    : (DEFAULT_PLACEHOLDERS[lang] || DEFAULT_PLACEHOLDERS.en);
 
   const renderBubbleIcon = () => {
     if (bubbleTheme.bubbleIcon === "help") {
