@@ -216,7 +216,18 @@ fastify.register(cors, {
     return cb(null, isOriginAllowedByCorsPolicy(origin, corsPolicy));
   },
   credentials: true, // Allow cookies in CORS requests
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "x-internal-key", "x-org-key"],
+  // Keep this list in sync with custom headers sent by the widget/embed:
+  // apps/widget/src/api.ts sends x-visitor-id, x-site-id, x-org-key, x-org-token.
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "x-internal-key",
+    "x-org-key",
+    "x-site-id",
+    "x-visitor-id",
+    "x-org-token",
+  ],
   exposedHeaders: ["retry-after", "x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset", "x-request-id", "x-helvino-portal-cookie-samesite", "x-helvino-portal-cookie-secure"],
 });
 
