@@ -2,23 +2,87 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * Next.js Middleware — Step 11.28 Security Headers
+ * Next.js Middleware — Security Headers (OWASP ZAP hardened)
  *
- * Adds security headers to all responses:
- * - Admin/Portal pages: strong CSP with frame-ancestors 'none' (deny framing)
- * - Public/widget embed pages: looser CSP allowing framing
- * - Universal: Referrer-Policy, Permissions-Policy, X-Content-Type-Options, X-Frame-Options
+ * Adds security headers to ALL responses:
+ *
+ * CSP zones:
+ *   1. Dashboard / Portal / Login — strong CSP, frame-ancestors 'none'
+ *   2. Widget-embeddable routes    — CSP with frame-ancestors 'self' https:
+ *   3. Everything else (landing)   — standard CSP, frame-ancestors 'self'
+ *
+ * Universal headers on every response:
+ *   Strict-Transport-Security, X-Content-Type-Options, Referrer-Policy,
+ *   Permissions-Policy, X-Frame-Options
+ *
+ * CSP notes (ZAP findings):
+ *   - script-src 'unsafe-inline': REQUIRED by Next.js inline scripts.
+ *     We add 'strict-dynamic' so CSP-3 browsers ignore unsafe-inline
+ *     and propagate trust via nonces, while older browsers fall back.
+ *   - style-src 'unsafe-inline': REQUIRED by Next.js + Tailwind CSS
+ *     for runtime-injected <style> blocks.  Cannot be removed without
+ *     breaking the UI.
+ *   - object-src, base-uri, form-action: explicitly set to prevent
+ *     fallback gaps (ZAP: "Failure to Define Directive with No Fallback").
  */
 
 /** Canonical domain; old invite/reset links may still point to helvino.io. */
 const CANONICAL_HOST = "helvion.io";
+
+// ── CSP building blocks ──
+
+const CSP_COMMON_DIRECTIVES = [
+  "default-src 'self'",
+  "img-src 'self' data: https:",
+  "font-src 'self' data:",
+  // Next.js + Tailwind inject inline <style>; cannot remove 'unsafe-inline'.
+  "style-src 'self' 'unsafe-inline'",
+  // Block <object>, <embed>, <applet>
+  "object-src 'none'",
+  // Restrict <base> to same-origin
+  "base-uri 'self'",
+  // Restrict form submissions to same-origin
+  "form-action 'self'",
+  // Prevent the page from being used as a worker source
+  "worker-src 'self' blob:",
+  // Manifest
+  "manifest-src 'self'",
+];
+
+function buildCsp(opts: {
+  isProduction: boolean;
+  frameAncestors: string;
+}): string {
+  const { isProduction, frameAncestors } = opts;
+
+  // script-src: 'unsafe-inline' is required by Next.js.
+  // 'strict-dynamic' (CSP Level 3) makes compliant browsers ignore
+  // 'unsafe-inline' and instead propagate trust via nonce/hash,
+  // while older browsers gracefully fall back to 'unsafe-inline'.
+  const scriptSrc = isProduction
+    ? "script-src 'self' 'unsafe-inline' 'strict-dynamic'"
+    : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
+
+  // connect-src: In production, limit to HTTPS/WSS schemes.
+  // 'self' covers same-origin; https:/wss: cover the external API + Stripe + analytics.
+  const connectSrc = isProduction
+    ? "connect-src 'self' https: wss:"
+    : "connect-src 'self' http://localhost:* ws://localhost:* https: wss:";
+
+  return [
+    ...CSP_COMMON_DIRECTIVES,
+    scriptSrc,
+    connectSrc,
+    `frame-ancestors ${frameAncestors}`,
+  ].join("; ");
+}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") || request.nextUrl.hostname || "";
   const isProduction = process.env.NODE_ENV === "production";
 
-  // Redirect legacy helvino.io to helvion.io (same path + query) so old invite/reset links work
+  // Redirect legacy helvino.io → helvion.io (same path + query)
   if (host.replace(/:.*/, "") === "helvino.io") {
     const url = new URL(request.url);
     url.host = CANONICAL_HOST;
@@ -36,46 +100,48 @@ export function middleware(request: NextRequest) {
     "camera=(), microphone=(), geolocation=(), interest-cohort=()"
   );
 
-  // ── Route-specific CSP ──
+  // ── HSTS (all environments — browsers only honour it over HTTPS) ──
+  response.headers.set(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains; preload"
+  );
+
+  // ── Route zones ──
   const isDashboardOrPortal =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/portal") ||
     pathname.startsWith("/login");
 
-  // SECURITY: In production, restrict connect-src to HTTPS only (no localhost).
-  // In development, also allow http://localhost and ws://localhost for HMR/API.
-  const connectSrc = isProduction
-    ? "connect-src 'self' https: wss:"
-    : "connect-src 'self' http://localhost:* ws://localhost:* https: wss:";
+  // Widget embed routes need to be frameable from customer domains
+  const isWidgetEmbed =
+    pathname.startsWith("/widget") || pathname.startsWith("/embed");
 
   if (isDashboardOrPortal) {
-    // Admin/Portal: deny framing entirely
+    // Zone 1: Authenticated pages — deny framing entirely
     response.headers.set("X-Frame-Options", "DENY");
-    const scriptSrc = isProduction
-      ? "script-src 'self' 'unsafe-inline'"
-      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
     response.headers.set(
       "Content-Security-Policy",
-      `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; ${connectSrc}; frame-ancestors 'none'`
+      buildCsp({ isProduction, frameAncestors: "'none'" })
+    );
+    // Sensitive pages: prevent caching of authenticated content
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, private"
+    );
+  } else if (isWidgetEmbed) {
+    // Zone 2: Widget embed — must be frameable from customer HTTPS origins
+    // (cannot restrict to specific domains; customers embed on their own sites)
+    response.headers.delete("X-Frame-Options"); // frame-ancestors takes precedence
+    response.headers.set(
+      "Content-Security-Policy",
+      buildCsp({ isProduction, frameAncestors: "'self' https:" })
     );
   } else {
-    // Public / widget-embeddable pages: allow framing from any origin
-    // (the widget bootloader needs to be embeddable)
+    // Zone 3: Public / marketing pages
     response.headers.set("X-Frame-Options", "SAMEORIGIN");
-    const scriptSrc = isProduction
-      ? "script-src 'self' 'unsafe-inline'"
-      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
     response.headers.set(
       "Content-Security-Policy",
-      `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; ${connectSrc}; frame-ancestors *`
-    );
-  }
-
-  // ── Production-only: HSTS ──
-  if (isProduction) {
-    response.headers.set(
-      "Strict-Transport-Security",
-      "max-age=31536000; includeSubDomains"
+      buildCsp({ isProduction, frameAncestors: "'self'" })
     );
   }
 

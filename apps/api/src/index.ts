@@ -130,16 +130,24 @@ const trustedProxies = process.env.TRUSTED_PROXIES
   : ["127.0.0.1", "::1"]; // Default: trust only localhost (for dev)
 
 // Initialize Fastify
+const isProduction = process.env.NODE_ENV === "production";
+
 const fastify = Fastify({
   logger: {
     level: process.env.LOG_LEVEL || "info",
-    transport: {
-      target: "pino-pretty",
-      options: {
-        translateTime: "HH:MM:ss Z",
-        ignore: "pid,hostname",
-      },
-    },
+    // In production: plain JSON logs (lower CPU, better for log aggregators)
+    // In development: pretty-printed for readability
+    ...(isProduction
+      ? {}
+      : {
+          transport: {
+            target: "pino-pretty",
+            options: {
+              translateTime: "HH:MM:ss Z",
+              ignore: "pid,hostname",
+            },
+          },
+        }),
   },
   bodyLimit: 32 * 1024, // 32KB max body size
   trustProxy: trustedProxies, // Only trust specific proxy IPs to prevent X-Forwarded-For spoofing
@@ -176,7 +184,6 @@ const widgetInitRateLimit = rateLimit({
 });
 
 // Register plugins
-const isProduction = process.env.NODE_ENV === "production";
 const corsPolicy = buildCorsPolicy(process.env.NODE_ENV, [
   process.env.APP_PUBLIC_URL,
   process.env.NEXT_PUBLIC_WEB_URL,
@@ -294,6 +301,7 @@ fastify.register(helmet, {
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
+    preload: true,
   },
   contentSecurityPolicy: {
     directives: {
@@ -301,6 +309,14 @@ fastify.register(helmet, {
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://api.fontshare.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.fontshare.com"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      // Explicitly close directives that have no fallback to default-src
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"],
+      workerSrc: ["'self'"],
     },
   },
   frameguard: { action: "deny" },

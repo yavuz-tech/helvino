@@ -1,14 +1,15 @@
 /**
- * Security Headers — Step 11.28
+ * Security Headers — OWASP ZAP hardened
  *
  * Adds production-grade security headers to all API responses:
  * - X-Content-Type-Options: nosniff
  * - X-Frame-Options: DENY (API never needs framing)
  * - Referrer-Policy: strict-origin-when-cross-origin
  * - Permissions-Policy: restrictive defaults
+ * - Cache-Control: no-store for authenticated endpoints
  * - X-Request-Id: propagated from request context
  *
- * HSTS + CSP are now handled by @fastify/helmet in index.ts.
+ * HSTS + CSP are handled by @fastify/helmet in index.ts.
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
@@ -37,6 +38,18 @@ export const securityHeadersPlugin = fp(async function securityHeadersPluginImpl
       "Permissions-Policy",
       "camera=(), microphone=(), geolocation=(), interest-cohort=()"
     );
+
+    // ── Cache-Control ──
+    // Authenticated / sensitive API responses must not be cached by
+    // browsers or proxies (ZAP: "Re-examine Cache-control Directives").
+    // Only the public embed.js route opts-in to caching explicitly.
+    const url = request.url;
+    const isCacheable =
+      url.startsWith("/embed") || url.startsWith("/health") || url.startsWith("/ready");
+    if (!isCacheable) {
+      reply.header("Cache-Control", "no-store, no-cache, must-revalidate, private");
+      reply.header("Pragma", "no-cache"); // HTTP/1.0 compat
+    }
 
     // Propagate request ID for debugging
     const requestId = request.requestId;
