@@ -36,7 +36,10 @@ RUN cd apps/api && npx prisma generate
 # Build API (tsc → dist/)
 RUN pnpm --filter @helvino/api build
 
-# Build widget embed.js so API can serve it
+# Build widget embed.js so API can serve it.
+# VITE_API_URL must point to the production API origin — the widget makes
+# fetch/WebSocket calls to this URL from customer websites.
+ENV VITE_API_URL=https://api.helvion.io
 RUN pnpm --filter @helvino/widget build
 
 # ── Stage 2: Runner ───────────────────────────────────────

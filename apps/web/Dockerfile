@@ -38,6 +38,7 @@ COPY apps/widget/ apps/widget/
 RUN pnpm --filter @helvino/shared build
 
 # Build widget embed.js and copy to web public dir
+ENV VITE_API_URL=https://api.helvion.io
 RUN pnpm --filter @helvino/widget build
 RUN cp apps/widget/dist/embed.js apps/web/public/embed.js
 
