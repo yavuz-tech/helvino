@@ -23,6 +23,17 @@ function parseLimit(raw?: string, max = 100, def = 25): number {
   return Math.min(n, max);
 }
 
+/**
+ * Action prefixes that must NEVER be exposed to portal (customer) users.
+ * These are internal / security events meant only for the admin panel.
+ */
+const PORTAL_HIDDEN_ACTION_PREFIXES = [
+  "security.",
+  "admin.",
+  "internal.",
+  "portal_signup", // signup internals (re-signup, verification plumbing)
+];
+
 function buildWhere(orgId: string, q: Record<string, string | undefined>) {
   const where: Record<string, unknown> = { orgId };
   if (q.action) where.action = { contains: q.action };
@@ -34,6 +45,16 @@ function buildWhere(orgId: string, q: Record<string, string | undefined>) {
     where.createdAt = createdAt;
   }
   return where;
+}
+
+/**
+ * Returns a Prisma `NOT` clause that excludes rows whose `action`
+ * starts with any of the hidden prefixes.  Used by portal endpoints only.
+ */
+function portalActionFilter(): Record<string, unknown>[] {
+  return PORTAL_HIDDEN_ACTION_PREFIXES.map((prefix) => ({
+    action: { startsWith: prefix },
+  }));
 }
 
 interface AuditRow {
@@ -94,6 +115,7 @@ export async function auditLogRoutes(fastify: FastifyInstance) {
         where: {
           ...where,
           ...(request.query.cursor ? { id: { lt: request.query.cursor } } : {}),
+          NOT: portalActionFilter(),
         },
         orderBy: { createdAt: "desc" },
         take: limit + 1,
@@ -125,7 +147,10 @@ export async function auditLogRoutes(fastify: FastifyInstance) {
       const where = buildWhere(user.orgId, request.query);
 
       const entries = await prisma.auditLog.findMany({
-        where,
+        where: {
+          ...where,
+          NOT: portalActionFilter(),
+        },
         orderBy: { createdAt: "desc" },
         take: 5000, // cap at 5000 rows
       });
