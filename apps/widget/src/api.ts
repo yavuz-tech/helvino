@@ -465,4 +465,4 @@ export async function requestAiHelp(conversationId: string): Promise<{ ok: boole
   return response.json();
 }
 
-export { API_URL, getOrgKey };
+export { API_URL, getOrgKey, getSiteId };

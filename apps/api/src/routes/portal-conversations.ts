@@ -523,10 +523,8 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
       for (const content of systemMessages) {
         const systemMessage = await store.addMessage(id, actor.orgId, "assistant", content);
         if (systemMessage) {
-          (fastify as any).io?.to(`org:${actor.orgId}`).emit("message:new", {
-            conversationId: id,
-            message: systemMessage,
-          });
+          (fastify as any).io?.to(`org:${actor.orgId}:agents`).emit("message:new", { conversationId: id, message: systemMessage });
+          (fastify as any).io?.to(`conv:${id}`).emit("message:new", { conversationId: id, message: systemMessage });
         }
       }
 
@@ -617,10 +615,8 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
         });
       }
 
-      (fastify as any).io?.to(`org:${actor.orgId}`).emit("message:new", {
-        conversationId: id,
-        message,
-      });
+      (fastify as any).io?.to(`org:${actor.orgId}:agents`).emit("message:new", { conversationId: id, message });
+      (fastify as any).io?.to(`conv:${id}`).emit("message:new", { conversationId: id, message });
 
       await recordMessageUsage(actor.orgId);
       recordM2Usage(actor.orgId).catch(() => {});

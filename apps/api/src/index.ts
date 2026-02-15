@@ -73,6 +73,8 @@ import { hostTrustPlugin } from "./middleware/host-trust";
 import { securityHeadersPlugin } from "./middleware/security-headers";
 import { buildCorsPolicy, isOriginAllowedByCorsPolicy } from "./middleware/cors-policy";
 import { rateLimit } from "./middleware/rate-limiter";
+import { verifyOrgToken } from "./utils/org-token";
+import { extractDomain, isOriginAllowed } from "./utils/domain-validation";
 import {
   checkConversationEntitlement,
   checkMessageEntitlement,
@@ -113,6 +115,7 @@ type RealtimeSocket = Socket & {
   orgKey?: string;
   isAgent?: boolean;
   portalUser?: unknown;
+  visitorKey?: string;
 };
 
 const PORT = parseInt(process.env.PORT || "4000", 10);
@@ -324,14 +327,17 @@ fastify.addHook("onRequest", async (request, reply) => {
     return reply.redirect(`https://${host}${request.raw.url}`, 301);
   }
 });
-const socketCorsOrigin = process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL;
 fastify.register(socketioServer, {
+  // Socket.IO server options (security hardening)
+  maxHttpBufferSize: 100 * 1024, // 100KB per message/frame (prevents flood with huge payloads)
+  pingTimeout: 20_000,
+  pingInterval: 25_000,
+  allowEIO3: false,
   cors: {
-    // SECURITY: In production, NEVER allow all origins for WebSocket.
-    // If origin is not configured, restrict to same-origin only (false).
-    origin: isProduction
-      ? (socketCorsOrigin ? [socketCorsOrigin] : false)
-      : true,
+    // SECURITY:
+    // - We cannot know org allowlist at CORS-evaluation time (before auth).
+    // - Therefore we allow the transport origin here, and enforce org domain allowlist in the auth middleware.
+    origin: true,
     credentials: true,
   },
 });
@@ -646,11 +652,13 @@ fastify.post<{
     return { error: "Conversation not found" };
   }
 
-  // Emit Socket.IO event to org room only
-  fastify.io.to(`org:${org.id}`).emit("message:new", {
-    conversationId: id,
-    message,
-  });
+  // SECURITY:
+  // - Agents should receive all messages for the org inbox.
+  // - Widgets should only receive assistant messages (their own user message is already returned by HTTP).
+  fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message });
+  if (role !== "user") {
+    fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message });
+  }
 
   await recordMessageUsage(org.id);
   if (role === "assistant") {
@@ -693,8 +701,8 @@ fastify.post<{
           aiConfig.provider = orgRecord.aiProvider as "openai" | "gemini" | "claude";
         }
 
-        // Emit typing indicator so widget shows "AI Assistant is typing..."
-        fastify.io.to(`org:${org.id}`).emit("agent:typing", { conversationId: id, isAI: true });
+        // Emit typing indicator only to the visitor's conversation room.
+        fastify.io.to(`conv:${id}`).emit("agent:typing", { conversationId: id, isAI: true });
 
         // Load recent conversation history (last 20 messages) for context
         const recentMessages = await store.getMessages(id);
@@ -717,14 +725,12 @@ fastify.post<{
           if (fallbackText) {
             const fallbackMessage = await store.addMessage(id, org.id, "assistant", sanitizeHTML(fallbackText));
             if (fallbackMessage) {
-              fastify.io.to(`org:${org.id}`).emit("message:new", {
-                conversationId: id,
-                message: fallbackMessage,
-              });
+              fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message: fallbackMessage });
+              fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message: fallbackMessage });
             }
           }
 
-          fastify.io.to(`org:${org.id}`).emit("agent:typing:stop", { conversationId: id });
+          fastify.io.to(`conv:${id}`).emit("agent:typing:stop", { conversationId: id });
           return;
         }
 
@@ -739,13 +745,11 @@ fastify.post<{
         if (!aiMessage) return;
 
         // Stop typing indicator
-        fastify.io.to(`org:${org.id}`).emit("agent:typing:stop", { conversationId: id });
+        fastify.io.to(`conv:${id}`).emit("agent:typing:stop", { conversationId: id });
 
-        // Emit to org room via Socket.IO
-        fastify.io.to(`org:${org.id}`).emit("message:new", {
-          conversationId: id,
-          message: aiMessage,
-        });
+        // Emit to agents + visitor conversation
+        fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message: aiMessage });
+        fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message: aiMessage });
 
         // Record M2 usage + increment AI quota counter
         await recordM2Usage(org.id);
@@ -753,7 +757,7 @@ fastify.post<{
       } catch (err) {
         console.error("[AI] Auto-reply error:", err);
         // Stop typing on error too
-        fastify.io.to(`org:${org.id}`).emit("agent:typing:stop", { conversationId: id });
+        fastify.io.to(`conv:${id}`).emit("agent:typing:stop", { conversationId: id });
       }
     })();
   }
@@ -769,10 +773,8 @@ fastify.post<{
         sanitizeHTML(hoursStatus.offHoursReplyText)
       );
       if (offHoursMessage) {
-        fastify.io.to(`org:${org.id}`).emit("message:new", {
-          conversationId: id,
-          message: offHoursMessage,
-        });
+        fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message: offHoursMessage });
+        fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message: offHoursMessage });
       }
     }
   }
@@ -816,8 +818,8 @@ fastify.post<{ Params: { conversationId: string } }>(
       aiConfig.provider = orgRecord.aiProvider as "openai" | "gemini" | "claude";
     }
 
-    // Emit typing
-    fastify.io.to(`org:${org.id}`).emit("agent:typing", { conversationId, isAI: true });
+    // Emit typing to visitor conversation only
+    fastify.io.to(`conv:${conversationId}`).emit("agent:typing", { conversationId, isAI: true });
 
     // Load conversation history
     const recentMessages = await store.getMessages(conversationId);
@@ -832,7 +834,7 @@ fastify.post<{ Params: { conversationId: string } }>(
     });
 
     if (!result.ok) {
-      fastify.io.to(`org:${org.id}`).emit("agent:typing:stop", { conversationId });
+      fastify.io.to(`conv:${conversationId}`).emit("agent:typing:stop", { conversationId });
       if (result.code === "RATE_LIMITED") {
         reply.code(429);
         return { error: result.error, code: "RATE_LIMITED" };
@@ -853,10 +855,11 @@ fastify.post<{ Params: { conversationId: string } }>(
       responseTimeMs: result.responseTimeMs,
     });
 
-    fastify.io.to(`org:${org.id}`).emit("agent:typing:stop", { conversationId });
+    fastify.io.to(`conv:${conversationId}`).emit("agent:typing:stop", { conversationId });
 
     if (aiMessage) {
-      fastify.io.to(`org:${org.id}`).emit("message:new", { conversationId, message: aiMessage });
+      fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId, message: aiMessage });
+      fastify.io.to(`conv:${conversationId}`).emit("message:new", { conversationId, message: aiMessage });
       await recordM2Usage(org.id);
       await incrementAiUsage(org.id);
     }
@@ -867,49 +870,227 @@ fastify.post<{ Params: { conversationId: string } }>(
 
 // Socket.IO connection handlers with org-based rooms
 fastify.ready().then(() => {
+  // ─────────────────────────────────────────────────────────────
+  // Socket.IO security model:
+  // - Two logical clients share one namespace:
+  //   - Portal agents: authenticated via portal session token (JWT-like).
+  //   - Widget visitors: authenticated via short-lived orgToken + visitorKey.
+  // - Server-side rooms enforce isolation:
+  //   - org:<orgId>:agents   → only agents (inbox updates, visitor typing)
+  //   - org:<orgId>:widgets  → only widgets (config updates, org-level widget events)
+  //   - conv:<conversationId> → only the single widget visitor conversation
+  // ─────────────────────────────────────────────────────────────
+
+  type SocketRole = "agent" | "widget";
+
+  const MAX_SOCKETS_PER_IP = Number.parseInt(process.env.SOCKET_MAX_PER_IP || "25", 10) || 25;
+  const socketCountsByIp = new Map<string, number>();
+
+  function getSocketIp(socket: Socket): string {
+    const xff = socket.handshake.headers["x-forwarded-for"];
+    const raw = Array.isArray(xff) ? xff[0] : xff;
+    // SECURITY: Do not fully trust XFF; still a useful best-effort limit.
+    const xffIp = typeof raw === "string" ? raw.split(",")[0]?.trim() : "";
+    return xffIp || socket.handshake.address || "unknown-ip";
+  }
+
+  function isValidId(value: unknown, maxLen = 128): value is string {
+    if (typeof value !== "string") return false;
+    const v = value.trim();
+    if (!v || v.length > maxLen) return false;
+    if (/[\r\n\t ]/.test(v)) return false;
+    return true;
+  }
+
+  function getHandshakeOrigin(socket: Socket): string | null {
+    const originHeader = socket.handshake.headers.origin;
+    const refererHeader = socket.handshake.headers.referer;
+    const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
+    const referer = Array.isArray(refererHeader) ? refererHeader[0] : refererHeader;
+    const candidate = (typeof origin === "string" ? origin : "") || (typeof referer === "string" ? referer : "");
+    if (!candidate) return null;
+    if (candidate === "null" || candidate === "file://") return null;
+    return candidate;
+  }
+
+  function allowWidgetOriginOrThrow(input: {
+    requestOrigin: string | null;
+    org: { id: string; allowedDomains: string[]; allowLocalhost: boolean };
+    ip: string;
+  }) {
+    const isProd = process.env.NODE_ENV === "production";
+    const allowlist = Array.isArray(input.org.allowedDomains)
+      ? input.org.allowedDomains.map((d) => String(d || "").trim()).filter(Boolean)
+      : [];
+
+    const hasWildcard = allowlist.some((domain) => domain === "*" || domain.includes("*"));
+    if (hasWildcard) {
+      throw new Error("Authentication error: invalid allowlist configuration");
+    }
+    if (isProd && allowlist.length === 0) {
+      throw new Error("Authentication error: allowlist empty");
+    }
+
+    if (!input.requestOrigin) {
+      const isLocalhostIp =
+        input.ip === "127.0.0.1" ||
+        input.ip === "::1" ||
+        input.ip === "::ffff:127.0.0.1";
+      if (input.org.allowLocalhost || isLocalhostIp) return;
+      throw new Error("Authentication error: missing Origin/Referer");
+    }
+
+    if (!isOriginAllowed(input.requestOrigin, allowlist, input.org.allowLocalhost)) {
+      const domain = extractDomain(input.requestOrigin) || "unknown";
+      throw new Error(`Authentication error: domain not allowed (${domain})`);
+    }
+  }
+
+  function allowPortalOriginOrThrow(origin: string | null) {
+    // Portal sockets are only allowed from the known app origins.
+    if (!isProduction) return;
+    if (!origin) {
+      throw new Error("Authentication error: missing Origin/Referer");
+    }
+    if (!isOriginAllowedByCorsPolicy(origin, corsPolicy)) {
+      throw new Error("Authentication error: origin not allowed");
+    }
+  }
+
+  async function validateWidgetConversationJoin(input: {
+    orgId: string;
+    visitorKey: string;
+    conversationId: string;
+  }): Promise<boolean> {
+    const conversation = await prisma.conversation.findFirst({
+      where: { id: input.conversationId, orgId: input.orgId },
+      select: { id: true, visitorId: true },
+    });
+    if (!conversation?.visitorId) return false;
+
+    const visitor = await prisma.visitor.findUnique({
+      where: { orgId_visitorKey: { orgId: input.orgId, visitorKey: input.visitorKey } },
+      select: { id: true },
+    });
+    if (!visitor) return false;
+    return visitor.id === conversation.visitorId;
+  }
+
+  function createEventLimiter(params: { windowMs: number; max: number }) {
+    let resetAt = 0;
+    let count = 0;
+    return () => {
+      const now = Date.now();
+      if (now > resetAt) {
+        resetAt = now + params.windowMs;
+        count = 0;
+      }
+      count += 1;
+      return count <= params.max;
+    };
+  }
+
   // Socket.IO auth middleware
   fastify.io.use(async (socket, next) => {
     try {
-      const orgKey = socket.handshake.auth?.orgKey as string | undefined;
-      const token = socket.handshake.auth?.token as string | undefined;
+      const handshakeAuth = socket.handshake.auth || {};
 
-      if (!orgKey) {
-        return next(new Error("Authentication error: orgKey required"));
+      const orgKey = handshakeAuth.orgKey as unknown;
+      const siteId = handshakeAuth.siteId as unknown;
+      const token = handshakeAuth.token as unknown;
+      const visitorKey = handshakeAuth.visitorId as unknown; // widget visitorKey (x-visitor-id)
+
+      const ip = getSocketIp(socket);
+      const currentCount = socketCountsByIp.get(ip) || 0;
+      if (currentCount >= MAX_SOCKETS_PER_IP) {
+        return next(new Error("Too many connections"));
       }
 
+      const hasOrgKey = isValidId(orgKey, 64);
+      const hasSiteId = isValidId(siteId, 64);
+      if (!hasOrgKey && !hasSiteId) {
+        return next(new Error("Authentication error: siteId/orgKey required"));
+      }
+
+      const tokenStr = typeof token === "string" ? token.trim() : "";
+      if (isProduction && !tokenStr) {
+        return next(new Error("Authentication error: token required"));
+      }
+
+      // Load organization by siteId (preferred) or orgKey (legacy)
       const org = await prisma.organization.findUnique({
-        where: { key: orgKey },
-        select: { id: true, widgetEnabled: true, isActive: true },
+        where: hasSiteId ? { siteId: String(siteId).trim() } : { key: String(orgKey).trim() },
+        select: {
+          id: true,
+          key: true,
+          siteId: true,
+          widgetEnabled: true,
+          isActive: true,
+          allowedDomains: true,
+          allowLocalhost: true,
+        },
       });
 
       if (!org || !org.isActive) {
         return next(new Error("Authentication error: invalid organization"));
       }
 
-      if (!org.widgetEnabled) {
-        return next(new Error("Authentication error: widget disabled"));
+      const secret = process.env.SESSION_SECRET;
+      let role: SocketRole | null = null;
+      let portalPayload: unknown | null = null;
+
+      if (tokenStr && secret) {
+        const payload = verifyPortalSessionToken(tokenStr, secret);
+        if (payload) {
+          // SECURITY: agent token must match the org in handshake to prevent cross-org join.
+          if ((payload as any).orgId !== org.id) {
+            return next(new Error("Authentication error: org mismatch"));
+          }
+          role = "agent";
+          portalPayload = payload;
+        }
       }
 
-      // Optional token for agent/portal sockets.
-      if (token) {
-        try {
-          const secret = process.env.SESSION_SECRET;
-          if (secret) {
-            const payload = verifyPortalSessionToken(token, secret);
-            if (payload) {
-              const authSocket = socket as RealtimeSocket;
-              authSocket.portalUser = payload;
-              authSocket.isAgent = true;
-            }
-          }
-        } catch {
-          // If token is invalid, continue as visitor.
+      if (!role && tokenStr) {
+        const payload = verifyOrgToken(tokenStr);
+        if (payload && payload.orgId === org.id && payload.orgKey === org.key) {
+          role = "widget";
+        }
+      }
+
+      if (!role) {
+        return next(new Error("Authentication error: invalid token"));
+      }
+
+      const requestOrigin = getHandshakeOrigin(socket);
+      if (role === "agent") {
+        allowPortalOriginOrThrow(requestOrigin);
+      } else {
+        // Widget socket: enforce org domain allowlist (same policy as HTTP widget endpoints).
+        allowWidgetOriginOrThrow({ requestOrigin, org, ip });
+        if (!org.widgetEnabled) {
+          return next(new Error("Authentication error: widget disabled"));
+        }
+        if (!isValidId(visitorKey, 128)) {
+          return next(new Error("Authentication error: visitorId required"));
         }
       }
 
       const authSocket = socket as RealtimeSocket;
       authSocket.orgId = org.id;
-      authSocket.orgKey = orgKey;
+      authSocket.orgKey = org.key;
+      authSocket.isAgent = role === "agent";
+      authSocket.portalUser = portalPayload || undefined;
+      authSocket.visitorKey = role === "widget" ? String(visitorKey).trim() : undefined;
+
+      // Increment connection count (decrement on disconnect)
+      socketCountsByIp.set(ip, currentCount + 1);
+      socket.once("disconnect", () => {
+        const c = socketCountsByIp.get(ip) || 1;
+        if (c <= 1) socketCountsByIp.delete(ip);
+        else socketCountsByIp.set(ip, c - 1);
+      });
+
       return next();
     } catch {
       return next(new Error("Authentication error: internal"));
@@ -921,37 +1102,111 @@ fastify.ready().then(() => {
     const orgId = authSocket.orgId;
     const orgKey = authSocket.orgKey;
     const isAgent = authSocket.isAgent || false;
+    const visitorKey = authSocket.visitorKey;
     if (!orgId || !orgKey) {
       socket.disconnect();
       return;
     }
 
-    // Keep current orgId room for existing event flow, plus orgKey rooms for auth-scoped fanout.
-    const roomName = `org:${orgId}`;
-    socket.join(roomName);
-    socket.join(`org:${orgKey}`);
-    if (isAgent) {
-      socket.join(`org:${orgKey}:agents`);
-      socket.join(`org:${orgId}:agents`);
-    }
-    fastify.log.info({ socketId: socket.id, roomName }, "Socket connected");
+    const orgAgentsRoom = `org:${orgId}:agents`;
+    const orgWidgetsRoom = `org:${orgId}:widgets`;
 
-    // ── Typing indicator relay ──
+    if (isAgent) {
+      socket.join(orgAgentsRoom);
+      socket.join(`org:${orgKey}:agents`);
+    } else {
+      socket.join(orgWidgetsRoom);
+      socket.join(`org:${orgKey}:widgets`);
+    }
+
+    // Track which conversations this socket is allowed to receive (widget only).
+    const joinedConversations = new Set<string>();
+
+    // Rate limits (per socket) — tuned for UI typing + join spam protection.
+    const allowTypingEvent = createEventLimiter({ windowMs: 1000, max: 10 });
+    const allowJoinEvent = createEventLimiter({ windowMs: 10_000, max: 20 });
+
+    // Widget joins a specific conversation room (strict ownership check).
+    socket.on(
+      "conversation:join",
+      async (data: { conversationId?: string }, ack?: (res: { ok: boolean; error?: string }) => void) => {
+        try {
+          if (isAgent) {
+            ack?.({ ok: false, error: "forbidden" });
+            return;
+          }
+          if (!allowJoinEvent()) {
+            ack?.({ ok: false, error: "rate_limited" });
+            return;
+          }
+          const conversationId = (data?.conversationId || "").trim();
+          if (!isValidId(conversationId, 128) || !visitorKey) {
+            ack?.({ ok: false, error: "invalid" });
+            return;
+          }
+          const ok = await validateWidgetConversationJoin({ orgId, visitorKey, conversationId });
+          if (!ok) {
+            ack?.({ ok: false, error: "not_allowed" });
+            return;
+          }
+          socket.join(`conv:${conversationId}`);
+          joinedConversations.add(conversationId);
+          ack?.({ ok: true });
+        } catch {
+          ack?.({ ok: false, error: "internal" });
+        }
+      }
+    );
+
+    // ── Typing indicator relay (strict room isolation) ──
     socket.on("typing:start", (data: { conversationId?: string }) => {
-      socket.to(roomName).emit("user:typing", { conversationId: data?.conversationId || "" });
+      if (isAgent) return;
+      if (!allowTypingEvent()) return;
+      const conversationId = (data?.conversationId || "").trim();
+      if (!isValidId(conversationId, 128)) return;
+      if (!joinedConversations.has(conversationId)) return;
+      fastify.io.to(orgAgentsRoom).emit("user:typing", { conversationId });
     });
     socket.on("typing:stop", (data: { conversationId?: string }) => {
-      socket.to(roomName).emit("user:typing:stop", { conversationId: data?.conversationId || "" });
+      if (isAgent) return;
+      if (!allowTypingEvent()) return;
+      const conversationId = (data?.conversationId || "").trim();
+      if (!isValidId(conversationId, 128)) return;
+      if (!joinedConversations.has(conversationId)) return;
+      fastify.io.to(orgAgentsRoom).emit("user:typing:stop", { conversationId });
     });
-    socket.on("agent:typing:start", (data: { conversationId?: string }) => {
-      socket.to(roomName).emit("agent:typing", { conversationId: data?.conversationId || "" });
+
+    // Agent typing is emitted only to the single visitor conversation room.
+    socket.on("agent:typing:start", async (data: { conversationId?: string }) => {
+      if (!isAgent) return;
+      if (!allowTypingEvent()) return;
+      const conversationId = (data?.conversationId || "").trim();
+      if (!isValidId(conversationId, 128)) return;
+      const exists = await prisma.conversation.findFirst({
+        where: { id: conversationId, orgId },
+        select: { id: true },
+      });
+      if (!exists) return;
+      fastify.io.to(`conv:${conversationId}`).emit("agent:typing", { conversationId });
     });
-    socket.on("agent:typing:stop", (data: { conversationId?: string }) => {
-      socket.to(roomName).emit("agent:typing:stop", { conversationId: data?.conversationId || "" });
+    socket.on("agent:typing:stop", async (data: { conversationId?: string }) => {
+      if (!isAgent) return;
+      if (!allowTypingEvent()) return;
+      const conversationId = (data?.conversationId || "").trim();
+      if (!isValidId(conversationId, 128)) return;
+      const exists = await prisma.conversation.findFirst({
+        where: { id: conversationId, orgId },
+        select: { id: true },
+      });
+      if (!exists) return;
+      fastify.io.to(`conv:${conversationId}`).emit("agent:typing:stop", { conversationId });
     });
 
     socket.on("disconnect", () => {
-      fastify.log.info({ socketId: socket.id, roomName }, "Socket disconnected");
+      fastify.log.info(
+        { socketId: socket.id, orgId, role: isAgent ? "agent" : "widget" },
+        "Socket disconnected"
+      );
     });
   });
 });

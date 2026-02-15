@@ -230,11 +230,11 @@ export async function orgCustomerRoutes(fastify: FastifyInstance) {
         return { error: "Conversation not found" };
       }
 
-      // Emit Socket.IO event to org room only
-      fastify.io.to(`org:${orgUser.orgId}`).emit("message:new", {
-        conversationId: id,
-        message,
-      });
+      // SECURITY: agents get org-wide inbox events; widgets only get assistant-side messages for their conversation.
+      fastify.io.to(`org:${orgUser.orgId}:agents`).emit("message:new", { conversationId: id, message });
+      if (role !== "user") {
+        fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message });
+      }
 
       await recordMessageUsage(orgUser.orgId);
       if (role === "assistant") {

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
-import { createConversation, sendMessage, requestAiHelp, API_URL, getOrgKey, getOrgToken, Message, loadBootloader, BootloaderConfig, setOrgToken } from "./api";
+import { createConversation, sendMessage, requestAiHelp, API_URL, getOrgKey, getSiteId, getOrgToken, Message, loadBootloader, BootloaderConfig, setOrgToken } from "./api";
 import { EMOJI_LIST, bubbleBorderRadius, resolveWidgetBubbleTheme } from "@helvino/shared";
 import { sanitizeHTML, sanitizePlainText } from "./sanitize";
+import { getVisitorId } from "./utils/visitor";
 import "./App.css";
 
 const APP_NAME = "Helvion";
@@ -153,13 +154,21 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   useEffect(() => {
     if (socketRef.current) return;
     try {
+      const siteId = getSiteId();
       const orgKey = getOrgKey();
+      const auth: Record<string, unknown> = {
+        token: getOrgToken() || undefined,
+        visitorId: getVisitorId(),
+      };
+      if (siteId) auth.siteId = siteId;
+      else if (orgKey) auth.orgKey = orgKey;
+
       socketRef.current = io(API_URL, {
         transports: ["websocket", "polling"],
-        auth: { orgKey, token: getOrgToken() || undefined },
+        auth,
       });
       socketRef.current.on("connect", () => {
-        console.log("✅ Connected to Socket.IO with orgKey:", orgKey);
+        console.log("✅ Connected to Socket.IO", { siteId, orgKey });
       });
       socketRef.current.on("disconnect", () => {
         console.log("❌ Disconnected from Socket.IO");
@@ -214,6 +223,24 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
       }
     };
   }, []);
+
+  // Join the visitor's conversation room once we have a conversationId
+  useEffect(() => {
+    if (!socketRef.current || !conversationId) return;
+    try {
+      socketRef.current.emit(
+        "conversation:join",
+        { conversationId },
+        (res: { ok?: boolean; error?: string } | undefined) => {
+          if (res?.ok !== true) {
+            console.warn("[Widget] conversation:join failed:", res?.error || "unknown");
+          }
+        }
+      );
+    } catch (e) {
+      console.warn("[Widget] conversation:join emit failed:", e);
+    }
+  }, [conversationId]);
 
   // Initialize conversation on widget open (no socket logic here — socket is always connected above)
   useEffect(() => {

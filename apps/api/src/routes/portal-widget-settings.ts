@@ -613,12 +613,12 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
           select: { key: true },
         });
         if (orgInfo && fastify.io) {
-          // Emit to both org:id and org:key rooms so both widget and portal receive
-          fastify.io.to(`org:${orgId}`).emit("widget:config-updated", {
+          // Emit to widget-only rooms (server-side isolation)
+          fastify.io.to(`org:${orgId}:widgets`).emit("widget:config-updated", {
             settings: returnSettings,
             timestamp: new Date().toISOString(),
           });
-          fastify.io.to(`org:${orgInfo.key}`).emit("widget:config-updated", {
+          fastify.io.to(`org:${orgInfo.key}:widgets`).emit("widget:config-updated", {
             settings: returnSettings,
             timestamp: new Date().toISOString(),
           });
