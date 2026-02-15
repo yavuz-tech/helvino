@@ -1,5 +1,7 @@
 import { prisma } from "../prisma";
 import { isBillingWriteBlocked } from "./billing-enforcement";
+import { t, type Locale } from "./api-i18n";
+import { normalizeRequestLocale } from "./email-templates";
 
 export type PlanStatus = "active" | "inactive" | "past_due" | "canceled";
 
@@ -141,7 +143,7 @@ export async function checkTrialEntitlement(
   if (trial.isExpired) {
     return {
       allowed: false,
-      error: "Your free trial has expired. Please upgrade to continue.",
+      error: t("en", "plan.trialExpired"), // org language not available here; frontend translates via code
       code: "TRIAL_EXPIRED",
     };
   }
@@ -230,6 +232,7 @@ async function getOrgAndPlan(orgId: string) {
       extraConversationQuota: true,
       extraMessageQuota: true,
       currentPeriodEnd: true,
+      language: true,
     },
   });
 
@@ -279,18 +282,17 @@ export async function checkConversationEntitlement(
 
   const result = await getOrgAndPlan(orgId);
   if (!result || !result.plan) {
-    // If we can't resolve a plan row, fall back to allowing reads but block writes would be safer;
-    // callers use this for write paths. Prefer a safe block.
-    return { allowed: false, error: "Plan configuration error. Please contact support.", code: "SUBSCRIPTION_INACTIVE" };
+    return { allowed: false, error: t("en", "plan.configError"), code: "SUBSCRIPTION_INACTIVE" };
   }
 
   const { org, plan } = result;
+  const loc = normalizeRequestLocale(org.language || undefined) as Locale;
 
   // Check subscription status for paid plans
   if (!isSubscriptionActive(org)) {
     return {
       allowed: false,
-      error: "Subscription inactive. Please upgrade or renew your plan.",
+      error: t(loc, "plan.subscriptionInactive"),
       code: "SUBSCRIPTION_INACTIVE",
     };
   }
@@ -306,7 +308,7 @@ export async function checkConversationEntitlement(
   if (used >= effectiveLimit) {
     return {
       allowed: false,
-      error: `Monthly conversation limit reached (${used}/${effectiveLimit}). Upgrade your plan for more.`,
+      error: t(loc, "plan.conversationLimitReached", { used, limit: effectiveLimit }),
       code: "LIMIT_CONVERSATIONS",
       limit: effectiveLimit,
       used,
@@ -368,15 +370,16 @@ export async function checkMessageEntitlement(
 
   const result = await getOrgAndPlan(orgId);
   if (!result || !result.plan) {
-    return { allowed: false, error: "Plan configuration error. Please contact support.", code: "SUBSCRIPTION_INACTIVE" };
+    return { allowed: false, error: t("en", "plan.configError"), code: "SUBSCRIPTION_INACTIVE" };
   }
 
   const { org, plan } = result;
+  const loc = normalizeRequestLocale(org.language || undefined) as Locale;
 
   if (!isSubscriptionActive(org)) {
     return {
       allowed: false,
-      error: "Subscription inactive. Please upgrade or renew your plan.",
+      error: t(loc, "plan.subscriptionInactive"),
       code: "SUBSCRIPTION_INACTIVE",
     };
   }
@@ -391,7 +394,7 @@ export async function checkMessageEntitlement(
   if (used >= effectiveLimit) {
     return {
       allowed: false,
-      error: `Monthly message limit reached (${used}/${effectiveLimit}). Upgrade your plan for more.`,
+      error: t(loc, "plan.messageLimitReached", { used, limit: effectiveLimit }),
       code: "LIMIT_MESSAGES",
       limit: effectiveLimit,
       used,

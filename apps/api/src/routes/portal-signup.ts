@@ -17,6 +17,7 @@ import {
 } from "../utils/password";
 import { sendEmail, getDefaultFromAddress, isMailProviderConfigured } from "../utils/mailer";
 import { getVerifyEmailContent, normalizeRequestLocale, extractLocaleCookie } from "../utils/email-templates";
+import { t, getRequestLocale } from "../utils/api-i18n";
 import { generateVerifyEmailLink, verifyEmailSignature } from "../utils/signed-links";
 import { writeAuditLog } from "../utils/audit-log";
 import {
@@ -87,7 +88,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
   const portalSignupRateLimit = rateLimit({
     windowMs: 60 * 60 * 1000,
     maxRequests: 30,
-    message: "Too many registration attempts",
+    message: "Too many registration attempts", // Rate limiter — no request context; frontend shows its own i18n
   });
 
   // ─── POST /portal/auth/signup ─────────────────────────────
@@ -111,12 +112,14 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         (request.headers["x-request-id"] as string) ||
         undefined;
 
+      const loc = getRequestLocale(request);
+
       if (process.env.NODE_ENV === "production" && !isMailProviderConfigured()) {
         reply.code(503);
         return {
           error: {
             code: "EMAIL_PROVIDER_NOT_CONFIGURED",
-            message: "Email service is temporarily unavailable. Please contact support.",
+            message: t(loc, "signup.emailServiceUnavailable"),
             requestId,
           },
         };
@@ -133,7 +136,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
           return {
             error: {
               code: "CAPTCHA_REQUIRED",
-              message: "CAPTCHA verification is required",
+              message: t(loc, "auth.captchaRequired"),
               requestId,
             },
           };
@@ -145,7 +148,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
           return {
             error: {
               code: "INVALID_CAPTCHA",
-              message: "CAPTCHA verification failed",
+              message: t(loc, "auth.captchaFailed"),
               requestId,
             },
           };
@@ -163,7 +166,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         return {
           error: {
             code: "DISPOSABLE_EMAIL_NOT_ALLOWED",
-            message: "Disposable email addresses are not allowed",
+            message: t(loc, "signup.disposableEmail"),
             requestId,
           },
         };
@@ -179,7 +182,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         // Already verified — return generic success to avoid user enumeration
         return {
           ok: true,
-          message: "If this email is available, a verification link has been sent.",
+          message: t(loc, "signup.verificationSent"),
           requestId,
         };
       }
@@ -330,7 +333,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         return {
           error: {
             code: "EMAIL_DELIVERY_FAILED",
-            message: "Verification email could not be delivered. Please try again in a few minutes.",
+            message: t(loc, "signup.verificationFailed"),
             requestId,
           },
         };
@@ -338,7 +341,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
 
       return {
         ok: true,
-        message: "If this email is available, a verification link has been sent.",
+        message: t(loc, "signup.verificationSent"),
         requestId,
       };
     }
@@ -360,7 +363,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request.body),
       });
-      const payload = await proxied.json().catch(() => ({ error: "Unable to process registration" }));
+      const payload = await proxied.json().catch(() => ({ error: t(getRequestLocale(request), "signup.processingError") }));
       reply.code(proxied.status);
       return payload;
     }
@@ -381,12 +384,13 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         (request.headers["x-request-id"] as string) ||
         undefined;
 
+      const loc = getRequestLocale(request);
       if (process.env.NODE_ENV === "production" && !isMailProviderConfigured()) {
         reply.code(503);
         return {
           error: {
             code: "EMAIL_PROVIDER_NOT_CONFIGURED",
-            message: "Email service is temporarily unavailable. Please contact support.",
+            message: t(loc, "signup.emailServiceUnavailable"),
             requestId,
           },
         };
@@ -450,7 +454,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
 
       return {
         ok: true,
-        message: "If an unverified account exists, a new verification email has been sent.",
+        message: t(loc, "signup.resendSuccess"),
         requestId,
       };
     }
@@ -465,6 +469,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
       preHandler: [verifyEmailRateLimit()],
     },
     async (request, reply) => {
+      const loc = getRequestLocale(request);
       const { token: emailToken, expires, sig } = request.query;
       const requestId =
         (request as any).requestId ||
@@ -476,7 +481,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         return {
           error: {
             code: "INVALID_LINK",
-            message: "Missing or invalid verification parameters",
+            message: t(loc, "signup.invalidVerificationParams"),
             requestId,
           },
         };
@@ -490,7 +495,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         return {
           error: {
             code: result.expired ? "LINK_EXPIRED" : "INVALID_LINK",
-            message: result.error || "Invalid verification link",
+            message: result.error || t(loc, "signup.invalidVerificationLink"),
             requestId,
           },
         };
@@ -505,7 +510,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
 
       if (!user) {
         // Generic response to avoid enumeration
-        return { ok: true, message: "Email verified successfully.", requestId };
+        return { ok: true, message: t(loc, "signup.emailVerified"), requestId };
       }
 
       // Idempotent: if already verified, just return success
@@ -524,7 +529,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         ).catch(() => {});
       }
 
-      return { ok: true, message: "Email verified successfully.", requestId };
+      return { ok: true, message: t(loc, "signup.emailVerified"), requestId };
     }
   );
 
@@ -547,7 +552,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
       const { email: rawEmail } = request.body || {};
       if (!rawEmail || typeof rawEmail !== "string") {
         reply.code(400);
-        return { error: "Missing email" };
+        return { error: t(getRequestLocale(request), "signup.missingEmail") };
       }
 
       const email = rawEmail.trim().toLowerCase();

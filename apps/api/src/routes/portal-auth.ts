@@ -33,11 +33,12 @@ import {
   getLocationChangeAlertEmailTemplate,
   getSessionRevokedEmailTemplate,
 } from "../utils/email-templates";
+import { t, getRequestLocale } from "../utils/api-i18n";
 import { getDefaultFromAddress, sendEmailAsync } from "../utils/mailer";
 import { writeAuditLog } from "../utils/audit-log";
 import { verifyTurnstileToken, isCaptchaConfigured } from "../utils/verify-captcha";
 import { isKnownDeviceFingerprint } from "../utils/check-device-trust";
-import { createEmergencyLockToken, verifyEmergencyLockToken } from "../utils/emergency-lock-token";
+import { createEmergencyLockToken, verifyEmergencyLockToken, markEmergencyTokenConsumed } from "../utils/emergency-lock-token";
 import { getRealIP } from "../utils/get-real-ip";
 import { validateBody } from "../utils/validate";
 import { loginSchema } from "../utils/schemas";
@@ -146,6 +147,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       const requestIp = getRealIP(request);
       const requestUa = ((request.headers["user-agent"] as string) || "unknown").substring(0, 256);
       const cookieLang = extractLocaleCookie(request.headers.cookie as string);
+      const reqLocale = getRequestLocale(request);
       const preferredLocale = normalizeRequestLocale(
         locale,
         cookieLang,
@@ -177,7 +179,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
           failReason: "invalid_credentials",
         }).catch(() => {/* ignore */});
         reply.code(401);
-        return { error: "Invalid email or password" };
+        return { error: t(reqLocale, "auth.invalidCredentials") };
       }
 
       if (orgUser.isLocked) {
@@ -191,7 +193,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         // Return generic error to prevent user enumeration.
         // The user has already received an unlock email when the account was locked.
         reply.code(401);
-        return { error: "Invalid email or password" };
+        return { error: t(reqLocale, "auth.invalidCredentials") };
       }
 
       const captchaRequired = isCaptchaConfigured() && orgUser.loginAttempts >= 3;
@@ -278,7 +280,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
           return {
             error: {
               code: "ACCOUNT_LOCKED",
-              message: "Account locked due to too many failed attempts.",
+              message: t(reqLocale, "auth.accountLockedTooMany"),
               loginAttempts: nextAttempts,
             },
           };
@@ -291,8 +293,8 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
               code: captchaErrorCode,
               message:
                 captchaErrorCode === "CAPTCHA_REQUIRED"
-                  ? "CAPTCHA verification is required"
-                  : "CAPTCHA verification failed",
+                  ? t(reqLocale, "auth.captchaRequired")
+                  : t(reqLocale, "auth.captchaFailed"),
               loginAttempts: nextAttempts,
             },
           };
@@ -302,7 +304,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         return {
           error: {
             code: "INVALID_CREDENTIALS",
-            message: "Invalid email or password",
+            message: t(reqLocale, "auth.invalidCredentials"),
             loginAttempts: nextAttempts,
           },
         };
@@ -318,7 +320,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
           failReason: "account_deactivated",
         }).catch(() => {/* ignore */});
         reply.code(401);
-        return { error: "Invalid email or password" };
+        return { error: t(reqLocale, "auth.invalidCredentials") };
       }
 
       // Check email verification (Step 11.36)
@@ -335,7 +337,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         return {
           error: {
             code: "EMAIL_VERIFICATION_REQUIRED",
-            message: "Invalid email or password",
+            message: t(reqLocale, "auth.invalidCredentials"),
             requestId,
           },
         };
@@ -344,7 +346,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       const secret = process.env.SESSION_SECRET;
       if (!secret) {
         reply.code(500);
-        return { error: "Internal server configuration error" };
+        return { error: t(reqLocale, "auth.internalConfigError") };
       }
 
       // Check if MFA is enabled
@@ -508,7 +510,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
           return {
             error: {
               code: "SESSION_CREATE_FAILED",
-              message: "Unable to create session. Please try again.",
+              message: t(reqLocale, "auth.sessionCreateFailed"),
             },
           };
         }
@@ -683,10 +685,11 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
     reply: FastifyReply,
     actor: { id: string; orgId: string; email: string; role: string }
   ) => {
+    const locale = getRequestLocale(request);
     const secret = process.env.SESSION_SECRET;
     if (!secret) {
       reply.code(500);
-      return { error: "Internal server configuration error" };
+      return { error: t(locale, "auth.internalConfigError") };
     }
 
     const orgUser = await prisma.orgUser.findUnique({
@@ -697,7 +700,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
     });
     if (!orgUser) {
       reply.code(404);
-      return { error: "User not found" };
+      return { error: t(locale, "auth.userNotFound") };
     }
 
     const tokens = createPortalTokenPair(
@@ -756,7 +759,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
     const resolved = await resolveOnboardingActor(request, body.setupToken);
     if (!resolved) {
       reply.code(401);
-      return { error: "Authentication required" };
+      return { error: t(getRequestLocale(request), "auth.authRequired") };
     }
     const { actor, source } = resolved;
     await prisma.orgUser.update({
@@ -784,7 +787,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
     const resolved = await resolveOnboardingActor(request, body.setupToken);
     if (!resolved) {
       reply.code(401);
-      return { error: "Authentication required" };
+      return { error: t(getRequestLocale(request), "auth.authRequired") };
     }
     const { actor, source } = resolved;
 
@@ -842,10 +845,11 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       ],
     },
     async (request, reply) => {
+      const loc = getRequestLocale(request);
       const refreshToken = (request.body?.refreshToken || "").trim();
       if (!refreshToken) {
         reply.code(400);
-        return { error: { code: "REFRESH_TOKEN_REQUIRED", message: "refreshToken is required" } };
+        return { error: { code: "REFRESH_TOKEN_REQUIRED", message: t(loc, "auth.refreshTokenRequired") } };
       }
 
       const session = await prisma.portalSession.findUnique({
@@ -861,7 +865,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
 
       if (!session || session.revokedAt) {
         reply.code(401);
-        return { error: { code: "INVALID_REFRESH_TOKEN", message: "Invalid refresh token" } };
+        return { error: { code: "INVALID_REFRESH_TOKEN", message: t(loc, "auth.refreshTokenInvalid") } };
       }
 
       if (session.refreshExpiresAt <= new Date()) {
@@ -870,18 +874,18 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
           data: { revokedAt: new Date() },
         }).catch(() => {/* ignore */});
         reply.code(401);
-        return { error: { code: "REFRESH_TOKEN_EXPIRED", message: "Refresh token has expired" } };
+        return { error: { code: "REFRESH_TOKEN_EXPIRED", message: t(loc, "auth.refreshTokenExpired") } };
       }
 
       if (!session.orgUser.isActive) {
         reply.code(403);
-        return { error: "Account is deactivated" };
+        return { error: t(loc, "auth.accountDeactivated") };
       }
 
       const secret = process.env.SESSION_SECRET;
       if (!secret) {
         reply.code(500);
-        return { error: "Internal server configuration error" };
+        return { error: t(loc, "auth.internalConfigError") };
       }
 
       const now = Date.now();
@@ -943,16 +947,24 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
     "/portal/auth/emergency-lock",
     { preHandler: [validateJsonContentType] },
     async (request, reply) => {
+      const loc = getRequestLocale(request);
       const token = (request.body?.token || "").trim();
       if (!token) {
         reply.code(400);
-        return { error: "Emergency lock token is required" };
+        return { error: t(loc, "auth.emergencyTokenRequired") };
       }
 
       const parsed = verifyEmergencyLockToken(token);
       if (!parsed) {
         reply.code(400);
-        return { error: "Invalid or expired emergency lock token" };
+        return { error: t(loc, "auth.emergencyTokenInvalid") };
+      }
+
+      // Single-use enforcement — prevent token replay
+      const isFirstUse = await markEmergencyTokenConsumed(token);
+      if (!isFirstUse) {
+        reply.code(400);
+        return { error: t(loc, "auth.emergencyTokenUsed") };
       }
 
       const user = await prisma.orgUser.findUnique({
@@ -960,7 +972,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       });
       if (!user) {
         reply.code(404);
-        return { error: "User not found" };
+        return { error: t(loc, "auth.userNotFound") };
       }
 
       await prisma.$transaction([
@@ -990,7 +1002,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         request.requestId
       ).catch(() => {/* ignore */});
 
-      return { ok: true, message: "Account locked and sessions revoked" };
+      return { ok: true, message: t(loc, "auth.accountLockedAndRevoked") };
     }
   );
 
@@ -1001,13 +1013,14 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
     "/portal/auth/unlock",
     { preHandler: [validateJsonContentType] },
     async (request, reply) => {
+      const loc = getRequestLocale(request);
       const token = (request.body?.token || "").trim();
       if (!token) {
         reply.code(400);
         return {
           error: {
             code: "TOKEN_REQUIRED",
-            message: "Unlock token is required",
+            message: t(loc, "auth.unlockTokenRequired"),
           },
         };
       }
@@ -1027,7 +1040,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         return {
           error: {
             code: "UNLOCK_TOKEN_INVALID",
-            message: "Invalid unlock token",
+            message: t(loc, "auth.unlockTokenInvalid"),
           },
         };
       }
@@ -1037,7 +1050,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         return {
           error: {
             code: "UNLOCK_TOKEN_USED",
-            message: "Unlock token has already been used",
+            message: t(loc, "auth.unlockTokenUsed"),
           },
         };
       }
@@ -1047,7 +1060,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         return {
           error: {
             code: "UNLOCK_TOKEN_EXPIRED",
-            message: "Unlock token has expired",
+            message: t(loc, "auth.unlockTokenExpired"),
           },
         };
       }
@@ -1080,7 +1093,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         requestId
       ).catch(() => {/* ignore */});
 
-      return { ok: true, message: "Account unlocked successfully" };
+      return { ok: true, message: t(loc, "auth.accountUnlocked") };
     }
   );
 
@@ -1105,23 +1118,24 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
    * GET /portal/auth/me
    */
   fastify.get("/portal/auth/me", async (request, reply) => {
+    const loc = getRequestLocale(request);
     const token = request.cookies[PORTAL_SESSION_COOKIE];
     if (!token) {
       reply.code(401);
-      return { error: "Not authenticated" };
+      return { error: t(loc, "auth.notAuthenticated") };
     }
 
     const secret = process.env.SESSION_SECRET;
     if (!secret) {
       reply.code(500);
-      return { error: "Internal server configuration error" };
+      return { error: t(loc, "auth.internalConfigError") };
     }
 
     const parsed = verifyPortalSessionToken(token, secret, { ignoreExpiration: true });
     if (!parsed) {
       reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
       reply.code(401);
-      return { error: "Invalid session" };
+      return { error: t(loc, "auth.invalidSession") };
     }
     const now = Math.floor(Date.now() / 1000);
     if (parsed.exp && now > parsed.exp) {
@@ -1137,7 +1151,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
     if (!sessionRecord || sessionRecord.revokedAt || sessionRecord.orgUserId !== parsed.userId) {
       reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
       reply.code(401);
-      return { error: "Invalid session" };
+      return { error: t(loc, "auth.invalidSession") };
     }
     if (sessionRecord.accessExpiresAt <= new Date()) {
       reply.code(401);
@@ -1156,13 +1170,13 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
     if (!orgUser) {
       reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
       reply.code(401);
-      return { error: "User not found" };
+      return { error: t(loc, "auth.userNotFound") };
     }
 
     if (orgUser.isActive === false) {
       reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
       reply.code(403);
-      return { error: "Account is deactivated" };
+      return { error: t(loc, "auth.accountDeactivated") };
     }
 
     prisma.portalSession.update({

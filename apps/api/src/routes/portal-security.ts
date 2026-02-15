@@ -22,6 +22,7 @@ import {
   extractLocaleCookie,
   getPasswordChangedEmail,
 } from "../utils/email-templates";
+import { t, getRequestLocale } from "../utils/api-i18n";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { rateLimit } from "../middleware/rate-limiter";
 import { validateJsonContentType } from "../middleware/validation";
@@ -292,10 +293,11 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/portal/auth/reset-password/validate",
     async (request, reply) => {
+      const loc = getRequestLocale(request);
       const origin = request.headers.origin as string | undefined;
       if (!isAllowedOrigin(origin)) {
         reply.code(403);
-        return { valid: false, error: "Forbidden: Invalid origin" };
+        return { valid: false, error: t(loc, "auth.invalidOrigin") };
       }
 
       const query = request.query as { token?: string; expires?: string; sig?: string };
@@ -303,7 +305,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
 
       if (!token) {
         reply.code(400);
-        return { valid: false, error: "Invalid or expired reset token" };
+        return { valid: false, error: t(loc, "reset.invalidOrExpiredToken") };
       }
 
       if (query.expires && query.sig) {
@@ -312,7 +314,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
         const linkCheck = verifySignedLink(fullUrl);
         if (!linkCheck.valid || linkCheck.type !== "reset") {
           reply.code(400);
-          return { valid: false, error: linkCheck.expired ? "Reset link has expired" : "Invalid reset link" };
+          return { valid: false, error: linkCheck.expired ? t(loc, "reset.linkExpired") : t(loc, "reset.invalidLink") };
         }
       }
 
@@ -323,7 +325,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
 
       if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
         reply.code(400);
-        return { valid: false, error: "Invalid or expired reset token" };
+        return { valid: false, error: t(loc, "reset.invalidOrExpiredToken") };
       }
 
       return { valid: true };
@@ -345,10 +347,11 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
       },
     },
     async (request, reply) => {
+      const loc = getRequestLocale(request);
       const origin = request.headers.origin as string | undefined;
       if (!isAllowedOrigin(origin)) {
         reply.code(403);
-        return { error: "Forbidden: Invalid origin" };
+        return { error: t(loc, "auth.invalidOrigin") };
       }
 
       const body = validateBody(resetPasswordSchema, request.body, reply);
@@ -367,7 +370,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
         const linkCheck = verifySignedLink(fullUrl);
         if (!linkCheck.valid || linkCheck.type !== "reset") {
           reply.code(400);
-          return { error: linkCheck.expired ? "Reset link has expired" : "Invalid reset link" };
+          return { error: linkCheck.expired ? t(loc, "reset.linkExpired") : t(loc, "reset.invalidLink") };
         }
       }
 
@@ -384,17 +387,17 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
 
       if (!resetToken) {
         reply.code(400);
-        return { error: "Invalid or expired reset token" };
+        return { error: t(loc, "reset.invalidOrExpiredToken") };
       }
 
       if (resetToken.usedAt) {
         reply.code(400);
-        return { error: "This reset token has already been used" };
+        return { error: t(loc, "reset.tokenAlreadyUsed") };
       }
 
       if (resetToken.expiresAt < new Date()) {
         reply.code(400);
-        return { error: "Reset token has expired" };
+        return { error: t(loc, "reset.tokenExpired") };
       }
 
       // Hash new password
@@ -453,7 +456,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
       // Create a fresh session and log user in
       const secret = process.env.SESSION_SECRET;
       if (!secret) {
-        return { ok: true, message: "Password reset. Please log in." };
+        return { ok: true, message: t(loc, "reset.successNoSession") };
       }
 
       const tokens = createPortalTokenPair(
@@ -490,7 +493,7 @@ export async function portalSecurityRoutes(fastify: FastifyInstance) {
 
       return {
         ok: true,
-        message: "Password reset successfully",
+        message: t(loc, "reset.success"),
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         refreshExpiresInSec: Math.floor(PORTAL_REFRESH_TOKEN_TTL_MS / 1000),
