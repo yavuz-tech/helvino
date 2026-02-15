@@ -200,6 +200,13 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
       socketRef.current.on("disconnect", () => {
         console.log("❌ Disconnected from Socket.IO");
       });
+      socketRef.current.on("connect_error", (err: any) => {
+        console.warn("❌ Socket.IO connect_error", {
+          message: err?.message,
+          description: err?.description,
+          context: err?.context,
+        });
+      });
 
       // Real-time config updates: when portal user saves settings, widget updates instantly
       socketRef.current.on("widget:config-updated", () => {

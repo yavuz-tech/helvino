@@ -961,16 +961,39 @@ fastify.ready().then(() => {
     ip: string;
   }) {
     const isProd = process.env.NODE_ENV === "production";
-    const allowlist = Array.isArray(input.org.allowedDomains)
-      ? input.org.allowedDomains.map((d) => String(d || "").trim()).filter(Boolean)
-      : [];
+    const rawAllowlist = Array.isArray(input.org.allowedDomains) ? input.org.allowedDomains : [];
+    const normalizedAllowlist = rawAllowlist.map((d) => String(d || "").trim()).filter(Boolean);
 
-    const hasWildcard = allowlist.some((domain) => domain === "*" || domain.includes("*"));
-    if (hasWildcard) {
-      throw new Error("Authentication error: invalid allowlist configuration");
+    // Helvion platform domains are always allowed (widget demo / portal preview).
+    const PLATFORM_DOMAINS = ["app.helvion.io", "helvion.io", "www.helvion.io"];
+    if (input.requestOrigin) {
+      const dom = extractDomain(input.requestOrigin);
+      if (dom && PLATFORM_DOMAINS.includes(dom)) return;
     }
-    if (isProd && allowlist.length === 0) {
-      throw new Error("Authentication error: allowlist empty");
+
+    // Sanitize allowlist:
+    // - Ignore global "*" (allow-all) for safety.
+    // - Allow constrained subdomain wildcards only in the form "*.example.com".
+    // - Any other wildcard shapes are ignored; if nothing valid remains, treat as "not configured yet".
+    const effectiveAllowlist = normalizedAllowlist.filter((d) => {
+      if (d === "*") return false;
+      if (!d.includes("*")) return true;
+      return d.startsWith("*.") && !d.slice(2).includes("*");
+    });
+
+    // Soft mode: if allowlist isn't configured yet, allow widget sockets so the widget can work on first embed.
+    // This matches the HTTP middleware + bootloader behavior.
+    if (isProd && effectiveAllowlist.length === 0) {
+      // Still require Origin/Referer for non-localhost clients (prevents headless abuse).
+      if (!input.requestOrigin) {
+        const isLocalhostIp =
+          input.ip === "127.0.0.1" ||
+          input.ip === "::1" ||
+          input.ip === "::ffff:127.0.0.1";
+        if (input.org.allowLocalhost || isLocalhostIp) return;
+        throw new Error("Authentication error: missing Origin/Referer");
+      }
+      return;
     }
 
     if (!input.requestOrigin) {
@@ -982,7 +1005,7 @@ fastify.ready().then(() => {
       throw new Error("Authentication error: missing Origin/Referer");
     }
 
-    if (!isOriginAllowed(input.requestOrigin, allowlist, input.org.allowLocalhost)) {
+    if (!isOriginAllowed(input.requestOrigin, effectiveAllowlist, input.org.allowLocalhost)) {
       const domain = extractDomain(input.requestOrigin) || "unknown";
       throw new Error(`Authentication error: domain not allowed (${domain})`);
     }
