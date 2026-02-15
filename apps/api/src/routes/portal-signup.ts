@@ -192,16 +192,34 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         // ── Unverified account exists → update password & org name, resend verification ──
         const passwordHash = await hashPassword(password);
 
+        // Re-compute allowedDomains from updated website
+        const reSignupDomain = trimmedOrgName
+          .toLowerCase()
+          .replace(/^https?:\/\//, "")
+          .replace(/^www\./, "")
+          .replace(/\/.*$/, "")
+          .replace(/:\d+$/, "")
+          .trim();
+        const reSignupDomains: string[] = [];
+        if (reSignupDomain && reSignupDomain.includes(".")) {
+          reSignupDomains.push(reSignupDomain);
+          reSignupDomains.push(`www.${reSignupDomain}`);
+        }
+
         await prisma.$transaction(async (tx) => {
           // Update user password
           await tx.orgUser.update({
             where: { id: existing.id },
             data: { passwordHash },
           });
-          // Update org name
+          // Update org name + refresh allowedDomains with latest website
           await tx.organization.update({
             where: { id: existing.orgId },
-            data: { name: trimmedOrgName, language: requestedLocale },
+            data: {
+              name: trimmedOrgName,
+              language: requestedLocale,
+              ...(reSignupDomains.length > 0 ? { allowedDomains: reSignupDomains } : {}),
+            },
           });
         });
 
@@ -220,6 +238,23 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
         const orgKey = generateOrgKey(trimmedOrgName);
         const siteId = generateSiteId();
 
+        // Auto-populate allowedDomains from the orgName (website URL).
+        // The signup form collects a website like "vertexdigitalsystems.net" or
+        // "https://www.example.com" — normalize it to a bare domain.
+        const initialDomain = trimmedOrgName
+          .toLowerCase()
+          .replace(/^https?:\/\//, "")
+          .replace(/^www\./, "")
+          .replace(/\/.*$/, "")
+          .replace(/:\d+$/, "")
+          .trim();
+        const initialDomains: string[] = [];
+        if (initialDomain && initialDomain.includes(".")) {
+          initialDomains.push(initialDomain);
+          // Also allow www. variant
+          initialDomains.push(`www.${initialDomain}`);
+        }
+
         const { org } = await prisma.$transaction(async (tx) => {
           const org = await tx.organization.create({
             data: {
@@ -232,6 +267,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
               planKey: "free",
               planStatus: "active",
               billingStatus: "none",
+              allowedDomains: initialDomains,
             },
           });
 

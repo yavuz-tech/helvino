@@ -95,6 +95,19 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url.toString(), 301);
   }
 
+  // ── /embed.js: cross-origin script served from web public/ ──
+  // This is a fallback copy of the widget script (primary is api.helvion.io/embed.js).
+  // It MUST be loadable cross-origin from customer websites.
+  if (pathname === "/embed.js") {
+    const res = NextResponse.next();
+    res.headers.set("Access-Control-Allow-Origin", "*");
+    res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+    res.headers.set("Cache-Control", "public, max-age=3600");
+    res.headers.set("X-Content-Type-Options", "nosniff");
+    return res;
+  }
+
   const response = NextResponse.next();
 
   // ── Universal security headers ──
