@@ -65,7 +65,7 @@ function buildCsp(opts: {
   // 'self' + 'unsafe-inline' and block ALL scripts (site goes blank).
   // Cloudflare Web Analytics (static.cloudflareinsights.com) is allowed explicitly.
   const scriptSrc = isProduction
-    ? "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com"
+    ? "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://api.helvion.io"
     : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
 
   // connect-src: In production, limit to HTTPS/WSS schemes.
