@@ -39,11 +39,18 @@ export const securityHeadersPlugin = fp(async function securityHeadersPluginImpl
       "camera=(), microphone=(), geolocation=(), interest-cohort=()"
     );
 
+    // ── Cross-Origin-Resource-Policy ──
+    // Helmet's global CORP is disabled so /embed.js can set "cross-origin".
+    // For every OTHER route, enforce "same-origin" to prevent data leaks.
+    const url = request.url;
+    if (!url.startsWith("/embed")) {
+      reply.header("Cross-Origin-Resource-Policy", "same-origin");
+    }
+
     // ── Cache-Control ──
     // Authenticated / sensitive API responses must not be cached by
     // browsers or proxies (ZAP: "Re-examine Cache-control Directives").
     // Only the public embed.js route opts-in to caching explicitly.
-    const url = request.url;
     const isCacheable =
       url.startsWith("/embed") || url.startsWith("/health") || url.startsWith("/ready");
     if (!isCacheable) {

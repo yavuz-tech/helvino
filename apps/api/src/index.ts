@@ -322,6 +322,10 @@ fastify.register(helmet, {
   frameguard: { action: "deny" },
   noSniff: true,
   referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  // Disable global CORP — the default "same-origin" blocks cross-origin
+  // loading of /embed.js. The embed route sets "cross-origin" explicitly;
+  // all other routes get "same-origin" via the security-headers plugin.
+  crossOriginResourcePolicy: false,
 });
 fastify.register(securityHeadersPlugin);
 
