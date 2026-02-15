@@ -527,7 +527,6 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const aiLabelEnabled = v3.aiLabel !== false;
   const aiSuggestions = v3.aiSuggestions !== false;
   const showBrandingFlag = v3.showBranding !== false;
-  const showOnMobile = v3.showOnMobile !== false;
   const soundEnabled = v3.soundEnabled !== false;
   const autoOpenWidget = v3.autoOpen === true;
   const showEmojiPicker = v3.emojiPicker !== false;
