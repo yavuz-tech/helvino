@@ -19,6 +19,18 @@ import { isOriginAllowed, extractDomain } from "../utils/domain-validation";
  */
 export function validateDomainAllowlist() {
   return async (request: FastifyRequest, reply: FastifyReply) => {
+    // Admin session bypass: dashboard users are already authenticated via session cookie.
+    // They call widget endpoints with x-org-key but their Origin (app.helvion.io) won't be
+    // in the customer's domain allowlist — skip the domain check for admin sessions.
+    const adminUserId = (request.session as any)?.adminUserId;
+    if (adminUserId) {
+      request.log.info(
+        { adminUserId, url: request.url },
+        "Admin session detected, bypassing domain allowlist check"
+      );
+      return; // Allow request to proceed
+    }
+
     // Get organization identifier from headers (siteId preferred, orgKey legacy)
     const siteId = request.headers["x-site-id"] as string | undefined;
     const orgKey = request.headers["x-org-key"] as string | undefined;

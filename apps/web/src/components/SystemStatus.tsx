@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useI18n } from "@/i18n/I18nContext";
+import { useOrg } from "@/contexts/OrgContext";
 
 interface HealthData {
   ok: boolean;
@@ -46,6 +47,7 @@ interface OrgSettings {
 
 export function SystemStatus() {
   const { t } = useI18n();
+  const { selectedOrg } = useOrg();
   const [health, setHealth] = useState<HealthData | null>(null);
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
   const [orgSettings, setOrgSettings] = useState<OrgSettings | null>(null);
@@ -53,7 +55,7 @@ export function SystemStatus() {
   const [error, setError] = useState<string | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-  const ORG_KEY = process.env.NEXT_PUBLIC_ORG_KEY || "demo";
+  const ORG_KEY = selectedOrg?.key || process.env.NEXT_PUBLIC_ORG_KEY || "";
 
   const fetchData = useCallback(async () => {
     try {
@@ -80,20 +82,22 @@ export function SystemStatus() {
         console.warn("Metrics fetch failed (user may not be authenticated)");
       }
 
-      // Fetch org settings (requires auth cookie)
-      try {
-        const orgRes = await fetch(`${API_URL}/api/org/${ORG_KEY}/settings`, {
-          credentials: "include", // Use cookies instead of x-internal-key
-        });
+      // Fetch org settings (requires auth cookie + valid org key)
+      if (ORG_KEY) {
+        try {
+          const orgRes = await fetch(`${API_URL}/api/org/${ORG_KEY}/settings`, {
+            credentials: "include", // Use cookies instead of x-internal-key
+          });
 
-        if (orgRes.ok) {
-          const orgData = await orgRes.json();
-          setOrgSettings(orgData);
-        } else {
-          console.warn("Failed to fetch org settings:", orgRes.status);
+          if (orgRes.ok) {
+            const orgData = await orgRes.json();
+            setOrgSettings(orgData);
+          } else {
+            console.warn("Failed to fetch org settings:", orgRes.status);
+          }
+        } catch {
+          console.warn("Org settings fetch failed (user may not be authenticated)");
         }
-      } catch {
-        console.warn("Org settings fetch failed (user may not be authenticated)");
       }
     } catch (err) {
       console.error("Failed to fetch system status:", err);
