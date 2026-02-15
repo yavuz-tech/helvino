@@ -91,14 +91,17 @@ export async function portalMacroRoutes(fastify: FastifyInstance) {
         return reply.status(400).send({ error: "enabled must be boolean" });
       }
 
-      const updated = await prisma.macro.update({
-        where: { id },
+      // SECURITY: Include orgId in the where clause to enforce tenant isolation at DB level (defense-in-depth)
+      const updateResult = await prisma.macro.updateMany({
+        where: { id, orgId: actor.orgId },
         data: {
           title: request.body.title !== undefined ? String(request.body.title).trim() : undefined,
           content: request.body.content !== undefined ? String(request.body.content).trim() : undefined,
           enabled: request.body.enabled,
         },
       });
+      if (updateResult.count === 0) return reply.status(404).send({ error: "macro not found" });
+      const updated = await prisma.macro.findUnique({ where: { id } });
       writeAuditLog(actor.orgId, actor.email, "settings.macro.updated", { macroId: id }, (request as any).requestId).catch(() => {});
       return { ok: true, item: updated };
     }
@@ -118,7 +121,8 @@ export async function portalMacroRoutes(fastify: FastifyInstance) {
       const { id } = request.params;
       const exists = await prisma.macro.findFirst({ where: { id, orgId: actor.orgId }, select: { id: true } });
       if (!exists) return reply.status(404).send({ error: "macro not found" });
-      await prisma.macro.delete({ where: { id } });
+      // SECURITY: Include orgId in the where clause (defense-in-depth)
+      await prisma.macro.deleteMany({ where: { id, orgId: actor.orgId } });
       writeAuditLog(actor.orgId, actor.email, "settings.macro.deleted", { macroId: id }, (request as any).requestId).catch(() => {});
       return { ok: true };
     }

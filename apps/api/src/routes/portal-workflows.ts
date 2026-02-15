@@ -115,8 +115,9 @@ export async function portalWorkflowRoutes(fastify: FastifyInstance) {
       if (request.body.actionsJson && JSON.stringify(request.body.actionsJson).length > 32 * 1024) {
         return reply.status(400).send({ error: "actionsJson exceeds maximum size (32KB)" });
       }
-      const updated = await prisma.workflowRule.update({
-        where: { id },
+      // SECURITY: Include orgId in the where clause to enforce tenant isolation at DB level (defense-in-depth)
+      const updateResult = await prisma.workflowRule.updateMany({
+        where: { id, orgId: actor.orgId },
         data: {
           name: request.body.name !== undefined ? String(request.body.name).trim() : undefined,
           trigger: request.body.trigger,
@@ -125,6 +126,8 @@ export async function portalWorkflowRoutes(fastify: FastifyInstance) {
           actionsJson: request.body.actionsJson as Prisma.InputJsonValue | undefined,
         },
       });
+      if (updateResult.count === 0) return reply.status(404).send({ error: "workflow not found" });
+      const updated = await prisma.workflowRule.findUnique({ where: { id } });
       writeAuditLog(actor.orgId, actor.email, "settings.workflow.updated", { workflowId: id }, (request as any).requestId).catch(() => {});
       return { ok: true, item: updated };
     }
@@ -144,7 +147,8 @@ export async function portalWorkflowRoutes(fastify: FastifyInstance) {
       const { id } = request.params;
       const exists = await prisma.workflowRule.findFirst({ where: { id, orgId: actor.orgId }, select: { id: true } });
       if (!exists) return reply.status(404).send({ error: "workflow not found" });
-      await prisma.workflowRule.delete({ where: { id } });
+      // SECURITY: Include orgId in the where clause (defense-in-depth)
+      await prisma.workflowRule.deleteMany({ where: { id, orgId: actor.orgId } });
       writeAuditLog(actor.orgId, actor.email, "settings.workflow.deleted", { workflowId: id }, (request as any).requestId).catch(() => {});
       return { ok: true };
     }

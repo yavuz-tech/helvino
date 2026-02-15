@@ -234,8 +234,9 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
       }
 
       if (conv.hasUnreadFromUser) {
-        await prisma.conversation.update({
-          where: { id },
+        // SECURITY: Include orgId in the where clause (defense-in-depth tenant isolation)
+        await prisma.conversation.updateMany({
+          where: { id, orgId: actor.orgId },
           data: { hasUnreadFromUser: false },
         });
       }
@@ -469,13 +470,20 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
         updateData.assignedToOrgUserId = assignedToUserId;
       }
 
-      // Update conversation
-      const updated = await prisma.conversation.update({
-        where: { id },
-        data: updateData,
-        include: {
-          assignedTo: { select: { id: true, email: true, role: true } },
-        },
+      // SECURITY: Use transaction to atomically verify org ownership + update (defense-in-depth)
+      const updated = await prisma.$transaction(async (tx) => {
+        const check = await tx.conversation.findFirst({
+          where: { id, orgId: actor.orgId },
+          select: { id: true },
+        });
+        if (!check) throw new Error("CONV_NOT_FOUND");
+        return tx.conversation.update({
+          where: { id },
+          data: updateData,
+          include: {
+            assignedTo: { select: { id: true, email: true, role: true } },
+          },
+        });
       });
 
       // Audit logs (best-effort)

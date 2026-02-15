@@ -75,6 +75,21 @@ export async function requireOrgUser(
     });
   }
 
+  // SECURITY: Block deactivated or locked accounts (defense-in-depth, matches requirePortalUser behavior)
+  if (!orgUser.isActive) {
+    delete request.session.orgUserId;
+    delete request.session.orgId;
+    delete request.session.orgRole;
+    return reply.status(403).send({
+      error: "Account is deactivated",
+    });
+  }
+  if (orgUser.isLocked) {
+    return reply.status(403).send({
+      error: "Account is locked",
+    });
+  }
+
   // Attach org user to request for downstream handlers
   request.orgUser = {
     id: orgUser.id,

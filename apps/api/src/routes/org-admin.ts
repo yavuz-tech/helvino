@@ -8,6 +8,7 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import { requireAdmin } from "../middleware/require-admin";
+import { requireStepUp } from "../middleware/require-step-up";
 import { validateWidgetBranding } from "../middleware/validation";
 
 interface UpdateOrgSettingsBody {
@@ -57,7 +58,7 @@ export async function orgAdminRoutes(fastify: FastifyInstance) {
     Params: { key: string };
     Body: UpdateOrgSettingsBody;
   }>("/org/:key/settings", {
-    preHandler: [requireAdmin],
+    preHandler: [requireAdmin, requireStepUp("admin")],
   }, async (request, reply) => {
     const { key } = request.params;
     const updates = request.body;

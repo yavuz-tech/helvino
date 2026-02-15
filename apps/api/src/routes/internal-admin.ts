@@ -1087,7 +1087,7 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
    * - Updates lastRetentionRunAt timestamp
    */
   fastify.post("/internal/retention/run", {
-    preHandler: [requireAdmin],
+    preHandler: [requireAdmin, requireStepUp("admin")],
   }, async (request, reply) => {
     const startTime = Date.now();
     
