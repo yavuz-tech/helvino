@@ -572,8 +572,17 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   };
   const widgetSizeId = v3.widgetSizeId || "standard";
   const widgetDim = WIDGET_SIZES[widgetSizeId] || WIDGET_SIZES.standard;
+  const DEFAULT_PLACEHOLDERS: Record<string, string> = {
+    tr: "Mesajınızı yazın...",
+    en: "Type a message...",
+    es: "Escribe un mensaje...",
+    de: "Nachricht eingeben...",
+    fr: "Tapez un message...",
+  };
   const chatInputPlaceholder =
-    bootloaderConfig.config.chatPageConfig?.placeholder || "Type a message...";
+    bootloaderConfig.config.chatPageConfig?.placeholder ||
+    DEFAULT_PLACEHOLDERS[lang] ||
+    DEFAULT_PLACEHOLDERS.en;
 
   const renderBubbleIcon = () => {
     if (bubbleTheme.bubbleIcon === "help") {

@@ -247,9 +247,11 @@
 
 /* ── Home view (no messages yet) ── */
 .widget-home-view {
+  flex: 1 1 0%;
   display: flex;
   flex-direction: column;
-  /* Content stays at top, no flex:1 stretching that creates ugly gap */
+  justify-content: center;
+  /* Center content vertically so there's no ugly gap below starters */
 }
 
 .welcome-message {
