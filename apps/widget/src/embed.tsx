@@ -98,6 +98,35 @@ const initWidget = () => {
   // Mark for easier debugging in DOM
   rootElement.setAttribute("data-helvion-widget-root", "1");
 
+  // ── Host typography + language bridge ──
+  // Goal: match customer site's main font + writing direction on mobile/desktop.
+  // We do this via CSS variables on the widget root so widget CSS can remain scoped.
+  try {
+    const bodyStyles = window.getComputedStyle(document.body);
+    const htmlStyles = window.getComputedStyle(document.documentElement);
+    const hostFontFamily = bodyStyles.fontFamily || htmlStyles.fontFamily;
+    const hostFontSize = bodyStyles.fontSize || htmlStyles.fontSize;
+    if (hostFontFamily) {
+      rootElement.style.setProperty("--widget-font-family", hostFontFamily);
+    }
+    if (hostFontSize) {
+      const n = parseFloat(hostFontSize);
+      // Clamp so extreme host sizes don't break layout.
+      const clamped = !Number.isNaN(n) ? Math.min(16, Math.max(14, n)) : 14;
+      rootElement.style.setProperty("--widget-font-size", `${clamped}px`);
+    }
+
+    const hostLang =
+      document.documentElement.getAttribute("lang") ||
+      (navigator.language ? navigator.language.split("-")[0] : "");
+    if (hostLang) rootElement.setAttribute("lang", hostLang);
+
+    const hostDir = document.documentElement.getAttribute("dir");
+    if (hostDir) rootElement.setAttribute("dir", hostDir);
+  } catch {
+    // Best-effort only.
+  }
+
   // Debug mode: show additional UI (e.g. unauthorized-domain warning card)
   if (w.HELVION_DEBUG_WIDGET === true || w.HELVINO_DEBUG_WIDGET === true) {
     document.documentElement.setAttribute("data-helvion-debug-widget", "1");

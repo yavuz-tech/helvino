@@ -638,7 +638,12 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const bgPatternStyle = bgPatternId !== "none" && BG_PATTERNS[bgPatternId] ? { backgroundImage: BG_PATTERNS[bgPatternId] } : {};
 
   return (
-    <div className="widget-container" style={{ "--primary-color": primaryColor, pointerEvents: "auto" } as React.CSSProperties}>
+    <div
+      className="widget-container"
+      lang={lang}
+      dir={typeof document !== "undefined" ? (document.documentElement.getAttribute("dir") || undefined) : undefined}
+      style={{ "--primary-color": primaryColor, pointerEvents: "auto" } as React.CSSProperties}
+    >
       {/* Custom CSS from portal */}
       {customCss && <style dangerouslySetInnerHTML={{ __html: customCss }} />}
       {!actualIsOpen && attGrabberId !== "none" && attGrabberVisible && (

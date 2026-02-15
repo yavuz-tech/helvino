@@ -6,8 +6,8 @@
 /* ── Widget Container ── */
 .widget-container {
   position: relative;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  /* Inherit host site typography via #helvino-widget-root CSS vars */
+  font-family: inherit;
   isolation: isolate;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;

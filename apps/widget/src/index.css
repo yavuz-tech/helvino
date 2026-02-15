@@ -4,8 +4,19 @@
  * is injected into customer websites and must not affect their styles.
  */
 #helvino-widget-root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  /* Use host page font when available (set by embed.tsx). */
+  font-family: var(
+    --widget-font-family,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif
+  );
+  /* Base font size can follow host page (clamped in embed.tsx). */
+  font-size: var(--widget-font-size, 14px);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
