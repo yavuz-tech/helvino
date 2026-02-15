@@ -74,7 +74,7 @@ export default function OrgSecurityPage() {
 
   const handleLogout = async () => {
     await orgLogout();
-    router.push("/app/login");
+    router.push("/org-app/login");
   };
 
   const copySiteId = () => {

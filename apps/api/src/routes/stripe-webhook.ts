@@ -243,14 +243,26 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
 
           const planRow = await prisma.plan.findUnique({ where: { key: planKey } });
 
-          // Founding member: best-effort cap enforcement on webhook side as well.
-          // This does NOT guarantee perfect atomicity across concurrent webhooks (manual hardening may be needed).
-          let shouldSetFoundingMember = session.metadata?.foundingMember === "true" && !org.isFoundingMember;
-          if (shouldSetFoundingMember) {
-            const fmCount = await prisma.organization.count({ where: { isFoundingMember: true } }).catch(() => 999999);
-            if (fmCount >= 200) {
+          // Founding member: ATOMIC cap enforcement via conditional UPDATE.
+          // Only sets isFoundingMember=true if the global count is still < 200.
+          // Uses a single SQL UPDATE ... WHERE to avoid TOCTOU race conditions.
+          let shouldSetFoundingMember = false;
+          if (session.metadata?.foundingMember === "true" && !org.isFoundingMember) {
+            try {
+              const result = await prisma.$executeRaw`
+                UPDATE "organizations"
+                SET "isFoundingMember" = true, "foundingMemberAt" = NOW()
+                WHERE "id" = ${org.id}
+                  AND "isFoundingMember" = false
+                  AND (SELECT COUNT(*) FROM "organizations" WHERE "isFoundingMember" = true) < 200
+              `;
+              shouldSetFoundingMember = result > 0;
+              if (!shouldSetFoundingMember) {
+                fastify.log.warn({ orgId: org.id, eventId }, "Founding member cap reached or already set; skipped");
+              }
+            } catch (err) {
+              fastify.log.error({ orgId: org.id, eventId, err }, "Founding member atomic update failed");
               shouldSetFoundingMember = false;
-              fastify.log.warn({ orgId: org.id, eventId }, "Founding member cap reached; ignoring foundingMember flag");
             }
           }
 
@@ -267,12 +279,7 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
               planStatus: "active",
               // Keep org-level AI limit in sync with plan (defense-in-depth).
               ...(planRow?.maxAiMessagesPerMonth != null ? { aiMessagesLimit: planRow.maxAiMessagesPerMonth } : {}),
-              ...(shouldSetFoundingMember
-                ? {
-                    isFoundingMember: true,
-                    foundingMemberAt: new Date(),
-                  }
-                : {}),
+              // Note: founding member status is set atomically above via raw SQL to avoid race conditions.
               lastStripeEventAt: now,
               lastStripeEventId: eventId,
             },

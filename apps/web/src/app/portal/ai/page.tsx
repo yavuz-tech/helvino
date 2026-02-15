@@ -118,7 +118,7 @@ export default function PortalAiPage() {
       } else {
         setTestResponse(`${t("common.error")}: ${data.error || t("common.error.unknown")}`);
       }
-    } catch { setTestResponse("Error: Network error"); }
+    } catch { setTestResponse(`${t("common.error")}: ${t("portalAi.networkError")}`); }
     finally { setTestLoading(false); }
   };
 
@@ -341,12 +341,12 @@ export default function PortalAiPage() {
                     </label>
                     <select value={config.language} onChange={(e) => updateConfig({ language: e.target.value })} disabled={!canEdit}
                       className="w-full rounded-xl border border-black/10 bg-[#FAFAF8] px-4 py-3 font-[var(--font-body)] text-[13px] text-[#1A1D23] focus:border-[#F59E0B] focus:outline-none focus:ring-0 disabled:opacity-50">
-                      <option value="en">English</option>
-                      <option value="tr">Turkce</option>
-                      <option value="es">Espanol</option>
-                      <option value="de">Deutsch</option>
-                      <option value="fr">Francais</option>
-                      <option value="auto">Auto-detect</option>
+                      <option value="en">{t("portalAi.lang.en")}</option>
+                      <option value="tr">{t("portalAi.lang.tr")}</option>
+                      <option value="es">{t("portalAi.lang.es")}</option>
+                      <option value="de">{t("portalAi.lang.de")}</option>
+                      <option value="fr">{t("portalAi.lang.fr")}</option>
+                      <option value="auto">{t("portalAi.lang.auto")}</option>
                     </select>
                   </div>
                 </div>
@@ -396,13 +396,13 @@ export default function PortalAiPage() {
                     <div className="mt-3 rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Bot size={14} className="text-blue-500" />
-                        <span className="font-[var(--font-heading)] text-[11px] font-semibold text-blue-600">AI Response</span>
+                        <span className="font-[var(--font-heading)] text-[11px] font-semibold text-blue-600">{t("portalAi.aiResponse")}</span>
                       </div>
                       <p className="whitespace-pre-wrap font-[var(--font-body)] text-sm leading-relaxed text-slate-700">{testResponse}</p>
                       {testMeta && (
                         <div className="mt-3 flex items-center gap-3 border-t border-blue-100 pt-2">
                           <span className="font-[var(--font-body)] text-[10px] text-slate-400">{testMeta.model}</span>
-                          <span className="font-[var(--font-body)] text-[10px] text-slate-400">{testMeta.tokens} tokens</span>
+                          <span className="font-[var(--font-body)] text-[10px] text-slate-400">{testMeta.tokens} {t("portalAi.tokens")}</span>
                         </div>
                       )}
                     </div>

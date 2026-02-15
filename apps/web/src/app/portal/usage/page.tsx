@@ -130,7 +130,7 @@ export default function PortalUsagePage() {
   const [animateUsageBars, setAnimateUsageBars] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { formatUsd } = useCurrency();
 
   useEffect(() => {
@@ -244,7 +244,7 @@ export default function PortalUsagePage() {
                   {t("usage.heroSubtitle")}
                 </p>
                 <p style={{ marginTop: 6, fontSize: 13, color: colors.neutral[400], fontFamily: fonts.body }} suppressHydrationWarning>
-                  📅 {t("usage.currentPeriod")}: {usageMetrics.period} · {t("usage.resetDate")}: {new Date(usageMetrics.resetDate).toLocaleDateString("tr-TR")}
+                  📅 {t("usage.currentPeriod")}: {usageMetrics.period} · {t("usage.resetDate")}: {new Date(usageMetrics.resetDate).toLocaleDateString(locale === "tr" ? "tr-TR" : locale === "es" ? "es-ES" : "en-US")}
                 </p>
               </div>
               <button

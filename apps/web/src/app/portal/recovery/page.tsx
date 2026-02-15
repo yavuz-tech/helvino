@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import LoadingFallback from "@/components/LoadingFallback";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -185,11 +186,7 @@ function PortalRecoveryContent() {
 export default function PortalRecoveryPage() {
   return (
     <Suspense
-      fallback={
-        <div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center">
-          <div className="text-[#64748B]">Loading...</div>
-        </div>
-      }
+      fallback={<LoadingFallback />}
     >
       <PortalRecoveryContent />
     </Suspense>

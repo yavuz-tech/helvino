@@ -399,7 +399,9 @@ export default function NotificationsPage() {
                         </span>
                         <span className="px-2 py-0.5 text-xs font-medium bg-[#F1F5F9] text-[#475569] rounded-full">
                           {t(
-                            (`notifications.category.${item.type.toLowerCase().replace("_", "")}` as TranslationKey) ||
+                            (`notifications.category.${
+                              ({ WIDGET_HEALTH: "widget", SECURITY: "security", BILLING: "billing", SYSTEM: "system" } as Record<string, string>)[item.type] ?? item.type.toLowerCase()
+                            }` as TranslationKey) ||
                             "notifications.type.system"
                           )}
                         </span>

@@ -81,7 +81,7 @@ export default function OrgSettingsPage() {
 
   const handleLogout = async () => {
     await orgLogout();
-    router.push("/app/login");
+    router.push("/org-app/login");
   };
 
   const handleSave = async () => {

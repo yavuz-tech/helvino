@@ -285,6 +285,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     request.session.adminUserId = adminUser.id;
     request.session.adminRole = adminUser.role;
     request.session.adminEmail = adminUser.email;
+    request.session.adminLastActivityAt = Date.now();
     delete request.session.adminMfaPending;
 
     await upsertDevice(
@@ -323,15 +324,30 @@ export async function authRoutes(fastify: FastifyInstance) {
    */
   fastify.post("/internal/auth/logout", async (request, reply) => {
     const userId = request.session.adminUserId;
+    const email = request.session.adminEmail;
 
     if (userId) {
-      request.log.info({ userId }, "Admin logout");
+      request.log.info({ userId, email }, "Admin logout");
     }
 
-    // Destroy session
+    // Fully destroy session — clear all keys and invalidate
     delete request.session.adminUserId;
     delete request.session.adminRole;
     delete request.session.adminEmail;
+    delete request.session.adminMfaPending;
+    delete request.session.adminStepUpUntil;
+    delete request.session.adminLastActivityAt;
+
+    // Attempt to destroy the underlying session store entry
+    const sessionAny = request.session as any;
+    if (typeof sessionAny.destroy === "function") {
+      await new Promise<void>((resolve) => {
+        sessionAny.destroy((err: unknown) => {
+          if (err) request.log.warn({ err }, "Session destroy failed");
+          resolve();
+        });
+      });
+    }
 
     return reply.send({
       ok: true,

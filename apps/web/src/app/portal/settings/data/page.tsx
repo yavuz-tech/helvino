@@ -97,7 +97,7 @@ export default function PortalSettingsDataPage() {
           <span>{t("settings.data.privacyInfo")}</span>
         </div>
         <Link
-          href="/privacy"
+          href="/compliance"
           style={{
             display: "inline-block",
             marginTop: 10,

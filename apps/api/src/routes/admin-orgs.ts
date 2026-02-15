@@ -9,7 +9,7 @@
 
 import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
-import { requireAdmin } from "../middleware/require-admin";
+import { requireAdmin, requireRole } from "../middleware/require-admin";
 import { requireStepUp } from "../middleware/require-step-up";
 import { writeAuditLog } from "../utils/audit-log";
 import { getMonthKey, getUsageForMonth, getPlanLimits } from "../utils/entitlements";
@@ -154,6 +154,10 @@ export async function adminOrgDirectoryRoutes(fastify: FastifyInstance) {
         trialStatus = org.trialEndsAt && new Date(org.trialEndsAt) > new Date() ? "active" : "expired";
       }
 
+      // Audit log: admin accessed sensitive org data
+      const adminEmail = (request as any).adminUser?.email || "admin";
+      writeAuditLog(org.id, adminEmail, "admin.org.detail_viewed", { orgKey }, requestId).catch(() => {});
+
       return {
         orgKey: org.key,
         displayName: org.name,
@@ -200,7 +204,7 @@ export async function adminOrgDirectoryRoutes(fastify: FastifyInstance) {
   // ─── POST /internal/orgs/:orgKey/deactivate ──────────
   fastify.post<{ Params: { orgKey: string } }>(
     "/internal/orgs/:orgKey/deactivate",
-    { preHandler: [requireAdmin, requireStepUp("admin")] },
+    { preHandler: [requireAdmin, requireRole(["owner"]), requireStepUp("admin")] },
     async (request, reply) => {
       const requestId = (request as any).requestId || request.headers["x-request-id"] as string || undefined;
       const { orgKey } = request.params;
@@ -234,7 +238,7 @@ export async function adminOrgDirectoryRoutes(fastify: FastifyInstance) {
   // ─── POST /internal/orgs/:orgKey/reactivate ──────────
   fastify.post<{ Params: { orgKey: string } }>(
     "/internal/orgs/:orgKey/reactivate",
-    { preHandler: [requireAdmin, requireStepUp("admin")] },
+    { preHandler: [requireAdmin, requireRole(["owner"]), requireStepUp("admin")] },
     async (request, reply) => {
       const requestId = (request as any).requestId || request.headers["x-request-id"] as string || undefined;
       const { orgKey } = request.params;

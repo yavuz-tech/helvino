@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
+import LoadingFallback from "@/components/LoadingFallback";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -151,7 +152,7 @@ function AcceptInviteForm() {
 
 export default function AcceptInvitePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center"><p>Loading...</p></div>}>
+    <Suspense fallback={<LoadingFallback />}>
       <AcceptInviteForm />
     </Suspense>
   );

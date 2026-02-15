@@ -99,6 +99,19 @@ export async function requirePortalUser(
     return reply.status(401).send({ error: "Invalid session" });
   }
 
+  // ── Check organization is active (admin deactivation enforcement) ──
+  const org = await prisma.organization.findUnique({
+    where: { id: orgUser.orgId },
+    select: { isActive: true },
+  });
+  if (!org || org.isActive === false) {
+    reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
+    return reply.status(403).send({
+      error: "Organization is deactivated",
+      code: "ORG_DEACTIVATED",
+    });
+  }
+
   request.portalUser = {
     id: orgUser.id,
     orgId: orgUser.orgId,

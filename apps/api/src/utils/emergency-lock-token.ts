@@ -1,9 +1,12 @@
 import crypto from "crypto";
+import { redis } from "../redis";
 
 interface EmergencyLockPayload {
   userId: string;
   exp: number;
 }
+
+const CONSUMED_PREFIX = "emg:consumed:";
 
 function getSecret(): string {
   const secret = process.env.SIGNED_LINK_SECRET || process.env.SESSION_SECRET;
@@ -54,4 +57,25 @@ export function verifyEmergencyLockToken(token: string): EmergencyLockPayload | 
   } catch {
     return null;
   }
+}
+
+/**
+ * Mark an emergency lock token as consumed (single-use enforcement).
+ * Returns `true` if this is the first consumption, `false` if already used.
+ * Uses Redis NX to ensure atomicity across instances.
+ */
+export async function markEmergencyTokenConsumed(token: string): Promise<boolean> {
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const key = `${CONSUMED_PREFIX}${tokenHash}`;
+  const TTL_SECONDS = 2 * 60 * 60; // 2h (slightly longer than token TTL for safety)
+
+  try {
+    if (redis.status === "ready") {
+      const result = await redis.set(key, "1", "EX", TTL_SECONDS, "NX");
+      return result === "OK"; // "OK" = first time, null = already consumed
+    }
+  } catch {
+    // Redis unavailable — fall through to allow usage (fail-open for emergency)
+  }
+  return true;
 }

@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import PortalInboxContent from "./PortalInboxContent";
+import LoadingFallback from "@/components/LoadingFallback";
 
 export default function PortalInboxPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#FFFBF5] flex items-center justify-center"><div className="text-[#475569]">Loading...</div></div>}>
+    <Suspense fallback={<LoadingFallback />}>
       <PortalInboxContent />
     </Suspense>
   );

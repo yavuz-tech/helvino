@@ -7,7 +7,7 @@
 
 import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
-import { requireAdmin } from "../middleware/require-admin";
+import { requireAdmin, requireRole } from "../middleware/require-admin";
 import { requireStepUp } from "../middleware/require-step-up";
 import { hashPassword } from "../utils/password";
 import crypto from "crypto";
@@ -23,6 +23,7 @@ import {
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { reconcileOrgBilling } from "../utils/billing-reconcile";
 import { writeAuditLog } from "../utils/audit-log";
+import { sendEmailAsync } from "../utils/mailer";
 import { getMonthKey, getUsageForMonth, getPlanLimits } from "../utils/entitlements";
 
 interface RetentionRunResult {
@@ -154,7 +155,7 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
    * Returns created org
    */
   fastify.post<{ Body: CreateOrgRequest }>("/internal/orgs", {
-    preHandler: [requireAdmin],
+    preHandler: [requireAdmin, requireRole(["owner"]), requireStepUp("admin")],
   }, async (request, reply) => {
     const { name, key, allowedDomains, allowLocalhost } = request.body;
 
@@ -807,6 +808,25 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
         },
       });
 
+      // Send temp password via email instead of returning in HTTP response
+      if (!password) {
+        const loginUrl = `${process.env.APP_PUBLIC_URL || process.env.NEXT_PUBLIC_WEB_URL || "https://app.helvion.io"}/portal/login`;
+        sendEmailAsync({
+          to: user.email,
+          subject: `Your Helvion account has been created — ${org.name}`,
+          html: [
+            `<h2>Welcome to Helvion</h2>`,
+            `<p>An admin has created an account for you in <strong>${org.name}</strong>.</p>`,
+            `<p><strong>Email:</strong> ${user.email}<br/>`,
+            `<strong>Temporary Password:</strong> <code>${tempPassword}</code></p>`,
+            `<p>Please <a href="${loginUrl}">login here</a> and change your password immediately.</p>`,
+            `<p style="color:#999;font-size:12px;">If you didn't expect this email, please ignore it.</p>`,
+          ].join("\n"),
+          text: `Welcome to Helvion. Your account: ${user.email} / Temp password: ${tempPassword}. Login: ${loginUrl}`,
+          tags: ["admin-create-user"],
+        });
+      }
+
       return {
         ok: true,
         user: {
@@ -816,7 +836,7 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
           orgId: org.id,
           orgKey: org.key,
         },
-        tempPassword: password ? undefined : tempPassword,
+        passwordSentViaEmail: !password,
       };
     }
   );
@@ -858,7 +878,7 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────
   fastify.post<{ Params: { key: string } }>(
     "/internal/org/:key/usage/reset",
-    { preHandler: [requireAdmin, requireStepUp("admin")] },
+    { preHandler: [requireAdmin, requireRole(["owner"]), requireStepUp("admin")] },
     async (request, reply) => {
       const { key } = request.params;
       const org = await prisma.organization.findUnique({
@@ -959,7 +979,7 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────
   fastify.post<{ Params: { key: string } }>(
     "/internal/org/:key/billing/lock",
-    { preHandler: [requireAdmin, requireStepUp("admin")] },
+    { preHandler: [requireAdmin, requireRole(["owner"]), requireStepUp("admin")] },
     async (request, reply) => {
       const { key } = request.params;
       const org = await prisma.organization.findUnique({
@@ -997,7 +1017,7 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────
   fastify.post<{ Params: { key: string } }>(
     "/internal/org/:key/billing/unlock",
-    { preHandler: [requireAdmin, requireStepUp("admin")] },
+    { preHandler: [requireAdmin, requireRole(["owner"]), requireStepUp("admin")] },
     async (request, reply) => {
       const { key } = request.params;
       const org = await prisma.organization.findUnique({
@@ -1087,7 +1107,7 @@ export async function internalAdminRoutes(fastify: FastifyInstance) {
    * - Updates lastRetentionRunAt timestamp
    */
   fastify.post("/internal/retention/run", {
-    preHandler: [requireAdmin, requireStepUp("admin")],
+    preHandler: [requireAdmin, requireRole(["owner"]), requireStepUp("admin")],
   }, async (request, reply) => {
     const startTime = Date.now();
     

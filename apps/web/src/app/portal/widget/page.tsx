@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState, useCallback } from "react";
+import LoadingFallback from "@/components/LoadingFallback";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ErrorBanner from "@/components/ErrorBanner";
@@ -536,11 +537,7 @@ function PortalWidgetContent() {
 export default function PortalWidgetPage() {
   return (
     <Suspense
-      fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-          <div className="text-slate-600">Loading...</div>
-        </div>
-      }
+      fallback={<LoadingFallback />}
     >
       <PortalWidgetContent />
     </Suspense>

@@ -43,7 +43,7 @@ export default function LandingWidgetAdminPage() {
   const [saving, setSaving] = useState(false);
 
   const [enabled, setEnabled] = useState(true);
-  const [welcomeMessage, setWelcomeMessage] = useState("Merhaba! 👋 Size nasil yardimci olabilirim?");
+  const [welcomeMessage, setWelcomeMessage] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#F59E0B");
   const [position, setPosition] = useState<Position>("br");
   const [aiAutoReply, setAiAutoReply] = useState(true);
@@ -51,9 +51,7 @@ export default function LandingWidgetAdminPage() {
   const [hoursEnabled, setHoursEnabled] = useState(false);
   const [timezone, setTimezone] = useState("Europe/Istanbul");
   const [hours, setHours] = useState<HoursRow[]>(defaultHours());
-  const [offlineMessage, setOfflineMessage] = useState(
-    "Su an cevrimdisiyiz. Mesajinizi birakin, en kisa surede donelim."
-  );
+  const [offlineMessage, setOfflineMessage] = useState("");
 
   const aiProviderOptions = useMemo(
     () => [

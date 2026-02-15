@@ -19,6 +19,13 @@ import { prisma } from "../prisma";
  * On success: Attaches adminUser to request object
  * On failure: Returns 401 Unauthorized
  */
+/**
+ * Admin idle timeout in milliseconds.
+ * Admin sessions expire after 30 minutes of inactivity (server-side enforcement).
+ * The session cookie may live longer, but this guard rejects stale admin access.
+ */
+const ADMIN_IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
 export async function requireAdmin(
   request: FastifyRequest,
   reply: FastifyReply
@@ -33,6 +40,24 @@ export async function requireAdmin(
     });
   }
 
+  // ── Admin idle timeout enforcement ──
+  const lastActivity = request.session.adminLastActivityAt;
+  const now = Date.now();
+  if (lastActivity && now - lastActivity > ADMIN_IDLE_TIMEOUT_MS) {
+    // Idle too long — force re-login
+    delete request.session.adminUserId;
+    delete request.session.adminRole;
+    delete request.session.adminEmail;
+    delete request.session.adminLastActivityAt;
+    delete request.session.adminStepUpUntil;
+    return reply.status(401).send({
+      error: "Admin session expired due to inactivity",
+      code: "ADMIN_SESSION_EXPIRED",
+    });
+  }
+  // Refresh activity timestamp
+  request.session.adminLastActivityAt = now;
+
   // Verify user still exists and is active
   const adminUser = await prisma.adminUser.findUnique({
     where: { id: userId },
@@ -43,6 +68,7 @@ export async function requireAdmin(
     delete request.session.adminUserId;
     delete request.session.adminRole;
     delete request.session.adminEmail;
+    delete request.session.adminLastActivityAt;
     return reply.status(401).send({
       error: "User no longer exists",
     });

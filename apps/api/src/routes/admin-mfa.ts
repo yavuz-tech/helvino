@@ -452,6 +452,7 @@ export async function adminMfaRoutes(fastify: FastifyInstance) {
       delete request.session.adminMfaPending;
       request.session.adminRole = user.role;
       request.session.adminEmail = user.email;
+      request.session.adminLastActivityAt = Date.now();
 
       // Upsert device record
       await upsertDevice(

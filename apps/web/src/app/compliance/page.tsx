@@ -1,12 +1,13 @@
 "use client";
 
 import { useI18n } from "@/i18n/I18nContext";
+import PublicLayout from "@/components/PublicLayout";
 
 export default function CompliancePage() {
   const { t } = useI18n();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FFFBF5]">
+    <PublicLayout>
       <div className="max-w-4xl mx-auto px-6 py-12">
         <h1 className="text-3xl font-bold text-[#1A1D23] font-heading mb-6">{t("pubCompliance.title")}</h1>
         <div className="bg-white rounded-xl border border-[#F3E8D8] p-8 space-y-6">
@@ -28,6 +29,6 @@ export default function CompliancePage() {
           </section>
         </div>
       </div>
-    </div>
+    </PublicLayout>
   );
 }
