@@ -44,7 +44,7 @@ model Organization {
   widgetRtTotalCount       Int         @default(0)
   lastWidgetSeenAt      DateTime?
   planKey               String         @default("free")
-  planStatus            String         @default("inactive") // "active" | "inactive" | "past_due" | "canceled"
+  planStatus            String         @default("active") // "active" | "inactive" | "past_due" | "canceled"
   isFoundingMember      Boolean        @default(false)
   foundingMemberAt      DateTime?
   allowedDomains        String[]       @default([])

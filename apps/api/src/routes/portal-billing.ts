@@ -175,7 +175,9 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
         },
         subscription: {
           status: org.billingStatus,
-          planStatus: org.planStatus,
+          // Free plan is always "active" — normalize for legacy records that
+          // were created with the old default of "inactive".
+          planStatus: org.planKey === "free" ? "active" : org.planStatus,
           stripeCustomerId: org.stripeCustomerId,
           stripeSubscriptionId: org.stripeSubscriptionId,
           stripePriceId: org.stripePriceId,
@@ -463,12 +465,11 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
 
       const { currency, country } = detectCurrencyFromRequest(request);
       let applyFoundingDiscount = false;
-      if (period === "yearly") {
-        const [fmCount, isAlreadyFM] = await Promise.all([
-          prisma.organization.count({ where: { isFoundingMember: true } }),
-          Promise.resolve(org.isFoundingMember === true),
-        ]);
-        if (fmCount < 200 && !isAlreadyFM) {
+      if (period === "yearly" && !org.isFoundingMember) {
+        // Soft check — actual atomic enforcement happens in the webhook handler.
+        // Use a single count query; the webhook's raw SQL UPDATE guards the hard cap.
+        const fmCount = await prisma.organization.count({ where: { isFoundingMember: true } });
+        if (fmCount < 200) {
           applyFoundingDiscount = true;
         }
       }

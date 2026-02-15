@@ -54,6 +54,10 @@ export interface TrialStatus {
 
 /**
  * Compute trial status for an organization.
+ *
+ * Trial is only active when explicitly set via `trialEndsAt` or when
+ * `billingStatus` is `"trialing"`.  Free-plan users without an explicit
+ * trial are simply on the free tier — they are NOT trialing.
  */
 export function computeTrialStatus(org: {
   trialEndsAt?: Date | string | null;
@@ -62,16 +66,25 @@ export function computeTrialStatus(org: {
   billingStatus: string;
   createdAt: Date | string;
 }): TrialStatus {
-  // If on a paid plan or has active subscription, trial is irrelevant
+  const NO_TRIAL: TrialStatus = {
+    isTrialing: false,
+    isExpired: false,
+    daysLeft: 0,
+    endsAt: null,
+    startedAt: null,
+    recommendedPlan: "pro",
+  };
+
+  // If on a paid plan with active subscription, trial is irrelevant
   if (org.planKey !== "free" && org.billingStatus === "active") {
-    return {
-      isTrialing: false,
-      isExpired: false,
-      daysLeft: 0,
-      endsAt: null,
-      startedAt: null,
-      recommendedPlan: "pro",
-    };
+    return NO_TRIAL;
+  }
+
+  // Trial only applies when explicitly started (trialEndsAt set or billingStatus is "trialing").
+  // Free-plan users without an explicit trial are NOT trialing — they are on the free tier.
+  const hasExplicitTrial = !!org.trialEndsAt || org.billingStatus === "trialing";
+  if (!hasExplicitTrial) {
+    return NO_TRIAL;
   }
 
   const now = new Date();
@@ -87,11 +100,11 @@ export function computeTrialStatus(org: {
     Math.ceil((endsAt.getTime() - now.getTime()) / 86400000)
   );
   const isExpired = now > endsAt;
-  const isTrialing = !isExpired && org.planKey === "free";
+  const isTrialing = !isExpired;
 
   return {
     isTrialing,
-    isExpired: isExpired && org.planKey === "free",
+    isExpired,
     daysLeft,
     endsAt: endsAt.toISOString(),
     startedAt: startedAt.toISOString(),

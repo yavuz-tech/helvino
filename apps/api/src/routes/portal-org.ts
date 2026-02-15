@@ -51,7 +51,7 @@ export async function portalOrgRoutes(fastify: FastifyInstance) {
           hardDeleteOnRetention: org.hardDeleteOnRetention,
           lastRetentionRunAt: org.lastRetentionRunAt?.toISOString() || null,
           planKey: org.planKey,
-          planStatus: org.planStatus,
+          planStatus: org.planKey === "free" ? "active" : org.planStatus,
         },
         usage: await getUsageForMonth(org.id),
       };

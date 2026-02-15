@@ -229,7 +229,7 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
               createdVia: "self_serve",
               isActive: true,
               planKey: "free",
-              planStatus: "inactive",
+              planStatus: "active",
               billingStatus: "none",
             },
           });
