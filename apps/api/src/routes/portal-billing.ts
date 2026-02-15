@@ -10,6 +10,7 @@ import {
   getStripeClient,
   isStripeConfigured,
   PromoCodeInvalidError,
+  InvalidPlanError,
   listInvoices,
   syncPromoCodeWithStripe,
   StripeNotConfiguredError,
@@ -417,7 +418,14 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────
   fastify.post(
     "/api/checkout",
-    { preHandler: [requirePortalUser] },
+    {
+      preHandler: [
+        requirePortalUser,
+        createRateLimitMiddleware({ limit: 10, windowMs: 60 * 1000, routeName: "billing.checkout.v2" }),
+        validateJsonContentType,
+      ],
+      config: { skipGlobalRateLimit: true },
+    },
     async (request, reply) => {
       const user = request.portalUser!;
       const body = (request.body || {}) as {
@@ -557,8 +565,15 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
       const frontendUrl =
         process.env.APP_PUBLIC_URL ||
         process.env.NEXT_PUBLIC_WEB_URL ||
-        request.headers.origin ||
+        (process.env.NODE_ENV !== "production" ? request.headers.origin : null) ||
         "http://localhost:3000";
+
+      // SECURITY: In production, do not derive redirect targets from request headers.
+      // Require an explicit frontend base URL to prevent checkout redirect manipulation.
+      if (process.env.NODE_ENV === "production" && !process.env.APP_PUBLIC_URL && !process.env.NEXT_PUBLIC_WEB_URL) {
+        reply.code(500);
+        return { error: "Internal server configuration error", code: "CONFIG_ERROR" };
+      }
 
       let selectedDiscountCouponId: string | null = null;
       if (applyFoundingDiscount) {
@@ -654,7 +669,15 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────
   fastify.post(
     "/portal/billing/checkout",
-    { preHandler: [requirePortalUser, requireStepUp("portal"), validateJsonContentType] },
+    {
+      preHandler: [
+        requirePortalUser,
+        requireStepUp("portal"),
+        createRateLimitMiddleware({ limit: 10, windowMs: 60 * 1000, routeName: "billing.checkout" }),
+        validateJsonContentType,
+      ],
+      config: { skipGlobalRateLimit: true },
+    },
     async (request, reply) => {
       const user = request.portalUser!;
       const body = request.body as {
@@ -685,6 +708,10 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
         });
         return { url: checkout.url };
       } catch (err) {
+        if (err instanceof InvalidPlanError) {
+          reply.code(400);
+          return { error: err.message, code: err.code };
+        }
         if (err instanceof PromoCodeInvalidError) {
           reply.code(400);
           return { error: err.message, code: err.code };

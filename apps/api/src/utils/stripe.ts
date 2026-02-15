@@ -15,6 +15,13 @@ export class PromoCodeInvalidError extends Error {
   }
 }
 
+export class InvalidPlanError extends Error {
+  code = "INVALID_PLAN";
+  constructor(message = "Invalid plan") {
+    super(message);
+  }
+}
+
 export interface CheckoutSessionResult {
   url: string;
   sessionId: string;
@@ -301,8 +308,15 @@ async function resolveCheckoutEmail(orgId: string, explicitEmail?: string): Prom
   return (firstOrgUser?.email || "unknown@unknown.local").toLowerCase();
 }
 
+function normalizePaidPlanKey(input: unknown): "starter" | "pro" | "business" | null {
+  const raw = typeof input === "string" ? input.trim().toLowerCase() : "";
+  if (raw === "starter" || raw === "pro" || raw === "business") return raw;
+  return null;
+}
+
 function normalizePlanType(planKey: string): string {
   const key = planKey.toLowerCase();
+  if (key === "starter") return "STARTER";
   if (key === "pro") return "PRO";
   if (key === "business" || key === "enterprise") return "ENTERPRISE";
   return "STARTER";
@@ -320,19 +334,16 @@ async function resolvePriceId(planKey: string): Promise<string> {
     if (monthlyUsd) return monthlyUsd;
   }
 
-  // Env fallbacks
+  // Env fallbacks (plan-specific; never fall back to a cheaper plan)
   const envMap: Record<string, string | undefined> = {
-    pro: process.env.STRIPE_PRICE_PRO || process.env.STRIPE_PRICE_ID_STARTER,
-    business: process.env.STRIPE_PRICE_BUSINESS,
+    starter: process.env.STRIPE_PRICE_ID_STARTER || process.env.STRIPE_PRICE_STARTER_MONTHLY_USD,
+    pro: process.env.STRIPE_PRICE_PRO || process.env.STRIPE_PRICE_PRO_MONTHLY_USD,
+    business: process.env.STRIPE_PRICE_BUSINESS || process.env.STRIPE_PRICE_BUSINESS_MONTHLY_USD,
   };
 
-  const envPrice = envMap[planKey];
+  const normalized = planKey.toLowerCase();
+  const envPrice = envMap[normalized];
   if (envPrice) return envPrice;
-
-  // Last resort: generic starter price
-  if (process.env.STRIPE_PRICE_ID_STARTER) {
-    return process.env.STRIPE_PRICE_ID_STARTER;
-  }
 
   throw new StripeNotConfiguredError();
 }
@@ -400,7 +411,16 @@ export async function createCheckoutSession(
     throw new StripeNotConfiguredError();
   }
 
-  const targetPlan = planKey || "pro";
+  const targetPlan = normalizePaidPlanKey(planKey) || "pro";
+  if (planKey !== undefined && normalizePaidPlanKey(planKey) === null) {
+    // SECURITY: never accept arbitrary/unknown plan keys from clients.
+    throw new InvalidPlanError("Invalid plan key");
+  }
+  const planRow = await prisma.plan.findUnique({ where: { key: targetPlan }, select: { key: true } });
+  if (!planRow) {
+    // SECURITY: do not allow unknown plan keys to silently fall back and later become "unlimited".
+    throw new InvalidPlanError("Invalid plan key");
+  }
   const priceId = await resolvePriceId(targetPlan);
 
   const { stripe, org, customerId } = await ensureStripeCustomer(orgId);
@@ -426,6 +446,7 @@ export async function createCheckoutSession(
       orgId: org.id,
       orgKey: org.key,
       planKey: targetPlan,
+      stripePriceId: priceId,
       promoCode: resolvedPromoCode || "",
     },
     subscription_data: {
@@ -433,6 +454,7 @@ export async function createCheckoutSession(
         orgId: org.id,
         orgKey: org.key,
         planKey: targetPlan,
+        stripePriceId: priceId,
         promoCode: resolvedPromoCode || "",
       },
     },

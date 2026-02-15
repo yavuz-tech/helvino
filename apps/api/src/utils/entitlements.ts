@@ -1,4 +1,5 @@
 import { prisma } from "../prisma";
+import { isBillingWriteBlocked } from "./billing-enforcement";
 
 export type PlanStatus = "active" | "inactive" | "past_due" | "canceled";
 
@@ -189,6 +190,8 @@ async function getOrgAndPlan(orgId: string) {
       planStatus: true,
       billingStatus: true,
       billingEnforced: true,
+      billingGraceDays: true,
+      lastStripeEventAt: true,
       extraConversationQuota: true,
       extraMessageQuota: true,
       currentPeriodEnd: true,
@@ -197,9 +200,11 @@ async function getOrgAndPlan(orgId: string) {
 
   if (!org) return null;
 
-  const plan = await prisma.plan.findUnique({
-    where: { key: org.planKey },
-  });
+  // SECURITY: Never treat "unknown planKey" as unlimited access.
+  // If plan lookup fails, fall back to free plan limits (fail closed).
+  const plan =
+    (await prisma.plan.findUnique({ where: { key: org.planKey } })) ||
+    (await prisma.plan.findUnique({ where: { key: "free" } }));
 
   return { org, plan };
 }
@@ -212,18 +217,19 @@ function isSubscriptionActive(org: {
   planKey: string;
   planStatus: string;
   billingStatus: string;
+  billingEnforced: boolean;
+  billingGraceDays: number;
+  currentPeriodEnd: Date | string | null;
+  lastStripeEventAt: Date | string | null;
 }): boolean {
   // Free plan is always active
   if (org.planKey === "free") return true;
 
-  // Check billingStatus first (authoritative from Stripe)
-  const activeStatuses = new Set(["active", "trialing", "none"]);
-  if (activeStatuses.has(org.billingStatus)) return true;
+  // If billing isn't enforced (admin/manual org), don't block on Stripe status.
+  if (!org.billingEnforced) return true;
 
-  // Fallback: check planStatus
-  if (org.planStatus === "active") return true;
-
-  return false;
+  // Stripe-driven enforcement: allow if not currently write-blocked (active/trialing or within grace).
+  return !isBillingWriteBlocked(org);
 }
 
 export async function checkConversationEntitlement(
@@ -237,7 +243,9 @@ export async function checkConversationEntitlement(
 
   const result = await getOrgAndPlan(orgId);
   if (!result || !result.plan) {
-    return { allowed: true };
+    // If we can't resolve a plan row, fall back to allowing reads but block writes would be safer;
+    // callers use this for write paths. Prefer a safe block.
+    return { allowed: false, error: "Plan configuration error. Please contact support.", code: "SUBSCRIPTION_INACTIVE" };
   }
 
   const { org, plan } = result;
@@ -324,7 +332,7 @@ export async function checkMessageEntitlement(
 
   const result = await getOrgAndPlan(orgId);
   if (!result || !result.plan) {
-    return { allowed: true };
+    return { allowed: false, error: "Plan configuration error. Please contact support.", code: "SUBSCRIPTION_INACTIVE" };
   }
 
   const { org, plan } = result;

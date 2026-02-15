@@ -3,6 +3,8 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../prisma";
 import { requirePortalUser } from "../middleware/require-portal-user";
 import { requireAdmin } from "../middleware/require-admin";
+import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { validateJsonContentType } from "../middleware/validation";
 import {
   extractPromoPercentFromCode,
   isStripeConfigured,
@@ -259,7 +261,17 @@ export async function promoCodesRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post("/validate", { preHandler: [requirePortalUser] }, async (request) => {
+  fastify.post(
+    "/validate",
+    {
+      preHandler: [
+        requirePortalUser,
+        createRateLimitMiddleware({ limit: 30, windowMs: 60 * 1000, routeName: "promo.validate" }),
+        validateJsonContentType,
+      ],
+      config: { skipGlobalRateLimit: true },
+    },
+    async (request) => {
     const user = request.portalUser!;
     const settings = await prisma.organizationSettings.upsert({
       where: { organizationId: user.orgId },
@@ -324,7 +336,8 @@ export async function promoCodesRoutes(fastify: FastifyInstance) {
       currentUses: promo.currentUses,
       maxUses: promo.maxUses,
     };
-  });
+    }
+  );
 
   fastify.get<{ Params: { code: string } }>("/:code", { preHandler: [requireAdmin] }, async (request, reply) => {
     const org = await resolveAdminOrg(request, reply);
