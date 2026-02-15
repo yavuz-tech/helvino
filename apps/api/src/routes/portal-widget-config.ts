@@ -15,7 +15,9 @@ import { requireAdmin } from "../middleware/require-admin";
 import { writeAuditLog } from "../utils/audit-log";
 import { genericRateLimit } from "../utils/rate-limit";
 
-const EMBED_CDN = process.env.EMBED_CDN_URL || "https://cdn.helvion.io";
+// Embed script is served from the API itself at /embed.js (see routes/embed.ts).
+// EMBED_CDN_URL can optionally point to an external CDN if one is provisioned later.
+const EMBED_CDN = process.env.EMBED_CDN_URL || process.env.API_PUBLIC_URL || "https://api.helvion.io";
 
 // ── Domain validation ──────────────────────────────────
 

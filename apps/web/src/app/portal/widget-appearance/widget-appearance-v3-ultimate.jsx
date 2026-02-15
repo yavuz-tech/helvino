@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useI18n } from "@/i18n/I18nContext";
 
 /* ═══════════════════════════════════════════════════════════════
    HELVION.IO — Widget Görünüm Ayarları v2 — ULTIMATE
@@ -167,17 +168,18 @@ function MiniWidget({ color, dark, gradient }) {
   );
 }
 
-function ProUpgradeModal({ show, onClose, feature }) {
+function ProUpgradeModal({ show, onClose, feature, t }) {
   if (!show) return null;
+  const _t = t || ((k) => k);
   return (
     <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.5)",backdropFilter:"blur(4px)"}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:"#FFF",borderRadius:20,padding:"32px 28px",maxWidth:400,width:"90%",textAlign:"center",animation:"fadeUp 0.3s ease both",boxShadow:"0 24px 64px rgba(0,0,0,0.15)"}}>
         <div style={{width:56,height:56,borderRadius:16,background:"linear-gradient(135deg,#8B5CF6,#7C3AED)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",fontSize:24}}>👑</div>
-        <h3 style={{fontFamily:"'Satoshi',sans-serif",fontSize:20,fontWeight:800,color:"#1A1D23",margin:"0 0 8px"}}>PRO Özellik</h3>
-        <p style={{fontFamily:"'Manrope',sans-serif",fontSize:13,color:"#64748B",lineHeight:1.6,margin:"0 0 20px"}}><strong>{feature}</strong> özelliğini kullanmak için PRO plana yükseltmeniz gerekiyor.</p>
+        <h3 style={{fontFamily:"'Satoshi',sans-serif",fontSize:20,fontWeight:800,color:"#1A1D23",margin:"0 0 8px"}}>{_t("wA.modal.proFeature")}</h3>
+        <p style={{fontFamily:"'Manrope',sans-serif",fontSize:13,color:"#64748B",lineHeight:1.6,margin:"0 0 20px"}}><strong>{feature}</strong> {_t("wA.modal.upgradeMsg")}</p>
         <div style={{display:"flex",gap:8}}>
-          <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:10,border:"1px solid #E2E8F0",background:"#FFF",fontFamily:"'Manrope',sans-serif",fontSize:13,fontWeight:600,color:"#64748B",cursor:"pointer"}}>Vazgeç</button>
-          <button onClick={()=>{ window.location.href="/portal/pricing"; }} style={{flex:1,padding:"11px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#8B5CF6,#7C3AED)",fontFamily:"'Satoshi',sans-serif",fontSize:13,fontWeight:700,color:"#FFF",cursor:"pointer",boxShadow:"0 4px 12px rgba(139,92,246,0.3)"}}>PRO'ya Yükselt</button>
+          <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:10,border:"1px solid #E2E8F0",background:"#FFF",fontFamily:"'Manrope',sans-serif",fontSize:13,fontWeight:600,color:"#64748B",cursor:"pointer"}}>{_t("wA.modal.cancel")}</button>
+          <button onClick={()=>{ window.location.href="/portal/pricing"; }} style={{flex:1,padding:"11px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#8B5CF6,#7C3AED)",fontFamily:"'Satoshi',sans-serif",fontSize:13,fontWeight:700,color:"#FFF",cursor:"pointer",boxShadow:"0 4px 12px rgba(139,92,246,0.3)"}}>{_t("wA.modal.upgrade")}</button>
         </div>
       </div>
     </div>
@@ -201,6 +203,18 @@ function ChatBubble({ isAgent, text, color, dark, avatar }) {
 
 // ════ MAIN ════
 export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, loading: externalLoading = false, initialSettings, settingsVersion = 0, orgKey = "" }) {
+  const { t: _t } = useI18n();
+
+  // ── Translated display names for constant arrays ──
+  const themeName = useMemo(() => ({ amber:"Amber", ocean:_t("wA.theme.ocean"), emerald:_t("wA.theme.emerald"), violet:_t("wA.theme.violet"), rose:_t("wA.theme.rose"), slate:_t("wA.theme.slate"), teal:_t("wA.theme.teal"), indigo:_t("wA.theme.indigo"), sunset:_t("wA.theme.sunset"), aurora:"Aurora", midnight:_t("wA.theme.midnight"), cherry:_t("wA.theme.cherry") }), [_t]);
+  const launcherName = useMemo(() => ({ rounded:_t("wA.launcher.rounded"), squircle:_t("wA.launcher.squircle"), pill:_t("wA.launcher.pill"), bar:_t("wA.launcher.bar") }), [_t]);
+  const posLabel = useMemo(() => ({ br:_t("wA.pos.br"), bl:_t("wA.pos.bl") }), [_t]);
+  const pvLabel = useMemo(() => ({ launcher:_t("wA.pv.launcher"), home:_t("wA.pv.home"), chat:_t("wA.pv.chat"), prechat:_t("wA.pv.prechat"), offline:_t("wA.pv.offline") }), [_t]);
+  const sizeLabel = useMemo(() => ({ compact:_t("wA.size.compact"), standard:_t("wA.size.standard"), large:_t("wA.size.large") }), [_t]);
+  const bgName = useMemo(() => ({ none:_t("wA.bg.none"), dots:_t("wA.bg.dots"), lines:_t("wA.bg.lines"), grid:_t("wA.bg.grid"), waves:_t("wA.bg.waves"), diamonds:_t("wA.bg.diamonds"), circles:_t("wA.bg.circles"), confetti:_t("wA.bg.confetti") }), [_t]);
+  const attLabel = useMemo(() => ({ none:_t("wA.att.none"), wave:_t("wA.att.wave"), message:_t("wA.att.message"), bounce:_t("wA.att.bounce"), pulse:_t("wA.att.pulse") }), [_t]);
+  const daysLabel = useMemo(() => [_t("wA.day.mon"),_t("wA.day.tue"),_t("wA.day.wed"),_t("wA.day.thu"),_t("wA.day.fri"),_t("wA.day.sat"),_t("wA.day.sun")], [_t]);
+
   const [theme, setTheme] = useState(THEMES[0]);
   const [customColor, setCustomColor] = useState("#F59E0B");
   const [useCustom, setUseCustom] = useState(false);
@@ -274,21 +288,21 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
   const [aiSuggestions, setAiSuggestions] = useState(true);
 
   const AI_TONES = [
-    { id: "friendly", label: "Samimi", emoji: "😊", desc: "Sıcak, emoji kullanan, rahat ton" },
-    { id: "professional", label: "Profesyonel", emoji: "👔", desc: "Resmi, kurumsal iletişim" },
-    { id: "neutral", label: "Nötr", emoji: "⚖️", desc: "Dengeli, ne resmi ne rahat" },
-    { id: "humorous", label: "Eğlenceli", emoji: "😄", desc: "Hafif mizahi, enerjik" },
+    { id: "friendly", label: _t("wA.aiTone.friendly"), emoji: "😊", desc: _t("wA.aiTone.friendlyDesc") },
+    { id: "professional", label: _t("wA.aiTone.professional"), emoji: "👔", desc: _t("wA.aiTone.professionalDesc") },
+    { id: "neutral", label: _t("wA.aiTone.neutral"), emoji: "⚖️", desc: _t("wA.aiTone.neutralDesc") },
+    { id: "humorous", label: _t("wA.aiTone.humorous"), emoji: "😄", desc: _t("wA.aiTone.humorousDesc") },
   ];
   const AI_LENGTHS = [
-    { id: "concise", label: "Kısa", desc: "Öz ve net yanıtlar" },
-    { id: "standard", label: "Standart", desc: "Dengeli detay" },
-    { id: "thorough", label: "Detaylı", desc: "Kapsamlı açıklamalar" },
+    { id: "concise", label: _t("wA.aiLen.concise"), desc: _t("wA.aiLen.conciseDesc") },
+    { id: "standard", label: _t("wA.aiLen.standard"), desc: _t("wA.aiLen.standardDesc") },
+    { id: "thorough", label: _t("wA.aiLen.thorough"), desc: _t("wA.aiLen.thoroughDesc") },
   ];
   const AI_MODELS = [
-    { id: "auto", label: "Otomatik", desc: "En uygun modeli seç" },
-    { id: "fast", label: "Hızlı", desc: "Düşük gecikme, basit sorular" },
-    { id: "balanced", label: "Dengeli", desc: "Hız-kalite dengesi" },
-    { id: "quality", label: "Kaliteli", desc: "En yüksek doğruluk" },
+    { id: "auto", label: _t("wA.aiModel.auto"), desc: _t("wA.aiModel.autoDesc") },
+    { id: "fast", label: _t("wA.aiModel.fast"), desc: _t("wA.aiModel.fastDesc") },
+    { id: "balanced", label: _t("wA.aiModel.balanced"), desc: _t("wA.aiModel.balancedDesc") },
+    { id: "quality", label: _t("wA.aiModel.quality"), desc: _t("wA.aiModel.qualityDesc") },
   ];
 
   // Embed code
@@ -515,7 +529,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
         err && typeof err === "object" && "message" in err && typeof err.message === "string"
           ? err.message
           : null;
-      showToast(msg || "⚠️ Kaydetme başarısız oldu. Lütfen tekrar deneyin.");
+      showToast(msg || _t("wA.error.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -525,8 +539,8 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
   const handleLogoUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2*1024*1024) { showToast("⚠️ Dosya 2MB'den küçük olmalı"); return; }
-    if (!['image/png','image/jpeg','image/svg+xml','image/webp'].includes(file.type)) { showToast("⚠️ PNG, JPG, SVG veya WebP formatı gerekli"); return; }
+    if (file.size > 2*1024*1024) { showToast(_t("wA.error.fileTooLarge")); return; }
+    if (!['image/png','image/jpeg','image/svg+xml','image/webp'].includes(file.type)) { showToast(_t("wA.error.invalidFormat")); return; }
     setLogoFile(file);
     const reader = new FileReader();
     reader.onload = (ev) => setLogoPreview(ev.target.result);
@@ -536,8 +550,8 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
   const removeLogo = () => { setLogoFile(null); setLogoPreview(null); if(logoRef.current) logoRef.current.value=""; markChanged(); };
   const handleAgentImageUpload = (e) => {
     const file = e.target.files?.[0]; if(!file) return;
-    if(file.size>2*1024*1024){showToast("⚠️ Dosya 2MB'den küçük olmalı");return;}
-    if(!['image/png','image/jpeg','image/webp'].includes(file.type)){showToast("⚠️ PNG, JPG veya WebP formatı gerekli");return;}
+    if(file.size>2*1024*1024){showToast(_t("wA.error.fileTooLarge"));return;}
+    if(!['image/png','image/jpeg','image/webp'].includes(file.type)){showToast(_t("wA.error.invalidFormatAgent"));return;}
     setAgentImage(file);
     const reader = new FileReader();
     reader.onload = (ev) => {setAgentImagePreview(ev.target.result);setAgentAvatar(null);};
@@ -556,7 +570,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
   // Copy handlers
   const orgKeyDisplay = orgKey || "YOUR_ORG_KEY";
-  const embedCode = `<script src="https://cdn.helvion.io/widget.js" data-org="${orgKeyDisplay}" async><\/script>`;
+  const embedCode = `<script src="https://api.helvion.io/embed.js" data-org="${orgKeyDisplay}" async><\/script>`;
   const directChatLink = `https://helvion.io/chat/${orgKeyDisplay}`;
   const copyEmbed = () => { navigator.clipboard?.writeText(embedCode).then(()=>{setEmbedCopied(true);setTimeout(()=>setEmbedCopied(false),2000);}); };
   const copyLink = () => { navigator.clipboard?.writeText(directChatLink).then(()=>{setLinkCopied(true);setTimeout(()=>setLinkCopied(false),2000);}); };
@@ -617,8 +631,8 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
         <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
         <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
         <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid #F3E8D8", borderTopColor: "#F59E0B", animation: "spin 0.8s linear infinite" }} />
-        <div style={{ fontFamily: "'Satoshi',sans-serif", fontSize: 14, fontWeight: 700, color: "#92400E" }}>Widget ayarları yükleniyor...</div>
-        <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: "#94A3B8" }}>Lütfen bekleyin</div>
+        <div style={{ fontFamily: "'Satoshi',sans-serif", fontSize: 14, fontWeight: 700, color: "#92400E" }}>{t("wA.loading")}</div>
+        <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11, color: "#94A3B8" }}>{t("wA.pleaseWait")}</div>
       </div>
     );
   }
@@ -649,7 +663,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
         ::-webkit-scrollbar-thumb:hover{background:#CBD5E1}
       `}</style>
 
-      <ProUpgradeModal show={proModal.show} onClose={()=>setProModal({show:false,feature:""})} feature={proModal.feature} />
+      <ProUpgradeModal show={proModal.show} onClose={()=>setProModal({show:false,feature:""})} feature={proModal.feature} t={t} />
 
       {/* Toast Notification */}
       {toast && (
@@ -665,28 +679,28 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
       }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-            <span style={{ fontSize: 11, color: "#94A3B8" }}>Ayarlar</span>
+            <span style={{ fontSize: 11, color: "#94A3B8" }}>{t("wA.breadcrumb.settings")}</span>
             <span style={{ color: "#CBD5E1", fontSize: 10 }}>/</span>
-            <span style={{ fontSize: 11, color: ac, fontWeight: 600 }}>Widget Görünümü</span>
+            <span style={{ fontSize: 11, color: ac, fontWeight: 600 }}>{t("wA.title")}</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <h1 style={{ fontFamily: s.fontH, fontSize: 22, fontWeight: 800, color: "#1A1D23", margin: 0 }}>Widget Görünümü</h1>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: "linear-gradient(135deg,#FEF3C7,#FDE68A)", color: "#92400E" }}>13 bölüm</span>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: "linear-gradient(135deg,#EDE9FE,#DDD6FE)", color: "#7C3AED" }}>65+ ayar</span>
+            <h1 style={{ fontFamily: s.fontH, fontSize: 22, fontWeight: 800, color: "#1A1D23", margin: 0 }}>{t("wA.title")}</h1>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: "linear-gradient(135deg,#FEF3C7,#FDE68A)", color: "#92400E" }}>{t("wA.sectionsCount")}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 7, background: "linear-gradient(135deg,#EDE9FE,#DDD6FE)", color: "#7C3AED" }}>{t("wA.settingsCount")}</span>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {hasChanges && (
             <div style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600, display: "flex", alignItems: "center", gap: 5, animation: "fadeUp 0.3s ease both" }}>
               <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#F59E0B", animation: "pulse 1.5s infinite" }} />
-              Kaydedilmemiş
+              {t("wA.unsaved")}
             </div>
           )}
           <button onClick={() => setShowEmbed(!showEmbed)} style={{
             padding: "8px 14px", borderRadius: 9, border: "1px solid #E2E8F0",
             background: showEmbed ? al : "#FFF", fontFamily: s.font, fontSize: 12, fontWeight: 600,
             color: showEmbed ? ac : "#64748B", cursor: "pointer", transition: "all 0.2s",
-          }}>{"</>"} Embed Kodu</button>
+          }}>{"</>"} {t("wA.embedCode")}</button>
           <button onClick={handleSave} disabled={saving} style={{
             fontFamily: s.fontH, fontSize: 13, fontWeight: 700,
             padding: "9px 20px", borderRadius: 10, border: "none",
@@ -695,9 +709,9 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
             boxShadow: saved ? "0 4px 14px rgba(16,185,129,0.3)" : "0 4px 14px rgba(245,158,11,0.3)",
             transition: "all 0.4s", display: "flex", alignItems: "center", gap: 6, minWidth: 145,
           }}>
-            {saving ? (<><div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #FFF", borderRadius: "50%", animation: "pulse 0.8s linear infinite" }}/> Kaydediliyor...</>)
-            : saved ? (<><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" style={{animation:"saveCheck 0.4s ease both"}}><polyline points="20 6 9 17 4 12"/></svg> Kaydedildi!</>)
-            : (<>✓ Kaydet</>)}
+            {saving ? (<><div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #FFF", borderRadius: "50%", animation: "pulse 0.8s linear infinite" }}/> {_t("wA.saving")}</>)
+            : saved ? (<><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" style={{animation:"saveCheck 0.4s ease both"}}><polyline points="20 6 9 17 4 12"/></svg> {_t("wA.saved")}</>)
+            : (<>✓ {_t("wA.save")}</>)}
           </button>
         </div>
       </div>
@@ -711,7 +725,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
           </code>
           <button onClick={copyEmbed}
             style={{ padding: "6px 14px", borderRadius: 7, border: "1px solid #334155", background: embedCopied ? "#10B981" : "#334155", color: "#FFF", fontFamily: s.font, fontSize: 11, fontWeight: 600, cursor: "pointer", transition: "all 0.3s" }}>
-            {embedCopied ? "✓ Kopyalandı" : "📋 Kopyala"}
+            {embedCopied ? _t("wA.copied") : _t("wA.copy")}
           </button>
         </div>
       )}
@@ -725,7 +739,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* 1. TEMA */}
             <div style={{ background: s.card, borderRadius: 14, overflow: "hidden", border: s.border }}>
-              <SectionHeader icon="🎨" title="Tema Şablonları" count={THEMES.length + 1} isOpen={openSection===0} onToggle={()=>tog(0)} />
+              <SectionHeader icon="🎨" title={_t("wA.sec.themes")} count={THEMES.length + 1} isOpen={openSection===0} onToggle={()=>tog(0)} />
               {openSection===0 && (
                 <div style={{ padding: 18, animation: "fadeUp 0.3s ease both" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6, marginBottom: 14 }}>
@@ -770,7 +784,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* 2. İÇERİK */}
             <div style={{ background: s.card, borderRadius: 14, overflow: "hidden", border: s.border }}>
-              <SectionHeader icon="✏️" title="İçerik & Metinler" count={5} isOpen={openSection===1} onToggle={()=>tog(1)} />
+              <SectionHeader icon="✏️" title={_t("wA.sec.content")} count={5} isOpen={openSection===1} onToggle={()=>tog(1)} />
               {openSection===1 && (
                 <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12, animation: "fadeUp 0.3s ease both" }}>
                   {[
@@ -797,7 +811,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* 3. CONVERSATION STARTERS 🔥 */}
             <div style={{ background: s.card, borderRadius: 14, overflow: "hidden", border: s.border }}>
-              <SectionHeader icon="🚀" title="Konuşma Başlatıcılar" count={starters.length} isOpen={openSection===2} onToggle={()=>tog(2)} isNew />
+              <SectionHeader icon="🚀" title={_t("wA.sec.starters")} count={starters.length} isOpen={openSection===2} onToggle={()=>tog(2)} isNew />
               {openSection===2 && (
                 <div style={{ padding: 18, animation: "fadeUp 0.3s ease both" }}>
                   <p style={{ fontSize: 11, color: "#64748B", marginTop: 0, marginBottom: 12, lineHeight: 1.5 }}>
@@ -836,7 +850,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* 4. BAŞLATICI STİLİ */}
             <div style={{ background: s.card, borderRadius: 14, overflow: "hidden", border: s.border }}>
-              <SectionHeader icon="💬" title="Başlatıcı Stili" count={4} isOpen={openSection===3} onToggle={()=>tog(3)} />
+              <SectionHeader icon="💬" title={_t("wA.sec.launcherStyle")} count={4} isOpen={openSection===3} onToggle={()=>tog(3)} />
               {openSection===3 && (
                 <div style={{ padding: 18, animation: "fadeUp 0.3s ease both" }}>
                   <label style={{...s.label, marginBottom: 8}}>Şekil</label>
@@ -884,7 +898,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* 5. AI PERSONA & DAVRANIŞ */}
             <div style={{ background: s.card, borderRadius: 14, overflow: "hidden", border: `1px solid rgba(${acRgb},0.08)`, boxShadow: `0 0 0 1px rgba(${acRgb},0.03), 0 4px 16px rgba(${acRgb},0.024)` }}>
-              <SectionHeader icon="🤖" title="AI Asistan Ayarları" count={8} badge="AI" isOpen={openSection===12} onToggle={()=>tog(12)} isNew />
+              <SectionHeader icon="🤖" title={_t("wA.sec.ai")} count={8} badge="AI" isOpen={openSection===12} onToggle={()=>tog(12)} isNew />
               {openSection===12 && (
                 <div style={{ padding: 18, animation: "fadeUp 0.3s ease both" }}>
                   {/* AI Identity Card */}
@@ -956,7 +970,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* 6. ATTENTION GRABBER 🔥 */}
             <div style={{ background: s.card, borderRadius: 14, overflow: "hidden", border: s.border }}>
-              <SectionHeader icon="👋" title="Dikkat Çekici (Attention Grabber)" count={3} isOpen={openSection===4} onToggle={()=>tog(4)} isNew />
+              <SectionHeader icon="👋" title={_t("wA.sec.attGrabber")} count={3} isOpen={openSection===4} onToggle={()=>tog(4)} isNew />
               {openSection===4 && (
                 <div style={{ padding: 18, animation: "fadeUp 0.3s ease both" }}>
                   <p style={{ fontSize: 11, color: "#64748B", marginTop: 0, marginBottom: 12, lineHeight: 1.5 }}>
@@ -996,7 +1010,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* 7. AVATAR & LOGO */}
             <div style={{ background: s.card, borderRadius: 14, overflow: "hidden", border: s.border }}>
-              <SectionHeader icon="🖼️" title="Avatar & Logo" count={3} isOpen={openSection===5} onToggle={()=>tog(5)} />
+              <SectionHeader icon="🖼️" title={_t("wA.sec.avatar")} count={3} isOpen={openSection===5} onToggle={()=>tog(5)} />
               {openSection===5 && (
                 <div style={{ padding: 18, animation: "fadeUp 0.3s ease both" }}>
                   {/* Bot Avatar */}
@@ -1066,7 +1080,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* 8. BOYUT & ARKA PLAN */}
             <div style={{ background: s.card, borderRadius: 14, overflow: "hidden", border: s.border }}>
-              <SectionHeader icon="📐" title="Boyut & Arka Plan" count={SIZES.length + BACKGROUNDS.length} isOpen={openSection===6} onToggle={()=>tog(6)} />
+              <SectionHeader icon="📐" title={_t("wA.sec.sizeBackground")} count={SIZES.length + BACKGROUNDS.length} isOpen={openSection===6} onToggle={()=>tog(6)} />
               {openSection===6 && (
                 <div style={{ padding: 18, animation: "fadeUp 0.3s ease both" }}>
                   <label style={{...s.label,marginBottom:8}}>Widget Boyutu</label>
@@ -1101,7 +1115,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* 9. ÖN FORM */}
             <div style={{ background: s.card, borderRadius: 14, overflow: "hidden", border: s.border }}>
-              <SectionHeader icon="📋" title="Ön Form (Pre-Chat)" count={4} badge={!isPro ? "PRO" : undefined} isOpen={openSection===7} onToggle={()=>tog(7)} />
+              <SectionHeader icon="📋" title={_t("wA.sec.prechat")} count={4} badge={!isPro ? "PRO" : undefined} isOpen={openSection===7} onToggle={()=>tog(7)} />
               {openSection===7 && (
                 <div style={{ padding: 18, animation: "fadeUp 0.3s ease both" }}>
                   <Toggle checked={preChatEnabled} onChange={v=>{if(!isPro){showUpgrade("Ön Form (Pre-Chat)");return;}setPreChatEnabled(v);markChanged();}} label="Ön Form Aktif" desc="Sohbet başlamadan ad ve email iste" pro={!isPro} />
@@ -1122,7 +1136,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* 10. ÇALIŞMA SAATLERİ 🔥 */}
             <div style={{ background: s.card, borderRadius: 14, overflow: "hidden", border: s.border }}>
-              <SectionHeader icon="🕐" title="Çalışma Saatleri" count={7} isOpen={openSection===8} onToggle={()=>tog(8)} isNew />
+              <SectionHeader icon="🕐" title={_t("wA.sec.hours")} count={7} isOpen={openSection===8} onToggle={()=>tog(8)} isNew />
               {openSection===8 && (
                 <div style={{ padding: 18, animation: "fadeUp 0.3s ease both" }}>
                   <Toggle checked={hoursEnabled} onChange={v=>{setHoursEnabled(v);markChanged();}} label="Zamanlayıcı Aktif" desc="Widget otomatik olarak çevrimiçi/çevrimdışı olsun" />
@@ -1166,7 +1180,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* 11. GENEL AYARLAR */}
             <div style={{ background: s.card, borderRadius: 14, overflow: "hidden", border: s.border }}>
-              <SectionHeader icon="⚙️" title="Genel Ayarlar" count={14} isOpen={openSection===9} onToggle={()=>tog(9)} />
+              <SectionHeader icon="⚙️" title={_t("wA.sec.general")} count={14} isOpen={openSection===9} onToggle={()=>tog(9)} />
               {openSection===9 && (
                 <div style={{ padding: "6px 18px 18px", animation: "fadeUp 0.3s ease both" }}>
                   <Toggle checked={showOnMobile} onChange={v=>{setShowOnMobile(v);markChanged();}} label="Mobilde Göster" desc="Widget'ı mobil cihazlarda göster" />
@@ -1188,7 +1202,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* 12. PRO ÖZELLİKLER */}
             <div style={{ background: s.card, borderRadius: 14, overflow: "hidden", border: "1px solid rgba(139,92,246,0.1)", boxShadow: "0 0 0 1px rgba(139,92,246,0.06)" }}>
-              <SectionHeader icon="👑" title="PRO Özellikler" count={6} badge={!isPro ? "PRO" : undefined} isOpen={openSection===10} onToggle={()=>tog(10)} />
+              <SectionHeader icon="👑" title={_t("wA.sec.pro")} count={6} badge={!isPro ? "PRO" : undefined} isOpen={openSection===10} onToggle={()=>tog(10)} />
               {openSection===10 && (
                 <div style={{ padding: "6px 18px 18px", animation: "fadeUp 0.3s ease both" }}>
                   <Toggle checked={csat} onChange={v=>{if(!isPro){showUpgrade("CSAT Anketi");return;}setCsat(v);markChanged();}} label="Memnuniyet Anketi (CSAT)" desc="Sohbet sonunda ⭐ puan iste" pro={!isPro} />
@@ -1225,7 +1239,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* 13. SAYFA KURALLARI & LİNK */}
             <div style={{ background: s.card, borderRadius: 14, overflow: "hidden", border: s.border }}>
-              <SectionHeader icon="🔗" title="Sayfa Kuralları & Direkt Link" count={pageRules.length+1} badge={!isPro ? "PRO" : undefined} isOpen={openSection===11} onToggle={()=>tog(11)} isNew />
+              <SectionHeader icon="🔗" title={_t("wA.sec.pageRules")} count={pageRules.length+1} badge={!isPro ? "PRO" : undefined} isOpen={openSection===11} onToggle={()=>tog(11)} isNew />
               {openSection===11 && (
                 <div style={{ padding: 18, animation: "fadeUp 0.3s ease both" }}>
                   <label style={{ fontFamily: s.font, fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>📄 Sayfa Bazlı Görünürlük {!isPro && <span style={{ fontSize: 8, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "linear-gradient(135deg,#8B5CF6,#7C3AED)", color: "#FFF" }}>PRO</span>}</label>

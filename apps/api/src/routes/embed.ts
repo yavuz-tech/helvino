@@ -9,18 +9,38 @@ import fs from "fs/promises";
  *   /app/apps/widget/dist/embed.js
  *
  * Dockerfile ensures the widget is built and copied.
+ *
+ * CORS: Access-Control-Allow-Origin: * — the embed script must be
+ *       loadable from ANY customer website.
+ * Cache: public, max-age=3600 (1 hour).
  */
+
+/** Cached buffer so we don't hit the filesystem on every request. */
+let cachedJs: Buffer | null = null;
+let cacheLoadedAt = 0;
+const CACHE_TTL_MS = 60 * 60 * 1000; // re-read from disk every 1 hour
+
 export async function embedRoutes(fastify: FastifyInstance) {
+  // ── Serve embed.js ──
   fastify.get("/embed.js", async (_request, reply) => {
-    // In the runner image, WORKDIR is /app/apps/api
+    // In the runner image, WORKDIR is /app/apps/api  →  ../widget/dist/embed.js
     const filePath = path.join(process.cwd(), "..", "widget", "dist", "embed.js");
 
     try {
-      const js = await fs.readFile(filePath);
+      const now = Date.now();
+      if (!cachedJs || now - cacheLoadedAt > CACHE_TTL_MS) {
+        cachedJs = await fs.readFile(filePath);
+        cacheLoadedAt = now;
+      }
+
       reply
+        // CORS: must be loadable from any customer domain
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Methods", "GET, OPTIONS")
         .header("Cache-Control", "public, max-age=3600")
+        .header("X-Content-Type-Options", "nosniff")
         .type("application/javascript; charset=utf-8");
-      return reply.send(js);
+      return reply.send(cachedJs);
     } catch (err) {
       fastify.log.warn(
         { err: err instanceof Error ? err.message : String(err), filePath },
@@ -38,6 +58,16 @@ export async function embedRoutes(fastify: FastifyInstance) {
         },
       });
     }
+  });
+
+  // ── CORS preflight for embed.js ──
+  fastify.options("/embed.js", async (_request, reply) => {
+    reply
+      .header("Access-Control-Allow-Origin", "*")
+      .header("Access-Control-Allow-Methods", "GET, OPTIONS")
+      .header("Access-Control-Max-Age", "86400")
+      .code(204)
+      .send();
   });
 }
 
