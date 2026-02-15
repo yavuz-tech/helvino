@@ -42,6 +42,12 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/portal") ||
     pathname.startsWith("/login");
 
+  // SECURITY: In production, restrict connect-src to HTTPS only (no localhost).
+  // In development, also allow http://localhost and ws://localhost for HMR/API.
+  const connectSrc = isProduction
+    ? "connect-src 'self' https: wss:"
+    : "connect-src 'self' http://localhost:* ws://localhost:* https: wss:";
+
   if (isDashboardOrPortal) {
     // Admin/Portal: deny framing entirely
     response.headers.set("X-Frame-Options", "DENY");
@@ -50,7 +56,7 @@ export function middleware(request: NextRequest) {
       : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
     response.headers.set(
       "Content-Security-Policy",
-      `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:* ws://localhost:* https: wss:; frame-ancestors 'none'`
+      `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; ${connectSrc}; frame-ancestors 'none'`
     );
   } else {
     // Public / widget-embeddable pages: allow framing from any origin
@@ -61,7 +67,7 @@ export function middleware(request: NextRequest) {
       : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
     response.headers.set(
       "Content-Security-Policy",
-      `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:* ws://localhost:* https: wss:; frame-ancestors *`
+      `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; ${connectSrc}; frame-ancestors *`
     );
   }
 

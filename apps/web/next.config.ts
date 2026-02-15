@@ -17,6 +17,10 @@ const nextConfig: NextConfig = {
   eslint: { ignoreDuringBuilds: true },
   // Disable experimental features that might trigger pages router
   experimental: {},
+  // SECURITY: Suppress X-Powered-By header to prevent framework fingerprinting
+  poweredByHeader: false,
+  // SECURITY: Explicitly disable source maps in production to prevent source code exposure
+  productionBrowserSourceMaps: false,
 };
 
 export default nextConfig;
