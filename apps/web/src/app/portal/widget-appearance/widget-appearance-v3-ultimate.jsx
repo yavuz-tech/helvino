@@ -663,7 +663,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
         ::-webkit-scrollbar-thumb:hover{background:#CBD5E1}
       `}</style>
 
-      <ProUpgradeModal show={proModal.show} onClose={()=>setProModal({show:false,feature:""})} feature={proModal.feature} t={t} />
+      <ProUpgradeModal show={proModal.show} onClose={()=>setProModal({show:false,feature:""})} feature={proModal.feature} t={_t} />
 
       {/* Toast Notification */}
       {toast && (
