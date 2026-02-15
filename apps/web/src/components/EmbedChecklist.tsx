@@ -137,7 +137,7 @@ export default function EmbedChecklist({
         {showCode && (
           <div className="px-6 pb-5">
             <pre className="bg-[#1A1D23] text-[#E2E8F0] px-5 py-4 rounded-xl text-sm overflow-x-auto leading-relaxed font-mono">
-              <code>{`<!-- Helvion Chat Widget -->\n<script>window.HELVION_SITE_ID="${siteId}";</script>\n<script src="https://api.helvion.io/embed.js"></script>`}</code>
+              <code>{`<!-- Helvion Chat Widget -->\n<script>window.HELVION_SITE_ID="${siteId}";</script>\n<script src="https://api.helvion.io/embed.js?v=${process.env.NEXT_PUBLIC_WIDGET_EMBED_VERSION || "1"}"></script>`}</code>
             </pre>
             <p className="text-xs text-[#94A3B8] mt-2">{t("embed.snippetHint")}</p>
           </div>

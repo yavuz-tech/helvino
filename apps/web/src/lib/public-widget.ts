@@ -75,7 +75,10 @@ export function mountPublicWidgetScript(identity: WidgetIdentity): boolean {
   const script = document.createElement("script");
   // embed.js is served from the API origin, not the frontend.
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.helvion.io";
-  script.src = `${apiUrl}/embed.js`;
+  // Cloudflare may force a long browser cache TTL for embed.js. Append a build-stable
+  // version query so each deployment reliably ships the latest widget code.
+  const v = process.env.NEXT_PUBLIC_WIDGET_EMBED_VERSION || "1";
+  script.src = `${apiUrl}/embed.js?v=${encodeURIComponent(v)}`;
   script.async = true;
   script.setAttribute("data-helvino-widget", "1");
   document.body.appendChild(script);

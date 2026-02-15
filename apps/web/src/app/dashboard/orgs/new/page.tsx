@@ -92,7 +92,7 @@ export default function NewOrgPage() {
   const embedSnippet = createdOrg
     ? `<!-- Helvion Chat Widget -->
 <script>window.HELVION_SITE_ID="${createdOrg.siteId}";</script>
-<script src="https://api.helvion.io/embed.js"></script>`
+<script src="https://api.helvion.io/embed.js?v=${process.env.NEXT_PUBLIC_WIDGET_EMBED_VERSION || "1"}"></script>`
     : "";
 
   const copyToClipboard = () => {

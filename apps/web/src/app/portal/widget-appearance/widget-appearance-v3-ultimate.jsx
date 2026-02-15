@@ -600,7 +600,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
   // Copy handlers
   const orgKeyDisplay = orgKey || "YOUR_ORG_KEY";
-  const embedCode = `<script src="https://api.helvion.io/embed.js" data-org="${orgKeyDisplay}" async><\/script>`;
+  const embedCode = `<script src="https://api.helvion.io/embed.js?v=${process.env.NEXT_PUBLIC_WIDGET_EMBED_VERSION || "1"}" data-org="${orgKeyDisplay}" async><\/script>`;
   const directChatLink = `https://helvion.io/chat/${orgKeyDisplay}`;
   const copyEmbed = () => { navigator.clipboard?.writeText(embedCode).then(()=>{setEmbedCopied(true);setTimeout(()=>setEmbedCopied(false),2000);}); };
   const copyLink = () => { navigator.clipboard?.writeText(directChatLink).then(()=>{setLinkCopied(true);setTimeout(()=>setLinkCopied(false),2000);}); };

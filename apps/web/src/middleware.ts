@@ -103,7 +103,11 @@ export function middleware(request: NextRequest) {
     res.headers.set("Access-Control-Allow-Origin", "*");
     res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
     res.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-    res.headers.set("Cache-Control", "public, max-age=300");
+    // Discourage browser caching; CDN/browser TTL may still be overridden upstream,
+    // so we also rely on a build-stable ?v= param in all generated script tags.
+    res.headers.set("Cache-Control", "no-store");
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
     res.headers.set("X-Content-Type-Options", "nosniff");
     return res;
   }

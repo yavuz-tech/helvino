@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
   // Allow CI/verify builds to use a separate output dir so they don't
   // clobber the dev server's .next cache.
   ...(process.env.NEXT_BUILD_DIR ? { distDir: process.env.NEXT_BUILD_DIR } : {}),
+  // Embed script cache-busting.
+  // Cloudflare can override browser cache TTL for /embed.js, so we append a build-stable
+  // query param everywhere we generate/inject the script tag.
+  // This value is baked at build-time and changes on each deployment by default.
+  env: {
+    NEXT_PUBLIC_WIDGET_EMBED_VERSION:
+      process.env.NEXT_PUBLIC_WIDGET_EMBED_VERSION || String(Date.now()),
+  },
   // Fix "multiple lockfiles" warning: pin monorepo root so Next.js doesn't
   // pick up package-lock.json from parent dirs (/Users/...)
   outputFileTracingRoot: path.join(__dirname, "../.."),

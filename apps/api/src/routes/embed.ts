@@ -39,7 +39,12 @@ export async function embedRoutes(fastify: FastifyInstance) {
         .header("Access-Control-Allow-Methods", "GET, OPTIONS")
         // Allow cross-origin embedding (fixes ERR_BLOCKED_BY_RESPONSE.NotSameOrigin)
         .header("Cross-Origin-Resource-Policy", "cross-origin")
-        .header("Cache-Control", "public, max-age=300, s-maxage=300")
+        // IMPORTANT:
+        // Cloudflare can override browser cache TTL for embed.js. We still send
+        // no-store to discourage browser caching as much as possible.
+        .header("Cache-Control", "no-store")
+        .header("Pragma", "no-cache")
+        .header("Expires", "0")
         .header("X-Content-Type-Options", "nosniff")
         .type("application/javascript; charset=utf-8");
       return reply.send(cachedJs);
