@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 
 interface Organization {
   id: string;
@@ -33,9 +34,18 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const pathname = usePathname();
+
+  // Only fetch orgs when on admin/dashboard pages — skip for portal, public, login pages
+  const isDashboardPage = pathname?.startsWith("/dashboard") || pathname?.startsWith("/admin");
 
   // Fetch all organizations
   const fetchOrgs = useCallback(async () => {
+    if (!isDashboardPage) {
+      // Not on an admin page — don't hit /internal/orgs at all
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       setError(null);
@@ -45,8 +55,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!response.ok) {
-        // 401/403 is expected on non-admin pages (portal, public)
-        // Silently return empty list instead of throwing
+        // 401/403 is expected when admin session expired
         if (response.status === 401 || response.status === 403) {
           setOrganizations([]);
           setSelectedOrg(null);
@@ -79,9 +88,9 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isDashboardPage]);
 
-  // Load organizations on mount
+  // Load organizations on mount (only on dashboard pages)
   useEffect(() => {
     fetchOrgs();
   }, [fetchOrgs]);
