@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import { requirePortalUser } from "../middleware/require-portal-user";
+import { createRateLimitMiddleware } from "../middleware/rate-limit";
 
 type PlanLimitSet = {
   conversations: number;
@@ -46,7 +47,7 @@ function resolvePlanLimits(planKey: string): PlanLimitSet {
 export async function analyticsRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/analytics/usage",
-    { preHandler: [requirePortalUser] },
+    { preHandler: [requirePortalUser, createRateLimitMiddleware({ limit: 60, windowMs: 60000 })] },
     async (request, reply) => {
       const portalUser = (request as any).portalUser!;
       const orgId: string = portalUser.orgId;
@@ -147,7 +148,7 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 
   fastify.get(
     "/api/analytics/export",
-    { preHandler: [requirePortalUser] },
+    { preHandler: [requirePortalUser, createRateLimitMiddleware({ limit: 20, windowMs: 60000 })] },
     async (request, reply) => {
       const portalUser = (request as any).portalUser!;
       const orgId: string = portalUser.orgId;
@@ -156,6 +157,10 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
       if (format !== "csv") {
         reply.code(400);
         return { error: "Only csv format is supported" };
+      }
+      if (q.period && String(q.period).length > 32) {
+        reply.code(400);
+        return { error: "Invalid period" };
       }
 
       const period = parsePeriod(q.period);

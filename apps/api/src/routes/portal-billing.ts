@@ -3,6 +3,7 @@ import * as geoip from "geoip-lite";
 import { requirePortalUser } from "../middleware/require-portal-user";
 import { requireStepUp } from "../middleware/require-step-up";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { validateJsonContentType } from "../middleware/validation";
 import {
   createCheckoutSession,
   createCustomerPortalSession,
@@ -29,6 +30,10 @@ import { ensureFoundingCoupon, ensureOrgDiscountCoupon } from "../utils/stripe-d
 type CheckoutCurrency = "usd" | "try";
 type DisplayCurrency = "usd" | "try" | "eur";
 type CheckoutPeriod = "monthly" | "yearly";
+
+function isReturnUrlValidationError(err: unknown): boolean {
+  return Boolean(err && typeof err === "object" && "message" in err && typeof (err as any).message === "string" && /return url/i.test((err as any).message));
+}
 
 function normalizeCountryCode(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -649,7 +654,7 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────
   fastify.post(
     "/portal/billing/checkout",
-    { preHandler: [requirePortalUser, requireStepUp("portal")] },
+    { preHandler: [requirePortalUser, requireStepUp("portal"), validateJsonContentType] },
     async (request, reply) => {
       const user = request.portalUser!;
       const body = request.body as {
@@ -688,6 +693,10 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
           reply.code(501);
           return { error: "Stripe is not configured on this server.", code: "STRIPE_NOT_CONFIGURED" };
         }
+        if (isReturnUrlValidationError(err)) {
+          reply.code(400);
+          return { error: "Invalid returnUrl" };
+        }
         reply.code(500);
         return { error: "Checkout failed" };
       }
@@ -699,7 +708,7 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────
   fastify.post(
     "/portal/billing/portal",
-    { preHandler: [requirePortalUser, requireStepUp("portal")] },
+    { preHandler: [requirePortalUser, requireStepUp("portal"), validateJsonContentType] },
     async (request, reply) => {
       const user = request.portalUser!;
       const { returnUrl } = request.body as { returnUrl?: string };
@@ -726,6 +735,10 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
             error: "No active subscription found. Subscribe to a plan first.",
           };
         }
+        if (isReturnUrlValidationError(err)) {
+          reply.code(400);
+          return { error: "Invalid returnUrl" };
+        }
         reply.code(500);
         return { error: "Portal session failed" };
       }
@@ -743,6 +756,7 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
         createRateLimitMiddleware({ limit: 30, windowMs: 60000 }),
         requirePortalUser,
         requireStepUp("portal"),
+        validateJsonContentType,
       ],
     },
     async (request, reply) => {
@@ -769,12 +783,23 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
       const { returnUrl } = (request.body as { returnUrl?: string }) || {};
 
       try {
+        const fallbackBase =
+          process.env.APP_PUBLIC_URL ||
+          process.env.NEXT_PUBLIC_WEB_URL ||
+          (request.headers.origin as string | undefined);
+        const effectiveReturnUrl =
+          returnUrl ||
+          (fallbackBase ? `${fallbackBase.replace(/\/$/, "")}/portal/billing` : undefined);
         const url = await createCustomerPortalSession(
           user.orgId,
-          returnUrl || `${request.headers.origin || ""}/portal/billing`
+          effectiveReturnUrl
         );
         return { url };
       } catch (err) {
+        if (isReturnUrlValidationError(err)) {
+          reply.code(400);
+          return { error: "Invalid returnUrl" };
+        }
         request.log.error(err, "portal-session creation failed");
         reply.code(500);
         return { error: "Could not create billing portal session." };
@@ -837,7 +862,7 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────
   fastify.post(
     "/portal/org/billing/portal-session",
-    { preHandler: [requirePortalUser] },
+    { preHandler: [requirePortalUser, validateJsonContentType] },
     async (request, reply) => {
       const user = request.portalUser!;
       const { returnUrl } = request.body as { returnUrl?: string };
@@ -854,6 +879,10 @@ export async function portalBillingRoutes(fastify: FastifyInstance) {
         if (err instanceof StripeNotConfiguredError) {
           reply.code(501);
           return { error: "Stripe is not configured on this server.", code: "STRIPE_NOT_CONFIGURED" };
+        }
+        if (isReturnUrlValidationError(err)) {
+          reply.code(400);
+          return { error: "Invalid returnUrl" };
         }
         reply.code(500);
         return { error: "Portal session failed" };

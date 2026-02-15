@@ -185,10 +185,67 @@ function getCheckoutUrls(returnUrl?: string) {
     throw new Error("Return URL required for Stripe checkout");
   }
 
+  // SECURITY: Prevent open-redirect abuse via attacker-controlled returnUrl.
+  const safeReturnUrl = coerceSafeAbsoluteReturnUrl(returnUrl);
+
   return {
-    successUrl: `${returnUrl}?success=1`,
-    cancelUrl: `${returnUrl}?canceled=1`,
+    successUrl: `${safeReturnUrl}?success=1`,
+    cancelUrl: `${safeReturnUrl}?canceled=1`,
   };
+}
+
+function readAllowedReturnUrlOrigins(): string[] {
+  const candidates = [
+    process.env.APP_PUBLIC_URL,
+    process.env.NEXT_PUBLIC_WEB_URL,
+    process.env.STRIPE_SUCCESS_URL,
+    process.env.STRIPE_CANCEL_URL,
+  ].filter(Boolean) as string[];
+
+  const origins: string[] = [];
+  for (const raw of candidates) {
+    try {
+      origins.push(new URL(raw).origin);
+    } catch {
+      // ignore invalid envs
+    }
+  }
+  return Array.from(new Set(origins));
+}
+
+function coerceSafeAbsoluteReturnUrl(input: string): string {
+  const raw = (input || "").trim();
+  if (!raw) throw new Error("Return URL required");
+  if (raw.length > 2048) throw new Error("Return URL too long");
+  if (/[\r\n]/.test(raw)) throw new Error("Invalid return URL");
+
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error("Return URL must be an absolute URL");
+  }
+
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new Error("Return URL must be http(s)");
+  }
+
+  const allowedOrigins = readAllowedReturnUrlOrigins();
+  const isProduction = process.env.NODE_ENV === "production";
+
+  // If we have an allowlist, require membership.
+  if (allowedOrigins.length > 0) {
+    if (!allowedOrigins.includes(url.origin)) {
+      throw new Error("Invalid return URL origin");
+    }
+  } else if (isProduction) {
+    // Production safety net: don't accept arbitrary origins if no allowlist is configured.
+    throw new Error("Return URL allowlist is not configured");
+  }
+
+  // Normalize: strip fragments
+  url.hash = "";
+  return url.toString();
 }
 
 async function ensureStripeCustomer(orgId: string) {
@@ -431,10 +488,11 @@ export async function createCustomerPortalSession(
     throw new Error("Stripe customer not found");
   }
 
-  const portalReturnUrl = returnUrl || process.env.STRIPE_SUCCESS_URL;
-  if (!portalReturnUrl) {
+  const portalReturnUrlRaw = returnUrl || process.env.STRIPE_SUCCESS_URL;
+  if (!portalReturnUrlRaw) {
     throw new Error("Return URL required for customer portal");
   }
+  const portalReturnUrl = coerceSafeAbsoluteReturnUrl(portalReturnUrlRaw);
 
   const session = await stripe.billingPortal.sessions.create({
     customer: org.stripeCustomerId,

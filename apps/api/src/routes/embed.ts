@@ -26,11 +26,15 @@ export async function embedRoutes(fastify: FastifyInstance) {
         { err: err instanceof Error ? err.message : String(err), filePath },
         "embed.js not found"
       );
-      reply.code(500);
+      const isProduction = process.env.NODE_ENV === "production";
+      // SECURITY: Avoid leaking build/deploy instructions in production.
+      reply.code(isProduction ? 404 : 500);
       return reply.send({
         error: {
           code: "EMBED_BUILD_MISSING",
-          message: "Widget embed build missing. Run: pnpm --filter @helvino/widget build",
+          message: isProduction
+            ? "Not found"
+            : "Widget embed build missing. Run: pnpm --filter @helvino/widget build",
         },
       });
     }

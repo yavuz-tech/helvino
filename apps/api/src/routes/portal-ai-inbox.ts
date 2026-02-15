@@ -8,6 +8,7 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import { requirePortalUser, requirePortalRole } from "../middleware/require-portal-user";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { validateJsonContentType } from "../middleware/validation";
 import {
   generateAiResponse,
   isAiAvailable,
@@ -41,6 +42,7 @@ export async function portalAiInboxRoutes(fastify: FastifyInstance) {
         requirePortalUser,
         requirePortalRole(["owner", "admin", "agent"]),
         createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
+        validateJsonContentType,
       ],
     },
     async (request, reply) => {
@@ -58,7 +60,8 @@ export async function portalAiInboxRoutes(fastify: FastifyInstance) {
       }
 
       const { id } = request.params;
-      const locale = request.body?.locale || "en";
+      const localeRaw = (request.body as any)?.locale;
+      const locale = localeRaw === "tr" || localeRaw === "en" || localeRaw === "es" ? localeRaw : "en";
 
       try {
         const conv = await prisma.conversation.findFirst({
@@ -144,6 +147,7 @@ Rules:
         requirePortalUser,
         requirePortalRole(["owner", "admin", "agent"]),
         createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
+        validateJsonContentType,
       ],
     },
     async (request, reply) => {
@@ -230,6 +234,7 @@ Rules:
         requirePortalUser,
         requirePortalRole(["owner", "admin", "agent"]),
         createRateLimitMiddleware({ limit: 30, windowMs: 60000 }),
+        validateJsonContentType,
       ],
     },
     async (request, reply) => {
@@ -322,6 +327,7 @@ Rules:
         requirePortalUser,
         requirePortalRole(["owner", "admin", "agent"]),
         createRateLimitMiddleware({ limit: 30, windowMs: 60000 }),
+        validateJsonContentType,
       ],
     },
     async (request, reply) => {
@@ -415,6 +421,7 @@ Rules:
         requirePortalUser,
         requirePortalRole(["owner", "admin", "agent"]),
         createRateLimitMiddleware({ limit: 30, windowMs: 60000 }),
+        validateJsonContentType,
       ],
     },
     async (request, reply) => {

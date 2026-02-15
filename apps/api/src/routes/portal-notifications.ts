@@ -14,6 +14,8 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import { requirePortalUser } from "../middleware/require-portal-user";
 import { writeAuditLog } from "../utils/audit-log";
+import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { validateJsonContentType } from "../middleware/validation";
 
 // ── Helpers ──────────────────────────────────────
 
@@ -64,7 +66,7 @@ export async function portalNotificationRoutes(fastify: FastifyInstance) {
     };
   }>(
     "/portal/notifications",
-    { preHandler: [requirePortalUser] },
+    { preHandler: [requirePortalUser, createRateLimitMiddleware({ limit: 60, windowMs: 60000 })] },
     async (request) => {
       const requestId =
         (request as any).requestId ||
@@ -152,7 +154,7 @@ export async function portalNotificationRoutes(fastify: FastifyInstance) {
   // ═══════════════════════════════════════════════
   fastify.get(
     "/portal/notifications/unread-count",
-    { preHandler: [requirePortalUser] },
+    { preHandler: [requirePortalUser, createRateLimitMiddleware({ limit: 120, windowMs: 60000 })] },
     async (request) => {
       const requestId =
         (request as any).requestId ||
@@ -180,7 +182,7 @@ export async function portalNotificationRoutes(fastify: FastifyInstance) {
   // ═══════════════════════════════════════════════
   fastify.post<{ Params: { id: string } }>(
     "/portal/notifications/:id/read",
-    { preHandler: [requirePortalUser] },
+    { preHandler: [requirePortalUser, createRateLimitMiddleware({ limit: 120, windowMs: 60000 })] },
     async (request, reply) => {
       const requestId =
         (request as any).requestId ||
@@ -264,14 +266,14 @@ export async function portalNotificationRoutes(fastify: FastifyInstance) {
 
   fastify.post(
     "/portal/notifications/mark-all-read",
-    { preHandler: [requirePortalUser] },
+    { preHandler: [requirePortalUser, createRateLimitMiddleware({ limit: 20, windowMs: 60000 })] },
     markAllReadHandler
   );
 
   // Backward compat alias
   fastify.post(
     "/portal/notifications/read-all",
-    { preHandler: [requirePortalUser] },
+    { preHandler: [requirePortalUser, createRateLimitMiddleware({ limit: 20, windowMs: 60000 })] },
     markAllReadHandler
   );
 
@@ -280,7 +282,7 @@ export async function portalNotificationRoutes(fastify: FastifyInstance) {
   // ═══════════════════════════════════════════════
   fastify.get(
     "/portal/notifications/preferences",
-    { preHandler: [requirePortalUser] },
+    { preHandler: [requirePortalUser, createRateLimitMiddleware({ limit: 60, windowMs: 60000 })] },
     async (request) => {
       const requestId =
         (request as any).requestId ||
@@ -304,7 +306,13 @@ export async function portalNotificationRoutes(fastify: FastifyInstance) {
     };
   }>(
     "/portal/notifications/preferences",
-    { preHandler: [requirePortalUser] },
+    {
+      preHandler: [
+        requirePortalUser,
+        createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
+        validateJsonContentType,
+      ],
+    },
     async (request) => {
       const requestId =
         (request as any).requestId ||

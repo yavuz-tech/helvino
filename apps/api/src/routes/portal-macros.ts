@@ -76,11 +76,26 @@ export async function portalMacroRoutes(fastify: FastifyInstance) {
       const exists = await prisma.macro.findFirst({ where: { id, orgId: actor.orgId }, select: { id: true } });
       if (!exists) return reply.status(404).send({ error: "macro not found" });
 
+      // SECURITY: Input validation — max lengths (same policy as create)
+      if (request.body.title !== undefined) {
+        const t = String(request.body.title).trim();
+        if (!t) return reply.status(400).send({ error: "title cannot be empty" });
+        if (t.length > 200) return reply.status(400).send({ error: "title exceeds maximum length (200)" });
+      }
+      if (request.body.content !== undefined) {
+        const c = String(request.body.content).trim();
+        if (!c) return reply.status(400).send({ error: "content cannot be empty" });
+        if (c.length > 5000) return reply.status(400).send({ error: "content exceeds maximum length (5000)" });
+      }
+      if (request.body.enabled !== undefined && typeof request.body.enabled !== "boolean") {
+        return reply.status(400).send({ error: "enabled must be boolean" });
+      }
+
       const updated = await prisma.macro.update({
         where: { id },
         data: {
-          title: request.body.title,
-          content: request.body.content,
+          title: request.body.title !== undefined ? String(request.body.title).trim() : undefined,
+          content: request.body.content !== undefined ? String(request.body.content).trim() : undefined,
           enabled: request.body.enabled,
         },
       });

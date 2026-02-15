@@ -11,6 +11,7 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import { requirePortalUser, requirePortalRole } from "../middleware/require-portal-user";
+import { validateJsonContentType } from "../middleware/validation";
 import {
   parseAiConfig,
   isAiAvailable,
@@ -54,7 +55,7 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
   // ─── PUT /portal/ai/config ────────────────────────
   fastify.put<{ Body: Partial<AiConfig> & { aiEnabled?: boolean; aiProvider?: AiProvider } }>(
     "/portal/ai/config",
-    { preHandler: [requirePortalUser, requirePortalRole(["owner", "admin"])] },
+    { preHandler: [requirePortalUser, requirePortalRole(["owner", "admin"]), validateJsonContentType] },
     async (request, reply) => {
       const user = request.portalUser!;
       const body = request.body;
@@ -156,12 +157,13 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
   // ─── POST /portal/ai/test ────────────────────────
   fastify.post<{ Body: { message: string; provider?: AiProvider } }>(
     "/portal/ai/test",
-    { preHandler: [requirePortalUser, requirePortalRole(["owner", "admin"])] },
+    { preHandler: [requirePortalUser, requirePortalRole(["owner", "admin"]), validateJsonContentType] },
     async (request, reply) => {
       const user = request.portalUser!;
       const { message, provider } = request.body;
 
       if (!message?.trim()) { reply.code(400); return { error: "Message is required" }; }
+      if (message.length > 5000) { reply.code(400); return { error: "Message exceeds maximum length (5000 characters)" }; }
 
       if (!isAiAvailable()) {
         reply.code(503);
@@ -192,7 +194,8 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
           return { error: result.error, code: "QUOTA_EXCEEDED" };
         }
         reply.code(500);
-        return { error: result.error, code: result.code };
+        // SECURITY: never leak upstream/provider error details to the client
+        return { error: "AI service encountered an error", code: result.code || "AI_ERROR" };
       }
 
       return {

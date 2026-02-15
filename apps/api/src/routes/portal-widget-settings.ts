@@ -15,6 +15,7 @@ import { rateLimit } from "../middleware/rate-limiter";
 import { requirePortalUser } from "../middleware/require-portal-user";
 import { requireAdmin } from "../middleware/require-admin";
 import { writeAuditLog } from "../utils/audit-log";
+import { validateJsonContentType } from "../middleware/validation";
 
 // Legacy fields stored in dedicated columns (backward compat)
 const LEGACY_COLUMN_FIELDS = new Set([
@@ -249,7 +250,10 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
         requireAdmin,
         adminSettingsWriteRateLimit,
         createRateLimitMiddleware({ limit: 40, windowMs: 60000 }),
+        validateJsonContentType,
       ],
+      // Route-specific override: widget configs can be larger than the global 32KB bodyLimit.
+      bodyLimit: 256 * 1024,
       config: { skipGlobalRateLimit: true },
     },
     async (request, reply) => {
@@ -418,7 +422,10 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
         portalSettingsWriteRateLimit,
         createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
         requirePortalUser,
+        validateJsonContentType,
       ],
+      // Route-specific override: widget configs can be larger than the global 32KB bodyLimit.
+      bodyLimit: 256 * 1024,
       config: {
         skipGlobalRateLimit: true,
       },
