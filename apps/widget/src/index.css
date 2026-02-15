@@ -4,15 +4,28 @@
  * is injected into customer websites and must not affect their styles.
  */
 #helvino-widget-root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
-  /* Widget must always float above host page content */
-  position: relative;
-  z-index: 2147483647;
+  /* Widget must always float above ALL host page content */
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  z-index: 2147483647 !important;
+  /* Prevent host page from clipping widget */
+  pointer-events: none;
+}
+/* All interactive children must receive pointer events */
+#helvino-widget-root > * {
+  pointer-events: auto;
 }
 
+/* Reset box model for all widget elements */
 #helvino-widget-root *,
 #helvino-widget-root *::before,
 #helvino-widget-root *::after {

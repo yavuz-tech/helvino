@@ -83,9 +83,16 @@ const initWidget = () => {
   if (!rootElement) {
     rootElement = document.createElement("div");
     rootElement.id = "helvino-widget-root";
-    // Ensure the widget root is always on top of host page content
-    rootElement.style.position = "relative";
+    // Widget root is fixed-positioned with zero size — children overflow visibly.
+    // This prevents host page layout from being affected.
+    rootElement.style.position = "fixed";
+    rootElement.style.top = "0";
+    rootElement.style.left = "0";
+    rootElement.style.width = "0";
+    rootElement.style.height = "0";
+    rootElement.style.overflow = "visible";
     rootElement.style.zIndex = "2147483647";
+    rootElement.style.pointerEvents = "none";
     document.body.appendChild(rootElement);
   }
   // Mark for easier debugging in DOM
