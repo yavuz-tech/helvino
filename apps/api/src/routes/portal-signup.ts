@@ -4,6 +4,7 @@
  * POST /portal/auth/signup — create org + owner user
  * POST /portal/auth/resend-verification — resend email verification
  * GET  /portal/auth/verify-email — verify email via signed link
+ * POST /portal/auth/verification-status — poll whether email has been verified
  */
 
 import { FastifyInstance } from "fastify";
@@ -488,6 +489,48 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
       }
 
       return { ok: true, message: "Email verified successfully.", requestId };
+    }
+  );
+
+  // ─── POST /portal/auth/verification-status ─────────────────
+  // Lightweight polling endpoint: the signup page calls this every few
+  // seconds so it can auto-redirect once the user verifies from another
+  // device / tab.  Only returns { verified: boolean }.
+  const verificationStatusRateLimit = rateLimit({
+    windowMs: 60 * 1000, // 1 minute window
+    maxRequests: 30, // generous — polling every 3-4 s
+    message: "Too many verification status checks",
+  });
+
+  fastify.post<{ Body: { email: string } }>(
+    "/portal/auth/verification-status",
+    {
+      preHandler: [verificationStatusRateLimit, validateJsonContentType],
+    },
+    async (request, reply) => {
+      const { email: rawEmail } = request.body || {};
+      if (!rawEmail || typeof rawEmail !== "string") {
+        reply.code(400);
+        return { error: "Missing email" };
+      }
+
+      const email = rawEmail.trim().toLowerCase();
+
+      // Always return the same shape to avoid email enumeration.
+      const NOT_VERIFIED = { verified: false } as const;
+
+      try {
+        const user = await prisma.orgUser.findUnique({
+          where: { email },
+          select: { emailVerifiedAt: true },
+        });
+
+        if (!user) return NOT_VERIFIED; // don't reveal existence
+        return { verified: !!user.emailVerifiedAt };
+      } catch {
+        // Swallow DB errors — treat as "not verified" to avoid leaking info
+        return NOT_VERIFIED;
+      }
     }
   );
 }

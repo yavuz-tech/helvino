@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Check, ShieldCheck, Sparkles, Users } from "lucide-react";
@@ -34,6 +34,69 @@ export default function SignupPage() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaRenderNonce, setCaptchaRenderNonce] = useState(0);
   const MAX_RESEND = 6;
+  const POLL_INTERVAL_MS = 3000;
+  const [autoChecking, setAutoChecking] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ─── Auto-poll verification status after signup ─────────────
+  // When success is true we poll /portal/auth/verification-status every
+  // POLL_INTERVAL_MS.  As soon as the backend says "verified: true" we
+  // auto-login the user (they already supplied email + password).
+  useEffect(() => {
+    if (!success || !email || !password) return;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`${API_URL}/portal/auth/verification-status`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data?.verified) {
+          // Email verified — auto-login
+          if (pollRef.current) clearInterval(pollRef.current);
+          setAutoChecking(true);
+
+          const loginRes = await fetch(`${API_URL}/portal/auth/login`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: email.trim().toLowerCase(),
+              password,
+              locale,
+            }),
+          });
+          const loginData = await loginRes.json().catch(() => ({}));
+
+          if (loginRes.ok && loginData?.ok) {
+            window.location.href = "/portal";
+            return;
+          }
+          // Login succeeded but MFA required — send to login page
+          if (loginData?.error?.code === "MFA_REQUIRED") {
+            window.location.href = "/portal/login";
+            return;
+          }
+          // Fallback: redirect to login
+          setAutoChecking(false);
+          window.location.href = "/portal/login";
+        }
+      } catch {
+        // Swallow polling errors silently
+      }
+    };
+
+    // Run first check immediately, then every POLL_INTERVAL_MS
+    void poll();
+    pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [success, email, password, locale]);
 
   const websitePattern = /^(https?:\/\/)?(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
   const websitePatternText = "(https?:\\/\\/)?(www\\.)?[a-z0-9-]+(\\.[a-z0-9-]+)+";
@@ -314,6 +377,23 @@ export default function SignupPage() {
 
                 {success ? (
                   <div className="space-y-4 text-center">
+                    {autoChecking ? (
+                      <>
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50">
+                          <svg className="h-7 w-7 animate-spin text-emerald-600" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        </div>
+                        <h2 className="text-lg font-bold text-[var(--text-primary)]">
+                          {t("signup.verifiedRedirecting")}
+                        </h2>
+                        <p className="text-sm text-[var(--text-secondary)]">
+                          {t("signup.pleaseWait")}
+                        </p>
+                      </>
+                    ) : (
+                    <>
                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50">
                       <svg className="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -325,6 +405,16 @@ export default function SignupPage() {
                     <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                       {t("signup.successMessage")}
                     </p>
+
+                    {/* Auto-checking indicator */}
+                    <div className="flex items-center justify-center gap-2 rounded-xl border border-amber-200/70 bg-amber-50/80 px-4 py-3 text-sm text-amber-800">
+                      <svg className="h-4 w-4 animate-spin text-amber-600" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <span>{t("signup.autoCheckingStatus")}</span>
+                    </div>
+
                     <div className="text-sm text-[var(--text-secondary)]">
                       {t("signup.resendHint")}
                     </div>
@@ -373,6 +463,8 @@ export default function SignupPage() {
                     >
                       {t("signup.loginLink")}
                     </Link>
+                    </>
+                    )}
                   </div>
                 ) : (
                   <>

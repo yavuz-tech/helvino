@@ -47,6 +47,8 @@ export default function PortalLoginPage() {
   const [emailVerificationRequired, setEmailVerificationRequired] = useState(false);
   const [verificationResent, setVerificationResent] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
+  const [autoChecking, setAutoChecking] = useState(false);
+  const verifyPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [lockedAccount, setLockedAccount] = useState(false);
   const [unlockFormOpen, setUnlockFormOpen] = useState(false);
   const [unlockToken, setUnlockToken] = useState("");
@@ -123,6 +125,58 @@ export default function PortalLoginPage() {
       (window as unknown as { HELVINO_WIDGET_CONTEXT?: string }).HELVINO_WIDGET_CONTEXT = undefined;
     };
   }, []);
+
+  // ─── Auto-poll verification status when email verification is required ───
+  useEffect(() => {
+    if (!emailVerificationRequired || !email) return;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`${API_URL}/portal/auth/verification-status`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data?.verified) {
+          if (verifyPollRef.current) clearInterval(verifyPollRef.current);
+          setAutoChecking(true);
+          // Auto-login
+          const result = await portalLogin(email.trim().toLowerCase(), password, locale);
+          if (result.ok) {
+            if (result.refreshToken) storePortalRefreshToken(result.refreshToken);
+            window.location.href = "/portal";
+            return;
+          }
+          // MFA needed — let user handle it
+          if (result.errorCode === "MFA_REQUIRED") {
+            setAutoChecking(false);
+            setEmailVerificationRequired(false);
+            // Re-trigger login to enter MFA flow
+            const mfaResult = await portalLogin(email.trim().toLowerCase(), password, locale);
+            if (mfaResult.mfaRequired && mfaResult.mfaToken) {
+              setMfaRequired(true);
+              setMfaToken(mfaResult.mfaToken);
+            }
+            return;
+          }
+          // Fallback
+          setAutoChecking(false);
+          setEmailVerificationRequired(false);
+        }
+      } catch {
+        // Swallow polling errors
+      }
+    };
+
+    void poll();
+    verifyPollRef.current = setInterval(poll, 3000);
+
+    return () => {
+      if (verifyPollRef.current) clearInterval(verifyPollRef.current);
+    };
+  }, [emailVerificationRequired, email, password, locale]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -347,48 +401,72 @@ export default function PortalLoginPage() {
 
   const cardContent = emailVerificationRequired ? (
     <div className="text-center">
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50">
-        <svg className="h-7 w-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-      </div>
-      <h2 className="mb-2 text-lg font-semibold text-[var(--text-primary)]">{t("verifyEmail.title")}</h2>
+      {autoChecking ? (
+        <>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50">
+            <svg className="h-7 w-7 animate-spin text-emerald-600" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </div>
+          <h2 className="mb-2 text-lg font-semibold text-[var(--text-primary)]">{t("signup.verifiedRedirecting")}</h2>
+          <p className="text-sm text-[var(--text-secondary)]">{t("signup.pleaseWait")}</p>
+        </>
+      ) : (
+        <>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50">
+            <svg className="h-7 w-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h2 className="mb-2 text-lg font-semibold text-[var(--text-primary)]">{t("verifyEmail.title")}</h2>
 
-      <ErrorBanner
-        message={t("login.emailVerificationRequired")}
-        requestId={requestId}
-        className="mb-4 text-left"
-      />
+          {/* Auto-checking indicator */}
+          <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-amber-200/70 bg-amber-50/80 px-4 py-3 text-sm text-amber-800">
+            <svg className="h-4 w-4 animate-spin text-amber-600" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <span>{t("signup.autoCheckingStatus")}</span>
+          </div>
 
-      {verificationResent ? (
-        <div className="mb-4 rounded-xl border border-emerald-200/80 bg-emerald-50 p-3 text-sm text-emerald-700">
-          {t("login.verificationResent")}
-        </div>
-      ) : null}
+          <ErrorBanner
+            message={t("login.emailVerificationRequired")}
+            requestId={requestId}
+            className="mb-4 text-left"
+          />
 
-      {error ? (
-        <ErrorBanner message={error} onDismiss={() => setError(null)} className="mb-4 text-left" />
-      ) : null}
+          {verificationResent ? (
+            <div className="mb-4 rounded-xl border border-emerald-200/80 bg-emerald-50 p-3 text-sm text-emerald-700">
+              {t("login.verificationResent")}
+            </div>
+          ) : null}
 
-      <button
-        type="button"
-        onClick={handleResendVerification}
-        disabled={resendLoading || verificationResent}
-        className={premiumPrimaryBtn}
-      >
-        {resendLoading ? t("common.loading") : t("login.resendVerification")}
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          setEmailVerificationRequired(false);
-          setError(null);
-          setVerificationResent(false);
-        }}
-        className="mt-3 w-full text-center text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--highlight)]"
-      >
-        {t("security.backToLogin")}
-      </button>
+          {error ? (
+            <ErrorBanner message={error} onDismiss={() => setError(null)} className="mb-4 text-left" />
+          ) : null}
+
+          <button
+            type="button"
+            onClick={handleResendVerification}
+            disabled={resendLoading || verificationResent}
+            className={premiumPrimaryBtn}
+          >
+            {resendLoading ? t("common.loading") : t("login.resendVerification")}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEmailVerificationRequired(false);
+              setError(null);
+              setVerificationResent(false);
+            }}
+            className="mt-3 w-full text-center text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--highlight)]"
+          >
+            {t("security.backToLogin")}
+          </button>
+        </>
+      )}
     </div>
   ) : mfaRequired ? (
     <>
