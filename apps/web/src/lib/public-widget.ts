@@ -66,7 +66,9 @@ export function mountPublicWidgetScript(identity: WidgetIdentity): boolean {
 
   if (document.querySelector('script[data-helvino-widget="1"]')) return true;
   const script = document.createElement("script");
-  script.src = "/embed.js";
+  // embed.js is served from the API origin, not the frontend.
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.helvion.io";
+  script.src = `${apiUrl}/embed.js`;
   script.async = true;
   script.setAttribute("data-helvino-widget", "1");
   document.body.appendChild(script);

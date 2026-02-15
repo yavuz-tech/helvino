@@ -11,6 +11,10 @@ import CampaignTopBanner from "@/components/CampaignTopBanner";
 import { designTokens } from "@/lib/designTokens";
 import { colors, fonts } from "@/lib/design-tokens";
 import {
+  mountPublicWidgetScript,
+  resolvePublicWidgetIdentity,
+} from "@/lib/public-widget";
+import {
   MessageCircle,
   Inbox,
   Bot,
@@ -327,6 +331,12 @@ export default function PublicLayout({
     setMobileMenuOpen(false);
     setMobileAccordion(null);
   }, [pathname]);
+
+  /* Mount the Helvion chat widget on public pages */
+  useEffect(() => {
+    const identity = resolvePublicWidgetIdentity();
+    mountPublicWidgetScript(identity);
+  }, []);
 
   const closeDesktopDropdown = useCallback(() => setOpenDropdown(null), []);
 
