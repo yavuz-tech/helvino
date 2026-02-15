@@ -17,7 +17,9 @@ import { genericRateLimit } from "../utils/rate-limit";
 
 // Embed script is served from the API itself at /embed.js (see routes/embed.ts).
 // EMBED_CDN_URL can optionally point to an external CDN if one is provisioned later.
-const EMBED_CDN = process.env.EMBED_CDN_URL || process.env.API_PUBLIC_URL || "https://api.helvion.io";
+// NOTE: Do NOT fall back to API_PUBLIC_URL — that env var may point to the frontend
+// (app.helvion.io) instead of the API origin. The embed route lives on the API server.
+const EMBED_CDN = process.env.EMBED_CDN_URL || "https://api.helvion.io";
 
 // ── Domain validation ──────────────────────────────────
 
