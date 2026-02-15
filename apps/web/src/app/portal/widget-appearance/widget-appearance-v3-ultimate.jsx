@@ -422,6 +422,22 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
   const markChanged = useCallback(() => { setHasChanges(true); setSaved(false); }, []);
 
+  // Live-sync the floating bubble in PortalLayout as settings change (no save needed)
+  useEffect(() => {
+    try {
+      const effectiveColor = useCustom ? customColor : theme.color;
+      const legacyPosition = position.id === "bl" ? "left" : "right";
+      const bubbleSettings = {
+        primaryColor: effectiveColor,
+        position: legacyPosition,
+        launcher: "bubble",
+        bubbleShape: launcher.id === "pill" ? "rounded-square" : "circle",
+        bubbleIcon: launcher.id === "icon" ? "message" : "chat",
+      };
+      window.dispatchEvent(new CustomEvent("widget-settings-live-preview", { detail: { settings: bubbleSettings } }));
+    } catch { /* non-critical */ }
+  }, [theme, customColor, useCustom, launcher, position]);
+
   const handleSave = async () => {
     const selectedThemeIsPremium = Boolean(theme?.pro);
     if (isFree && selectedThemeIsPremium) {
@@ -523,6 +539,20 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
       setSaved(true);
       setHasChanges(false);
       setTimeout(() => setSaved(false), 2500);
+      // Notify PortalLayout floating bubble to update immediately (no page refresh needed)
+      try {
+        const effectiveColor = useCustom ? customColor : theme.color;
+        const legacyPosition = position.id === "bl" ? "left" : "right";
+        const bubbleSettings = {
+          primaryColor: effectiveColor,
+          position: legacyPosition,
+          launcher: "bubble",
+          bubbleShape: launcher.id === "pill" ? "rounded-square" : "circle",
+          bubbleIcon: launcher.id === "icon" ? "message" : "chat",
+        };
+        window.dispatchEvent(new CustomEvent("widget-settings-updated", { detail: { settings: bubbleSettings } }));
+        window.dispatchEvent(new CustomEvent("widget-settings-live-preview", { detail: { settings: bubbleSettings } }));
+      } catch { /* non-critical */ }
     } catch (err) {
       // Bubble up the actual API error message when possible.
       const msg =
