@@ -808,6 +808,13 @@ fastify.post<{ Params: { conversationId: string } }>(
       return { error: "AI quota exceeded", code: "QUOTA_EXCEEDED" };
     }
 
+    // Check M2 entitlement (AI assist metering)
+    const m2Check = await checkM2Entitlement(org.id);
+    if (!m2Check.allowed) {
+      reply.code(402);
+      return { error: m2Check.error || "AI quota exceeded", code: m2Check.code || "QUOTA_M2_EXCEEDED" };
+    }
+
     // Load AI config
     const orgRecord = await prisma.organization.findUnique({
       where: { id: org.id },
@@ -844,10 +851,12 @@ fastify.post<{ Params: { conversationId: string } }>(
         return { error: result.error, code: "QUOTA_EXCEEDED" };
       }
       reply.code(500);
-      return { error: result.error, code: result.code };
+      // SECURITY: never leak internal provider error details to the client
+      return { error: "AI service encountered an error", code: result.code || "AI_ERROR" };
     }
 
-    const aiMessage = await store.addMessage(conversationId, org.id, "assistant", result.content, {
+    // SECURITY: Sanitize AI-generated content before persisting (prevent stored XSS)
+    const aiMessage = await store.addMessage(conversationId, org.id, "assistant", sanitizeHTML(result.content), {
       provider: result.provider,
       model: result.model,
       tokensUsed: result.tokensUsed,

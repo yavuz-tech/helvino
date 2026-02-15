@@ -9,6 +9,22 @@
 import { prisma } from "../prisma";
 import { getAiLimitForPlan } from "../utils/ai-service";
 
+/**
+ * Resolve the correct AI message limit for an org.
+ * Prefers the DB plan table's `maxAiMessagesPerMonth` over the hardcoded fallback,
+ * ensuring Stripe-synced limits aren't silently overwritten on monthly reset.
+ */
+async function resolveAiLimit(planKey: string): Promise<number> {
+  const planRow = await prisma.plan.findUnique({
+    where: { key: planKey },
+    select: { maxAiMessagesPerMonth: true },
+  });
+  if (planRow?.maxAiMessagesPerMonth != null && planRow.maxAiMessagesPerMonth > 0) {
+    return planRow.maxAiMessagesPerMonth;
+  }
+  return getAiLimitForPlan(planKey);
+}
+
 /** Reset AI quota for all orgs whose 30-day period has elapsed. */
 export async function resetExpiredAiQuotas(): Promise<{ resetCount: number }> {
   const thirtyDaysAgo = new Date();
@@ -29,12 +45,13 @@ export async function resetExpiredAiQuotas(): Promise<{ resetCount: number }> {
   let resetCount = 0;
   for (const org of expiredOrgs) {
     try {
+      const newLimit = await resolveAiLimit(org.planKey);
       await prisma.organization.update({
         where: { id: org.id },
         data: {
           currentMonthAIMessages: 0,
           aiMessagesResetDate: new Date(),
-          aiMessagesLimit: getAiLimitForPlan(org.planKey),
+          aiMessagesLimit: newLimit,
         },
       });
       resetCount++;

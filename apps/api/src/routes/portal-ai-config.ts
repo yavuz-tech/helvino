@@ -17,12 +17,14 @@ import {
   isAiAvailable,
   generateAiResponse,
   checkAiQuota,
+  incrementAiUsage,
   getAvailableProviders,
   getAvailableModels,
   DEFAULT_AI_CONFIG,
   type AiConfig,
   type AiProvider,
 } from "../utils/ai-service";
+import { createRateLimitMiddleware } from "../middleware/rate-limit";
 
 export async function portalAiConfigRoutes(fastify: FastifyInstance) {
 
@@ -157,7 +159,14 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
   // ─── POST /portal/ai/test ────────────────────────
   fastify.post<{ Body: { message: string; provider?: AiProvider } }>(
     "/portal/ai/test",
-    { preHandler: [requirePortalUser, requirePortalRole(["owner", "admin"]), validateJsonContentType] },
+    {
+      preHandler: [
+        requirePortalUser,
+        requirePortalRole(["owner", "admin"]),
+        createRateLimitMiddleware({ limit: 10, windowMs: 60_000, routeName: "ai.test" }),
+        validateJsonContentType,
+      ],
+    },
     async (request, reply) => {
       const user = request.portalUser!;
       const { message, provider } = request.body;
@@ -168,6 +177,13 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
       if (!isAiAvailable()) {
         reply.code(503);
         return { error: "AI service not available. No API keys configured." };
+      }
+
+      // SECURITY: Enforce AI quota even for test endpoint to prevent unlimited usage
+      const quota = await checkAiQuota(user.orgId);
+      if (quota.exceeded) {
+        reply.code(402);
+        return { error: "AI quota exceeded", code: "QUOTA_EXCEEDED", used: quota.used, limit: quota.limit };
       }
 
       const org = await prisma.organization.findUnique({
@@ -197,6 +213,9 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
         // SECURITY: never leak upstream/provider error details to the client
         return { error: "AI service encountered an error", code: result.code || "AI_ERROR" };
       }
+
+      // Track AI usage for test calls too
+      await incrementAiUsage(user.orgId);
 
       return {
         ok: true,
