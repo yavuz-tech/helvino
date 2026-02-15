@@ -332,17 +332,41 @@ export default function PortalLayout({
   useEffect(() => {
     if (!user) return;
     let mounted = true;
+    let consecutiveFailures = 0;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
 
     const fetchCount = async () => {
       try {
         const res = await portalApiFetch(`/portal/conversations/unread-count?_t=${Date.now()}`, { cache: "no-store" });
-        if (res.ok && mounted) {
-          const data = await res.json();
-          setUnreadCount(data.unreadCount ?? 0);
+        if (!mounted) return;
+
+        if (res.ok) {
+          consecutiveFailures = 0;
+          const data = await res.json().catch(() => ({}));
+          const next = Number(data?.unreadCount ?? 0) || 0;
+          // Avoid re-render if value didn't change
+          setUnreadCount((prev) => (prev === next ? prev : next));
+        } else {
+          // 4xx/5xx: do not update state and do not spam the UI.
+          // Increase interval with simple backoff to reduce jitter and load.
+          consecutiveFailures += 1;
         }
       } catch {
-        // silent
+        consecutiveFailures += 1;
       }
+    };
+
+    const schedule = () => {
+      if (!mounted) return;
+      // Base poll: inbox page more frequent, elsewhere less frequent.
+      const baseMs = pathname === "/portal/inbox" ? 5_000 : 30_000;
+      // Backoff: 1x, 2x, 4x, 8x, ... up to 2 minutes.
+      const factor = Math.min(16, Math.pow(2, Math.max(0, consecutiveFailures - 1)));
+      const nextMs = Math.min(120_000, baseMs * factor);
+      timeout = setTimeout(async () => {
+        await fetchCount();
+        schedule();
+      }, nextMs);
     };
 
     const onRefresh = () => { if (mounted) fetchCount(); };
@@ -350,12 +374,11 @@ export default function PortalLayout({
     window.addEventListener("portal-inbox-unread-refresh", onRefresh);
     document.addEventListener("visibilitychange", onVisible);
 
-    fetchCount();
-    const pollMs = pathname === "/portal/inbox" ? 5_000 : 30_000;
-    const interval = setInterval(fetchCount, pollMs);
+    void fetchCount();
+    schedule();
     return () => {
       mounted = false;
-      clearInterval(interval);
+      if (timeout) clearTimeout(timeout);
       window.removeEventListener("portal-inbox-unread-refresh", onRefresh);
       document.removeEventListener("visibilitychange", onVisible);
     };

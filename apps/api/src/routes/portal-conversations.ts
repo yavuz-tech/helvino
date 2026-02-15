@@ -193,18 +193,35 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/portal/conversations/unread-count",
     {
+      // NOTE: Some clients add cache-buster params like `?_t=...`.
+      // Explicitly allow them so schema validation never returns 400.
+      schema: {
+        querystring: {
+          type: "object",
+          properties: {
+            _t: { type: "string" },
+          },
+          additionalProperties: true,
+        },
+      },
       preHandler: [
         requirePortalUser,
         requirePortalRole(["owner", "admin", "agent"]),
         createRateLimitMiddleware({ limit: 60, windowMs: 60000 }),
       ],
     },
-    async (request) => {
-      const actor = request.portalUser!;
-      const count = await prisma.conversation.count({
-        where: { orgId: actor.orgId, hasUnreadFromUser: true },
-      });
-      return { unreadCount: count };
+    async (request, reply) => {
+      try {
+        const actor = request.portalUser!;
+        const count = await prisma.conversation.count({
+          where: { orgId: actor.orgId, hasUnreadFromUser: true },
+        });
+        return { unreadCount: count };
+      } catch (err) {
+        request.log.error({ err }, "Failed to compute unread-count");
+        // Never respond 400 here; it's a server-side issue.
+        return reply.code(500).send({ error: "Failed to compute unread count" });
+      }
     }
   );
 
