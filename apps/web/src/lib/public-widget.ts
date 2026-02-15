@@ -55,12 +55,19 @@ export function mountPublicWidgetScript(identity: WidgetIdentity): boolean {
   if (typeof window === "undefined") return false;
   if (!identity.siteId && !identity.orgKey) return false;
 
-  const w = window as unknown as { HELVINO_SITE_ID?: string; HELVINO_ORG_KEY?: string };
+  const w = window as unknown as {
+    HELVION_SITE_ID?: string; HELVION_ORG_KEY?: string;
+    HELVINO_SITE_ID?: string; HELVINO_ORG_KEY?: string;
+  };
   if (identity.siteId) {
-    w.HELVINO_SITE_ID = identity.siteId;
+    w.HELVION_SITE_ID = identity.siteId;
+    w.HELVINO_SITE_ID = identity.siteId; // legacy alias
+    w.HELVION_ORG_KEY = undefined;
     w.HELVINO_ORG_KEY = undefined;
   } else if (identity.orgKey) {
-    w.HELVINO_ORG_KEY = identity.orgKey;
+    w.HELVION_ORG_KEY = identity.orgKey;
+    w.HELVINO_ORG_KEY = identity.orgKey; // legacy alias
+    w.HELVION_SITE_ID = undefined;
     w.HELVINO_SITE_ID = undefined;
   }
 

@@ -2,8 +2,11 @@
  * Helvion Widget Embeddable Loader
  * 
  * Usage:
- *   <script>window.HELVINO_ORG_KEY = "demo";</script>
- *   <script src="https://your-cdn.com/embed.js"></script>
+ *   <script>window.HELVION_SITE_ID = "your-site-id";</script>
+ *   <script src="https://api.helvion.io/embed.js"></script>
+ * 
+ * Legacy (still supported):
+ *   window.HELVINO_SITE_ID / window.HELVINO_ORG_KEY
  * 
  * API:
  *   Helvion.open()   - Open the widget
@@ -41,19 +44,32 @@ const renderWidget = () => {
 
 // Initialize widget
 const initWidget = () => {
+  const w = window as any;
+
+  // Normalize: accept HELVION_* (current) or HELVINO_* (legacy)
+  // Copy legacy → current so the rest of the code only reads HELVION_*
+  if (!w.HELVION_SITE_ID && w.HELVINO_SITE_ID) {
+    w.HELVION_SITE_ID = w.HELVINO_SITE_ID;
+  }
+  if (!w.HELVION_ORG_KEY && w.HELVINO_ORG_KEY) {
+    w.HELVION_ORG_KEY = w.HELVINO_ORG_KEY;
+  }
+
   // Check if orgKey or siteId is set
-  if (!(window as any).HELVINO_ORG_KEY && !(window as any).HELVINO_SITE_ID) {
+  if (!w.HELVION_ORG_KEY && !w.HELVION_SITE_ID) {
     console.error(
-      "❌ Helvion Widget: HELVINO_SITE_ID or HELVINO_ORG_KEY not found on window object.\n" +
+      "❌ Helvion Widget: HELVION_SITE_ID not found on window object.\n" +
       "Please set it before loading the widget:\n" +
-      '<script>window.HELVINO_SITE_ID = "your-site-id";</script>'
+      '<script>window.HELVION_SITE_ID = "your-site-id";</script>'
     );
     return;
   }
 
   // Set parent host for domain allowlist verification (iframe embed scenario)
   try {
-    (window as any).HELVINO_PARENT_HOST = window.location.hostname;
+    w.HELVION_PARENT_HOST = window.location.hostname;
+    // Legacy alias
+    w.HELVINO_PARENT_HOST = w.HELVION_PARENT_HOST;
   } catch {
     // cross-origin frame — best-effort
   }

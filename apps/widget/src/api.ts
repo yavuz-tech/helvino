@@ -15,16 +15,18 @@ const requestQueue: Array<() => void> = []; // Queue for requests waiting on tok
 
 /**
  * Get site ID from window object (preferred method)
+ * Reads HELVION_SITE_ID (current) or HELVINO_SITE_ID (legacy)
  */
 function getSiteId(): string | null {
-  return (window as any).HELVINO_SITE_ID || null;
+  return (window as any).HELVION_SITE_ID || (window as any).HELVINO_SITE_ID || null;
 }
 
 /**
  * Get orgKey from window object (legacy support)
+ * Reads HELVION_ORG_KEY (current) or HELVINO_ORG_KEY (legacy)
  */
 function getOrgKey(): string | null {
-  return (window as any).HELVINO_ORG_KEY || null;
+  return (window as any).HELVION_ORG_KEY || (window as any).HELVINO_ORG_KEY || null;
 }
 
 /**
@@ -36,7 +38,7 @@ function getOrgIdentifier(): { siteId?: string; orgKey?: string } {
   const orgKey = getOrgKey();
 
   if (!siteId && !orgKey) {
-    console.error("Neither HELVINO_SITE_ID nor HELVINO_ORG_KEY is set on window object");
+    console.error("Neither HELVION_SITE_ID nor HELVION_ORG_KEY is set on window object");
     throw new Error("Organization identifier not configured");
   }
 
@@ -424,7 +426,7 @@ export async function sendMessage(
 export async function loadBootloader(): Promise<BootloaderConfig> {
   // Build bootloader URL with parentHost for domain validation
   let bootloaderUrl = `${API_URL}/api/bootloader`;
-  const parentHost = (window as any).HELVINO_PARENT_HOST;
+  const parentHost = (window as any).HELVION_PARENT_HOST || (window as any).HELVINO_PARENT_HOST;
   if (parentHost) {
     bootloaderUrl += `?parentHost=${encodeURIComponent(parentHost)}`;
   }

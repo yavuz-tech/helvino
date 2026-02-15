@@ -109,7 +109,7 @@
     <h3 style="font-size: 16px; color: #0F5C5C; margin-top: 20px;">✅ Recommended (Site ID)</h3>
     <pre>&lt;!-- Step 1: Set your site ID (public identifier) --&gt;
 &lt;script&gt;
-  window.HELVINO_SITE_ID = "site_xxxxxxxxxxxxxxxx";
+  window.HELVION_SITE_ID = "site_xxxxxxxxxxxxxxxx";
 &lt;/script&gt;
 
 &lt;!-- Step 2: Load the widget --&gt;
@@ -118,7 +118,7 @@
     <h3 style="font-size: 16px; color: #666; margin-top: 20px;">🔄 Legacy Support (Org Key)</h3>
     <pre>&lt;!-- Legacy method still works but Site ID is preferred --&gt;
 &lt;script&gt;
-  window.HELVINO_ORG_KEY = "your-org-key";
+  window.HELVION_ORG_KEY = "your-org-key";
 &lt;/script&gt;
 
 &lt;!-- Step 2: Load the widget --&gt;
@@ -126,23 +126,23 @@
 
     <div class="warning">
       <strong>⚠️ Important</strong>
-      Set <code>window.HELVINO_SITE_ID</code> (or legacy <code>HELVINO_ORG_KEY</code>) BEFORE loading the embed.js script.
+      Set <code>window.HELVION_SITE_ID</code> (or legacy <code>HELVINO_SITE_ID</code>) BEFORE loading the embed.js script.
     </div>
   </div>
 
   <div class="demo-card">
     <h2>🎮 Interactive API Demo</h2>
     <p>Try the widget controls below or open your browser console and type:</p>
-    <pre>Helvino.open()   // Open widget
-Helvino.close()  // Close widget
-Helvino.toggle() // Toggle widget
-Helvino.isOpen() // Check if open</pre>
+    <pre>Helvion.open()   // Open widget
+Helvion.close()  // Close widget
+Helvion.toggle() // Toggle widget
+Helvion.isOpen() // Check if open</pre>
 
     <div class="api-section">
-      <button onclick="Helvino.open()">Open Widget</button>
-      <button onclick="Helvino.close()">Close Widget</button>
-      <button onclick="Helvino.toggle()">Toggle Widget</button>
-      <button onclick="alert('Widget is ' + (Helvino.isOpen() ? 'OPEN' : 'CLOSED'))">
+      <button onclick="Helvion.open()">Open Widget</button>
+      <button onclick="Helvion.close()">Close Widget</button>
+      <button onclick="Helvion.toggle()">Toggle Widget</button>
+      <button onclick="alert('Widget is ' + (Helvion.isOpen() ? 'OPEN' : 'CLOSED'))">
         Check Status
       </button>
     </div>
@@ -172,10 +172,10 @@ Helvino.isOpen() // Check if open</pre>
   <script>
     // Step 1: Set organization identifier
     // Using legacy orgKey for this demo (siteId is preferred in production)
-    window.HELVINO_ORG_KEY = "demo";
+    window.HELVION_ORG_KEY = "demo";
     
     // Preferred method (get your siteId from dashboard settings):
-    // window.HELVINO_SITE_ID = "site_xxxxxxxxxxxxxxxx";
+    // window.HELVION_SITE_ID = "site_xxxxxxxxxxxxxxxx";
   </script>
 
   <!-- Step 2: Load widget (in dev mode, use local embed.js from dist) -->
@@ -185,8 +185,8 @@ Helvino.isOpen() // Check if open</pre>
   <script>
     // Update configuration display
     setTimeout(() => {
-      document.getElementById('site-id').textContent = window.HELVINO_SITE_ID || 'Not set (using legacy orgKey)';
-      document.getElementById('org-key').textContent = window.HELVINO_ORG_KEY || 'Not set';
+      document.getElementById('site-id').textContent = window.HELVION_SITE_ID || window.HELVINO_SITE_ID || 'Not set (using legacy orgKey)';
+      document.getElementById('org-key').textContent = window.HELVION_ORG_KEY || window.HELVINO_ORG_KEY || 'Not set';
       document.getElementById('api-url').textContent = 'http://localhost:4000';
       document.getElementById('widget-status').textContent = window.Helvino ? 'Ready ✓' : 'Failed ✗';
     }, 100);

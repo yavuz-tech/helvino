@@ -142,7 +142,7 @@ export async function portalWidgetConfigRoutes(fastify: FastifyInstance) {
         allowedDomains: org.allowedDomains,
         allowLocalhost: org.allowLocalhost,
         embedSnippet: {
-          html: `<!-- Helvion Chat Widget -->\n<script>window.HELVINO_SITE_ID="${org.siteId}";</script>\n<script src="${EMBED_CDN}/embed.js"></script>`,
+          html: `<!-- Helvion Chat Widget -->\n<script>window.HELVION_SITE_ID="${org.siteId}";</script>\n<script src="${EMBED_CDN}/embed.js"></script>`,
           scriptSrc: `${EMBED_CDN}/embed.js`,
           siteId: org.siteId,
         },
@@ -194,7 +194,7 @@ export async function portalWidgetConfigRoutes(fastify: FastifyInstance) {
         allowedDomains: org.allowedDomains,
         allowLocalhost: org.allowLocalhost,
         embedSnippet: {
-          html: `<!-- Helvion Chat Widget -->\n<script>window.HELVINO_SITE_ID="${org.siteId}";</script>\n<script src="${EMBED_CDN}/embed.js"></script>`,
+          html: `<!-- Helvion Chat Widget -->\n<script>window.HELVION_SITE_ID="${org.siteId}";</script>\n<script src="${EMBED_CDN}/embed.js"></script>`,
           scriptSrc: `${EMBED_CDN}/embed.js`,
           siteId: org.siteId,
         },

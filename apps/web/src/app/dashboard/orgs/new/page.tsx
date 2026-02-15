@@ -91,7 +91,7 @@ export default function NewOrgPage() {
 
   const embedSnippet = createdOrg
     ? `<!-- Helvion Chat Widget -->
-<script>window.HELVINO_SITE_ID="${createdOrg.siteId}";</script>
+<script>window.HELVION_SITE_ID="${createdOrg.siteId}";</script>
 <script src="https://api.helvion.io/embed.js"></script>`
     : "";
 
