@@ -461,9 +461,24 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
 
   const ws = bootloaderConfig.config.widgetSettings;
   const v3 = (ws || {}) as any;
-  const primaryColor =
-    bootloaderConfig.config.widgetSettings?.primaryColor ||
-    bootloaderConfig.config.theme.primaryColor;
+
+  // ── Unified v3 color resolution ──
+  // Portal stores: themeId, customColor, useCustomColor in configJson.
+  // We must derive the effective primaryColor from these v3 fields first,
+  // then fall back to the legacy column value from widgetSettings.primaryColor.
+  const V3_THEME_COLORS_RESOLVE: Record<string, string> = {
+    amber: "#F59E0B", ocean: "#0EA5E9", emerald: "#10B981", violet: "#8B5CF6",
+    rose: "#F43F5E", slate: "#475569", teal: "#14B8A6", indigo: "#6366F1",
+    sunset: "#F97316", aurora: "#06B6D4", midnight: "#1E293B", cherry: "#BE123C",
+  };
+  const v3ThemeId = v3.themeId || "amber";
+  const v3UseCustom = v3.useCustomColor === true;
+  const v3CustomColor = typeof v3.customColor === "string" ? v3.customColor : "#F59E0B";
+  // Effective primary color: custom > theme lookup > legacy column > org default
+  const primaryColor = v3UseCustom
+    ? v3CustomColor
+    : V3_THEME_COLORS_RESOLVE[v3ThemeId] || bootloaderConfig.config.widgetSettings?.primaryColor || bootloaderConfig.config.theme.primaryColor;
+
   const bubbleTheme = resolveWidgetBubbleTheme(
     {
       primaryColor,
@@ -489,7 +504,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const isLoginContext = widgetContext === "portal-login";
   const isLeft = isLoginContext ? false : bubbleTheme.bubblePosition === "bottom-left";
   const launcherRadius = bubbleBorderRadius(bubbleTheme.bubbleShape, bubbleTheme.bubbleSize);
-  const THEME_COLORS: Record<string, { color: string; dark: string }> = {
+  const THEME_COLORS_GRADIENT: Record<string, { color: string; dark: string }> = {
     amber: { color: "#F59E0B", dark: "#D97706" },
     ocean: { color: "#0EA5E9", dark: "#0284C7" },
     emerald: { color: "#10B981", dark: "#059669" },
@@ -503,11 +518,10 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     midnight: { color: "#1E293B", dark: "#0F172A" },
     cherry: { color: "#BE123C", dark: "#9F1239" },
   };
-  const themeId = v3.themeId || "amber";
-  const themeColors = THEME_COLORS[themeId] || THEME_COLORS.amber;
-  const useCustom = v3.useCustomColor === true;
-  const ac = useCustom ? (v3.customColor || "#F59E0B") : themeColors.color;
-  const ad = useCustom ? (v3.customColor || "#F59E0B") : themeColors.dark;
+  const themeColors = THEME_COLORS_GRADIENT[v3ThemeId] || THEME_COLORS_GRADIENT.amber;
+  // ac (accent color) and ad (accent dark) MUST match primaryColor source
+  const ac = v3UseCustom ? v3CustomColor : themeColors.color;
+  const ad = v3UseCustom ? v3CustomColor : themeColors.dark;
   const ag = `linear-gradient(135deg, ${ac}, ${ad})`;
   const hexRgb = (hex: string) => {
     const h = hex.replace("#", "");
