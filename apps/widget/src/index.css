@@ -8,6 +8,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
+  /* Widget must always float above host page content */
+  position: relative;
+  z-index: 2147483647;
 }
 
 #helvino-widget-root *,

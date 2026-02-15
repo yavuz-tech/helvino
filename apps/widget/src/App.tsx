@@ -590,7 +590,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
 
       {actualIsOpen && (
         <div className={isLoginContext ? "widget-auth-overlay" : undefined}>
-          <div className={`chat-window ${isLoginContext ? "auth-mode" : isLeftV3 ? "position-left" : "position-right"}`} style={{ width: widgetDim.w, height: widgetDim.h }}>
+          <div className={`chat-window ${isLoginContext ? "auth-mode" : isLeftV3 ? "position-left" : "position-right"}`} style={{ width: widgetDim.w, height: widgetDim.h, zIndex: 2147483646 }}>
           <div className="chat-header-v3" style={{ background: ag, position: "relative", overflow: "hidden" }}>
             <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 85% 15%, rgba(255,255,255,0.12), transparent 60%)" }} />
             <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>

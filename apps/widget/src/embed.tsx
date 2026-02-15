@@ -83,6 +83,9 @@ const initWidget = () => {
   if (!rootElement) {
     rootElement = document.createElement("div");
     rootElement.id = "helvino-widget-root";
+    // Ensure the widget root is always on top of host page content
+    rootElement.style.position = "relative";
+    rootElement.style.zIndex = "2147483647";
     document.body.appendChild(rootElement);
   }
   // Mark for easier debugging in DOM
