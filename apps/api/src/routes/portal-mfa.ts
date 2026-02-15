@@ -17,14 +17,16 @@ import {
   verifyTotpCode,
   generateBackupCodes,
   tryConsumeBackupCode,
+  encryptMfaSecret,
+  decryptMfaSecret,
   STEP_UP_TTL_MS,
-  isStepUpValid,
 } from "../utils/totp";
 import {
   PORTAL_SESSION_COOKIE,
   PORTAL_ACCESS_TOKEN_TTL_MS,
   PORTAL_SESSION_TTL_MS,
   PORTAL_REFRESH_TOKEN_TTL_MS,
+  createPortalSessionToken,
   createPortalTokenPair,
   createPortalSessionWithLimit,
   verifyPortalSessionToken,
@@ -75,18 +77,7 @@ export async function requirePortalStepUp(
     return reply.status(401).send({ error: "Invalid session" });
   }
 
-  // Check step-up timestamp stored in portalSession record
-  const sessionRecord = await prisma.portalSession.findFirst({
-    where: {
-      orgUserId: actor.id,
-      revokedAt: null,
-    },
-    orderBy: { lastSeenAt: "desc" },
-  });
-
-  // We store stepUpUntil as a number in the session's ip field hack — no, let's use a proper approach.
-  // Store stepUpUntil on the request via a cookie or check DB.
-  // For simplicity, we use a separate signed cookie "helvino_stepup".
+  // Step-up is tracked via a short-lived signed cookie.
   const stepUpCookie = request.cookies["helvino_portal_stepup"];
   if (stepUpCookie) {
     try {
@@ -209,7 +200,7 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
       await prisma.orgUser.update({
         where: { id: user.id },
         data: {
-          mfaSecret: secret,
+          mfaSecret: encryptMfaSecret(secret),
           backupCodesHash: JSON.stringify(backupCodesHashed),
         },
       });
@@ -271,7 +262,15 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
         return { error: "MFA is already enabled" };
       }
 
-      const valid = verifyTotpCode(user.mfaSecret, body.code);
+      let totpSecret: string;
+      try {
+        totpSecret = decryptMfaSecret(user.mfaSecret);
+      } catch {
+        reply.code(500);
+        return { error: "MFA secret decryption failed" };
+      }
+
+      const valid = verifyTotpCode(totpSecret, body.code);
       if (!valid) {
         reply.code(400);
         return { error: "Invalid verification code" };
@@ -398,8 +397,16 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
         return { error: "MFA is not enabled" };
       }
 
+      let totpSecret: string;
+      try {
+        totpSecret = decryptMfaSecret(user.mfaSecret);
+      } catch {
+        reply.code(500);
+        return { error: "MFA secret decryption failed" };
+      }
+
       // Try TOTP code first
-      let valid = verifyTotpCode(user.mfaSecret, body.code);
+      let valid = verifyTotpCode(totpSecret, body.code);
 
       // Try backup code
       if (!valid && user.backupCodesHash) {
@@ -492,7 +499,15 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
         return { error: "MFA is not enabled" };
       }
 
-      let valid = verifyTotpCode(user.mfaSecret, body.code);
+      let totpSecret: string;
+      try {
+        totpSecret = decryptMfaSecret(user.mfaSecret);
+      } catch {
+        reply.code(500);
+        return { error: "MFA secret decryption failed" };
+      }
+
+      let valid = verifyTotpCode(totpSecret, body.code);
 
       // Try backup code
       if (!valid && user.backupCodesHash) {
@@ -519,24 +534,24 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
         return { error: "Invalid code" };
       }
 
-      // Set step-up cookie (short-lived signed token)
+      // Set step-up cookie (short-lived signed token).
       const secret = process.env.SESSION_SECRET;
       if (secret) {
-        const { createPortalSessionToken } = await import("../utils/portal-session");
         const stepUpToken = createPortalSessionToken(
           { userId: actor.id, orgId: actor.orgId, role: actor.role },
-          secret
+          secret,
+          STEP_UP_TTL_MS
         );
-        // Override the exp to be 10 minutes
-        // Since createPortalSessionToken sets 7-day exp, we'll create a simpler one
-        // Just set a cookie with short maxAge
-        const isProduction = process.env.NODE_ENV === "production";
+        const { sameSite, secure } = getPortalCookiePolicy({
+          requestOrigin: (request.headers.origin as string | undefined) || null,
+          requestHost: (request.headers.host as string | undefined) || null,
+        });
         reply.setCookie("helvino_portal_stepup", stepUpToken, {
           path: "/",
           httpOnly: true,
-          sameSite: "lax",
-          secure: isProduction,
-          maxAge: Math.floor(STEP_UP_TTL_MS / 1000), // 10 minutes
+          sameSite,
+          secure,
+          maxAge: Math.floor(STEP_UP_TTL_MS / 1000),
         });
       }
 
@@ -596,7 +611,15 @@ export async function portalMfaRoutes(fastify: FastifyInstance) {
         return { error: "Invalid MFA state" };
       }
 
-      let valid = verifyTotpCode(user.mfaSecret, body.code);
+      let totpSecret: string;
+      try {
+        totpSecret = decryptMfaSecret(user.mfaSecret);
+      } catch {
+        reply.code(500);
+        return { error: "MFA secret decryption failed" };
+      }
+
+      let valid = verifyTotpCode(totpSecret, body.code);
 
       // Try backup code
       if (!valid && user.backupCodesHash) {

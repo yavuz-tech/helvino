@@ -254,6 +254,36 @@ fastify.register(session, {
   rolling: true, // Reset maxAge on every request
 });
 
+// CSRF mitigation for cookie-authenticated routes:
+// - CORS does NOT stop classic form-post CSRF (it only protects XHR/fetch).
+// - Browsers include Origin on cross-site POST/PUT/PATCH/DELETE; we validate it
+//   against the same allowlist used for CORS.
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+fastify.addHook("onRequest", async (request, reply) => {
+  if (!UNSAFE_METHODS.has(request.method)) return;
+  const origin = request.headers.origin as string | undefined;
+  if (!origin) return;
+  const cookieHeader = request.headers.cookie as string | undefined;
+  if (!cookieHeader) return; // only relevant for cookie-authenticated requests
+
+  const url = request.raw.url || request.url;
+  const isCookieAuthSurface =
+    url.startsWith("/portal") ||
+    url.startsWith("/api/portal") ||
+    url.startsWith("/internal");
+  if (!isCookieAuthSurface) return;
+
+  if (!isOriginAllowedByCorsPolicy(origin, corsPolicy)) {
+    reply.code(403);
+    return reply.send({
+      error: {
+        code: "CSRF_ORIGIN_BLOCKED",
+        message: "Invalid Origin for authenticated request",
+      },
+    });
+  }
+});
+
 
 fastify.register(requestContextPlugin);
 fastify.register(hostTrustPlugin);

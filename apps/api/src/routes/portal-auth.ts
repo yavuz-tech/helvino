@@ -8,10 +8,11 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import crypto from "crypto";
 import geoip from "geoip-lite";
 import { prisma } from "../prisma";
-import { verifyPassword } from "../utils/password";
+import { verifyPasswordWithDummy } from "../utils/password";
 import { validateJsonContentType } from "../middleware/validation";
 import { requirePortalUser } from "../middleware/require-portal-user";
 import { rateLimit } from "../middleware/rate-limiter";
+import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import {
   PORTAL_SESSION_COOKIE,
   createPortalSessionToken,
@@ -70,6 +71,7 @@ interface EmergencyLockRequest {
 const MAX_LOGIN_ATTEMPTS = 5;
 const UNLOCK_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const MFA_SETUP_COOKIE = "helvino_portal_mfa_setup";
+const MFA_LOGIN_TOKEN_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 function generateUnlockToken(): string {
   return crypto.randomBytes(32).toString("hex");
@@ -165,6 +167,8 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
       });
 
       if (!orgUser) {
+        // Timing-attack mitigation: spend similar work as a real password check.
+        await verifyPasswordWithDummy(null, password);
         await logLoginAttempt({
           email: normalizedEmail,
           ipAddress: requestIp,
@@ -203,7 +207,7 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
         }
       }
 
-      const isValid = await verifyPassword(orgUser.passwordHash, password);
+      const isValid = await verifyPasswordWithDummy(orgUser.passwordHash, password);
       if (!isValid) {
         const nextAttempts = orgUser.loginAttempts + 1;
         const shouldLock = nextAttempts >= MAX_LOGIN_ATTEMPTS;
@@ -358,7 +362,8 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
             orgId: orgUser.orgId,
             role: orgUser.role,
           },
-          secret
+          secret,
+          MFA_LOGIN_TOKEN_TTL_MS
         );
 
         return {
@@ -791,24 +796,31 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
     return { ok: true };
   };
 
+  const securityOnboardingRateLimit = createRateLimitMiddleware({
+    limit: 30,
+    windowMs: 60 * 1000,
+    routeName: "portal.security_onboarding",
+    keyBuilder: (request) => `portal_security_onboarding:${getRealIP(request) || "unknown-ip"}`,
+  });
+
   fastify.post(
     "/api/portal/security-onboarding/dismiss",
-    { preHandler: [validateJsonContentType] },
+    { preHandler: [securityOnboardingRateLimit, validateJsonContentType] },
     dismissSecurityOnboardingHandler
   );
   fastify.post(
     "/portal/security-onboarding/dismiss",
-    { preHandler: [validateJsonContentType] },
+    { preHandler: [securityOnboardingRateLimit, validateJsonContentType] },
     dismissSecurityOnboardingHandler
   );
   fastify.post(
     "/api/portal/security-onboarding/continue",
-    { preHandler: [validateJsonContentType] },
+    { preHandler: [securityOnboardingRateLimit, validateJsonContentType] },
     continueSecurityOnboardingHandler
   );
   fastify.post(
     "/portal/security-onboarding/continue",
-    { preHandler: [validateJsonContentType] },
+    { preHandler: [securityOnboardingRateLimit, validateJsonContentType] },
     continueSecurityOnboardingHandler
   );
 
@@ -817,7 +829,18 @@ export async function portalAuthRoutes(fastify: FastifyInstance) {
    */
   fastify.post<{ Body: RefreshRequest }>(
     "/portal/auth/refresh",
-    { preHandler: [validateJsonContentType] },
+    {
+      preHandler: [
+        createRateLimitMiddleware({
+          limit: 30,
+          windowMs: 60 * 1000,
+          routeName: "portal.refresh",
+          keyBuilder: (request) => `portal_refresh:${getRealIP(request) || "unknown-ip"}`,
+          auditLog: false,
+        }),
+        validateJsonContentType,
+      ],
+    },
     async (request, reply) => {
       const refreshToken = (request.body?.refreshToken || "").trim();
       if (!refreshToken) {

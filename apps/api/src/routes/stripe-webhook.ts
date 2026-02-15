@@ -8,6 +8,8 @@ import {
   StripeNotConfiguredError,
 } from "../utils/stripe";
 import { writeAuditLog } from "../utils/audit-log";
+import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { getRealIP } from "../utils/get-real-ip";
 
 type BillingStatus =
   | "none"
@@ -56,6 +58,14 @@ async function findOrgFromStripe({
 }
 
 export async function stripeWebhookRoutes(fastify: FastifyInstance) {
+  const stripeWebhookRateLimit = createRateLimitMiddleware({
+    limit: 120,
+    windowMs: 60 * 1000,
+    routeName: "stripe.webhook",
+    keyBuilder: (request) => `stripe_webhook:${getRealIP(request) || "unknown-ip"}`,
+    auditLog: false,
+  });
+
   const handler = async (request: any, reply: any) => {
     const signature = request.headers["stripe-signature"] as string | undefined;
     const rawBody = request.rawBody;
@@ -371,6 +381,14 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
     return { ok: true };
   };
 
-  fastify.post("/stripe/webhook", { config: { rawBody: true } }, handler);
-  fastify.post("/webhooks/stripe", { config: { rawBody: true } }, handler);
+  fastify.post(
+    "/stripe/webhook",
+    { config: { rawBody: true }, preHandler: [stripeWebhookRateLimit] },
+    handler
+  );
+  fastify.post(
+    "/webhooks/stripe",
+    { config: { rawBody: true }, preHandler: [stripeWebhookRateLimit] },
+    handler
+  );
 }

@@ -138,11 +138,9 @@ export function validateDomainAllowlist() {
       );
 
       // Widget health: track domain mismatch (fire-and-forget)
-      // SQL-safe: parameterized query
-      prisma.$executeRawUnsafe(
-        `UPDATE "organizations" SET "widgetDomainMismatchTotal" = "widgetDomainMismatchTotal" + 1 WHERE "id" = $1`,
-        org.id
-      ).catch(() => {});
+      prisma
+        .$executeRaw`UPDATE "organizations" SET "widgetDomainMismatchTotal" = "widgetDomainMismatchTotal" + 1 WHERE "id" = ${org.id}`
+        .catch(() => {});
 
       // Emit widget health notification if this is the first or a significant mismatch (best-effort, dedupe will prevent spam)
       import("../utils/notifications")

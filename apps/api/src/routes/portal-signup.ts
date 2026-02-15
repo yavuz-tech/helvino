@@ -27,7 +27,7 @@ import { validateJsonContentType } from "../middleware/validation";
 import { verifyTurnstileToken, isCaptchaConfigured } from "../utils/verify-captcha";
 import { getRealIP } from "../utils/get-real-ip";
 import { validateBody } from "../utils/validate";
-import { signupSchema } from "../utils/schemas";
+import { resendVerificationSchema, signupSchema } from "../utils/schemas";
 import { sanitizePlainText } from "../utils/sanitize";
 
 function generateOrgKey(orgName: string): string {
@@ -311,7 +311,10 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: SignupBody }>(
     "/portal/auth/register",
     {
-      preHandler: [validateJsonContentType],
+      preHandler: [portalSignupRateLimit, validateJsonContentType],
+      config: {
+        skipGlobalRateLimit: true,
+      },
     },
     async (request, reply) => {
       const baseUrl = `http://127.0.0.1:${process.env.PORT || "4000"}`;
@@ -333,7 +336,9 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
       preHandler: [resendVerificationRateLimit(), validateJsonContentType],
     },
     async (request, reply) => {
-      const { email, locale } = request.body;
+      const parsedBody = validateBody(resendVerificationSchema, request.body, reply);
+      if (!parsedBody) return;
+      const { email, locale } = parsedBody;
       const requestId =
         (request as any).requestId ||
         (request.headers["x-request-id"] as string) ||
@@ -345,17 +350,6 @@ export async function portalSignupRoutes(fastify: FastifyInstance) {
           error: {
             code: "EMAIL_PROVIDER_NOT_CONFIGURED",
             message: "Email service is temporarily unavailable. Please contact support.",
-            requestId,
-          },
-        };
-      }
-
-      if (!email) {
-        reply.code(400);
-        return {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Email is required",
             requestId,
           },
         };

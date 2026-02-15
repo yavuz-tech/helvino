@@ -12,7 +12,16 @@ export interface PasswordPolicyResult {
   message?: string;
 }
 
-const MIN_LENGTH = 8;
+function readMinLength(): number {
+  const raw = (process.env.PASSWORD_MIN_LENGTH || "").trim();
+  if (!raw) return 12;
+  const parsed = Number.parseInt(raw, 10);
+  // Never allow a policy below 8 chars, even if misconfigured.
+  if (!Number.isFinite(parsed) || parsed < 8) return 12;
+  return parsed;
+}
+
+const MIN_LENGTH = readMinLength();
 const HAS_UPPERCASE = /[A-Z]/;
 const HAS_LOWERCASE = /[a-z]/;
 const HAS_NUMBER = /\d/;

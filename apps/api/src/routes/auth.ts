@@ -8,7 +8,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "../prisma";
-import { verifyPassword } from "../utils/password";
+import { verifyPasswordWithDummy } from "../utils/password";
 import { writeAuditLog } from "../utils/audit-log";
 import { validateJsonContentType } from "../middleware/validation";
 import { verifyTurnstileToken, isCaptchaConfigured } from "../utils/verify-captcha";
@@ -31,6 +31,14 @@ interface LoginBody {
   fingerprint?: string;
   deviceId?: string;
   deviceName?: string;
+}
+
+async function regenerateSessionIfSupported(request: FastifyRequest): Promise<void> {
+  const sessionAny = request.session as any;
+  if (!sessionAny || typeof sessionAny.regenerate !== "function") return;
+  await new Promise<void>((resolve, reject) => {
+    sessionAny.regenerate((err: unknown) => (err ? reject(err) : resolve()));
+  });
 }
 
 export async function authRoutes(fastify: FastifyInstance) {
@@ -154,6 +162,8 @@ export async function authRoutes(fastify: FastifyInstance) {
     });
 
     if (!adminUser) {
+      // Timing-attack mitigation: burn similar work as a real password check.
+      await verifyPasswordWithDummy(null, password);
       const failed = await recordFailedAdminLogin(normalizedEmail);
       request.log.warn({ email: normalizedEmail }, "Login attempt: user not found");
       await writeAuditLog(
@@ -184,7 +194,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
 
     // Verify password
-    const isValid = await verifyPassword(adminUser.passwordHash, password);
+    const isValid = await verifyPasswordWithDummy(adminUser.passwordHash, password);
 
     if (!isValid) {
       const failed = await recordFailedAdminLogin(adminUser.email);
@@ -237,6 +247,8 @@ export async function authRoutes(fastify: FastifyInstance) {
     await clearFailedAdminLogin(adminUser.email);
 
     if (hasMfaConfigured) {
+      // Session fixation mitigation: rotate the session ID at auth boundary.
+      await regenerateSessionIfSupported(request).catch(() => {});
       // Set partial session with MFA pending flag.
       request.session.adminUserId = adminUser.id;
       request.session.adminMfaPending = true;
@@ -268,6 +280,8 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
 
     // Dev/local fallback: allow login without MFA setup.
+    // Session fixation mitigation: rotate the session ID at auth boundary.
+    await regenerateSessionIfSupported(request).catch(() => {});
     request.session.adminUserId = adminUser.id;
     request.session.adminRole = adminUser.role;
     request.session.adminEmail = adminUser.email;

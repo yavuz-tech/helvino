@@ -9,7 +9,7 @@
 
 import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
-import { verifyPassword } from "../utils/password";
+import { verifyPasswordWithDummy } from "../utils/password";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 
 interface LoginRequest {
@@ -27,6 +27,14 @@ interface LoginResponse {
     orgKey: string;
     orgName: string;
   };
+}
+
+async function regenerateSessionIfSupported(request: any): Promise<void> {
+  const sessionAny = request.session as any;
+  if (!sessionAny || typeof sessionAny.regenerate !== "function") return;
+  await new Promise<void>((resolve, reject) => {
+    sessionAny.regenerate((err: unknown) => (err ? reject(err) : resolve()));
+  });
 }
 
 export async function orgAuthRoutes(fastify: FastifyInstance) {
@@ -71,6 +79,7 @@ export async function orgAuthRoutes(fastify: FastifyInstance) {
 
       // Generic error for user-not-found (prevent enumeration)
       if (!orgUser) {
+        await verifyPasswordWithDummy(null, password);
         reply.code(401);
         return { error: "Invalid email or password" };
       }
@@ -88,7 +97,7 @@ export async function orgAuthRoutes(fastify: FastifyInstance) {
       }
 
       // Verify password
-      const isValid = await verifyPassword(orgUser.passwordHash, password);
+      const isValid = await verifyPasswordWithDummy(orgUser.passwordHash, password);
 
       if (!isValid) {
         // Increment login attempts for lockout tracking
@@ -115,6 +124,7 @@ export async function orgAuthRoutes(fastify: FastifyInstance) {
       }
 
       // Set session
+      await regenerateSessionIfSupported(request).catch(() => {});
       request.session.orgUserId = orgUser.id;
       request.session.orgId = orgUser.orgId;
       request.session.orgRole = orgUser.role;

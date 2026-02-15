@@ -7,6 +7,8 @@
  * p50/p95 computed at read time from the histogram.
  */
 
+import { Prisma } from "@prisma/client";
+
 export interface HistogramBucket {
   max: number;   // upper bound in ms (Infinity represented as 999999)
   count: number;
@@ -88,39 +90,44 @@ export function computePercentile(
  * Build the SQL to atomically increment a histogram bucket and totalCount.
  *
  * Uses JSONB manipulation to update a single bucket count in-place.
- * Returns SQL + bound params for $executeRawUnsafe using placeholders ($1/$2).
+ * Returns a Prisma.Sql value for prisma.$executeRaw.
  */
 export function buildHistogramUpdateSql(
   orgId: string,
   durationMs: number
-): { sql: string; params: [string, number] } {
+): Prisma.Sql {
   const idx = bucketIndex(durationMs);
   // SECURITY: idx is always 0-6 from bucketIndex(), but guard against injection
   // in case the function is ever modified to accept external input.
   if (!Number.isInteger(idx) || idx < 0 || idx >= BUCKET_BOUNDS.length) {
     throw new Error(`Invalid histogram bucket index: ${idx}`);
   }
-  // Atomically increment the specific bucket count using jsonb_set
-  // and also increment widgetRtTotalCount
-  const sql = `
-    UPDATE "organizations"
-    SET
-      "widgetRtBucketsJson" = CASE
-        WHEN "widgetRtBucketsJson" IS NULL THEN $2::jsonb
-        ELSE jsonb_set(
-          "widgetRtBucketsJson",
-          '{buckets,${idx},count}',
-          (COALESCE(("widgetRtBucketsJson"->'buckets'->${idx}->>'count')::int, 0) + 1)::text::jsonb
-        )
-      END,
-      "widgetRtTotalCount" = "widgetRtTotalCount" + 1
-    WHERE "id" = $1
-  `;
+
   // When NULL, initialize with a fresh histogram that has 1 in the target bucket
   const fresh = emptyHistogram();
   fresh[idx].count = 1;
-  return {
-    sql,
-    params: [orgId, JSON.stringify(serializeHistogram(fresh)) as unknown as number],
-  };
+  const freshJson = JSON.stringify(serializeHistogram(fresh));
+
+  // Atomically increment the specific bucket count using jsonb_set
+  // and also increment widgetRtTotalCount.
+  //
+  // NOTE: idx is a server-derived integer (0..6). We inline it via Prisma.raw after
+  // strict bounds checking, because JSON path and json operators don't accept a bind param.
+  const idxRaw = Prisma.raw(String(idx));
+  const pathRaw = Prisma.raw(`'{buckets,${idx},count}'`);
+
+  return Prisma.sql`
+    UPDATE "organizations"
+    SET
+      "widgetRtBucketsJson" = CASE
+        WHEN "widgetRtBucketsJson" IS NULL THEN ${freshJson}::jsonb
+        ELSE jsonb_set(
+          "widgetRtBucketsJson",
+          ${pathRaw},
+          (COALESCE(("widgetRtBucketsJson"->'buckets'->${idxRaw}->>'count')::int, 0) + 1)::text::jsonb
+        )
+      END,
+      "widgetRtTotalCount" = "widgetRtTotalCount" + 1
+    WHERE "id" = ${orgId}
+  `;
 }

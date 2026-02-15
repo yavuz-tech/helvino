@@ -13,6 +13,8 @@ import { prisma } from "../prisma";
 import { isOriginAllowed, extractDomain, isLocalhost } from "../utils/domain-validation";
 import { createOrgToken } from "../utils/org-token";
 import { buildHistogramUpdateSql } from "../utils/widget-histogram";
+import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { getRealIP } from "../utils/get-real-ip";
 
 interface BootloaderResponse {
   ok: boolean;
@@ -81,6 +83,19 @@ interface ErrorResponse {
 }
 
 export async function bootloaderRoutes(fastify: FastifyInstance) {
+  const bootloaderRateLimit = createRateLimitMiddleware({
+    limit: 120,
+    windowMs: 60 * 1000,
+    routeName: "api.bootloader",
+    keyBuilder: (request) => {
+      const query = request.query as { siteId?: string; orgKey?: string } | undefined;
+      const siteId = (request.headers["x-site-id"] as string | undefined)?.trim() || query?.siteId;
+      const orgKey = (request.headers["x-org-key"] as string | undefined)?.trim() || query?.orgKey;
+      const realIp = getRealIP(request) || "unknown-ip";
+      return `bootloader:${siteId || orgKey || "anonymous"}:${realIp}`;
+    },
+  });
+
   /**
    * GET /api/bootloader
    * 
@@ -113,7 +128,13 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
   fastify.get<{
     Querystring: { siteId?: string; orgKey?: string; parentHost?: string };
     Reply: BootloaderResponse | ErrorResponse;
-  }>("/bootloader", async (request: FastifyRequest<{ Querystring: { siteId?: string; orgKey?: string; parentHost?: string } }>, reply: FastifyReply) => {
+  }>(
+    "/bootloader",
+    { preHandler: [bootloaderRateLimit] },
+    async (
+      request: FastifyRequest<{ Querystring: { siteId?: string; orgKey?: string; parentHost?: string } }>,
+      reply: FastifyReply
+    ) => {
     const bootloaderStartMs = Date.now();
     let resolvedOrgId: string | null = null;
 
@@ -281,11 +302,9 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
       }
 
       // Widget health metrics: increment load count + update lastSeenAt (fire-and-forget)
-      // SQL-safe: parameterized query
-      prisma.$executeRawUnsafe(
-        `UPDATE "organizations" SET "widgetLoadsTotal" = "widgetLoadsTotal" + 1, "lastWidgetSeenAt" = NOW() WHERE "id" = $1`,
-        org.id
-      ).catch(() => {});
+      prisma
+        .$executeRaw`UPDATE "organizations" SET "widgetLoadsTotal" = "widgetLoadsTotal" + 1, "lastWidgetSeenAt" = NOW() WHERE "id" = ${org.id}`
+        .catch(() => {});
 
       // Build response with organization config from database
       const response: BootloaderResponse = {
@@ -381,21 +400,19 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
 
       // Widget health: update response time histogram (fire-and-forget)
       const latencyMs = Date.now() - bootloaderStartMs;
-      const { sql: histSql, params: histParams } = buildHistogramUpdateSql(org.id, latencyMs);
-      // SQL-safe: parameterized query (built with placeholders in buildHistogramUpdateSql)
-      prisma.$executeRawUnsafe(histSql, histParams[0], histParams[1]).catch(() => {});
+      const histSql = buildHistogramUpdateSql(org.id, latencyMs);
+      prisma.$executeRaw(histSql).catch(() => {});
 
       return response;
     } catch (err) {
       // Increment widgetLoadFailuresTotal if org was resolved (best-effort)
       if (resolvedOrgId) {
-        // SQL-safe: parameterized query
-        prisma.$executeRawUnsafe(
-          `UPDATE "organizations" SET "widgetLoadFailuresTotal" = "widgetLoadFailuresTotal" + 1 WHERE "id" = $1`,
-          resolvedOrgId
-        ).catch(() => {});
+        prisma
+          .$executeRaw`UPDATE "organizations" SET "widgetLoadFailuresTotal" = "widgetLoadFailuresTotal" + 1 WHERE "id" = ${resolvedOrgId}`
+          .catch(() => {});
       }
       throw err; // re-throw for Fastify error handler
     }
-  });
+    }
+  );
 }

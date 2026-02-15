@@ -17,6 +17,8 @@ import {
   verifyTotpCode,
   generateBackupCodes,
   tryConsumeBackupCode,
+  encryptMfaSecret,
+  decryptMfaSecret,
   STEP_UP_TTL_MS,
 } from "../utils/totp";
 import { getDefaultFromAddress, sendEmailAsync } from "../utils/mailer";
@@ -88,7 +90,7 @@ export async function adminMfaRoutes(fastify: FastifyInstance) {
       await prisma.adminUser.update({
         where: { id: user.id },
         data: {
-          mfaSecret: secret,
+          mfaSecret: encryptMfaSecret(secret),
           backupCodesHash: JSON.stringify(backupCodesHashed),
         },
       });
@@ -142,7 +144,15 @@ export async function adminMfaRoutes(fastify: FastifyInstance) {
         return { error: "MFA is already enabled" };
       }
 
-      const valid = verifyTotpCode(user.mfaSecret, body.code);
+      let totpSecret: string;
+      try {
+        totpSecret = decryptMfaSecret(user.mfaSecret);
+      } catch {
+        reply.code(500);
+        return { error: "MFA secret decryption failed" };
+      }
+
+      const valid = verifyTotpCode(totpSecret, body.code);
       if (!valid) {
         reply.code(400);
         return { error: "Invalid verification code" };
@@ -194,7 +204,15 @@ export async function adminMfaRoutes(fastify: FastifyInstance) {
         return { error: "MFA is not enabled" };
       }
 
-      let valid = verifyTotpCode(user.mfaSecret, body.code);
+      let totpSecret: string;
+      try {
+        totpSecret = decryptMfaSecret(user.mfaSecret);
+      } catch {
+        reply.code(500);
+        return { error: "MFA secret decryption failed" };
+      }
+
+      let valid = verifyTotpCode(totpSecret, body.code);
 
       if (!valid && user.backupCodesHash) {
         const hashedCodes: string[] = JSON.parse(user.backupCodesHash);
@@ -278,7 +296,15 @@ export async function adminMfaRoutes(fastify: FastifyInstance) {
         return { error: "MFA is not enabled" };
       }
 
-      let valid = verifyTotpCode(user.mfaSecret, body.code);
+      let totpSecret: string;
+      try {
+        totpSecret = decryptMfaSecret(user.mfaSecret);
+      } catch {
+        reply.code(500);
+        return { error: "MFA secret decryption failed" };
+      }
+
+      let valid = verifyTotpCode(totpSecret, body.code);
 
       if (!valid && user.backupCodesHash) {
         const hashedCodes: string[] = JSON.parse(user.backupCodesHash);
@@ -353,7 +379,15 @@ export async function adminMfaRoutes(fastify: FastifyInstance) {
         return { error: "Invalid MFA state" };
       }
 
-      let valid = verifyTotpCode(user.mfaSecret, body.code);
+      let totpSecret: string;
+      try {
+        totpSecret = decryptMfaSecret(user.mfaSecret);
+      } catch {
+        reply.code(500);
+        return { error: "MFA secret decryption failed" };
+      }
+
+      let valid = verifyTotpCode(totpSecret, body.code);
 
       if (!valid && user.backupCodesHash) {
         const hashedCodes: string[] = JSON.parse(user.backupCodesHash);

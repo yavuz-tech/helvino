@@ -243,9 +243,8 @@ export async function orgCustomerRoutes(fastify: FastifyInstance) {
 
       // Widget response-time histogram (fire-and-forget, best-effort)
       const msgDurationMs = Date.now() - msgStartMs;
-      const { sql: histSql, params: histParams } = buildHistogramUpdateSql(orgUser.orgId, msgDurationMs);
-      // SQL-safe: parameterized query (built with placeholders in buildHistogramUpdateSql)
-      prisma.$executeRawUnsafe(histSql, histParams[0], histParams[1]).catch(() => {});
+      const histSql = buildHistogramUpdateSql(orgUser.orgId, msgDurationMs);
+      prisma.$executeRaw(histSql).catch(() => {});
 
       reply.code(201);
       return message;

@@ -1,8 +1,12 @@
 import { FastifyInstance } from "fastify";
 import { getAbandonedCheckoutEmail } from "../utils/email-templates";
+import { requireAdmin } from "../middleware/require-admin";
 
 export async function emailRoutes(fastify: FastifyInstance) {
-  fastify.get("/preview/abandoned-checkout", async (_request, reply) => {
+  fastify.get(
+    "/preview/abandoned-checkout",
+    { preHandler: [requireAdmin] },
+    async (_request, reply) => {
     const email = getAbandonedCheckoutEmail("en", {
       name: "Test User",
       planName: "STARTER",
@@ -13,5 +17,6 @@ export async function emailRoutes(fastify: FastifyInstance) {
     });
     reply.type("text/html; charset=utf-8");
     return email.html;
-  });
+    }
+  );
 }

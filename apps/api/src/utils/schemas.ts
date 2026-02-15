@@ -15,15 +15,21 @@ export const loginSchema = z
 
 export const signupSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(12),
   orgName: z.string().min(1).max(100),
   locale: z.string().optional(),
   captchaToken: z.string().optional(),
 });
 
+export const resendVerificationSchema = z.object({
+  email: z.string().email().max(254),
+  // Keep permissive but bounded; normalizeRequestLocale handles final selection.
+  locale: z.string().max(10).optional(),
+});
+
 export const resetPasswordSchema = z.object({
   token: z.string().min(1),
-  newPassword: z.string().min(8),
+  newPassword: z.string().min(12),
   expires: z.string().optional(),
   sig: z.string().optional(),
 });

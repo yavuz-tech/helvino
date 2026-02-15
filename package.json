@@ -23,6 +23,7 @@
     "pnpm": ">=8.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2"
+    "@playwright/test": "^1.58.2",
+    "typescript": "^5.9.3"
   }
 }
