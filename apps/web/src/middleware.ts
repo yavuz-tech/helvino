@@ -103,7 +103,7 @@ export function middleware(request: NextRequest) {
     res.headers.set("Access-Control-Allow-Origin", "*");
     res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
     res.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-    res.headers.set("Cache-Control", "public, max-age=3600");
+    res.headers.set("Cache-Control", "public, max-age=300");
     res.headers.set("X-Content-Type-Options", "nosniff");
     return res;
   }

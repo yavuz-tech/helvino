@@ -18,7 +18,7 @@ import fs from "fs/promises";
 /** Cached buffer so we don't hit the filesystem on every request. */
 let cachedJs: Buffer | null = null;
 let cacheLoadedAt = 0;
-const CACHE_TTL_MS = 60 * 60 * 1000; // re-read from disk every 1 hour
+const CACHE_TTL_MS = 5 * 60 * 1000; // re-read from disk every 5 minutes
 
 export async function embedRoutes(fastify: FastifyInstance) {
   // ── Serve embed.js ──
@@ -39,7 +39,7 @@ export async function embedRoutes(fastify: FastifyInstance) {
         .header("Access-Control-Allow-Methods", "GET, OPTIONS")
         // Allow cross-origin embedding (fixes ERR_BLOCKED_BY_RESPONSE.NotSameOrigin)
         .header("Cross-Origin-Resource-Policy", "cross-origin")
-        .header("Cache-Control", "public, max-age=3600")
+        .header("Cache-Control", "public, max-age=300, s-maxage=300")
         .header("X-Content-Type-Options", "nosniff")
         .type("application/javascript; charset=utf-8");
       return reply.send(cachedJs);
