@@ -479,23 +479,9 @@
   30% { transform: translateY(-4px); }
 }
 
-/* ── Unauthorized domain state ── */
-.widget-unauthorized {
-  display: none; /* Hidden by default for security/UX */
-}
-
+/* ── Unauthorized domain state (legacy — widget now shows inline banner instead) ── */
 .widget-unauthorized-msg {
   display: none;
-}
-
-/* In debug mode we show a visible warning card so site owners can self-diagnose. */
-html[data-helvion-debug-widget="1"] .widget-unauthorized {
-  display: flex;
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 999999;
-  max-width: 360px;
 }
 
 /* ── AI Message Styles ── */

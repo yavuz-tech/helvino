@@ -507,20 +507,10 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     );
   };
 
-  // Unauthorized domain: show safe disabled state
-  if (bootloaderConfig.config.unauthorizedDomain) {
-    return (
-      <div
-        className="widget-container widget-unauthorized"
-        style={{ "--primary-color": primaryColor } as React.CSSProperties}
-      >
-        <div className="widget-unauthorized-card" role="status" aria-live="polite">
-          <div className="widget-unauthorized-title">{unauthorizedCopy.title}</div>
-          <div className="widget-unauthorized-body">{unauthorizedCopy.body}</div>
-        </div>
-      </div>
-    );
-  }
+  // Unauthorized domain: still show the bubble so site owners can see the widget
+  // is loading. Chat functionality is blocked server-side by the domain-allowlist
+  // middleware, so there's no security risk in showing the launcher.
+  const isUnauthorized = bootloaderConfig.config.unauthorizedDomain;
 
   return (
     <div className="widget-container" style={{ "--primary-color": primaryColor } as React.CSSProperties}>
@@ -612,6 +602,12 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
           )}
           
           <div className="chat-messages">
+            {isUnauthorized && (
+              <div style={{ margin: "8px 12px", padding: "10px 14px", borderRadius: 10, background: "#FEF3C7", border: "1px solid #FCD34D", fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
+                <strong style={{ display: "block", marginBottom: 4 }}>{unauthorizedCopy.title}</strong>
+                {unauthorizedCopy.body}
+              </div>
+            )}
             {messages.length === 0 ? (
               <div className="widget-home-view">
                 <div style={{ textAlign: "center", padding: "16px 12px 8px" }}>

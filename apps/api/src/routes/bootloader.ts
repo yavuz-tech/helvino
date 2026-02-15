@@ -187,31 +187,38 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
       resolvedOrgId = org.id;
 
       // ── Domain allowlist check (soft mode: flag, don't block) ──
+      // IMPORTANT: When allowedDomains is empty the widget MUST still render.
+      // New orgs start with an empty list; blocking them would make the widget
+      // invisible on first embed — the #1 cause of "widget doesn't show" bugs.
       const origin = request.headers.origin as string | undefined;
       const referer = request.headers.referer as string | undefined;
       const parentHost = request.query.parentHost;
       const requestOrigin = origin || referer;
       let unauthorizedDomain = false;
 
-      // Check Origin/Referer against allowlist
-      if (requestOrigin) {
-        if (!isOriginAllowed(requestOrigin, org.allowedDomains, org.allowLocalhost)) {
-          unauthorizedDomain = true;
-        }
-      }
-      // If no Origin/Referer, check parentHost (iframe embed scenario)
-      if (!unauthorizedDomain && parentHost && org.allowedDomains.length > 0) {
-        const isLocalhostHost = isLocalhost(parentHost);
-        if (!isLocalhostHost || !org.allowLocalhost) {
-          const domainMatch = org.allowedDomains.some((pattern) => {
-            if (pattern.startsWith("*.")) {
-              const base = pattern.slice(2);
-              return parentHost === base || parentHost.endsWith(`.${base}`);
-            }
-            return parentHost === pattern;
-          });
-          if (!domainMatch && !isLocalhostHost) {
+      // Only run the check when the org has explicitly configured domains.
+      // Empty list = "not configured yet" = allow everything (soft mode).
+      if (org.allowedDomains.length > 0) {
+        // Check Origin/Referer against allowlist
+        if (requestOrigin) {
+          if (!isOriginAllowed(requestOrigin, org.allowedDomains, org.allowLocalhost)) {
             unauthorizedDomain = true;
+          }
+        }
+        // If no Origin/Referer, check parentHost (iframe embed scenario)
+        if (!unauthorizedDomain && parentHost) {
+          const isLocalhostHost = isLocalhost(parentHost);
+          if (!isLocalhostHost || !org.allowLocalhost) {
+            const domainMatch = org.allowedDomains.some((pattern) => {
+              if (pattern.startsWith("*.")) {
+                const base = pattern.slice(2);
+                return parentHost === base || parentHost.endsWith(`.${base}`);
+              }
+              return parentHost === pattern;
+            });
+            if (!domainMatch && !isLocalhostHost) {
+              unauthorizedDomain = true;
+            }
           }
         }
       }

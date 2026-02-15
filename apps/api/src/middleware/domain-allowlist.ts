@@ -80,17 +80,17 @@ export function validateDomainAllowlist() {
       });
     }
 
-    // Production safety: an empty allowlist must not allow all origins.
-    if (isProduction && normalizedAllowlist.length === 0) {
-      request.log.warn(
+    // If allowedDomains is empty the org hasn't configured their allowlist yet.
+    // Allow the request so the widget works on first embed — the bootloader
+    // already flags this as a soft warning, and the portal prompts the owner
+    // to add their domain.  Once they add at least one domain, the strict
+    // check below kicks in.
+    if (normalizedAllowlist.length === 0) {
+      request.log.info(
         { orgId: org.id, siteId: org.siteId },
-        "Empty allowlist in production, rejecting request"
+        "Empty allowlist — allowing request (org hasn't configured domains yet)"
       );
-      reply.code(403);
-      return reply.send({
-        error: "Domain allowlist is empty",
-        message: "At least one allowed domain is required in production",
-      });
+      return; // Allow request
     }
 
     // Get Origin or Referer header (file:// sends Origin: "null" string)

@@ -1,11 +1,19 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
+/*
+ * Widget embed CSS — scoped to the widget root.
+ * NEVER use global selectors (* / body / html) here because this CSS
+ * is injected into customer websites and must not affect their styles.
+ */
+#helvino-widget-root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+#helvino-widget-root *,
+#helvino-widget-root *::before,
+#helvino-widget-root *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
