@@ -75,6 +75,7 @@ export default function PortalWidgetAppearancePage() {
     // Server-side plan gating safety net
     if (!isPro) {
       payloadSettings.aiModel = "auto";
+      payloadSettings.aiSuggestions = false;
       payloadSettings.csat = false;
       payloadSettings.whiteLabel = false;
       payloadSettings.autoReply = false;

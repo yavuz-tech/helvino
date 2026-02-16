@@ -408,7 +408,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
     if (typeof s2.aiLabel === "boolean") setAiLabel(s2.aiLabel);
     if (s2.aiWelcome != null) setAiWelcome(s2.aiWelcome);
     if (s2.aiModel) setAiModel(s2.aiModel);
-    if (typeof s2.aiSuggestions === "boolean") setAiSuggestions(s2.aiSuggestions);
+    if (typeof s2.aiSuggestions === "boolean") setAiSuggestions(isPro ? s2.aiSuggestions : false);
     // PRO features
     if (typeof s2.csat === "boolean") setCsat(s2.csat);
     if (typeof s2.whiteLabel === "boolean") setWhiteLabel(s2.whiteLabel);
