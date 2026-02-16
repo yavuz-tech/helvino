@@ -119,8 +119,34 @@ function App() {
         if (cancelled) return;
         setBootOk(Boolean(boot?.ok));
 
-        const ws = (boot?.config?.widgetSettings || {}) as Record<string, unknown>;
-        const cpc = (boot?.chatPageConfig || boot?.config?.chatPageConfig || {}) as Record<string, unknown>;
+        // Debug: dump config to confirm where localized strings live.
+        try {
+          console.log("[Widget v2] bootloader config:", JSON.stringify(boot?.config || null, null, 2));
+        } catch {
+          // ignore
+        }
+
+        const cfg = (boot?.config || {}) as Record<string, unknown>;
+        const ws = (cfg.widgetSettings || {}) as Record<string, unknown>;
+        const cpc = (cfg.chatPageConfig || {}) as Record<string, unknown>;
+        const language = typeof cfg.language === "string" ? cfg.language.trim().toLowerCase() : "";
+
+        const normalize = (value: unknown): string => {
+          const s = typeof value === "string" ? value.trim() : "";
+          if (!s) return "";
+
+          // If org language is TR but chatPageConfig still contains default EN strings,
+          // treat them as "unset" so widgetSettings (or hardcoded TR) can take over.
+          if (language === "tr") {
+            const enDefaults = new Set([
+              "Chat with us",
+              "We typically reply within minutes",
+              "Write your message...",
+            ]);
+            if (enDefaults.has(s)) return "";
+          }
+          return s;
+        };
 
         // Theme: apply primary color from bootloader as CSS variables.
         // Keep hardcoded fallbacks in CSS for when bootloader fails.
@@ -131,18 +157,23 @@ function App() {
           root.style.setProperty("--hv-primary-dark", darkenColor(primaryColor, 15));
         }
 
+        // Fallback order requested:
+        // chatPageConfig > widgetSettings > hardcoded
         const title =
-          (typeof cpc.title === "string" && cpc.title) ||
-          (typeof ws.welcomeTitle === "string" && ws.welcomeTitle) ||
+          normalize(cpc.title) ||
+          normalize(ws.headerTitle) ||
+          normalize(ws.welcomeTitle) ||
           "Nasıl yardımcı olabiliriz?";
         const subtitle =
-          (typeof cpc.subtitle === "string" && cpc.subtitle) ||
+          normalize(cpc.subtitle) ||
+          normalize(ws.headerSubtitle) ||
           "Genellikle birkaç dakika içinde yanıt veriyoruz";
         const welcome =
-          (typeof ws.welcomeMessage === "string" && ws.welcomeMessage) ||
+          normalize(ws.welcomeMessage) ||
           "Merhaba! 👋 Size nasıl yardımcı olabilirim?";
         const ph =
-          (typeof cpc.placeholder === "string" && cpc.placeholder) ||
+          normalize(cpc.placeholder) ||
+          normalize(ws.placeholder) ||
           "Mesajınızı yazın...";
 
         setHeaderTitle(title);
