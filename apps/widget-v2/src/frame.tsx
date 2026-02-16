@@ -31,6 +31,28 @@ function formatTimeFromIso(iso: string): string {
   }
 }
 
+function isHexColor(value: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+function darkenColor(hex: string, percent: number): string {
+  // hex: #RRGGBB, percent: 0..100
+  const p = Math.min(100, Math.max(0, percent)) / 100;
+  if (!isHexColor(hex)) return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const dr = Math.max(0, Math.min(255, Math.round(r * (1 - p))));
+  const dg = Math.max(0, Math.min(255, Math.round(g * (1 - p))));
+  const db = Math.max(0, Math.min(255, Math.round(b * (1 - p))));
+  return (
+    "#" +
+    dr.toString(16).padStart(2, "0") +
+    dg.toString(16).padStart(2, "0") +
+    db.toString(16).padStart(2, "0")
+  );
+}
+
 function getSiteIdFromRuntime(): string {
   try {
     const qs = new URLSearchParams(window.location.search);
@@ -99,6 +121,15 @@ function App() {
 
         const ws = (boot?.config?.widgetSettings || {}) as Record<string, unknown>;
         const cpc = (boot?.chatPageConfig || boot?.config?.chatPageConfig || {}) as Record<string, unknown>;
+
+        // Theme: apply primary color from bootloader as CSS variables.
+        // Keep hardcoded fallbacks in CSS for when bootloader fails.
+        const primaryColor = typeof ws.primaryColor === "string" ? ws.primaryColor.trim() : "";
+        if (primaryColor && isHexColor(primaryColor)) {
+          const root = document.documentElement;
+          root.style.setProperty("--hv-primary", primaryColor);
+          root.style.setProperty("--hv-primary-dark", darkenColor(primaryColor, 15));
+        }
 
         const title =
           (typeof cpc.title === "string" && cpc.title) ||
@@ -359,9 +390,24 @@ function App() {
           </button>
         </div>
         <div className="hv-powered">
-          ⚡ Powered by{" "}
-          <a href="https://helvion.io" target="_blank" rel="noreferrer">
-            Helvion
+          <span className="hv-powered-text">Powered by</span>
+          <a
+            href="https://helvion.io"
+            target="_blank"
+            rel="noreferrer"
+            className="hv-powered-brand"
+          >
+            <svg className="hv-powered-logo" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M7 5v14M17 5v14M7 12h10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span>Helvion</span>
           </a>
         </div>
       </div>

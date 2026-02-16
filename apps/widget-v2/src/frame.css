@@ -11,7 +11,7 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neu
 .hv-header {
   display: flex; align-items: center; gap: 12px;
   padding: 12px 16px; min-height: 56px;
-  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+  background: linear-gradient(135deg, var(--hv-primary, #8B5CF6), var(--hv-primary-dark, #7C3AED));
   color: white;
   flex-shrink: 0;
 }
@@ -57,7 +57,7 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neu
   background: white; font-size: 14px; color: #374151; cursor: pointer;
   text-align: left; transition: all 150ms;
 }
-.hv-starter:hover { background: #8B5CF6; color: white; border-color: #8B5CF6; }
+.hv-starter:hover { background: var(--hv-primary, #8B5CF6); color: white; border-color: var(--hv-primary, #8B5CF6); }
 
 /* MESSAGES */
 .hv-messages {
@@ -85,14 +85,14 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neu
 }
 .hv-msg-sender { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
 .hv-badge-ai {
-  font-size: 10px; background: #8B5CF6; color: white;
+  font-size: 10px; background: var(--hv-primary, #8B5CF6); color: white;
   padding: 1px 6px; border-radius: 4px; margin-left: 4px;
 }
 
 /* KULLANICI MESAJI (SAG) */
 .hv-msg-user { display: flex; justify-content: flex-end; }
 .hv-msg-user .hv-msg-bubble {
-  background: #8B5CF6; color: white;
+  background: var(--hv-primary, #8B5CF6); color: white;
   padding: 10px 14px; border-radius: 16px 2px 16px 16px;
   max-width: 85%;
 }
@@ -109,8 +109,8 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neu
 }
 
 /* FOOTER */
-.hv-footer { border-top: 1px solid #e5e7eb; background: white; flex-shrink: 0; }
-.hv-input-bar { display: flex; align-items: center; gap: 6px; padding: 10px 12px; }
+.hv-footer { background: white; flex-shrink: 0; }
+.hv-input-bar { display: flex; align-items: center; gap: 6px; padding: 10px 12px; max-width: 100%; overflow: hidden; }
 .hv-input-emoji {
   width: 32px; height: 32px; border: 1px solid #e5e7eb;
   border-radius: 50%; background: transparent; font-size: 16px;
@@ -122,22 +122,52 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neu
   border-radius: 24px; padding: 8px 14px; font-size: 14px;
   outline: none; color: #1f2937;
 }
-.hv-input-field:focus { border-color: #8B5CF6; }
+.hv-input-field:focus { border-color: var(--hv-primary, #8B5CF6); }
 .hv-input-field::placeholder { color: #9ca3af; }
 .hv-input-send {
   width: 36px; height: 36px; border: none; border-radius: 50%;
-  background: #8B5CF6; color: white; cursor: pointer; flex-shrink: 0;
+  background: var(--hv-primary, #8B5CF6); color: white; cursor: pointer; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
 .hv-input-send:hover { filter: brightness(1.1); }
 
 /* POWERED BY */
-.hv-powered { text-align: center; padding: 6px; font-size: 11px; color: #9ca3af; }
-.hv-powered a { color: #8B5CF6; text-decoration: none; font-weight: 500; }
-.hv-powered a:hover { text-decoration: underline; }
+.hv-powered {
+  display: flex; align-items: center; justify-content: center;
+  gap: 4px; padding: 6px 0;
+  border-top: 1px solid #f3f4f6;
+}
+.hv-powered-text { font-size: 10px; color: #b0b0b0; }
+.hv-powered-brand {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; font-weight: 600; color: #6b7280;
+  text-decoration: none; transition: color 150ms;
+}
+.hv-powered-brand:hover { color: var(--hv-primary, #8B5CF6); }
+.hv-powered-logo { width: 14px; height: 14px; }
 
 /* MOBIL */
 @media (max-width: 768px) {
   .hv-input-bar { padding: 8px 10px; }
   .hv-input-field { padding: 8px 12px; font-size: 14px; }
+}
+
+@media (max-width: 480px) {
+  .hv-header { padding: 10px 12px; min-height: 48px; }
+  .hv-header-avatar { width: 32px; height: 32px; font-size: 18px; }
+  .hv-header-title { font-size: 14px; }
+  .hv-header-subtitle { font-size: 11px; }
+
+  .hv-home { padding: 16px; }
+  .hv-home-title { font-size: 16px; }
+  .hv-starters { gap: 6px; }
+  .hv-starter { padding: 10px 12px; font-size: 13px; }
+
+  .hv-messages { padding: 12px; gap: 10px; }
+  .hv-msg-agent, .hv-msg-user .hv-msg-bubble { max-width: 90%; }
+
+  .hv-input-bar { padding: 8px 10px; gap: 4px; max-width: 100%; overflow: hidden; }
+  .hv-input-emoji { width: 28px; height: 28px; font-size: 14px; }
+  .hv-input-field { padding: 7px 12px; font-size: 14px; min-width: 0; }
+  .hv-input-send { width: 32px; height: 32px; }
 }
