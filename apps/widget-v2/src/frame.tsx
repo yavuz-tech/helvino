@@ -134,6 +134,13 @@ function parseWidgetSettings(
     const root = document.documentElement;
     root.style.setProperty("--hv-primary", primaryColor);
     root.style.setProperty("--hv-primary-dark", darkenColor(primaryColor, 15));
+    // RGB values for suggestion chips rgba()
+    if (isHexColor(primaryColor)) {
+      const r = parseInt(primaryColor.slice(1, 3), 16);
+      const g = parseInt(primaryColor.slice(3, 5), 16);
+      const b = parseInt(primaryColor.slice(5, 7), 16);
+      root.style.setProperty("--hv-primary-rgb", `${r},${g},${b}`);
+    }
   }
 
   const title =
@@ -785,7 +792,7 @@ function App() {
                       <div className="hv-msg-avatar">{ui.botAvatar}</div>
                       <div className="hv-msg-bubble">
                         <div className="hv-msg-sender">
-                          Helvion AI <span className="hv-badge-ai">AI</span>
+                          Helvion AI <span className="hv-badge-ai">AI Agent</span>
                         </div>
                         <div className="hv-msg-text">{m.text}</div>
                         <div className="hv-msg-time">{m.time}</div>
@@ -806,10 +813,29 @@ function App() {
               })}
 
               {isAgentTyping ? (
-                <div className="hv-typing" aria-label="Agent typing">
-                  <div className="hv-typing-dot" />
-                  <div className="hv-typing-dot" />
-                  <div className="hv-typing-dot" />
+                <div className="hv-typing-wrap">
+                  <div className="hv-typing" aria-label="Agent typing">
+                    <div className="hv-typing-dot" />
+                    <div className="hv-typing-dot" />
+                    <div className="hv-typing-dot" />
+                  </div>
+                  <span className="hv-typing-label">yazıyor...</span>
+                </div>
+              ) : null}
+
+              {/* Suggestion chips — shown after bot messages when no user messages yet */}
+              {messages.length > 0 && messages.every((m) => m.role === "agent") && ui.starters.length > 0 ? (
+                <div className="hv-suggestions">
+                  {ui.starters.map((label) => (
+                    <button
+                      key={label}
+                      className="hv-suggestion-chip"
+                      type="button"
+                      onClick={() => void pushUserMessage(label)}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               ) : null}
 
@@ -833,6 +859,11 @@ function App() {
                 }}
                 onKeyDown={onInputKeyDown}
               />
+              <button className="hv-input-attach" type="button" aria-label="Attach">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                </svg>
+              </button>
               <button className="hv-input-send" type="button" onClick={onSend} aria-label="Send">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
