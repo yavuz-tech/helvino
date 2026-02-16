@@ -134,6 +134,56 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     return () => clearTimeout(timer);
   }, [bootloaderConfig]);
 
+  // ── Mobile keyboard handler — Crisp/Tidio style ──
+  // Uses visualViewport API to keep the chat window stable when the
+  // soft keyboard opens on iOS/Android. Sets a CSS custom property
+  // (--vvh) on the widget root so the mobile CSS can use it instead
+  // of 100vh/100dvh which don't account for the keyboard.
+  //
+  // Also toggles .keyboard-open class on chat-window so CSS can hide
+  // branding footer to save space when keyboard is visible.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    // Threshold: if viewport shrinks by >150px, keyboard is probably open
+    const fullHeight = vv.height;
+    let lastKbOpen = false;
+
+    const update = () => {
+      const root = document.getElementById("helvino-widget-root");
+      if (root) {
+        root.style.setProperty("--vvh", `${vv.height}px`);
+      }
+
+      // Detect keyboard open/close
+      const kbOpen = (fullHeight - vv.height) > 150;
+      if (kbOpen !== lastKbOpen) {
+        lastKbOpen = kbOpen;
+        const chatWin = root?.querySelector(".chat-window");
+        if (chatWin) {
+          chatWin.classList.toggle("keyboard-open", kbOpen);
+        }
+        // Scroll messages to bottom when keyboard opens
+        if (kbOpen) {
+          setTimeout(() => {
+            const msgs = root?.querySelector(".chat-messages");
+            if (msgs) msgs.scrollTop = msgs.scrollHeight;
+          }, 100);
+        }
+      }
+    };
+
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+
   const pickEmoji = (emoji: string) => {
     // Insert at cursor position
     const input = inputRef.current;
@@ -943,7 +993,16 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
                   value={inputValue}
                   onChange={(e) => { setInputValue(e.target.value); emitTyping(); }}
                   onKeyPress={handleKeyPress}
+                  onFocus={() => {
+                    // Scroll messages to bottom when input is focused (keyboard opens)
+                    setTimeout(() => {
+                      const msgs = document.querySelector("#helvino-widget-root .chat-messages");
+                      if (msgs) msgs.scrollTop = msgs.scrollHeight;
+                    }, 300);
+                  }}
                   disabled={isLoading || !conversationId}
+                  enterKeyHint="send"
+                  autoComplete="off"
                 />
                 {fileUploadEnabled && (
                   <button
