@@ -162,6 +162,8 @@ function safePlayInboxSound(): void {
 export function PortalInboxNotificationProvider({ children }: { children: ReactNode }) {
   const { user } = usePortalAuth();
   const router = useRouter();
+  console.log("[Portal Notification Context] mounted");
+  console.log("[Portal Notification Context] user:", user?.email, "orgKey:", user?.orgKey);
   const socketRef = useRef<unknown>(null);
   const [soundEnabled, setSoundEnabledState] = useState(true);
   const soundEnabledRef = useRef(true);
@@ -212,6 +214,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
   // ── Socket.IO connection (fully wrapped in try-catch, lazy import) ──
   useEffect(() => {
+    console.log("[Portal Socket] user check:", !!user, "orgKey:", user?.orgKey);
     if (!user?.orgKey) {
       console.log("[Portal Socket] skipping: no user or orgKey");
       setSocketStatus("no-user");
