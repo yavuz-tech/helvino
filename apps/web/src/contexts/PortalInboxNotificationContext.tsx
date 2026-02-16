@@ -283,76 +283,109 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
         socketInstance.on("message:new", (payload: { conversationId?: string; message?: { id?: string; content?: string; role?: string; timestamp?: string; createdAt?: string; isAIGenerated?: boolean } }) => {
           try {
-            console.warn("[Portal Notification] new message received:", payload);
             const conversationId = payload?.conversationId || "";
             const preview = (payload?.message?.content || "").slice(0, 80);
             const role = payload?.message?.role || "";
             const isVisitorMessage = role === "user";
             setLastMessageAt(new Date().toLocaleTimeString());
 
-            // Sound + notification only for visitor/customer messages
+            console.warn("[NOTIF] message:new received:", { conversationId, role, preview: preview.slice(0, 40) });
+            console.warn("[NOTIF] current pathname:", window.location.pathname);
+
+            // ── 1. SOUND ──
             if (isVisitorMessage && soundEnabledRef.current) {
-              console.warn("[Portal Notification] playing sound");
+              console.warn("[NOTIF] playing sound");
               safePlayInboxSound();
 
-              // Repeat sound every 10s while unfocused (max 5 times)
               if (typeof document !== "undefined" && !document.hasFocus()) {
                 let repeatCount = 0;
                 const repeatInterval = setInterval(() => {
                   try {
-                    if (document.hasFocus() || repeatCount >= 5) {
-                      clearInterval(repeatInterval);
-                      return;
-                    }
-                    if (soundEnabledRef.current) {
-                      safePlayInboxSound();
-                    }
+                    if (document.hasFocus() || repeatCount >= 5) { clearInterval(repeatInterval); return; }
+                    if (soundEnabledRef.current) safePlayInboxSound();
                     repeatCount++;
-                  } catch {
-                    clearInterval(repeatInterval);
-                  }
+                  } catch { clearInterval(repeatInterval); }
                 }, 10_000);
-                // Stop repeating on focus
-                const stopOnFocus = () => {
-                  clearInterval(repeatInterval);
-                  window.removeEventListener("focus", stopOnFocus);
-                };
+                const stopOnFocus = () => { clearInterval(repeatInterval); window.removeEventListener("focus", stopOnFocus); };
                 window.addEventListener("focus", stopOnFocus);
               }
             }
 
-            // Desktop notification — auto-request permission on first visitor message
+            // ── 2. SIDEBAR FLASH (direct DOM — no CSS class dependency) ──
+            if (isVisitorMessage) {
+              try {
+                const sidebarLink = document.querySelector('a[href="/portal/inbox"]') as HTMLElement | null;
+                console.warn("[NOTIF] sidebar inbox element:", sidebarLink ? "FOUND" : "NOT FOUND");
+                if (sidebarLink) {
+                  const el = (sidebarLink.closest("div.space-y-1") ? sidebarLink : sidebarLink.parentElement || sidebarLink) as HTMLElement;
+                  const target = sidebarLink;
+                  let flashCount = 0;
+                  const flashTimer = setInterval(() => {
+                    target.style.background = flashCount % 2 === 0 ? "rgba(239,68,68,0.2)" : "";
+                    target.style.fontWeight = "700";
+                    flashCount++;
+                    if (flashCount > 8) {
+                      clearInterval(flashTimer);
+                      target.style.background = "";
+                    }
+                  }, 500);
+                  void el;
+                }
+              } catch (e) { console.warn("[NOTIF] sidebar flash error:", e); }
+            }
+
+            // ── 3. CONVERSATION CARD FLASH (direct DOM) ──
+            if (isVisitorMessage && conversationId) {
+              try {
+                const card = document.querySelector(`[data-conversation-id="${conversationId}"]`) as HTMLElement | null;
+                console.warn("[NOTIF] conversation card element:", card ? "FOUND" : "NOT FOUND", "id:", conversationId);
+                if (card) {
+                  let flashCount = 0;
+                  const flashTimer = setInterval(() => {
+                    card.style.background = flashCount % 2 === 0 ? "rgba(239,68,68,0.15)" : "";
+                    flashCount++;
+                    if (flashCount > 6) { clearInterval(flashTimer); card.style.background = ""; }
+                  }, 400);
+                }
+              } catch (e) { console.warn("[NOTIF] card flash error:", e); }
+            }
+
+            // ── 4. TAB TITLE FLASH ──
+            if (isVisitorMessage && typeof document !== "undefined" && !document.hasFocus()) {
+              try {
+                const origTitle = document.title;
+                let flashShow = true;
+                const titleFlash = setInterval(() => {
+                  document.title = flashShow ? "\uD83D\uDD34 Yeni mesaj! - Helvion" : origTitle;
+                  flashShow = !flashShow;
+                }, 1000);
+                const stopFlash = () => {
+                  clearInterval(titleFlash);
+                  document.title = origTitle;
+                  window.removeEventListener("focus", stopFlash);
+                };
+                window.addEventListener("focus", stopFlash);
+              } catch { /* */ }
+            }
+
+            // ── 5. BROWSER NOTIFICATION ──
             try {
               if (isVisitorMessage && typeof window !== "undefined" && "Notification" in window) {
                 if (Notification.permission === "default") {
                   Notification.requestPermission().then((perm) => {
                     if (perm === "granted") {
-                      const n = new Notification("Yeni mesaj - Helvion", {
-                        body: preview || "Ziyaretçi yeni mesaj gönderdi",
-                        tag: conversationId,
-                        icon: "/favicon.ico",
-                      });
+                      const n = new Notification("Yeni mesaj - Helvion", { body: preview || "Ziyaretçi yeni mesaj gönderdi", tag: conversationId, icon: "/favicon.ico" });
                       n.onclick = () => { try { window.focus(); n.close(); router.push(`/portal/inbox?c=${conversationId}`); } catch { /* */ } };
                     }
                   }).catch(() => {});
                 } else if (Notification.permission === "granted") {
-                  const n = new Notification("Yeni mesaj - Helvion", {
-                    body: preview || "Ziyaretçi yeni mesaj gönderdi",
-                    tag: conversationId,
-                    icon: "/favicon.ico",
-                  });
-                  n.onclick = () => {
-                    try {
-                      window.focus();
-                      n.close();
-                      router.push(`/portal/inbox?c=${conversationId}`);
-                    } catch { /* */ }
-                  };
+                  const n = new Notification("Yeni mesaj - Helvion", { body: preview || "Ziyaretçi yeni mesaj gönderdi", tag: conversationId, icon: "/favicon.ico" });
+                  n.onclick = () => { try { window.focus(); n.close(); router.push(`/portal/inbox?c=${conversationId}`); } catch { /* */ } };
                 }
               }
-            } catch { /* notification failed, no crash */ }
+            } catch { /* */ }
 
-            // Tell bell badge to refresh only for visitor/customer messages
+            // ── 6. DISPATCH EVENTS (badge, inbox list update) ──
             try {
               if (isVisitorMessage) {
                 window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
@@ -361,7 +394,6 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
               }
             } catch { /* */ }
 
-            // Notify inbox screen so it can mark active conversation as read + push message immediately
             try {
               const msg = payload?.message;
               window.dispatchEvent(new CustomEvent("portal-inbox-message-new", {
@@ -380,8 +412,8 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
                 },
               }));
             } catch { /* */ }
-          } catch {
-            // message:new handler failed — never crash
+          } catch (topErr) {
+            console.warn("[NOTIF] message:new handler CRASHED:", topErr);
           }
         });
       } catch (err) {

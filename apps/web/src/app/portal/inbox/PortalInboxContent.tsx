@@ -1358,7 +1358,7 @@ export default function PortalInboxContent() {
             const hasUnread = !!conv.hasUnreadMessages;
             const isFlashing = flashingIds.has(conv.id);
             return (
-              <div key={conv.id} onClick={() => selectConversation(conv.id)} role="button" tabIndex={0}
+              <div key={conv.id} data-conversation-id={conv.id} onClick={() => selectConversation(conv.id)} role="button" tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectConversation(conv.id); } }}
                 className={`group relative mx-2 my-1 px-[14px] py-[13px] cursor-pointer rounded-xl transition-all duration-200 ${
                   active
