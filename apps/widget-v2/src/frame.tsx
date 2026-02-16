@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./frame.css";
@@ -75,6 +76,169 @@ type UiCopy = {
   placeholder: string;
   starters: string[];
 };
+
+function PoweredByHelvion() {
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const animRef = React.useRef<number>(0);
+  const starsRef = React.useRef<any[]>([]);
+  const [hovered, setHovered] = React.useState(false);
+
+  React.useEffect(() => {
+    if (starsRef.current.length === 0) {
+      for (let i = 0; i < 20; i++) {
+        starsRef.current.push({
+          x: Math.random() * 340,
+          y: Math.random() * 40,
+          r: Math.random() * 1.5 + 0.5,
+          phase: Math.random() * Math.PI * 2,
+          hue: Math.random() > 0.4 ? "245,158,11" : "217,119,6",
+        });
+      }
+    }
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const W = 340,
+      H = 40;
+    canvas.width = W * 2;
+    canvas.height = H * 2;
+    ctx.scale(2, 2);
+    let t = 0;
+
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+      t += 0.01;
+      const stars = starsRef.current;
+      const intensity = hovered ? 1 : 0.4;
+
+      for (let i = 0; i < stars.length; i++) {
+        for (let j = i + 1; j < stars.length; j++) {
+          const dx = stars[i].x - stars[j].x;
+          const dy = stars[i].y - stars[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 65) {
+            const alpha = (1 - dist / 65) * 0.18 * intensity;
+            ctx.beginPath();
+            ctx.moveTo(stars[i].x, stars[i].y);
+            ctx.lineTo(stars[j].x, stars[j].y);
+            ctx.strokeStyle = "rgba(217,119,6," + alpha + ")";
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+
+      stars.forEach((s: any) => {
+        const twinkle = (Math.sin(t * 3 + s.phase) + 1) / 2;
+        const alpha = (0.3 + twinkle * 0.7) * intensity;
+        const radius = s.r * (hovered ? 1 + twinkle * 0.5 : 1);
+
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(" + s.hue + "," + alpha + ")";
+        ctx.fill();
+
+        if (hovered && twinkle > 0.8) {
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, radius * 3, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(" + s.hue + "," + alpha * 0.15 + ")";
+          ctx.fill();
+        }
+      });
+
+      animRef.current = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animRef.current);
+  }, [hovered]);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={() => window.open("https://helvion.io", "_blank")}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "11px 0",
+        cursor: "pointer",
+        position: "relative",
+        background: "linear-gradient(180deg, #FAFAFA, #F5F5F7)",
+        borderTop: "1px solid #EBEBED",
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "340px",
+          height: "40px",
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          style={{
+            transition: "transform 0.5s ease",
+            transform: hovered ? "rotate(72deg)" : "rotate(0deg)",
+            filter: hovered ? "drop-shadow(0 0 4px rgba(245,158,11,0.4))" : "none",
+          }}
+        >
+          <path
+            d="M8 0L9.8 5.2L15.6 5.2L10.9 8.8L12.7 14L8 10.4L3.3 14L5.1 8.8L0.4 5.2L6.2 5.2Z"
+            fill={hovered ? "#F59E0B" : "#D97706"}
+            style={{ transition: "fill 0.3s" }}
+          />
+        </svg>
+        <span
+          style={{
+            fontSize: "15.5px",
+            fontWeight: 800,
+            fontFamily: "system-ui, -apple-system, sans-serif",
+            letterSpacing: "-0.01em",
+            background: "linear-gradient(135deg, #F59E0B, #D97706)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            transition: "all 0.4s ease",
+            filter: hovered ? "brightness(1.15)" : "brightness(1)",
+          }}
+        >
+          Helvion
+        </span>
+        <span
+          style={{
+            fontSize: "12.5px",
+            color: hovered ? "#78716C" : "#A1A1AA",
+            fontFamily: "system-ui, -apple-system, sans-serif",
+            fontWeight: 600,
+            letterSpacing: "0.005em",
+            transition: "color 0.3s",
+          }}
+        >
+          tarafından desteklenmektedir
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const close = () => {
@@ -545,134 +709,114 @@ function App() {
           <div style={{ fontSize: "13px", color: "#6b7280" }}>Loading...</div>
         </div>
       ) : (
-      <>
-      {/* HEADER */}
-      <div className="hv-header">
-        <div className="hv-header-avatar">🤖</div>
-        <div className="hv-header-info">
-          <div className="hv-header-title">{ui.title}</div>
-          <div className="hv-header-subtitle">
-            <span className="hv-status-dot" />
-            {ui.subtitle}
-          </div>
-        </div>
-        <button className="hv-header-close" onClick={close} aria-label="Close chat">
-          ✕
-        </button>
-      </div>
-
-      {/* BODY */}
-      {view === "home" ? (
-        <div className="hv-home">
-          <div className="hv-home-icon">💬</div>
-          <h2 className="hv-home-title">{ui.title}</h2>
-          <p className="hv-home-subtitle">{ui.welcome}</p>
-          <div className="hv-starters">
-            {ui.starters.map((label) => (
-              <button key={label} className="hv-starter" type="button" onClick={() => void pushUserMessage(label)}>
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="hv-messages" role="log" aria-label="Messages">
-          {messages.map((m) => {
-            if (m.role === "agent") {
-              return (
-                <div key={m.id} className="hv-msg hv-msg-agent">
-                  <div className="hv-msg-avatar">🤖</div>
-                  <div className="hv-msg-bubble">
-                    <div className="hv-msg-sender">
-                      Helvion AI <span className="hv-badge-ai">AI</span>
-                    </div>
-                    <div className="hv-msg-text">{m.text}</div>
-                    <div className="hv-msg-time">{m.time}</div>
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <div key={m.id} className="hv-msg hv-msg-user">
-                <div className="hv-msg-bubble">
-                  <div className="hv-msg-text">{m.text}</div>
-                  <div className="hv-msg-time">{m.time}</div>
-                  {m.status === "failed" ? <div className="hv-msg-failed">⚠︎ gonderilemedi</div> : null}
-                </div>
+        <>
+          {/* HEADER */}
+          <div className="hv-header">
+            <div className="hv-header-avatar">🤖</div>
+            <div className="hv-header-info">
+              <div className="hv-header-title">{ui.title}</div>
+              <div className="hv-header-subtitle">
+                <span className="hv-status-dot" />
+                {ui.subtitle}
               </div>
-            );
-          })}
-
-          {isAgentTyping ? (
-            <div className="hv-typing" aria-label="Agent typing">
-              <div className="hv-typing-dot" />
-              <div className="hv-typing-dot" />
-              <div className="hv-typing-dot" />
             </div>
-          ) : null}
+            <button className="hv-header-close" onClick={close} aria-label="Close chat">
+              ✕
+            </button>
+          </div>
 
-          <div ref={messagesEndRef} />
-        </div>
-      )}
+          {/* BODY */}
+          {view === "home" ? (
+            <div className="hv-home">
+              <div className="hv-home-icon">💬</div>
+              <h2 className="hv-home-title">{ui.title}</h2>
+              <p className="hv-home-subtitle">{ui.welcome}</p>
+              <div className="hv-starters">
+                {ui.starters.map((label) => (
+                  <button key={label} className="hv-starter" type="button" onClick={() => void pushUserMessage(label)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="hv-messages" role="log" aria-label="Messages">
+              {messages.map((m) => {
+                if (m.role === "agent") {
+                  return (
+                    <div key={m.id} className="hv-msg hv-msg-agent">
+                      <div className="hv-msg-avatar">🤖</div>
+                      <div className="hv-msg-bubble">
+                        <div className="hv-msg-sender">
+                          Helvion AI <span className="hv-badge-ai">AI</span>
+                        </div>
+                        <div className="hv-msg-text">{m.text}</div>
+                        <div className="hv-msg-time">{m.time}</div>
+                      </div>
+                    </div>
+                  );
+                }
 
-      {/* FOOTER */}
-      <div className="hv-footer">
-        <div className="hv-input-bar">
-          <button className="hv-input-emoji" type="button" aria-label="Emoji">
-            😊
-          </button>
-          <input
-            className="hv-input-field"
-            placeholder={ui.placeholder}
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              emitTypingStartDebounced();
-            }}
-            onKeyDown={onInputKeyDown}
-          />
-          <button className="hv-input-send" type="button" onClick={onSend} aria-label="Send">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M22 2L11 13" />
-              <path d="M22 2l-7 20-4-9-9-4z" />
-            </svg>
-          </button>
-        </div>
-        <div className="hv-powered">
-          <span className="hv-powered-text">Powered by</span>
-          <a
-            href="https://helvion.io"
-            target="_blank"
-            rel="noreferrer"
-            className="hv-powered-brand"
-          >
-            <svg className="hv-powered-logo" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M7 5v14M17 5v14M7 12h10"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                return (
+                  <div key={m.id} className="hv-msg hv-msg-user">
+                    <div className="hv-msg-bubble">
+                      <div className="hv-msg-text">{m.text}</div>
+                      <div className="hv-msg-time">{m.time}</div>
+                      {m.status === "failed" ? <div className="hv-msg-failed">⚠︎ gonderilemedi</div> : null}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {isAgentTyping ? (
+                <div className="hv-typing" aria-label="Agent typing">
+                  <div className="hv-typing-dot" />
+                  <div className="hv-typing-dot" />
+                  <div className="hv-typing-dot" />
+                </div>
+              ) : null}
+
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+
+          {/* FOOTER */}
+          <div className="hv-footer">
+            <div className="hv-input-bar">
+              <button className="hv-input-emoji" type="button" aria-label="Emoji">
+                😊
+              </button>
+              <input
+                className="hv-input-field"
+                placeholder={ui.placeholder}
+                value={inputValue}
+                onChange={(e) => {
+                  setInputValue(e.target.value);
+                  emitTypingStartDebounced();
+                }}
+                onKeyDown={onInputKeyDown}
               />
-            </svg>
-            <span>Helvion</span>
-          </a>
-        </div>
-      </div>
-      </>
+              <button className="hv-input-send" type="button" onClick={onSend} aria-label="Send">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M22 2L11 13" />
+                  <path d="M22 2l-7 20-4-9-9-4z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </>
       )}
+      <PoweredByHelvion />
     </div>
   );
 }
