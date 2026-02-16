@@ -1,0 +1,95 @@
+/* ── Launcher button ── */
+#helvion-launcher {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #8B5CF6;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#helvion-launcher:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+}
+
+#helvion-launcher:active {
+  transform: scale(0.95);
+}
+
+/* Toggle icons: show chat icon by default, X when open */
+#helvion-launcher .helvion-close-icon {
+  display: none;
+}
+#helvion-launcher.helvion-launcher--active svg:first-child {
+  display: none;
+}
+#helvion-launcher.helvion-launcher--active .helvion-close-icon {
+  display: block;
+}
+
+/* ── Chat container ── */
+#helvion-container {
+  position: fixed;
+  right: 20px;
+  bottom: 96px;
+  width: 380px;
+  height: 600px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 250ms ease, transform 250ms ease;
+}
+
+#helvion-container.helvion-open {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── iframe fills the container ── */
+#helvion-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: #fff;
+}
+
+/* ── Mobile: fullscreen ── */
+@media (max-width: 768px) {
+  #helvion-container {
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+    right: auto;
+    bottom: auto;
+    transform: translateY(100%);
+    opacity: 1;
+    transition: transform 300ms ease;
+  }
+
+  #helvion-container.helvion-open {
+    transform: translateY(0);
+  }
+
+  #helvion-launcher {
+    right: 16px;
+    bottom: 16px;
+  }
+}
