@@ -192,18 +192,26 @@ html, body {
   border-radius: 16px 2px 16px 16px;
 }
 
-/* Compatibility selectors (requested): message.user/assistant + message-content */
+/* Ensure .message wrapper never overflows (do NOT set width/max-width — .msg-row already has max-width: 85%) */
+.message {
+  overflow: hidden;
+}
+/* User bubble: primary color, white text — high specificity to always win */
+.msg-row.user .msg-bubble,
+.msg-row.user .message-content,
+.message.user .msg-bubble,
 .message.user .message-content {
-  background: var(--primary-color);
-  color: #ffffff;
-  margin-left: auto;
+  background: var(--primary-color) !important;
+  color: #ffffff !important;
   border-radius: 16px 2px 16px 16px;
 }
-.message.assistant .message-content,
-.message.agent .message-content {
-  background: #f3f4f6;
-  color: #1f2937;
-  margin-right: auto;
+/* Agent/AI bubble: light gray, dark text — high specificity */
+.msg-row.agent .msg-bubble,
+.msg-row.agent .message-content,
+.message.assistant .msg-bubble,
+.message.assistant .message-content {
+  background: #f3f4f6 !important;
+  color: #1f2937 !important;
   border-radius: 2px 16px 16px 16px;
 }
 
@@ -511,6 +519,21 @@ html, body {
   .chat-messages {
     padding: 12px;
     padding-bottom: 68px;
+    overflow-x: hidden !important;
+  }
+
+  /* Prevent message rows from ever exceeding viewport */
+  .msg-row,
+  .msg-row.user,
+  .msg-row.agent {
+    max-width: 85% !important;
+    overflow: hidden;
+  }
+  .msg-bubble,
+  .message-content {
+    max-width: 100% !important;
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
 
   /* Input bar: fixed at bottom, always visible above keyboard */

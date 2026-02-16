@@ -213,14 +213,14 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
         const { getPortalAccessToken } = await import("@/lib/portal-auth");
         const portalSocketToken = getPortalAccessToken() || undefined;
         socketInstance = io(API_URL, {
-          transports: ["polling", "websocket"],
+          transports: ["websocket", "polling"],
           auth: { orgKey: user.orgKey, token: portalSocketToken },
           reconnection: true,
           reconnectionAttempts: Infinity,
-          reconnectionDelay: 3000,
-          reconnectionDelayMax: 30000,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 15000,
           randomizationFactor: 0.3,
-          timeout: 15000,
+          timeout: 10000,
           withCredentials: true,
         });
         socketRef.current = socketInstance;
@@ -246,7 +246,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
           try { window.dispatchEvent(new CustomEvent("portal-user-typing-stop", { detail: data })); } catch { /* */ }
         });
 
-        socketInstance.on("message:new", (payload: { conversationId?: string; message?: { content?: string; role?: string } }) => {
+        socketInstance.on("message:new", (payload: { conversationId?: string; message?: { id?: string; content?: string; role?: string; timestamp?: string; createdAt?: string; isAIGenerated?: boolean } }) => {
           try {
             const conversationId = payload?.conversationId || "";
             const preview = (payload?.message?.content || "").slice(0, 80);
@@ -285,13 +285,22 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
               }
             } catch { /* */ }
 
-            // Notify inbox screen so it can mark active conversation as read
+            // Notify inbox screen so it can mark active conversation as read + push message immediately
             try {
+              const msg = payload?.message;
               window.dispatchEvent(new CustomEvent("portal-inbox-message-new", {
                 detail: {
                   conversationId,
-                  content: payload?.message?.content || "",
+                  content: msg?.content || "",
                   role,
+                  message: msg ? {
+                    id: msg.id || `rt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                    conversationId,
+                    content: msg.content || "",
+                    role: (msg.role as "user" | "assistant") || "user",
+                    timestamp: msg.timestamp || msg.createdAt || new Date().toISOString(),
+                    isAIGenerated: msg.isAIGenerated || false,
+                  } : undefined,
                 },
               }));
             } catch { /* */ }

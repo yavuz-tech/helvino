@@ -711,8 +711,8 @@ export default function PortalInboxContent() {
   useEffect(() => {
     if (socketStatus.startsWith("connected")) return;
     let cancelled = false;
-    let delay = 15_000; // start at 15s, back off to max 60s
-    const maxDelay = 60_000;
+    let delay = 5_000; // start at 5s, back off to max 30s
+    const maxDelay = 30_000;
     const tick = () => {
       if (cancelled) return;
       fetchConversations();
@@ -735,7 +735,12 @@ export default function PortalInboxContent() {
   // Uses ref for selectedConversationId to avoid stale closure
   useEffect(() => {
     const onMessageNew = (event: Event) => {
-      const detail = (event as CustomEvent<{ conversationId?: string; content?: string; role?: string }>).detail;
+      const detail = (event as CustomEvent<{
+        conversationId?: string;
+        content?: string;
+        role?: string;
+        message?: Message;
+      }>).detail;
       const conversationId = detail?.conversationId;
       if (!conversationId) return;
       const role = detail?.role || "assistant";
@@ -758,6 +763,25 @@ export default function PortalInboxContent() {
             }
           : c
         )));
+
+        // INSTANT MESSAGE PUSH: inject the message directly into conversationDetail
+        // so the chat pane updates immediately without waiting for an HTTP round-trip.
+        if (detail.message) {
+          const newMsg = detail.message;
+          setConversationDetail(prev => {
+            if (!prev || prev.id !== conversationId) return prev;
+            const existingIds = new Set((prev.messages || []).map(m => m.id));
+            if (existingIds.has(newMsg.id)) return prev;
+            return {
+              ...prev,
+              messageCount: (prev.messageCount || 0) + 1,
+              updatedAt: nowIso,
+              messages: [...(prev.messages || []), newMsg],
+            };
+          });
+        }
+
+        // Background fetch: get canonical data (attachments, formatting, etc.)
         fetchConversationDetail(conversationId).then(() => {
           try {
             window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
