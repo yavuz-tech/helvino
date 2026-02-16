@@ -120,19 +120,14 @@ body, p, span, div, input, button, label {
   }
 }
 
-/* ── Sidebar inbox: flash red when new message arrives (user not on inbox page) ── */
-@keyframes sidebar-inbox-flash {
-  0%, 100% { background: transparent; }
-  50% { background: rgba(239, 68, 68, 0.15); }
+/* ── Sidebar inbox: flash on new message (state-driven) ── */
+@keyframes sidebarInboxFlash {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(239, 68, 68, 0.2); }
 }
 
-.sidebar-inbox-alert {
-  animation: sidebar-inbox-flash 0.6s ease 4;
-  font-weight: 700 !important;
-}
-
-.sidebar-inbox-alert .sidebar-inbox-label {
-  color: #991B1B !important;
+.sidebar-inbox-flash {
+  animation: sidebarInboxFlash 0.5s ease 4 !important;
   font-weight: 700 !important;
 }
 
