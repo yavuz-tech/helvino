@@ -18,6 +18,7 @@ import { portalApiFetch } from "@/lib/portal-auth";
 import { mountPublicWidgetScript, rememberPublicWidgetIdentity } from "@/lib/public-widget";
 import { colors, fonts, shadow, radius, ui } from "@/lib/design-tokens";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
+import { usePortalInboxNotification } from "@/contexts/PortalInboxNotificationContext";
 import CampaignTopBanner from "@/components/CampaignTopBanner";
 import { bubbleBorderRadius, resolveWidgetBubbleTheme } from "@helvino/shared";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -223,9 +224,10 @@ export default function PortalLayout({
   void ui;
   void fonts;
   const { user, logout } = usePortalAuth();
+  const { unreadMap } = usePortalInboxNotification();
+  const totalUnread = Object.values(unreadMap).reduce((a, b) => a + (Number(b) || 0), 0);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [currentPlanKey, setCurrentPlanKey] = useState<string | null>(null);
   const [bellOpen, setBellOpen] = useState(false);
   const [widgetSettings, setWidgetSettings] = useState<WidgetBubbleSettings | null>(null);
@@ -240,20 +242,6 @@ export default function PortalLayout({
   const avatarLetter = (userName?.charAt(0) || user?.email?.charAt(0) || "U").toUpperCase();
   const normalizedPlanKey = (currentPlanKey || "").trim().toLowerCase();
   const showSidebarUpgradeCta = normalizedPlanKey === "free";
-
-  // Listen for helvion-new-message (visitor messages only) → optimistic increment.
-  // A server poll is scheduled 500ms later from NotificationContext to sync with truth.
-  useEffect(() => {
-    const handler = () => {
-      setUnreadCount((c) => {
-        const next = (Number.isFinite(c) ? c : 0) + 1;
-        console.warn("[NOTIF] unreadCount optimistic increment:", c, "->", next);
-        return next;
-      });
-    };
-    window.addEventListener("helvion-new-message", handler);
-    return () => window.removeEventListener("helvion-new-message", handler);
-  }, []);
 
   const fetchWidgetSettings = useCallback(async () => {
     try {
@@ -331,63 +319,6 @@ export default function PortalLayout({
 
   // No sidebar flashing; badge only.
 
-  // Poll inbox unread count; inbox sayfasındayken daha sık yenile (badge takılı kalmasın)
-  useEffect(() => {
-    if (!user) return;
-    let mounted = true;
-    let consecutiveFailures = 0;
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-
-    const fetchCount = async () => {
-      try {
-        const res = await portalApiFetch(`/portal/conversations/unread-count?_t=${Date.now()}`, { cache: "no-store" });
-        if (!mounted) return;
-
-        if (res.ok) {
-          consecutiveFailures = 0;
-          const data = await res.json().catch(() => ({}));
-          const next = Number(data?.unreadCount ?? 0) || 0;
-          // Avoid re-render if value didn't change
-          setUnreadCount((prev) => (prev === next ? prev : next));
-        } else {
-          // 4xx/5xx: do not update state and do not spam the UI.
-          // Increase interval with simple backoff to reduce jitter and load.
-          consecutiveFailures += 1;
-        }
-      } catch {
-        consecutiveFailures += 1;
-      }
-    };
-
-    const schedule = () => {
-      if (!mounted) return;
-      // Base poll: 30s+ everywhere. Socket.IO events trigger on-demand refreshes
-      // via "portal-inbox-unread-refresh", so this poll is just a safety net.
-      const baseMs = 30_000;
-      // Backoff: 1x, 2x, 4x, 8x, ... up to 2 minutes.
-      const factor = Math.min(16, Math.pow(2, Math.max(0, consecutiveFailures - 1)));
-      const nextMs = Math.min(120_000, baseMs * factor);
-      timeout = setTimeout(async () => {
-        await fetchCount();
-        schedule();
-      }, nextMs);
-    };
-
-    const onRefresh = () => { if (mounted) fetchCount(); };
-    const onVisible = () => { if (document.visibilityState === "visible" && mounted) fetchCount(); };
-    window.addEventListener("portal-inbox-unread-refresh", onRefresh);
-    document.addEventListener("visibilitychange", onVisible);
-
-    void fetchCount();
-    schedule();
-    return () => {
-      mounted = false;
-      if (timeout) clearTimeout(timeout);
-      window.removeEventListener("portal-inbox-unread-refresh", onRefresh);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [user, pathname]);
-
   // Keep sidebar upgrade card aligned with actual plan.
   // Pro+ users should only see upgrade prompts on locked higher-tier screens.
   useEffect(() => {
@@ -437,23 +368,6 @@ export default function PortalLayout({
     });
   }, []);
 
-  // Inbox sayfasına her girildiğinde badge’i hemen yenile
-  useEffect(() => {
-    if (pathname === "/portal/inbox" && user) {
-      window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
-    }
-  }, [pathname, user]);
-
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const res = await portalApiFetch(`/portal/conversations/unread-count?_t=${Date.now()}`, { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        setUnreadCount(data.unreadCount ?? 0);
-      }
-    } catch { /* */ }
-  }, []);
-
   const clearBadge = useCallback(async (onDone?: () => void) => {
     try {
       const res = await portalApiFetch("/portal/conversations/read-all", {
@@ -461,13 +375,10 @@ export default function PortalLayout({
         body: JSON.stringify({}),
       });
       if (res.ok) {
-        setUnreadCount(0);
-        window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
-        await fetchUnreadCount();
         onDone?.();
       }
     } catch { /* */ }
-  }, [fetchUnreadCount]);
+  }, []);
 
   const bubbleTheme = widgetSettings
     ? resolveWidgetBubbleTheme(
@@ -618,7 +529,7 @@ export default function PortalLayout({
                   }
                   const isActive = pathname === item.href;
                   const Icon = item.icon;
-                  const showUnread = item.badge === "unread" && unreadCount > 0;
+                  const showUnread = item.badge === "unread" && totalUnread > 0;
                   const isInboxItem = item.href === "/portal/inbox";
                   const iconToneClass = isActive
                     ? "[--icon-stroke:#FFFFFF] [--icon-bg:rgba(255,255,255,0.3)]"
@@ -641,7 +552,7 @@ export default function PortalLayout({
                             // Inbox item uses the inline badge next to label; keep icon clean.
                             isInboxItem ? null : (
                               <span className={`absolute -top-1 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-[10px] px-[7px] text-[10.5px] font-[var(--font-heading)] font-bold ${isActive ? "bg-white/30 text-white" : "bg-[#EF4444] text-white"} bell-dot`}>
-                                {unreadCount > 99 ? "99+" : unreadCount}
+                                {totalUnread > 99 ? "99+" : totalUnread}
                               </span>
                             )
                           ) : (
@@ -662,7 +573,7 @@ export default function PortalLayout({
                       )}
 
                       {/* Sidebar inbox badge (requested inline JSX) */}
-                      {sidebarOpen && isInboxItem && unreadCount > 0 && (
+                      {sidebarOpen && isInboxItem && totalUnread > 0 && (
                         <span style={{
                           background: "#EF4444",
                           color: "white",
@@ -676,7 +587,7 @@ export default function PortalLayout({
                           alignItems: "center",
                           justifyContent: "center",
                           marginLeft: "auto",
-                        }}>{unreadCount}</span>
+                        }}>{totalUnread}</span>
                       )}
                     </Link>
                   );
@@ -746,31 +657,31 @@ export default function PortalLayout({
                 aria-expanded={bellOpen}
               >
                 <Bell size={18} strokeWidth={2} className="text-amber-600 transition-colors duration-200 group-hover:text-[#64748B]" />
-                {unreadCount > 0 && (
+                {totalUnread > 0 && (
                   <span className="absolute right-1 top-1 h-2 w-2 rounded-full border-2 border-white bg-[#EF4444] bell-dot" />
                 )}
               </button>
               {bellOpen && (
                 <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-[#F3E8D8] bg-white shadow-xl shadow-amber-200/30 overflow-hidden z-30">
                   {/* Header */}
-                  <div className={`px-5 py-4 ${unreadCount > 0 ? "bg-gradient-to-r from-amber-50 to-amber-50/80 border-b border-amber-100/60" : "bg-[#FFFBF5]/80 border-b border-[#F3E8D8]"}`}>
+                  <div className={`px-5 py-4 ${totalUnread > 0 ? "bg-gradient-to-r from-amber-50 to-amber-50/80 border-b border-amber-100/60" : "bg-[#FFFBF5]/80 border-b border-[#F3E8D8]"}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${unreadCount > 0 ? "bg-amber-500/10" : "bg-amber-100/60"}`}>
-                          <Bell size={15} className={unreadCount > 0 ? "text-amber-600" : "text-amber-500"} />
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${totalUnread > 0 ? "bg-amber-500/10" : "bg-amber-100/60"}`}>
+                          <Bell size={15} className={totalUnread > 0 ? "text-amber-600" : "text-amber-500"} />
                         </div>
                         <div>
                           <p className="text-[13px] font-semibold text-amber-900">
-                            {unreadCount > 0
-                              ? t("inbox.bell.unreadCount").replace("{count}", String(unreadCount))
+                            {totalUnread > 0
+                              ? t("inbox.bell.unreadCount").replace("{count}", String(totalUnread))
                               : t("inbox.bell.noUnread")}
                           </p>
                           <p className="text-[11px] text-amber-500 mt-0.5">{t("inbox.bell.recentMessages")}</p>
                         </div>
                       </div>
-                      {unreadCount > 0 && (
+                      {totalUnread > 0 && (
                         <span className="px-2 py-0.5 text-[10px] font-bold text-red-700 bg-red-100 rounded-full">
-                          {unreadCount}
+                          {totalUnread}
                         </span>
                       )}
                     </div>
@@ -779,7 +690,7 @@ export default function PortalLayout({
                   <div className="p-2">
                     <button
                       type="button"
-                      onClick={() => goToInbox(unreadCount > 0)}
+                      onClick={() => goToInbox(totalUnread > 0)}
                       className="flex w-full items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium text-amber-800 hover:bg-[#FFFBF5] transition-all duration-150"
                     >
                       <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
@@ -787,7 +698,7 @@ export default function PortalLayout({
                       </div>
                       {t("nav.inbox")}
                     </button>
-                    {unreadCount > 0 && (
+                    {totalUnread > 0 && (
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); clearBadge(() => setBellOpen(false)); }}
