@@ -199,8 +199,10 @@ export async function embedRoutes(fastify: FastifyInstance) {
   fastify.get("/widget-frame.html", async (_request, reply) => {
     // OVERRIDE global helmet headers that block iframes
     try {
-      // @ts-expect-error fastify reply has removeHeader at runtime
-      reply.removeHeader?.("X-Frame-Options");
+      // Fastify's Reply type may not expose removeHeader, but Node's ServerResponse does.
+      // Use a safe runtime check without TS directives.
+      const r = reply as unknown as { removeHeader?: (name: string) => void };
+      r.removeHeader?.("X-Frame-Options");
     } catch {}
 
     // Allow embedding from customer websites.
