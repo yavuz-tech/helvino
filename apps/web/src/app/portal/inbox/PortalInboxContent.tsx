@@ -1467,17 +1467,32 @@ export default function PortalInboxContent() {
             return (
               <div key={conv.id} data-conversation-id={conv.id} onClick={() => selectConversation(conv.id)} role="button" tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectConversation(conv.id); } }}
-                className={`group relative mx-2 my-1 px-[14px] py-[13px] cursor-pointer rounded-xl transition-all duration-200 ${
+                className={`group relative mx-2 my-1 cursor-pointer rounded-xl transition-all duration-200 ${
                   active
-                    ? "bg-blue-50/80 ring-1 ring-blue-200/60 shadow-sm"
-                    : hasUnread
-                      ? `bg-white hover:bg-red-50/40 animate-pulse-green inbox-unread-dot${shouldFlash ? " inbox-conversation-flash" : ""}`
-                      : "hover:bg-slate-50/60"
-                }`}>
-                {/* Active indicator bar */}
-                {active && <div className="absolute left-0 top-3 bottom-3 w-[3px] bg-blue-500 rounded-r-full" />}
+                    ? "ring-1 ring-blue-200/60 shadow-sm"
+                    : "hover:bg-slate-50/60"
+                }`}
+                style={{
+                  padding: "13px 14px",
+                  background: active ? "rgba(219,234,254,0.8)" : hasUnread ? "rgba(239,68,68,0.06)" : undefined,
+                  fontWeight: hasUnread ? 600 : undefined,
+                  borderLeft: hasUnread && !active ? "3px solid #EF4444" : active ? "3px solid #3B82F6" : "3px solid transparent",
+                }}>
 
                 <div className="flex items-start gap-3">
+                  {/* Unread red dot */}
+                  {hasUnread && !active && (
+                    <span style={{
+                      width: "10px",
+                      height: "10px",
+                      borderRadius: "50%",
+                      background: "#EF4444",
+                      flexShrink: 0,
+                      marginTop: "6px",
+                      animation: "pulse 2s infinite",
+                    }} />
+                  )}
+
                   {/* Bulk checkbox */}
                   {bulkMode && (
                     <button
@@ -1498,7 +1513,25 @@ export default function PortalInboxContent() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
                       <span className={`text-[14px] truncate ${hasUnread ? "font-bold text-slate-900" : "font-semibold text-slate-700"}`}>{name}</span>
-                      <span className="text-[12px] text-slate-400 flex-shrink-0 tabular-nums font-medium" suppressHydrationWarning>{hydrated ? formatRelativeTime(conv.updatedAt, t) : formatTime(conv.updatedAt, hydrated)}</span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="text-[12px] text-slate-400 tabular-nums font-medium" suppressHydrationWarning>{hydrated ? formatRelativeTime(conv.updatedAt, t) : formatTime(conv.updatedAt, hydrated)}</span>
+                        {/* Unread count badge */}
+                        {unreadCountForCard > 0 && (
+                          <span style={{
+                            background: "#EF4444",
+                            color: "white",
+                            fontSize: "11px",
+                            fontWeight: "700",
+                            minWidth: "18px",
+                            height: "18px",
+                            borderRadius: "9px",
+                            padding: "0 5px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}>{unreadCountForCard > 99 ? "99+" : unreadCountForCard}</span>
+                        )}
+                      </div>
                     </div>
                     {conv.preview && <p className={`text-[13px] leading-snug truncate mb-1.5 ${hasUnread ? "text-slate-700 font-medium" : "text-slate-500"}`}>{cleanPreviewText(conv.preview.text)}</p>}
                     <div className="flex items-center gap-1.5">
@@ -1532,13 +1565,6 @@ export default function PortalInboxContent() {
                       <span className="text-[11px] text-slate-300 tabular-nums font-medium">{conv.messageCount} {t("common.abbrev.messages")}</span>
                     </div>
                   </div>
-
-                  {/* Unread badge */}
-                  {unreadCountForCard > 0 && (
-                    <span className="mt-1 min-w-[22px] h-[22px] px-1.5 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 shadow-sm shadow-red-500/30 bell-dot">
-                      {unreadCountForCard > 99 ? "99+" : unreadCountForCard}
-                    </span>
-                  )}
                 </div>
               </div>
             );

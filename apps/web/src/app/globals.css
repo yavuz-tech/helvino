@@ -321,3 +321,9 @@ body, p, span, div, input, button, label {
     left: 72px !important;
   }
 }
+
+/* Pulsing red dot for unread conversation cards */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
