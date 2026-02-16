@@ -44,6 +44,68 @@ function isMobile(): boolean {
   return window.innerWidth <= 768;
 }
 
+function isHexColor(value: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+function resolvePrimaryColor(ws: Record<string, unknown>): string {
+  const themeId = typeof ws.themeId === "string" ? ws.themeId.trim().toLowerCase() : "";
+  const useCustomColor = ws.useCustomColor === true;
+  const customColor = typeof ws.customColor === "string" ? ws.customColor.trim() : "";
+  const primaryColor = typeof ws.primaryColor === "string" ? ws.primaryColor.trim() : "";
+
+  const themeMap: Record<string, string> = {
+    rose: "#F43F5E",
+    violet: "#8B5CF6",
+    ocean: "#0EA5E9",
+    amber: "#F59E0B",
+    emerald: "#10B981",
+  };
+
+  if (useCustomColor && customColor && isHexColor(customColor)) return customColor;
+  if (primaryColor && isHexColor(primaryColor)) return primaryColor;
+  if (themeId && themeMap[themeId] && isHexColor(themeMap[themeId]!)) return themeMap[themeId]!;
+  return "";
+}
+
+async function hydrateLauncherTheme(siteId: string, el: HTMLDivElement): Promise<void> {
+  const fallbackColor = "#8B5CF6";
+  let revealed = false;
+
+  const reveal = (color: string) => {
+    if (revealed) return;
+    revealed = true;
+    el.style.background = color;
+    el.style.opacity = "1";
+  };
+
+  // Hide until we have the real theme (prevents color flash).
+  el.style.opacity = "0";
+  el.style.transition = "opacity 200ms ease";
+
+  // Fallback: show default purple after 2s if bootloader fails/slow.
+  const t = window.setTimeout(() => reveal(fallbackColor), 2000);
+
+  try {
+    const res = await fetch(`${FRAME_ORIGIN}/api/bootloader?siteId=${encodeURIComponent(siteId)}`, {
+      method: "GET",
+      headers: { "x-site-id": siteId },
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) {
+      return;
+    }
+    const ws = (data?.config?.widgetSettings || {}) as Record<string, unknown>;
+    const primary = resolvePrimaryColor(ws);
+    if (primary) {
+      window.clearTimeout(t);
+      reveal(primary);
+    }
+  } catch {
+    // ignore, fallback timer will reveal default
+  }
+}
+
 let isOpen = false;
 let container: HTMLDivElement | null = null;
 let launcher: HTMLDivElement | null = null;
@@ -151,6 +213,8 @@ function init(): void {
   }
 
   launcher = createLauncher();
+  // Theme is loaded AFTER launcher exists (host-page styling).
+  void hydrateLauncherTheme(siteId, launcher);
   container = createContainer(siteId);
 
   document.body.appendChild(container);
