@@ -17,6 +17,7 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/widget/package.json apps/widget/package.json
+COPY apps/widget-v2/package.json apps/widget-v2/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
 # Install ALL dependencies (dev included — needed for tsc build)
@@ -26,6 +27,7 @@ RUN pnpm install --frozen-lockfile
 COPY packages/shared/ packages/shared/
 COPY apps/api/ apps/api/
 COPY apps/widget/ apps/widget/
+COPY apps/widget-v2/ apps/widget-v2/
 
 # Build shared package (API depends on it)
 RUN pnpm --filter @helvino/shared build
@@ -41,6 +43,9 @@ RUN pnpm --filter @helvino/api build
 # fetch/WebSocket calls to this URL from customer websites.
 ENV VITE_API_URL=https://api.helvion.io
 RUN pnpm --filter @helvino/widget build
+
+# Build widget-v2 so API can serve /widget-v2/* assets.
+RUN pnpm --filter @helvino/widget-v2 build
 
 # ── Stage 2: Runner ───────────────────────────────────────
 FROM node:20-alpine AS runner
@@ -75,6 +80,9 @@ COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 
 # Copy widget build output (embed.js)
 COPY --from=builder /app/apps/widget/dist ./apps/widget/dist
+
+# Copy widget-v2 build output (loader + frame)
+COPY --from=builder /app/apps/widget-v2/dist ./apps/widget-v2/dist
 
 WORKDIR /app/apps/api
 ENV NODE_ENV=production
