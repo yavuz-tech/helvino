@@ -102,6 +102,36 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     conversationIdRef.current = conversationId;
   }, [conversationId]);
 
+  // ── Lock body scroll on mobile when chat is open ──
+  // Prevents iOS Safari from scrolling the background page
+  // while the user interacts with the chat window.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isMobile = window.innerWidth <= 640;
+    if (!isMobile || !actualIsOpen) return;
+
+    const origOverflow = document.body.style.overflow;
+    const origPosition = document.body.style.position;
+    const origTop = document.body.style.top;
+    const origWidth = document.body.style.width;
+    const scrollY = window.scrollY;
+
+    // Lock body
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+
+    return () => {
+      // Restore
+      document.body.style.overflow = origOverflow;
+      document.body.style.position = origPosition;
+      document.body.style.top = origTop;
+      document.body.style.width = origWidth;
+      window.scrollTo(0, scrollY);
+    };
+  }, [actualIsOpen]);
+
   /** Detect embed-config mismatch: config tries to hide branding but server says required */
   useEffect(() => {
     if (!bootloaderConfig) return;
@@ -135,42 +165,52 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   }, [bootloaderConfig]);
 
   // ── Mobile keyboard handler — Crisp/Tidio style ──
-  // Uses visualViewport API to keep the chat window stable when the
-  // soft keyboard opens on iOS/Android. Sets a CSS custom property
-  // (--vvh) on the widget root so the mobile CSS can use it instead
-  // of 100vh/100dvh which don't account for the keyboard.
+  // On iOS Safari, position:fixed elements use the layout viewport
+  // which does NOT shrink when the keyboard opens. This causes the
+  // input bar to hide behind the keyboard.
   //
-  // Also toggles .keyboard-open class on chat-window so CSS can hide
-  // branding footer to save space when keyboard is visible.
+  // Fix: Detect keyboard height via visualViewport API and set
+  // --kb-height CSS variable. The mobile CSS uses
+  //   bottom: var(--kb-height, 0px)
+  // to push the chat window above the keyboard.
+  //
+  // Also: prevent iOS from scrolling the page when input is focused,
+  // and lock body scroll while chat is open on mobile.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const vv = window.visualViewport;
     if (!vv) return;
 
-    // Threshold: if viewport shrinks by >150px, keyboard is probably open
-    const fullHeight = vv.height;
+    // Use window.innerHeight as the "full" height reference.
+    // visualViewport.height is smaller when keyboard is open.
     let lastKbOpen = false;
 
     const update = () => {
       const root = document.getElementById("helvino-widget-root");
-      if (root) {
-        root.style.setProperty("--vvh", `${vv.height}px`);
-      }
+      if (!root) return;
 
-      // Detect keyboard open/close
-      const kbOpen = (fullHeight - vv.height) > 150;
+      // Keyboard height = difference between full viewport and visible viewport
+      const kbHeight = Math.max(0, window.innerHeight - vv.height);
+      root.style.setProperty("--kb-height", `${kbHeight}px`);
+
+      // Detect keyboard open/close (threshold: >100px)
+      const kbOpen = kbHeight > 100;
       if (kbOpen !== lastKbOpen) {
         lastKbOpen = kbOpen;
-        const chatWin = root?.querySelector(".chat-window");
+        const chatWin = root.querySelector(".chat-window");
         if (chatWin) {
           chatWin.classList.toggle("keyboard-open", kbOpen);
         }
-        // Scroll messages to bottom when keyboard opens
+
+        // When keyboard opens:
+        // 1. Scroll messages to bottom so user sees latest
+        // 2. Force page scroll to top to prevent iOS from shifting the viewport
         if (kbOpen) {
+          window.scrollTo(0, 0);
           setTimeout(() => {
-            const msgs = root?.querySelector(".chat-messages");
+            const msgs = root.querySelector(".chat-messages");
             if (msgs) msgs.scrollTop = msgs.scrollHeight;
-          }, 100);
+          }, 50);
         }
       }
     };
@@ -994,11 +1034,19 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
                   onChange={(e) => { setInputValue(e.target.value); emitTyping(); }}
                   onKeyPress={handleKeyPress}
                   onFocus={() => {
-                    // Scroll messages to bottom when input is focused (keyboard opens)
+                    // Prevent iOS from scrolling the page when input gains focus
+                    window.scrollTo(0, 0);
+                    // Scroll messages to bottom after keyboard animation
                     setTimeout(() => {
+                      window.scrollTo(0, 0);
                       const msgs = document.querySelector("#helvino-widget-root .chat-messages");
                       if (msgs) msgs.scrollTop = msgs.scrollHeight;
-                    }, 300);
+                    }, 150);
+                    setTimeout(() => {
+                      window.scrollTo(0, 0);
+                      const msgs = document.querySelector("#helvino-widget-root .chat-messages");
+                      if (msgs) msgs.scrollTop = msgs.scrollHeight;
+                    }, 400);
                   }}
                   disabled={isLoading || !conversationId}
                   enterKeyHint="send"
