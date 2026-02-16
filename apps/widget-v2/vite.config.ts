@@ -26,7 +26,18 @@ export default defineConfig(({ mode }) => {
 
   // mode === "frame"
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        name: "helvion-widget-v2-index-html",
+        transformIndexHtml(html) {
+          // Vite emits absolute /frame.* urls. We serve under /widget-v2/* on the API.
+          return html
+            .replaceAll('src="/frame.js"', 'src="/widget-v2/frame.js"')
+            .replaceAll('href="/frame.css"', 'href="/widget-v2/frame.css"');
+        },
+      },
+    ],
     root: resolve(__dirname, "src"),
     build: {
       outDir: resolve(__dirname, "dist"),

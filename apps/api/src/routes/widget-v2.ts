@@ -5,7 +5,7 @@ import fs from "fs/promises";
 function noCacheHeaders(reply: any) {
   return reply
     .header("Access-Control-Allow-Origin", "*")
-    .header("Cache-Control", "no-cache")
+    .header("Cache-Control", "no-cache, no-store")
     .header("Pragma", "no-cache")
     .header("Expires", "0");
 }
@@ -49,7 +49,6 @@ export async function widgetV2Routes(fastify: FastifyInstance) {
 
     // Allow embedding from customer websites.
     noCacheHeaders(reply)
-      .header("X-Frame-Options", "ALLOWALL") // best-effort for legacy UAs
       .header(
         "Content-Security-Policy",
         [
@@ -66,12 +65,7 @@ export async function widgetV2Routes(fastify: FastifyInstance) {
       .type("text/html; charset=utf-8");
 
     const filePath = path.join(distDir, "frame.html");
-    const htmlRaw = await fs.readFile(filePath, "utf8");
-    // Vite builds with absolute /frame.js + /frame.css by default; rewrite for our mounted path.
-    const html = htmlRaw
-      .replace(/src=\"\\/frame\\.js\"/g, 'src="/widget-v2/frame.js"')
-      .replace(/href=\"\\/frame\\.css\"/g, 'href="/widget-v2/frame.css"');
-
+    const html = await fs.readFile(filePath, "utf8");
     return reply.send(html);
   });
 }
