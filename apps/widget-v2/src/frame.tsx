@@ -78,6 +78,117 @@ type UiCopy = {
   botAvatar: string;
 };
 
+// Full theme map matching the API's THEME_COLORS (12 themes)
+const THEME_MAP: Record<string, string> = {
+  amber: "#F59E0B",
+  ocean: "#0EA5E9",
+  emerald: "#10B981",
+  violet: "#8B5CF6",
+  rose: "#F43F5E",
+  slate: "#475569",
+  teal: "#14B8A6",
+  indigo: "#6366F1",
+  sunset: "#F97316",
+  aurora: "#06B6D4",
+  midnight: "#1E293B",
+  cherry: "#BE123C",
+};
+
+const EN_DEFAULTS = new Set([
+  "Chat with us",
+  "We reply as soon as possible",
+  "Write your message...",
+  "We typically reply within minutes",
+]);
+
+function normalize(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeCpc(value: unknown): string {
+  const s = normalize(value);
+  if (!s) return "";
+  return EN_DEFAULTS.has(s) ? "" : s;
+}
+
+/**
+ * Parse widgetSettings (from bootloader or live config-update) into UiCopy.
+ * Also applies CSS variables for primaryColor.
+ */
+function parseWidgetSettings(
+  ws: Record<string, unknown>,
+  cpc: Record<string, unknown>
+): UiCopy {
+  // Theme: apply primary color as CSS variables
+  const themeId = typeof ws.themeId === "string" ? ws.themeId.trim().toLowerCase() : "";
+  const useCustomColor = ws.useCustomColor === true;
+  const customColor = typeof ws.customColor === "string" ? ws.customColor.trim() : "";
+  const wsPrimaryColor = typeof ws.primaryColor === "string" ? ws.primaryColor.trim() : "";
+
+  let primaryColor = "";
+  if (useCustomColor && customColor && isHexColor(customColor)) primaryColor = customColor;
+  else if (wsPrimaryColor && isHexColor(wsPrimaryColor)) primaryColor = wsPrimaryColor;
+  else if (themeId && THEME_MAP[themeId] && isHexColor(THEME_MAP[themeId]!)) primaryColor = THEME_MAP[themeId]!;
+
+  if (primaryColor) {
+    const root = document.documentElement;
+    root.style.setProperty("--hv-primary", primaryColor);
+    root.style.setProperty("--hv-primary-dark", darkenColor(primaryColor, 15));
+  }
+
+  const title =
+    normalize(ws.headerText) ||
+    normalize(ws.headerTitle) ||
+    normalizeCpc(cpc.title) ||
+    "Nasıl yardımcı olabiliriz?";
+  const subtitle =
+    normalize(ws.subText) ||
+    normalize(ws.headerSubtitle) ||
+    normalizeCpc(cpc.subtitle) ||
+    "Genellikle birkaç dakika içinde yanıt veriyoruz";
+  const placeholder =
+    normalize(ws.placeholder) ||
+    normalize(ws.inputPlaceholder) ||
+    normalizeCpc(cpc.placeholder) ||
+    "Mesajınızı yazın...";
+  const welcome =
+    normalize(ws.welcomeMsg) ||
+    normalize(ws.aiWelcome) ||
+    normalize(ws.welcomeMessage) ||
+    "Merhaba! 👋 Size nasıl yardımcı olabilirim?";
+  const botAvatar = normalize(ws.botAvatar) || "🤖";
+
+  let starters: string[] = [];
+  const startersRaw = ws.starters;
+  if (Array.isArray(startersRaw)) {
+    starters = startersRaw
+      .filter((x) => {
+        if (typeof x === "string") return true;
+        if (!x || typeof x !== "object") return false;
+        if (typeof (x as any).active === "boolean") return (x as any).active === true;
+        return true;
+      })
+      .map((x) => {
+        if (typeof x === "string") return x;
+        if (x && typeof x === "object" && typeof (x as any).text === "string") return String((x as any).text);
+        return "";
+      })
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 6);
+  }
+
+  if (starters.length === 0) {
+    starters = [
+      "💰 Fiyatlandırma hakkında bilgi",
+      "🔧 Teknik destek istiyorum",
+      "📦 Siparişimi takip etmek istiyorum",
+    ];
+  }
+
+  return { title, subtitle, welcome, placeholder, starters, botAvatar };
+}
+
 function PoweredByHelvion() {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const animRef = React.useRef<number>(0);
@@ -302,109 +413,13 @@ function App() {
         if (cancelled) return;
         setBootOk(Boolean(boot?.ok));
 
-        // Debug: dump config to confirm where localized strings live.
-        try {
-          console.log("[Widget v2] bootloader config:", JSON.stringify(boot?.config || null, null, 2));
-        } catch {
-          // ignore
-        }
-
         const cfg = (boot?.config || {}) as Record<string, unknown>;
         const ws = (cfg.widgetSettings || {}) as Record<string, unknown>;
         const cpc = (cfg.chatPageConfig || {}) as Record<string, unknown>;
 
-        const enDefaults = new Set([
-          "Chat with us",
-          "We reply as soon as possible",
-          "Write your message...",
-          "We typically reply within minutes",
-        ]);
-        const normalize = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
-        const normalizeCpc = (value: unknown): string => {
-          const s = normalize(value);
-          if (!s) return "";
-          return enDefaults.has(s) ? "" : s;
-        };
-
-        // Theme: apply primary color from bootloader as CSS variables.
-        // Keep hardcoded fallbacks in CSS for when bootloader fails.
-        const themeId = typeof ws.themeId === "string" ? ws.themeId.trim().toLowerCase() : "";
-        const useCustomColor = ws.useCustomColor === true;
-        const customColor = typeof ws.customColor === "string" ? ws.customColor.trim() : "";
-        const wsPrimaryColor = typeof ws.primaryColor === "string" ? ws.primaryColor.trim() : "";
-        const themeMap: Record<string, string> = {
-          rose: "#F43F5E",
-          violet: "#8B5CF6",
-          ocean: "#0EA5E9",
-          amber: "#F59E0B",
-          emerald: "#10B981",
-        };
-
-        let primaryColor = "";
-        if (useCustomColor && customColor && isHexColor(customColor)) primaryColor = customColor;
-        else if (wsPrimaryColor && isHexColor(wsPrimaryColor)) primaryColor = wsPrimaryColor;
-        else if (themeId && themeMap[themeId] && isHexColor(themeMap[themeId]!)) primaryColor = themeMap[themeId]!;
-
-        if (primaryColor) {
-          const root = document.documentElement;
-          root.style.setProperty("--hv-primary", primaryColor);
-          root.style.setProperty("--hv-primary-dark", darkenColor(primaryColor, 15));
-        }
-
-        // New fallback order requested: widgetSettings first.
-        const title =
-          normalize(ws.headerText) ||
-          normalize(ws.headerTitle) ||
-          normalizeCpc(cpc.title) ||
-          "Nasıl yardımcı olabiliriz?";
-        const subtitle =
-          normalize(ws.subText) ||
-          normalize(ws.headerSubtitle) ||
-          normalizeCpc(cpc.subtitle) ||
-          "Genellikle birkaç dakika içinde yanıt veriyoruz";
-        const placeholder =
-          normalize(ws.placeholder) ||
-          normalize(ws.inputPlaceholder) ||
-          normalizeCpc(cpc.placeholder) ||
-          "Mesajınızı yazın...";
-        const welcome =
-          normalize(ws.welcomeMsg) ||
-          normalize(ws.aiWelcome) ||
-          normalize(ws.welcomeMessage) ||
-          "Merhaba! 👋 Size nasıl yardımcı olabilirim?";
-        const botAvatar = normalize(ws.botAvatar) || "🤖";
-
-        let starters: string[] = [];
-        const startersRaw = ws.starters;
-        if (Array.isArray(startersRaw)) {
-          starters = startersRaw
-            .filter((x) => {
-              if (typeof x === "string") return true;
-              if (!x || typeof x !== "object") return false;
-              // Only active starters, if provided.
-              if (typeof (x as any).active === "boolean") return (x as any).active === true;
-              return true;
-            })
-            .map((x) => {
-              if (typeof x === "string") return x;
-              if (x && typeof x === "object" && typeof (x as any).text === "string") return String((x as any).text);
-              return "";
-            })
-            .map((s) => s.trim())
-            .filter(Boolean)
-            .slice(0, 6);
-        }
-
-        if (starters.length === 0) {
-          starters = [
-            "💰 Fiyatlandırma hakkında bilgi",
-            "🔧 Teknik destek istiyorum",
-            "📦 Siparişimi takip etmek istiyorum",
-          ];
-        }
-
-        // Set all UI copy at once to avoid partial render/flash.
-        setUi({ title, subtitle, welcome, placeholder, starters, botAvatar });
+        // Parse and apply all settings at once (no flash)
+        const parsed = parseWidgetSettings(ws, cpc);
+        setUi(parsed);
       })
       .catch((err) => {
         console.error("[Widget v2] Bootloader failed:", err);
@@ -562,30 +577,23 @@ function App() {
     onSend();
   };
 
-  // Socket.IO realtime (polling removed)
+  // Socket.IO — connect right after bootloader (for live config updates + messaging)
+  // We store conversationId in a ref so the socket listeners always see the latest value
+  // without needing to teardown/recreate the socket on every conversationId change.
+  const conversationIdRef = useRef<string | null>(null);
+  conversationIdRef.current = conversationId;
+
   useEffect(() => {
-    if (!conversationId) return;
+    if (!bootOk) return;
 
     const { orgToken } = getCachedAuth();
-    if (!orgToken) {
-      console.warn("[Widget v2] Socket skipped: orgToken not ready");
-      return;
-    }
+    if (!orgToken || !siteId) return;
 
-    // Reuse existing socket if any
-    if (socketRef.current) {
-      try {
-        socketRef.current.emit("conversation:join", { conversationId });
-      } catch {
-        // ignore
-      }
-      return;
-    }
+    if (socketRef.current) return;
 
     const apiBase = getApiBase().replace(/\/+$/, "");
     const socket = io(apiBase, {
       auth: {
-        // Server expects `token`; also send `orgToken` for forward-compat with this widget spec.
         token: orgToken,
         orgToken,
         siteId,
@@ -596,25 +604,38 @@ function App() {
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("✅ Connected to Socket.IO", { id: socket.id });
+      console.log("[Widget v2] Socket connected", { id: socket.id });
+      const cid = conversationIdRef.current;
+      if (cid) {
+        try { socket.emit("conversation:join", { conversationId: cid }); } catch { /* */ }
+      }
+    });
+    socket.on("disconnect", () => {
+      console.log("[Widget v2] Socket disconnected");
+    });
+    socket.on("connect_error", (err: any) => {
+      console.warn("[Widget v2] Socket connect_error", err?.message || err);
+    });
+
+    // Live config updates — API emits this when portal saves widget settings
+    socket.on("widget:config-updated", (data: { settings?: Record<string, unknown> }) => {
       try {
-        socket.emit("conversation:join", { conversationId });
+        const ws = data?.settings;
+        if (!ws || typeof ws !== "object") return;
+        console.log("[Widget v2] Live config update received");
+        const parsed = parseWidgetSettings(ws, {});
+        setUi(parsed);
       } catch {
         // ignore
       }
     });
-    socket.on("disconnect", () => {
-      console.log("❌ Disconnected from Socket.IO");
-    });
-    socket.on("connect_error", (err: any) => {
-      console.warn("❌ Socket.IO connect_error", err?.message || err);
-    });
 
+    // Realtime messages
     socket.on("message:new", (data: { conversationId: string; message: ApiMessage }) => {
       try {
-        if (!data || data.conversationId !== conversationId) return;
+        const cid = conversationIdRef.current;
+        if (!data || !cid || data.conversationId !== cid) return;
         const msg = data.message;
-        // Only append agent/AI messages (our user messages are already optimistic).
         if (!msg || msg.role === "user") return;
 
         setMessages((prev) => {
@@ -640,24 +661,31 @@ function App() {
       }
     });
 
+    // Typing indicators
     socket.on("agent:typing", (data: { conversationId: string }) => {
-      if (data?.conversationId !== conversationId) return;
+      if (data?.conversationId !== conversationIdRef.current) return;
       setIsAgentTyping(true);
     });
     socket.on("agent:typing:stop", (data: { conversationId: string }) => {
-      if (data?.conversationId !== conversationId) return;
+      if (data?.conversationId !== conversationIdRef.current) return;
       setIsAgentTyping(false);
     });
 
     return () => {
-      try {
-        socket.disconnect();
-      } catch {
-        // ignore
-      }
+      try { socket.disconnect(); } catch { /* */ }
       socketRef.current = null;
     };
-  }, [conversationId, siteId, visitorId]);
+  }, [bootOk, siteId, visitorId]);
+
+  // When conversationId changes, join the conversation room on existing socket
+  useEffect(() => {
+    if (!conversationId || !socketRef.current) return;
+    try {
+      socketRef.current.emit("conversation:join", { conversationId });
+    } catch {
+      // ignore
+    }
+  }, [conversationId]);
 
   const emitTypingStartDebounced = () => {
     const cid = conversationId;

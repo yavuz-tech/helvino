@@ -55,11 +55,18 @@ function resolvePrimaryColor(ws: Record<string, unknown>): string {
   const primaryColor = typeof ws.primaryColor === "string" ? ws.primaryColor.trim() : "";
 
   const themeMap: Record<string, string> = {
-    rose: "#F43F5E",
-    violet: "#8B5CF6",
-    ocean: "#0EA5E9",
     amber: "#F59E0B",
+    ocean: "#0EA5E9",
     emerald: "#10B981",
+    violet: "#8B5CF6",
+    rose: "#F43F5E",
+    slate: "#475569",
+    teal: "#14B8A6",
+    indigo: "#6366F1",
+    sunset: "#F97316",
+    aurora: "#06B6D4",
+    midnight: "#1E293B",
+    cherry: "#BE123C",
   };
 
   if (useCustomColor && customColor && isHexColor(customColor)) return customColor;
