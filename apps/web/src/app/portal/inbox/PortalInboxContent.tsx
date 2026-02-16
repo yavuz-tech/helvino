@@ -616,6 +616,61 @@ export default function PortalInboxContent() {
     });
   }, [conversations]);
 
+  // Persist unread + flash state across navigation (entering inbox should NOT clear effects).
+  // Storage is scoped per orgKey (so different orgs don't mix).
+  const UNREAD_STORAGE_KEY = `helvino_portal_unread_state_${user?.orgKey || "unknown"}`;
+
+  const loadUnreadState = useCallback((): { unread: Record<string, number>; flashUntil: Record<string, number> } => {
+    try {
+      const raw = localStorage.getItem(UNREAD_STORAGE_KEY);
+      if (!raw) return { unread: {}, flashUntil: {} };
+      const parsed = JSON.parse(raw) as { unread?: Record<string, number>; flashUntil?: Record<string, number> };
+      return {
+        unread: parsed?.unread && typeof parsed.unread === "object" ? parsed.unread : {},
+        flashUntil: parsed?.flashUntil && typeof parsed.flashUntil === "object" ? parsed.flashUntil : {},
+      };
+    } catch {
+      return { unread: {}, flashUntil: {} };
+    }
+  }, [UNREAD_STORAGE_KEY]);
+
+  const saveUnreadState = useCallback((state: { unread: Record<string, number>; flashUntil: Record<string, number> }) => {
+    try {
+      localStorage.setItem(UNREAD_STORAGE_KEY, JSON.stringify(state));
+    } catch { /* */ }
+  }, [UNREAD_STORAGE_KEY]);
+
+  // Hydrate local unread + flash from storage whenever list loads / reloads.
+  useEffect(() => {
+    if (typeof window === "undefined" || !user?.orgKey) return;
+    const stored = loadUnreadState();
+    setUnreadByConversationId((prev) => {
+      const next = { ...prev, ...stored.unread };
+      return next;
+    });
+    setFlashUntilByConversationId((prev) => {
+      const next = { ...prev, ...stored.flashUntil };
+      // Recreate timeouts for each conversation flash window.
+      for (const [id, until] of Object.entries(stored.flashUntil || {})) {
+        const ms = Number(until) || 0;
+        if (ms <= Date.now()) continue;
+        const existing = flashTimeoutsRef.current[id];
+        if (existing) clearTimeout(existing);
+        flashTimeoutsRef.current[id] = setTimeout(() => {
+          setFlashUntilByConversationId((p) => {
+            if (!(id in p)) return p;
+            const n = { ...p };
+            delete n[id];
+            console.warn("[NOTIF] flashUntil auto-cleared (hydrate):", id);
+            return n;
+          });
+        }, ms - Date.now());
+      }
+      console.warn("[NOTIF] hydrated unread/flash state from storage");
+      return next;
+    });
+  }, [user?.orgKey, conversations.length, loadUnreadState]);
+
   // Background poll for new conversations — only as a safety net.
   // When socket is connected, poll very infrequently (60s).
   // When socket is disconnected, the fallback-polling effect above handles it.
@@ -716,6 +771,19 @@ export default function PortalInboxContent() {
       console.warn("[NOTIF] flashUntil cleared:", id);
       return next;
     });
+
+    // Persist clear in localStorage too (entering inbox should not clear, only opening conversation clears).
+    try {
+      const key = `helvino_portal_unread_state_${user?.orgKey || "unknown"}`;
+      const raw = localStorage.getItem(key);
+      const parsed = raw ? JSON.parse(raw) as { unread?: Record<string, number>; flashUntil?: Record<string, number> } : {};
+      const u = { ...(parsed.unread || {}) };
+      const f = { ...(parsed.flashUntil || {}) };
+      delete u[id];
+      delete f[id];
+      localStorage.setItem(key, JSON.stringify({ unread: u, flashUntil: f }));
+      console.warn("[NOTIF] storage cleared for conversation:", id);
+    } catch { /* */ }
 
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -916,6 +984,19 @@ export default function PortalInboxContent() {
           }, 60_000);
           return next;
         });
+
+        // Persist unread + flash so entering inbox does not clear effects.
+        try {
+          const key = `helvino_portal_unread_state_${user?.orgKey || "unknown"}`;
+          const raw = localStorage.getItem(key);
+          const parsed = raw ? JSON.parse(raw) as { unread?: Record<string, number>; flashUntil?: Record<string, number> } : {};
+          const u = { ...(parsed.unread || {}) };
+          const f = { ...(parsed.flashUntil || {}) };
+          u[conversationId] = (Number(u[conversationId] ?? 0) || 0) + 1;
+          f[conversationId] = Date.now() + 60_000;
+          localStorage.setItem(key, JSON.stringify({ unread: u, flashUntil: f }));
+          console.warn("[NOTIF] storage updated:", conversationId, "unread:", u[conversationId], "flashUntil:", f[conversationId]);
+        } catch { /* */ }
       }
 
       fetchConversations();
@@ -1459,18 +1540,18 @@ export default function PortalInboxContent() {
           ) : conversations.map(conv => {
             const name = displayName(conv, t);
             const active = conv.id === selectedConversationId;
-            const hasUnread = !!conv.hasUnreadMessages;
             const localUnread = Number(unreadByConversationId[conv.id] ?? 0) || 0;
-            const unreadCountForCard = localUnread > 0 ? localUnread : (hasUnread ? 1 : 0);
+            const unreadCountForCard = localUnread > 0 ? localUnread : (conv.hasUnreadMessages ? 1 : 0);
             const flashUntil = Number(flashUntilByConversationId[conv.id] ?? 0) || 0;
-            const shouldFlash = hasUnread && flashUntil > Date.now();
+            const isUnread = unreadCountForCard > 0;
+            const shouldFlash = isUnread && flashUntil > Date.now();
             return (
               <div key={conv.id} data-conversation-id={conv.id} onClick={() => selectConversation(conv.id)} role="button" tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectConversation(conv.id); } }}
                 className={`group relative mx-2 my-1 px-[14px] py-[13px] cursor-pointer rounded-xl transition-all duration-200 ${
                   active
                     ? "bg-blue-50/80 ring-1 ring-blue-200/60 shadow-sm"
-                    : hasUnread
+                    : isUnread
                       ? `bg-white hover:bg-red-50/40 animate-pulse-green inbox-unread-dot${shouldFlash ? " inbox-conversation-flash" : ""}`
                       : "hover:bg-slate-50/60"
                 }`}>
@@ -1497,10 +1578,10 @@ export default function PortalInboxContent() {
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <span className={`text-[14px] truncate ${hasUnread ? "font-bold text-slate-900" : "font-semibold text-slate-700"}`}>{name}</span>
+                      <span className={`text-[14px] truncate ${isUnread ? "font-bold text-slate-900" : "font-semibold text-slate-700"}`}>{name}</span>
                       <span className="text-[12px] text-slate-400 flex-shrink-0 tabular-nums font-medium" suppressHydrationWarning>{hydrated ? formatRelativeTime(conv.updatedAt, t) : formatTime(conv.updatedAt, hydrated)}</span>
                     </div>
-                    {conv.preview && <p className={`text-[13px] leading-snug truncate mb-1.5 ${hasUnread ? "text-slate-700 font-medium" : "text-slate-500"}`}>{cleanPreviewText(conv.preview.text)}</p>}
+                    {conv.preview && <p className={`text-[13px] leading-snug truncate mb-1.5 ${isUnread ? "text-slate-700 font-medium" : "text-slate-500"}`}>{cleanPreviewText(conv.preview.text)}</p>}
                     <div className="flex items-center gap-1.5">
                       {conv.slaStatus && (
                         <span
