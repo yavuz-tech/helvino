@@ -102,8 +102,9 @@ function applyWrapInlineStyle(wrap: HTMLElement) {
     wrap.style.left = "0";
     wrap.style.right = "0";
     wrap.style.bottom = "0";
-    wrap.style.width = "auto";
-    wrap.style.height = "auto";
+    wrap.style.width = "100%";
+    wrap.style.maxWidth = "100vw";
+    wrap.style.height = "100%";
     wrap.style.borderRadius = "0";
     wrap.style.boxShadow = "none";
     wrap.style.transition = "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)";
@@ -193,8 +194,18 @@ function setOpen(root: HTMLElement, open: boolean) {
   // Inline fallback for when embed.css is blocked by CSP.
   // Keep open/close animations consistent.
   applyWrapInlineStyle(wrap);
-  if (open) wrap.style.pointerEvents = "auto";
-  else wrap.style.pointerEvents = "none";
+  if (open) {
+    wrap.style.pointerEvents = "auto";
+    // Ensure iframe can receive keyboard/mouse events when widget is open.
+    const iframe = wrap.querySelector(`.${IFRAME_CLASS}`) as HTMLIFrameElement | null;
+    if (iframe) {
+      iframe.style.pointerEvents = "auto";
+      // Defer focus so the iframe's inner input can be focused by the user.
+      requestAnimationFrame(() => { try { iframe.focus(); } catch {} });
+    }
+  } else {
+    wrap.style.pointerEvents = "none";
+  }
 }
 
 function buildFrameUrl() {
@@ -226,6 +237,9 @@ function createLauncher(root: HTMLElement) {
   });
   // Inline fallback so launcher is visible even if CSS is blocked.
   applyLauncherInlineStyle(btn, root);
+  // Start hidden — hydrateTheme() reveals with the correct brand color.
+  btn.style.opacity = "0";
+  btn.style.transition = "opacity 250ms ease";
   root.appendChild(btn);
 }
 
@@ -264,13 +278,19 @@ function createIframe(root: HTMLElement) {
   const iframe = document.createElement("iframe");
   iframe.className = IFRAME_CLASS;
   iframe.setAttribute("title", "Helvion Widget");
-  // Permissions needed for some mobile behaviors
   iframe.setAttribute("allow", "clipboard-write");
+  iframe.setAttribute("tabindex", "0");
+  // Ensure iframe fills container and never overflows.
+  iframe.style.width = "100%";
+  iframe.style.maxWidth = "100%";
+  iframe.style.height = "100%";
+  iframe.style.border = "none";
+  iframe.style.overflow = "hidden";
+  iframe.style.display = "block";
   iframe.style.opacity = "0";
   iframe.style.transition = "opacity 180ms ease";
   iframe.addEventListener("load", () => {
     setIframeLoading(root, false);
-    // Notify parent (loader) that content is ready.
     try { window.parent?.postMessage({ type: "helvion:frame-ready" }, "*"); } catch {}
   });
 
@@ -281,7 +301,15 @@ function createIframe(root: HTMLElement) {
   root.appendChild(wrap);
 }
 
+function revealLauncher(root: HTMLElement) {
+  const launcher = root.querySelector(`.${LAUNCHER_CLASS}`) as HTMLButtonElement | null;
+  if (launcher) launcher.style.opacity = "1";
+}
+
 async function hydrateTheme(root: HTMLElement) {
+  // Fallback: reveal launcher with default colors after 3s even if bootloader fails.
+  const fallbackTimer = setTimeout(() => revealLauncher(root), 3000);
+
   try {
     // Ensure parentHost is passed for allowlist checks in the bootloader.
     (window as any).HELVION_PARENT_HOST = window.location.hostname;
@@ -299,13 +327,18 @@ async function hydrateTheme(root: HTMLElement) {
     root.style.setProperty("--primary-color", primary);
     root.style.setProperty("--primary-dark", primaryDark);
 
-    // Apply bootloader theme to launcher immediately (no need to wait for resize).
+    // Apply bootloader theme to launcher and reveal with correct brand color.
     const launcher = root.querySelector(`.${LAUNCHER_CLASS}`) as HTMLButtonElement | null;
     if (launcher) applyLauncherInlineStyle(launcher, root);
     const loadingSpinner = root.querySelector(`.${LOADING_CLASS} > div`) as HTMLElement | null;
     if (loadingSpinner) loadingSpinner.style.borderTopColor = primary;
+
+    clearTimeout(fallbackTimer);
+    revealLauncher(root);
   } catch {
-    // Best-effort: launcher can render with defaults.
+    // Best-effort: reveal launcher with defaults.
+    clearTimeout(fallbackTimer);
+    revealLauncher(root);
   }
 }
 

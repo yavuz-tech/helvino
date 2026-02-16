@@ -2,6 +2,21 @@
    Crisp/Tidio-inspired sizing & behavior.
    Safe to be global because this CSS never runs on customer pages. */
 
+/* ── NUCLEAR OVERFLOW RESET — must come first ── */
+*, *::before, *::after {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+html, body, #helvion-frame-root, #root,
+.app-container, .chat-window, .widget-container {
+  width: 100% !important;
+  max-width: 100vw !important;
+  overflow-x: hidden !important;
+  margin: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
 /* Base reset inside iframe */
 html, body {
   margin: 0;
