@@ -695,7 +695,14 @@ fastify.post<{
   // SECURITY:
   // - Agents should receive all messages for the org inbox.
   // - Widgets should only receive assistant messages (their own user message is already returned by HTTP).
-  fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message });
+  {
+    const roomByOrgId = `org:${org.id}:agents`;
+    const roomByOrgKey = `org:${org.key}:agents`;
+    console.warn("[Socket Server] emitting message:new to rooms:", roomByOrgId, roomByOrgKey);
+    fastify.io.to(roomByOrgId).emit("message:new", { conversationId: id, message });
+    // Back-compat / safety: some clients may only join orgKey rooms.
+    fastify.io.to(roomByOrgKey).emit("message:new", { conversationId: id, message });
+  }
   if (role !== "user") {
     fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message });
   }
@@ -766,6 +773,7 @@ fastify.post<{
             const fallbackMessage = await store.addMessage(id, org.id, "assistant", sanitizeHTML(fallbackText));
             if (fallbackMessage) {
               fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message: fallbackMessage });
+              fastify.io.to(`org:${org.key}:agents`).emit("message:new", { conversationId: id, message: fallbackMessage });
               fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message: fallbackMessage });
             }
           }
@@ -789,6 +797,7 @@ fastify.post<{
 
         // Emit to agents + visitor conversation
         fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message: aiMessage });
+        fastify.io.to(`org:${org.key}:agents`).emit("message:new", { conversationId: id, message: aiMessage });
         fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message: aiMessage });
 
         // Record M2 usage + increment AI quota counter
@@ -814,6 +823,7 @@ fastify.post<{
       );
       if (offHoursMessage) {
         fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message: offHoursMessage });
+        fastify.io.to(`org:${org.key}:agents`).emit("message:new", { conversationId: id, message: offHoursMessage });
         fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message: offHoursMessage });
       }
     }
@@ -1193,9 +1203,11 @@ fastify.ready().then(() => {
     if (isAgent) {
       socket.join(orgAgentsRoom);
       socket.join(`org:${orgKey}:agents`);
+      console.warn("[Socket Server] agent joined rooms:", Array.from(socket.rooms.values()));
     } else {
       socket.join(orgWidgetsRoom);
       socket.join(`org:${orgKey}:widgets`);
+      console.warn("[Socket Server] widget joined rooms:", Array.from(socket.rooms.values()));
     }
 
     // Track which conversations this socket is allowed to receive (widget only).
@@ -1245,6 +1257,7 @@ fastify.ready().then(() => {
       if (!isValidId(conversationId, 128)) return;
       if (!joinedConversations.has(conversationId)) return;
       fastify.io.to(orgAgentsRoom).emit("user:typing", { conversationId });
+      fastify.io.to(`org:${orgKey}:agents`).emit("user:typing", { conversationId });
     });
     socket.on("typing:stop", (data: { conversationId?: string }) => {
       if (isAgent) return;
@@ -1253,6 +1266,7 @@ fastify.ready().then(() => {
       if (!isValidId(conversationId, 128)) return;
       if (!joinedConversations.has(conversationId)) return;
       fastify.io.to(orgAgentsRoom).emit("user:typing:stop", { conversationId });
+      fastify.io.to(`org:${orgKey}:agents`).emit("user:typing:stop", { conversationId });
     });
 
     // Agent typing is emitted only to the single visitor conversation room.
