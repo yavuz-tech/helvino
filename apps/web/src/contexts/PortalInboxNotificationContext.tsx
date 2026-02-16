@@ -139,61 +139,22 @@ function safePlayBeep(): void {
 }
 
 /**
- * Notification sound (rebuilt per requirements):
- * - Try MP3 first
- * - If MP3 fails, try WebAudio beep fallback
- * - Always console.warn with [NOTIF] (production-safe)
+ * Prefer an MP3 file if present, otherwise fall back to Web Audio beep.
+ * NOTE: the repository includes `public/sounds/README.md` describing this.
  */
-async function playPortalNotificationSound(): Promise<void> {
+function safePlayInboxSound(): void {
   try {
     if (typeof window === "undefined") return;
-    console.warn("[NOTIF] attempting to play sound");
 
-    try {
-      const audio = new Audio("/sounds/notification.mp3");
-      audio.volume = 0.5;
-      await audio.play();
-      console.warn("[NOTIF] sound played OK");
-      return;
-    } catch (e) {
-      console.warn("[NOTIF] mp3 failed, trying beep fallback");
-      console.warn("[NOTIF] sound error:", e);
+    // Try MP3 file first. If missing/blocked, fall back to WebAudio beep.
+    const audio = new Audio("/sounds/notification.mp3");
+    audio.volume = 0.7;
+    const p = audio.play();
+    if (p && typeof (p as Promise<void>).catch === "function") {
+      (p as Promise<void>).catch(() => safePlayBeep());
     }
-
-    try {
-      const ACtor =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!ACtor) {
-        console.warn("[NOTIF] all sound failed: AudioContext not available");
-        return;
-      }
-
-      const ctx = new ACtor();
-      try {
-        if (ctx.state === "suspended") {
-          await ctx.resume();
-        }
-      } catch (e) {
-        console.warn("[NOTIF] sound error:", e);
-      }
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 800;
-      gain.gain.value = 0.3;
-      osc.start();
-      osc.stop(ctx.currentTime + 0.15);
-
-      console.warn("[NOTIF] beep played OK");
-      setTimeout(() => { try { ctx.close(); } catch { /* */ } }, 300);
-    } catch (e2) {
-      console.warn("[NOTIF] all sound failed:", e2);
-    }
-  } catch (e) {
-    console.warn("[NOTIF] all sound failed:", e);
+  } catch {
+    safePlayBeep();
   }
 }
 
@@ -378,7 +339,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
                 console.warn("[NOTIF] playing sound skipped (chat open):", conversationId);
               } else {
                 console.warn("[NOTIF] playing sound");
-                void playPortalNotificationSound();
+                safePlayInboxSound();
 
                 // Repeat every 15s while unfocused until conversation opened, max 5 repeats.
                 if (typeof document !== "undefined" && !document.hasFocus()) {
@@ -425,7 +386,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
                       if (soundEnabledRef.current) {
                         console.warn("[NOTIF] playing sound (repeat)", soundRepeatCountRef.current + 1, "/ 5");
-                        void playPortalNotificationSound();
+                        safePlayInboxSound();
                       }
                       soundRepeatCountRef.current += 1;
                     } catch (e) {
@@ -547,7 +508,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
   }, []);
 
   const testSound = useCallback(() => {
-    void playPortalNotificationSound();
+    safePlayInboxSound();
   }, []);
 
   const value: PortalInboxNotificationContextValue = {
