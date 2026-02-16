@@ -5,6 +5,12 @@ let cachedOrgKey: string | null = null;
 let cachedSiteId: string | null = null;
 let cachedVisitorId: string | null = null;
 
+// Polling/backoff state (getMessages is called frequently by the UI).
+let pollDelayMs = 3000; // base: 3s
+let nextPollAllowedAt = 0;
+let loggedPollingErrorOnce = false;
+const lastMessagesCache = new Map<string, ApiMessage[]>();
+
 export type BootloaderResponse = {
   ok: boolean;
   org?: { id: string; key: string; name: string };
@@ -45,6 +51,29 @@ export type ApiMessage = {
   content: string;
   timestamp: string;
 };
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function increaseBackoff(reason: string): void {
+  // backoff: 3s -> 6s -> 12s -> 24s -> max 30s
+  if (pollDelayMs < 6000) pollDelayMs = 6000;
+  else pollDelayMs = Math.min(pollDelayMs * 2, 30000);
+  nextPollAllowedAt = Date.now() + pollDelayMs;
+
+  if (!loggedPollingErrorOnce) {
+    loggedPollingErrorOnce = true;
+    // Avoid console spam: log only the first error in a backoff period.
+    console.error("[Widget v2] getMessages polling error:", { reason, nextDelayMs: pollDelayMs });
+  }
+}
+
+function resetBackoff(): void {
+  pollDelayMs = 3000;
+  nextPollAllowedAt = 0;
+  loggedPollingErrorOnce = false;
+}
 
 function assertContext(): {
   siteId: string;
@@ -159,27 +188,40 @@ export async function getMessages(conversationId: string): Promise<ApiMessage[]>
     { requireToken: true }
   );
 
-  // Prefer the requested endpoint; fall back to existing API shape (GET /conversations/:id).
-  const preferred = await fetch(`${API_BASE}/conversations/${encodeURIComponent(conversationId)}/messages`, {
-    method: "GET",
-    headers,
-  });
-  if (preferred.ok) {
-    const data = await readJsonSafe(preferred);
-    if (Array.isArray(data)) return data as ApiMessage[];
-    if (Array.isArray((data as any)?.messages)) return (data as any).messages as ApiMessage[];
-    return [];
+  // Throttle requests even if caller keeps polling every 3s.
+  const now = Date.now();
+  if (now < nextPollAllowedAt) {
+    // Return cached messages to avoid hammering the server.
+    return lastMessagesCache.get(conversationId) || [];
   }
 
-  // Fallback: GET /conversations/:id returns { ... , messages: [...] }
-  const fallback = await fetch(`${API_BASE}/conversations/${encodeURIComponent(conversationId)}`, {
-    method: "GET",
-    headers,
-  });
-  const data = await readJsonSafe(fallback);
-  if (!fallback.ok) {
-    throw new Error((data as any)?.error || `get_messages_failed_${fallback.status}`);
+  // NOTE:
+  // The API currently does NOT expose GET /conversations/:id/messages for widgets.
+  // Instead it exposes GET /conversations/:id which returns { ...conversation, messages: [...] }.
+  // Using the correct endpoint avoids hundreds of 404s in the console.
+  try {
+    // Small jitter to desync multiple tabs (best-effort).
+    if (pollDelayMs > 3000) {
+      await sleep(Math.floor(Math.random() * 250));
+    }
+
+    const res = await fetch(`${API_BASE}/conversations/${encodeURIComponent(conversationId)}`, {
+      method: "GET",
+      headers,
+    });
+    const data = await readJsonSafe(res);
+    if (!res.ok) {
+      increaseBackoff(`http_${res.status}`);
+      return lastMessagesCache.get(conversationId) || [];
+    }
+
+    const msgs = Array.isArray((data as any)?.messages) ? ((data as any).messages as ApiMessage[]) : [];
+    lastMessagesCache.set(conversationId, msgs);
+    resetBackoff();
+    return msgs;
+  } catch (err) {
+    increaseBackoff("network_or_parse");
+    return lastMessagesCache.get(conversationId) || [];
   }
-  return Array.isArray((data as any)?.messages) ? ((data as any).messages as ApiMessage[]) : [];
 }
 
