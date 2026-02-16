@@ -162,8 +162,7 @@ function safePlayInboxSound(): void {
 export function PortalInboxNotificationProvider({ children }: { children: ReactNode }) {
   const { user } = usePortalAuth();
   const router = useRouter();
-  console.log("[Portal Notification Context] mounted");
-  console.log("[Portal Notification Context] user:", user?.email, "orgKey:", user?.orgKey);
+  console.warn("[Portal Notification Context] mounted, user:", user?.email, "orgKey:", user?.orgKey);
   const socketRef = useRef<unknown>(null);
   const [soundEnabled, setSoundEnabledState] = useState(true);
   const soundEnabledRef = useRef(true);
@@ -214,9 +213,9 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
   // ── Socket.IO connection (fully wrapped in try-catch, lazy import) ──
   useEffect(() => {
-    console.log("[Portal Socket] user check:", !!user, "orgKey:", user?.orgKey);
+    console.warn("[Portal Socket] user check:", !!user, "orgKey:", user?.orgKey);
     if (!user?.orgKey) {
-      console.log("[Portal Socket] skipping: no user or orgKey");
+      console.warn("[Portal Socket] skipping: no user or orgKey");
       setSocketStatus("no-user");
       return;
     }
@@ -226,18 +225,26 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
     const connect = async () => {
       try {
-        console.log("[Portal Socket] attempting connection...", { orgKey: user.orgKey });
         // Lazy import so socket.io-client failure never crashes the page
         const { io } = await import("socket.io-client");
-        const { API_URL } = await import("@/lib/portal-auth");
+        const { API_URL, getPortalAccessToken, portalRefreshAccessToken } = await import("@/lib/portal-auth");
 
         if (cancelled) return;
 
+        // If no in-memory token (e.g. page refresh), attempt a token refresh first.
+        // The cookie-based fallback on the API handles auth too, but having the
+        // token explicitly is more reliable across different browser cookie policies.
+        let portalSocketToken = getPortalAccessToken() || undefined;
+        if (!portalSocketToken) {
+          console.warn("[Portal Socket] no in-memory token, attempting refresh...");
+          await portalRefreshAccessToken().catch(() => {});
+          portalSocketToken = getPortalAccessToken() || undefined;
+        }
+        console.warn("[Portal Socket] connecting to", API_URL, { orgKey: user.orgKey, hasToken: !!portalSocketToken });
+
+        if (cancelled) return;
         setSocketStatus("connecting");
-        // Use the in-memory access token (portal-auth stores tokens in memory for XSS safety,
-        // NOT in sessionStorage). This is the same JWT used for API calls.
-        const { getPortalAccessToken } = await import("@/lib/portal-auth");
-        const portalSocketToken = getPortalAccessToken() || undefined;
+
         socketInstance = io(API_URL, {
           transports: ["websocket", "polling"],
           auth: { orgKey: user.orgKey, token: portalSocketToken },
@@ -252,7 +259,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
         socketRef.current = socketInstance;
 
         socketInstance.on("connect", () => {
-          console.log("[Portal Socket] connected:", socketInstance?.id);
+          console.warn("[Portal Socket] connected:", socketInstance?.id);
           setSocketStatus("connected:" + socketInstance?.id);
         });
 
@@ -262,7 +269,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
         });
 
         socketInstance.on("disconnect", (reason: string) => {
-          console.log("[Portal Socket] disconnected:", reason);
+          console.warn("[Portal Socket] disconnected:", reason);
           setSocketStatus("disconnected:" + reason);
         });
 
@@ -276,7 +283,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
         socketInstance.on("message:new", (payload: { conversationId?: string; message?: { id?: string; content?: string; role?: string; timestamp?: string; createdAt?: string; isAIGenerated?: boolean } }) => {
           try {
-            console.log("[Portal Notification] new message received:", payload);
+            console.warn("[Portal Notification] new message received:", payload);
             const conversationId = payload?.conversationId || "";
             const preview = (payload?.message?.content || "").slice(0, 80);
             const role = payload?.message?.role || "";
@@ -285,7 +292,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
             // Sound + notification only for visitor/customer messages
             if (isVisitorMessage && soundEnabledRef.current) {
-              console.log("[Portal Notification] playing sound");
+              console.warn("[Portal Notification] playing sound");
               safePlayInboxSound();
             }
 

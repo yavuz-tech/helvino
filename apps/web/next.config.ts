@@ -30,11 +30,12 @@ const nextConfig: NextConfig = {
   // SECURITY: Explicitly disable source maps in production to prevent source code exposure
   productionBrowserSourceMaps: false,
 
-  // SECURITY: Strip console.log/warn in production builds to reduce
+  // SECURITY: Strip console.log in production builds to reduce
   // information leakage (ZAP: "Suspicious Comments" finding).
+  // Keep console.warn + console.error for operational diagnostics (socket, auth).
   compiler: {
     removeConsole: process.env.NODE_ENV === "production"
-      ? { exclude: ["error"] }
+      ? { exclude: ["error", "warn"] }
       : false,
   },
 
