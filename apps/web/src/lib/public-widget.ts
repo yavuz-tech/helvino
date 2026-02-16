@@ -20,8 +20,12 @@ function readIdentityFromStorage(): WidgetIdentity {
   return { siteId, orgKey };
 }
 
+// Hardcoded fallback so the widget always loads on public pages (login, landing)
+// even when NEXT_PUBLIC_DEFAULT_WIDGET_SITE_ID is missing from the build env.
+const FALLBACK_SITE_ID = "site_61b617b492db931ff6e5dcde";
+
 function readIdentityFromEnv(): WidgetIdentity {
-  const siteId = process.env.NEXT_PUBLIC_DEFAULT_WIDGET_SITE_ID || undefined;
+  const siteId = process.env.NEXT_PUBLIC_DEFAULT_WIDGET_SITE_ID || FALLBACK_SITE_ID;
   const orgKey =
     process.env.NEXT_PUBLIC_DEFAULT_WIDGET_ORG_KEY ||
     process.env.NEXT_PUBLIC_DEFAULT_ORG_KEY ||
