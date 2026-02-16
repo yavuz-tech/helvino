@@ -17,7 +17,7 @@ async function sendFile(reply: any, filePath: string, contentType: string) {
 }
 
 export async function widgetV2Routes(fastify: FastifyInstance) {
-  // In the runner image, WORKDIR is /app/apps/api  →  ../widget-v2/dist/*
+  // In the runner image, WORKDIR is /app/apps/api -> ../widget-v2/dist/*
   const distDir = path.join(process.cwd(), "..", "widget-v2", "dist");
 
   fastify.get("/widget-v2/loader.js", async (_request, reply) => {
