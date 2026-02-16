@@ -326,11 +326,12 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
   }, []);
 
   const markConversationRead = useCallback((conversationId: string) => {
-    setUnreadMap(prev => {
-      if (!(conversationId in prev)) return prev;
+    console.warn("[INBOX] markConversationRead called with:", conversationId);
+    setUnreadMap((prev) => {
+      console.warn("[INBOX] unreadMap BEFORE:", JSON.stringify(prev));
       const next = { ...prev };
       delete next[conversationId];
-      console.warn("[NOTIF] markConversationRead:", conversationId);
+      console.warn("[INBOX] unreadMap AFTER delete:", JSON.stringify(next));
       return next;
     });
   }, []);

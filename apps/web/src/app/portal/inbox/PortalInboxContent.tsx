@@ -685,8 +685,10 @@ export default function PortalInboxContent() {
 
   const selectConversation = useCallback((id: string) => {
     // Immediate UI update — no await, respond to click instantly
+    console.warn("[INBOX] selecting conversation:", id);
     setSelectedConversationId(id);
     setConversations(prev => sortConversations(prev.map(c => c.id === id ? { ...c, hasUnreadMessages: false } : c)));
+    console.warn("[INBOX] calling markConversationRead for:", id);
     markConversationRead(id);
     setMobileView("chat");
     setIsLoadingDetail(true);
