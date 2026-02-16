@@ -13,7 +13,6 @@ import { useRouter } from "next/navigation";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 
 const SOUND_STORAGE_KEY = "helvino_portal_sound_enabled";
-const STORAGE_KEY = "helvion_unread_map";
 
 interface PortalInboxNotificationContextValue {
   soundEnabled: boolean;
@@ -109,24 +108,9 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const [socketStatus, setSocketStatus] = useState("not-initialized");
   const [lastMessageAt, setLastMessageAt] = useState<string | null>(null);
-  const [unreadMap, setUnreadMap] = useState<Record<string, number>>(() => {
-    try {
-      const saved = sessionStorage.getItem(STORAGE_KEY);
-      return saved ? (JSON.parse(saved) as Record<string, number>) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
 
   soundEnabledRef.current = soundEnabled;
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(unreadMap));
-    } catch {
-      // ignore
-    }
-  }, [unreadMap]);
 
   // ── Load sound preference from localStorage (safe) ──
   useEffect(() => {
