@@ -625,6 +625,11 @@ function App() {
         console.log("[Widget v2] Live config update received");
         const parsed = parseWidgetSettings(ws, {});
         setUi(parsed);
+
+        // Forward full settings to parent (loader.ts) so launcher updates too
+        try {
+          window.parent.postMessage({ type: "helvion:config-update", settings: ws }, "*");
+        } catch { /* cross-origin safety */ }
       } catch {
         // ignore
       }
