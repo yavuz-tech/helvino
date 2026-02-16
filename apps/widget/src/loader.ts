@@ -15,6 +15,8 @@ import "./loader.css";
 import { API_URL, loadBootloader } from "./api";
 import { getVisitorId } from "./utils/visitor";
 
+console.log("[HELVION EMBED] Build version: 2026-02-16-v2");
+
 const ROOT_ID = "helvion-widget-root";
 const IFRAME_WRAP_CLASS = "helvion-iframe-wrap";
 const IFRAME_CLASS = "helvion-iframe";

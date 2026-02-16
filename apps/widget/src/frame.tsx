@@ -10,6 +10,25 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./frame.css";
 
+console.log("[HELVION FRAME] Build version: 2026-02-16-v2");
+console.log("[HELVION FRAME] Root width:", document.documentElement.offsetWidth);
+console.log("[HELVION FRAME] Body width:", document.body.offsetWidth);
+setTimeout(() => {
+  document.querySelectorAll("*").forEach((el) => {
+    if (el.scrollWidth > window.innerWidth) {
+      console.log(
+        "[OVERFLOW]",
+        el.tagName,
+        (el as any).className,
+        "scrollWidth:",
+        el.scrollWidth,
+        "viewport:",
+        window.innerWidth
+      );
+    }
+  });
+}, 2000);
+
 function installVisualViewportFix() {
   // iOS Safari keyboard shrinks the visual viewport but does not always
   // reflow fixed/100vh layouts inside iframes. Force document height to match.
