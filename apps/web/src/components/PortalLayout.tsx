@@ -15,7 +15,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useI18n } from "@/i18n/I18nContext";
 import type { TranslationKey } from "@/i18n/translations";
 import { portalApiFetch } from "@/lib/portal-auth";
-import { rememberPublicWidgetIdentity } from "@/lib/public-widget";
+import { mountPublicWidgetScript, rememberPublicWidgetIdentity } from "@/lib/public-widget";
 import { colors, fonts, shadow, radius, ui } from "@/lib/design-tokens";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import CampaignTopBanner from "@/components/CampaignTopBanner";
@@ -273,6 +273,9 @@ export default function PortalLayout({
       const siteId = data?.embedSnippet?.siteId;
       if (siteId) {
         rememberPublicWidgetIdentity({ siteId });
+        // Ensure the embedded widget script gets a siteId BEFORE loading.
+        // Widget-v2 loader requires siteId; orgKey-only identity is insufficient.
+        mountPublicWidgetScript({ siteId });
       }
     } catch {
       // silent

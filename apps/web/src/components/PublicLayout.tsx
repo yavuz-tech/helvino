@@ -335,7 +335,10 @@ export default function PublicLayout({
   /* Mount the Helvion chat widget on public pages */
   useEffect(() => {
     const identity = resolvePublicWidgetIdentity();
-    mountPublicWidgetScript(identity);
+    // Widget-v2 loader requires siteId; avoid mounting script without it.
+    if (identity.siteId) {
+      mountPublicWidgetScript(identity);
+    }
   }, []);
 
   const closeDesktopDropdown = useCallback(() => setOpenDropdown(null), []);

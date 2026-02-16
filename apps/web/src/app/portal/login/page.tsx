@@ -121,7 +121,10 @@ export default function PortalLoginPage() {
     widgetLoadedRef.current = true;
     (window as unknown as { HELVINO_WIDGET_CONTEXT?: string }).HELVINO_WIDGET_CONTEXT = "portal-login";
     const identity = resolvePublicWidgetIdentity();
-    mountPublicWidgetScript(identity);
+    // Widget-v2 loader requires siteId; avoid mounting script without it.
+    if (identity.siteId) {
+      mountPublicWidgetScript(identity);
+    }
     return () => {
       (window as unknown as { HELVINO_WIDGET_CONTEXT?: string }).HELVINO_WIDGET_CONTEXT = undefined;
     };
