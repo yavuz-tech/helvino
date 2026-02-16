@@ -52,6 +52,8 @@ const CSP_COMMON_DIRECTIVES = [
   "worker-src 'self' blob:",
   // Manifest
   "manifest-src 'self'",
+  // Widget iframe loads widget-frame.html from api.helvion.io
+  "frame-src 'self' https://api.helvion.io",
 ];
 
 function buildCsp(opts: {
