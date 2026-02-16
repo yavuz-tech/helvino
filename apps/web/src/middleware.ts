@@ -77,12 +77,15 @@ function buildCsp(opts: {
     ? "connect-src 'self' https: wss:"
     : "connect-src 'self' http://localhost:* ws://localhost:* https: wss:";
 
-  return [
+  const csp = [
     ...CSP_COMMON_DIRECTIVES,
     scriptSrc,
     connectSrc,
     `frame-ancestors ${frameAncestors}`,
   ].join("; ");
+
+  // Keep a strict "directive;" format (some environments concatenate CSP strings).
+  return `${csp};`;
 }
 
 export function middleware(request: NextRequest) {
