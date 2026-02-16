@@ -232,17 +232,20 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
             const isVisitorMessage = role === "user";
             setLastMessageAt(new Date().toLocaleTimeString());
 
-            // 1. Beep (every visitor message, once, immediately)
+            // 1. Visitor message only: sound + badge event
             if (isVisitorMessage) {
               playNotificationSound();
+              // Badge increment event — only for visitor messages, never for bot/AI
+              try {
+                window.dispatchEvent(new CustomEvent("helvion-new-message", { detail: payload }));
+              } catch { /* */ }
+              // Trigger server poll after 500ms (let server update hasUnreadFromUser first)
+              setTimeout(() => {
+                try { window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh")); } catch { /* */ }
+              }, 500);
             }
 
-            // 2. Dispatch single unified event for PortalLayout badge + inbox list
-            try {
-              window.dispatchEvent(new CustomEvent("helvion-new-message", { detail: payload }));
-            } catch { /* */ }
-
-            // 3. Keep existing events for inbox list real-time update
+            // 2. Inbox list update — for ALL messages (visitor + bot/AI)
             try {
               const msg = payload?.message;
               window.dispatchEvent(new CustomEvent("portal-inbox-message-new", {

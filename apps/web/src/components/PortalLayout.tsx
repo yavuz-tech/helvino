@@ -241,26 +241,19 @@ export default function PortalLayout({
   const normalizedPlanKey = (currentPlanKey || "").trim().toLowerCase();
   const showSidebarUpgradeCta = normalizedPlanKey === "free";
 
-  // Listen for helvion-new-message from PortalInboxNotificationContext → increment badge
+  // Listen for helvion-new-message (visitor messages only) → optimistic increment.
+  // A server poll is scheduled 500ms later from NotificationContext to sync with truth.
   useEffect(() => {
     const handler = () => {
       setUnreadCount((c) => {
         const next = (Number.isFinite(c) ? c : 0) + 1;
-        console.warn("[NOTIF] unreadCount increment:", c, "->", next);
+        console.warn("[NOTIF] unreadCount optimistic increment:", c, "->", next);
         return next;
       });
     };
     window.addEventListener("helvion-new-message", handler);
     return () => window.removeEventListener("helvion-new-message", handler);
   }, []);
-
-  // Clear unread badge when user enters inbox.
-  useEffect(() => {
-    if (pathname === "/portal/inbox") {
-      console.warn("[NOTIF] entered inbox -> unreadCount=0");
-      setUnreadCount(0);
-    }
-  }, [pathname]);
 
   const fetchWidgetSettings = useCallback(async () => {
     try {
