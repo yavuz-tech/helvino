@@ -274,6 +274,18 @@ html, body {
 
 /* Mobile safe-area & fill */
 @media (max-width: 480px) {
+  /* Prevent any horizontal overflow on small screens. */
+  html, body, #helvion-frame-root,
+  .widget-container, .chat-window {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+  *, *::before, *::after {
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+
   .widget-container {
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -281,9 +293,18 @@ html, body {
     padding-right: env(safe-area-inset-right, 0px);
   }
   .chat-window {
-    height: 100vh;
-    height: 100dvh;
-    height: -webkit-fill-available;
+    height: 100%;
+  }
+
+  /* Keep input bar visible when the keyboard opens. */
+  .chat-input-bar {
+    position: sticky;
+    bottom: 0;
+    flex-shrink: 0;
+  }
+  .chat-input-bar-inner {
+    width: 100%;
+    min-width: 0;
   }
 }
 

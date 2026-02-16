@@ -10,6 +10,36 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./frame.css";
 
+function installVisualViewportFix() {
+  // iOS Safari keyboard shrinks the visual viewport but does not always
+  // reflow fixed/100vh layouts inside iframes. Force document height to match.
+  const vv = window.visualViewport;
+  if (!vv) return;
+
+  let raf = 0;
+  const apply = () => {
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const heightPx = `${Math.round(vv.height)}px`;
+      document.documentElement.style.height = heightPx;
+      document.body.style.height = heightPx;
+      // Keep the input bar visible (avoid the document being scrollable under keyboard).
+      try {
+        window.scrollTo(0, 0);
+      } catch {}
+    });
+  };
+
+  vv.addEventListener("resize", apply);
+  vv.addEventListener("scroll", () => {
+    try {
+      window.scrollTo(0, 0);
+    } catch {}
+  });
+
+  apply();
+}
+
 function applyFrameConfigFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const siteId = params.get("siteId") || "";
@@ -28,6 +58,7 @@ function applyFrameConfigFromUrl() {
 }
 
 applyFrameConfigFromUrl();
+installVisualViewportFix();
 
 const rootEl = document.getElementById("helvion-frame-root");
 if (!rootEl) {
