@@ -192,6 +192,21 @@ html, body {
   border-radius: 16px 2px 16px 16px;
 }
 
+/* Compatibility selectors (requested): message.user/assistant + message-content */
+.message.user .message-content {
+  background: var(--primary-color);
+  color: #ffffff;
+  margin-left: auto;
+  border-radius: 16px 2px 16px 16px;
+}
+.message.assistant .message-content,
+.message.agent .message-content {
+  background: #f3f4f6;
+  color: #1f2937;
+  margin-right: auto;
+  border-radius: 2px 16px 16px 16px;
+}
+
 .message-time {
   font-size: 11px;
   margin-top: 4px;

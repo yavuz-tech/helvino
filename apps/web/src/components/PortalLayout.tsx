@@ -242,6 +242,18 @@ export default function PortalLayout({
   const normalizedPlanKey = (currentPlanKey || "").trim().toLowerCase();
   const showSidebarUpgradeCta = normalizedPlanKey === "free";
 
+  // Show unread count in the browser tab title (portal-wide).
+  // Matches requested format: "(1) Gelen Kutusu - Helvion"
+  useEffect(() => {
+    try {
+      if (typeof document === "undefined") return;
+      const base = "Gelen Kutusu - Helvion";
+      document.title = unreadCount > 0 ? `(${unreadCount}) ${base}` : base;
+    } catch {
+      // non-fatal
+    }
+  }, [unreadCount]);
+
   const fetchWidgetSettings = useCallback(async () => {
     try {
       const res = await portalApiFetch(`/portal/widget/settings?_t=${Date.now()}`, { cache: "no-store" });

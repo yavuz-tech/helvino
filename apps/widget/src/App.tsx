@@ -862,9 +862,13 @@ function App({ externalIsOpen, onOpenChange, mode = "embed", onRequestClose }: A
             ) : (
               <>
                 {messages.map((msg) => {
-                  const isAgent = msg.role === "assistant";
+                  const isUser = msg.role === "user";
+                  const isAgent = !isUser; // treat unknown roles as agent to avoid mis-styling
                   return (
-                    <div key={msg.id} className={`msg-row ${isAgent ? "agent" : "user"}`}>
+                    <div
+                      key={msg.id}
+                      className={`msg-row ${isAgent ? "agent" : "user"} message ${isUser ? "user" : "assistant"}`}
+                    >
                       {/* Agent/bot: avatar on LEFT (portal parity) */}
                       {isAgent && (
                         <div className="msg-avatar agent-avatar" aria-hidden="true">
@@ -879,13 +883,13 @@ function App({ externalIsOpen, onOpenChange, mode = "embed", onRequestClose }: A
                             <span className="ai-label-badge">AI Agent</span>
                           </div>
                         )}
-                        <div className="msg-bubble" dangerouslySetInnerHTML={{ __html: msg.content }} />
+                        <div className="msg-bubble message-content" dangerouslySetInnerHTML={{ __html: msg.content }} />
                         <div className="message-time">{new Date(msg.timestamp).toLocaleTimeString()}</div>
                       </div>
                     </div>
                   );
                 })}
-                {aiSuggestions && messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && (
+                {aiSuggestions && messages.length > 0 && messages[messages.length - 1]?.role !== "user" && (
                   <div className="quick-replies">
                     {["💰 Planları gör", "📞 İletişim", "📦 Kargo bilgisi"].map((s, i) => (
                       <button
