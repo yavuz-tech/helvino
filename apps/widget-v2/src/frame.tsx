@@ -5,6 +5,7 @@ import "./frame.css";
 import { io, type Socket } from "socket.io-client";
 import { createConversation, fetchBootloader, getApiBase, getCachedAuth, getMessages, sendMessage, type ApiMessage } from "./api";
 import { getVisitorId } from "./visitor";
+import { resolveWidgetLang, tWidget, type WidgetLang } from "./i18n";
 
 type ViewMode = "home" | "chat";
 type MsgRole = "agent" | "user";
@@ -117,7 +118,8 @@ function normalizeCpc(value: unknown): string {
  */
 function parseWidgetSettings(
   ws: Record<string, unknown>,
-  cpc: Record<string, unknown>
+  cpc: Record<string, unknown>,
+  lang: WidgetLang
 ): UiCopy {
   // Theme: apply primary color as CSS variables
   const themeId = typeof ws.themeId === "string" ? ws.themeId.trim().toLowerCase() : "";
@@ -147,22 +149,30 @@ function parseWidgetSettings(
     normalize(ws.headerText) ||
     normalize(ws.headerTitle) ||
     normalizeCpc(cpc.title) ||
-    "Nasıl yardımcı olabiliriz?";
+    (lang === "en" ? "How can we help?" : lang === "es" ? "¿Como podemos ayudar?" : "Nasıl yardımcı olabiliriz?");
   const subtitle =
     normalize(ws.subText) ||
     normalize(ws.headerSubtitle) ||
     normalizeCpc(cpc.subtitle) ||
-    "Genellikle birkaç dakika içinde yanıt veriyoruz";
+    (lang === "en"
+      ? "We typically reply within minutes"
+      : lang === "es"
+        ? "Solemos responder en minutos"
+        : "Genellikle birkaç dakika içinde yanıt veriyoruz");
   const placeholder =
     normalize(ws.placeholder) ||
     normalize(ws.inputPlaceholder) ||
     normalizeCpc(cpc.placeholder) ||
-    "Mesajınızı yazın...";
+    (lang === "en" ? "Write your message..." : lang === "es" ? "Escribe tu mensaje..." : "Mesajınızı yazın...");
   const welcome =
     normalize(ws.welcomeMsg) ||
     normalize(ws.aiWelcome) ||
     normalize(ws.welcomeMessage) ||
-    "Merhaba! 👋 Size nasıl yardımcı olabilirim?";
+    (lang === "en"
+      ? "Hi! 👋 How can we help you?"
+      : lang === "es"
+        ? "Hola! 👋 En que podemos ayudarte?"
+        : "Merhaba! 👋 Size nasıl yardımcı olabilirim?");
   const botAvatar = normalize(ws.botAvatar) || "🤖";
 
   let starters: string[] = [];
@@ -196,7 +206,7 @@ function parseWidgetSettings(
   return { title, subtitle, welcome, placeholder, starters, botAvatar };
 }
 
-function PoweredByHelvion() {
+function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const animRef = React.useRef<number>(0);
   const starsRef = React.useRef<any[]>([]);
@@ -352,7 +362,7 @@ function PoweredByHelvion() {
             transition: "color 0.3s",
           }}
         >
-          tarafından desteklenmektedir
+          {tWidget(lang, "poweredByLine")}
         </span>
       </div>
     </div>
@@ -374,6 +384,7 @@ function App() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [bootOk, setBootOk] = useState(false);
   const [isAgentTyping, setIsAgentTyping] = useState(false);
+  const [lang, setLang] = useState<WidgetLang>("tr");
 
   // Avoid theme/text flash: render a loading state until bootloader resolves.
   const [ui, setUi] = useState<UiCopy | null>(null);
@@ -400,18 +411,7 @@ function App() {
     let cancelled = false;
     if (!siteId) {
       console.error("[Widget v2] Missing siteId (query param ?siteId= or window.HELVION_SITE_ID)");
-      setUi({
-        title: "Nasıl yardımcı olabiliriz?",
-        subtitle: "Genellikle birkaç dakika içinde yanıt veriyoruz",
-        welcome: "Merhaba! 👋 Size nasıl yardımcı olabilirim?",
-        placeholder: "Mesajınızı yazın...",
-        starters: [
-          "💰 Fiyatlandırma hakkında bilgi",
-          "🔧 Teknik destek istiyorum",
-          "📦 Siparişimi takip etmek istiyorum",
-        ],
-        botAvatar: "🤖",
-      });
+      setUi(parseWidgetSettings({}, {}, lang));
       return;
     }
 
@@ -421,29 +421,25 @@ function App() {
         setBootOk(Boolean(boot?.ok));
 
         const cfg = (boot?.config || {}) as Record<string, unknown>;
+        const detectedLang = resolveWidgetLang((cfg as any).language);
+        setLang(detectedLang);
+        try {
+          document.documentElement.lang = detectedLang;
+        } catch {
+          // ignore
+        }
         const ws = (cfg.widgetSettings || {}) as Record<string, unknown>;
         const cpc = (cfg.chatPageConfig || {}) as Record<string, unknown>;
 
         // Parse and apply all settings at once (no flash)
-        const parsed = parseWidgetSettings(ws, cpc);
+        const parsed = parseWidgetSettings(ws, cpc, detectedLang);
         setUi(parsed);
       })
       .catch((err) => {
         console.error("[Widget v2] Bootloader failed:", err);
         if (!cancelled) setBootOk(false);
         if (!cancelled) {
-          setUi({
-            title: "Nasıl yardımcı olabiliriz?",
-            subtitle: "Genellikle birkaç dakika içinde yanıt veriyoruz",
-            welcome: "Merhaba! 👋 Size nasıl yardımcı olabilirim?",
-            placeholder: "Mesajınızı yazın...",
-            starters: [
-              "💰 Fiyatlandırma hakkında bilgi",
-              "🔧 Teknik destek istiyorum",
-              "📦 Siparişimi takip etmek istiyorum",
-            ],
-            botAvatar: "🤖",
-          });
+          setUi(parseWidgetSettings({}, {}, lang));
         }
       });
 
@@ -630,13 +626,33 @@ function App() {
         const ws = data?.settings;
         if (!ws || typeof ws !== "object") return;
         console.log("[Widget v2] Live config update received");
-        const parsed = parseWidgetSettings(ws, {});
+        const parsed = parseWidgetSettings(ws, {}, lang);
         setUi(parsed);
 
         // Forward full settings to parent (loader.ts) so launcher updates too
         try {
           window.parent.postMessage({ type: "helvion:config-update", settings: ws }, "*");
         } catch { /* cross-origin safety */ }
+
+        // Language is not included in this event. Refresh bootloader once (best-effort)
+        // so the widget stays in sync with org.language changes.
+        try {
+          void fetchBootloader(siteId).then((boot) => {
+            const cfg = (boot?.config || {}) as Record<string, unknown>;
+            const detectedLang = resolveWidgetLang((cfg as any).language);
+            setLang(detectedLang);
+            try {
+              document.documentElement.lang = detectedLang;
+            } catch {
+              // ignore
+            }
+            const ws2 = (cfg.widgetSettings || {}) as Record<string, unknown>;
+            const cpc2 = (cfg.chatPageConfig || {}) as Record<string, unknown>;
+            setUi(parseWidgetSettings(ws2, cpc2, detectedLang));
+          });
+        } catch {
+          // ignore
+        }
       } catch {
         // ignore
       }
@@ -750,7 +766,7 @@ function App() {
               borderTopColor: "rgba(0,0,0,0.45)",
             }}
           />
-          <div style={{ fontSize: "13px", color: "#6b7280" }}>Loading...</div>
+          <div style={{ fontSize: "13px", color: "#6b7280" }}>{tWidget(lang, "loading")}</div>
         </div>
       ) : (
         <>
@@ -764,7 +780,7 @@ function App() {
                 {ui.subtitle}
               </div>
             </div>
-            <button className="hv-header-close" onClick={close} aria-label="Close chat">
+            <button className="hv-header-close" onClick={close} aria-label={tWidget(lang, "closeChat")}>
               ✕
             </button>
           </div>
@@ -806,7 +822,7 @@ function App() {
                     <div className="hv-msg-bubble">
                       <div className="hv-msg-text">{m.text}</div>
                       <div className="hv-msg-time">{m.time}</div>
-                      {m.status === "failed" ? <div className="hv-msg-failed">⚠︎ gonderilemedi</div> : null}
+                      {m.status === "failed" ? <div className="hv-msg-failed">{tWidget(lang, "failedSend")}</div> : null}
                     </div>
                   </div>
                 );
@@ -819,7 +835,7 @@ function App() {
                     <div className="hv-typing-dot" />
                     <div className="hv-typing-dot" />
                   </div>
-                  <span className="hv-typing-label">yazıyor...</span>
+                  <span className="hv-typing-label">{tWidget(lang, "typing")}</span>
                 </div>
               ) : null}
 
@@ -846,7 +862,7 @@ function App() {
           {/* FOOTER */}
           <div className="hv-footer">
             <div className="hv-input-bar">
-              <button className="hv-input-emoji" type="button" aria-label="Emoji">
+              <button className="hv-input-emoji" type="button" aria-label={tWidget(lang, "emoji")}>
                 😊
               </button>
               <input
@@ -859,12 +875,12 @@ function App() {
                 }}
                 onKeyDown={onInputKeyDown}
               />
-              <button className="hv-input-attach" type="button" aria-label="Attach">
+              <button className="hv-input-attach" type="button" aria-label={tWidget(lang, "attach")}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
                 </svg>
               </button>
-              <button className="hv-input-send" type="button" onClick={onSend} aria-label="Send">
+              <button className="hv-input-send" type="button" onClick={onSend} aria-label={tWidget(lang, "send")}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="18"
@@ -884,7 +900,7 @@ function App() {
           </div>
         </>
       )}
-      <PoweredByHelvion />
+      <PoweredByHelvion lang={lang} />
     </div>
   );
 }

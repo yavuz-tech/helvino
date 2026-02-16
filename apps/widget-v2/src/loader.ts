@@ -1,4 +1,5 @@
 import "./loader.css";
+import { resolveWidgetLang, tWidget, type WidgetLang } from "./i18n";
 
 const FRAME_ORIGIN = "https://api.helvion.io";
 const Z_TOP = 2147483647;
@@ -82,6 +83,12 @@ let savedScrollY = 0;
 let currentConfig: LauncherConfig | null = null;
 let attGrabberTimer: number | null = null;
 let attGrabberDismissed = false;
+let currentLang: WidgetLang = "tr";
+
+function syncLauncherAria(): void {
+  if (!launcher) return;
+  launcher.setAttribute("aria-label", isOpen ? tWidget(currentLang, "closeChat") : tWidget(currentLang, "openChat"));
+}
 
 function lockBody(): void {
   savedScrollY = window.scrollY;
@@ -104,6 +111,7 @@ function unlockBody(): void {
 function toggle(): void {
   if (!container || !launcher) return;
   isOpen = !isOpen;
+  syncLauncherAria();
 
   if (isOpen) {
     hideAttGrabber();
@@ -143,7 +151,7 @@ function showAttGrabber(cfg: LauncherConfig): void {
     attGrabberEl.innerHTML = `
       <div class="helvion-att-bubble">
         ${cfg.attGrabberText.replace(/</g, "&lt;")}
-        <button class="helvion-att-close" aria-label="Close">&times;</button>
+        <button class="helvion-att-close" aria-label="${tWidget(currentLang, "closeChat")}">&times;</button>
       </div>
     `;
     attGrabberEl.classList.toggle("helvion-att-left", isLeft);
@@ -288,7 +296,8 @@ function createLauncher(): HTMLDivElement {
   const el = document.createElement("div");
   el.id = "helvion-launcher";
   el.setAttribute("role", "button");
-  el.setAttribute("aria-label", "Open chat");
+  // language is resolved after bootloader, but set a safe default now
+  el.setAttribute("aria-label", tWidget(currentLang, "openChat"));
   el.setAttribute("tabindex", "0");
   el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><svg class="helvion-close-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><span class="helvion-launcher-label"></span>`;
   el.style.zIndex = String(Z_TOP);
@@ -337,6 +346,8 @@ async function fetchAndApply(siteId: string): Promise<void> {
     const data = await res.json().catch(() => null);
     window.clearTimeout(fallbackTimer);
     if (!res.ok || !data) { applyConfig(parseConfig({})); return; }
+    currentLang = resolveWidgetLang(data?.config?.language);
+    syncLauncherAria();
     const ws = (data?.config?.widgetSettings || {}) as Record<string, unknown>;
     applyConfig(parseConfig(ws));
   } catch {
