@@ -196,6 +196,8 @@ function getHeaders(options?: { useOrgToken?: boolean }): Record<string, string>
   // Add org token for write operations (POST requests)
   if (options?.useOrgToken && cachedOrgToken) {
     headers["x-org-token"] = cachedOrgToken;
+    // Server expects this header; in our API this carries the signed org token.
+    headers["x-org-key"] = cachedOrgToken;
   }
 
   return headers;
