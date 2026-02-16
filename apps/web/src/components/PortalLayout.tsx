@@ -254,6 +254,26 @@ export default function PortalLayout({
     }
   }, [unreadCount]);
 
+  // Update unread count instantly on socket events, and clear on focus.
+  useEffect(() => {
+    const onInc = () => setUnreadCount((c) => (Number.isFinite(c) ? c + 1 : 1));
+    const onFocus = () => setUnreadCount(0);
+    try {
+      window.addEventListener("portal-inbox-unread-increment", onInc);
+      window.addEventListener("focus", onFocus);
+    } catch {
+      // ignore
+    }
+    return () => {
+      try {
+        window.removeEventListener("portal-inbox-unread-increment", onInc);
+        window.removeEventListener("focus", onFocus);
+      } catch {
+        // ignore
+      }
+    };
+  }, []);
+
   const fetchWidgetSettings = useCallback(async () => {
     try {
       const res = await portalApiFetch(`/portal/widget/settings?_t=${Date.now()}`, { cache: "no-store" });

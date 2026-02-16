@@ -138,6 +138,27 @@ function safePlayBeep(): void {
   }
 }
 
+/**
+ * Prefer an MP3 file if present, otherwise fall back to Web Audio beep.
+ * NOTE: the repository includes `public/sounds/README.md` describing this.
+ */
+function safePlayInboxSound(): void {
+  try {
+    if (typeof window === "undefined") return;
+    if (!_userHasInteracted) return;
+
+    // Try MP3 file first. If missing/blocked, fall back to WebAudio beep.
+    const audio = new Audio("/sounds/notification.mp3");
+    audio.volume = 0.7;
+    const p = audio.play();
+    if (p && typeof (p as Promise<void>).catch === "function") {
+      (p as Promise<void>).catch(() => safePlayBeep());
+    }
+  } catch {
+    safePlayBeep();
+  }
+}
+
 export function PortalInboxNotificationProvider({ children }: { children: ReactNode }) {
   const { user } = usePortalAuth();
   const router = useRouter();
@@ -256,7 +277,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
             // Sound + notification only for visitor/customer messages
             if (isVisitorMessage && soundEnabledRef.current) {
-              safePlayBeep();
+              safePlayInboxSound();
             }
 
             // Desktop notification
@@ -282,6 +303,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
               if (isVisitorMessage) {
                 window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
                 window.dispatchEvent(new CustomEvent("portal-inbox-badge-pulse"));
+                window.dispatchEvent(new CustomEvent("portal-inbox-unread-increment"));
               }
             } catch { /* */ }
 
@@ -358,7 +380,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
   }, []);
 
   const testSound = useCallback(() => {
-    safePlayBeep();
+    safePlayInboxSound();
   }, []);
 
   const value: PortalInboxNotificationContextValue = {

@@ -5,6 +5,24 @@ let cachedOrgKey: string | null = null;
 let cachedSiteId: string | null = null;
 let cachedVisitorId: string | null = null;
 
+export function getApiBase(): string {
+  return API_BASE;
+}
+
+export function getCachedAuth(): {
+  siteId: string | null;
+  visitorId: string | null;
+  orgToken: string | null;
+  orgKey: string | null;
+} {
+  return {
+    siteId: cachedSiteId,
+    visitorId: cachedVisitorId,
+    orgToken: cachedOrgToken,
+    orgKey: cachedOrgKey,
+  };
+}
+
 // Polling/backoff state (getMessages is called frequently by the UI).
 let pollDelayMs = 3000; // base: 3s
 let nextPollAllowedAt = 0;

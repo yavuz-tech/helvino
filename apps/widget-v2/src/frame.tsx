@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./frame.css";
-import { createConversation, fetchBootloader, getMessages, sendMessage, type ApiMessage } from "./api";
+import { io, type Socket } from "socket.io-client";
+import { createConversation, fetchBootloader, getApiBase, getCachedAuth, sendMessage, type ApiMessage } from "./api";
 import { getVisitorId } from "./visitor";
 
 type ViewMode = "home" | "chat";
@@ -89,10 +90,14 @@ function App() {
   const [inputValue, setInputValue] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [bootOk, setBootOk] = useState(false);
+  const [isAgentTyping, setIsAgentTyping] = useState(false);
 
   // Avoid theme/text flash: render a loading state until bootloader resolves.
   const [ui, setUi] = useState<UiCopy | null>(null);
   const spinnerRef = useRef<HTMLDivElement | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const typingStopTimerRef = useRef<number | null>(null);
+  const typingStartedRef = useRef(false);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -334,6 +339,15 @@ function App() {
     if (!trimmed) return;
     void pushUserMessage(trimmed);
     setInputValue("");
+    // Stop typing immediately after sending
+    try {
+      const cid = conversationId;
+      if (cid && socketRef.current) {
+        socketRef.current.emit("typing:stop", { conversationId: cid });
+      }
+    } catch {
+      // ignore
+    }
   };
 
   const onInputKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
@@ -342,59 +356,127 @@ function App() {
     onSend();
   };
 
-  // Polling for new messages (every 3s)
+  // Socket.IO realtime (polling removed)
   useEffect(() => {
     if (!conversationId) return;
-    let cancelled = false;
-    let timer: number | null = null;
 
-    const mergeServerMessages = (incoming: ApiMessage[]) => {
-      if (!incoming || incoming.length === 0) return;
+    const { orgToken } = getCachedAuth();
+    if (!orgToken) {
+      console.warn("[Widget v2] Socket skipped: orgToken not ready");
+      return;
+    }
 
-      setMessages((prev) => {
-        const seen = new Set<string>();
-        for (const m of prev) {
-          if (m.serverId) seen.add(m.serverId);
-        }
-
-        const next = [...prev];
-        for (const sm of incoming) {
-          if (!sm?.id) continue;
-          if (seen.has(sm.id)) continue;
-
-          const role: MsgRole = sm.role === "assistant" ? "agent" : "user";
-          next.push({
-            id: `s_${sm.id}`,
-            serverId: sm.id,
-            role,
-            text: sm.content,
-            time: formatTimeFromIso(sm.timestamp),
-          });
-          seen.add(sm.id);
-        }
-
-        return next;
-      });
-    };
-
-    const tick = async () => {
+    // Reuse existing socket if any
+    if (socketRef.current) {
       try {
-        const list = await getMessages(conversationId);
-        if (cancelled) return;
-        mergeServerMessages(list);
-      } catch (err) {
-        console.error("[Widget v2] polling getMessages failed:", err);
-      } finally {
-        if (!cancelled) timer = window.setTimeout(tick, 3000);
+        socketRef.current.emit("conversation:join", { conversationId });
+      } catch {
+        // ignore
       }
-    };
+      return;
+    }
 
-    tick();
+    const apiBase = getApiBase().replace(/\/+$/, "");
+    const socket = io(apiBase, {
+      auth: {
+        // Server expects `token`; also send `orgToken` for forward-compat with this widget spec.
+        token: orgToken,
+        orgToken,
+        siteId,
+        visitorId,
+      },
+      transports: ["websocket", "polling"],
+    });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      console.log("✅ Connected to Socket.IO", { id: socket.id });
+      try {
+        socket.emit("conversation:join", { conversationId });
+      } catch {
+        // ignore
+      }
+    });
+    socket.on("disconnect", () => {
+      console.log("❌ Disconnected from Socket.IO");
+    });
+    socket.on("connect_error", (err: any) => {
+      console.warn("❌ Socket.IO connect_error", err?.message || err);
+    });
+
+    socket.on("message:new", (data: { conversationId: string; message: ApiMessage }) => {
+      try {
+        if (!data || data.conversationId !== conversationId) return;
+        const msg = data.message;
+        // Only append agent/AI messages (our user messages are already optimistic).
+        if (!msg || msg.role === "user") return;
+
+        setMessages((prev) => {
+          const seen = new Set<string>();
+          for (const m of prev) {
+            if (m.serverId) seen.add(m.serverId);
+          }
+          if (seen.has(msg.id)) return prev;
+          return [
+            ...prev,
+            {
+              id: `s_${msg.id}`,
+              serverId: msg.id,
+              role: "agent",
+              text: msg.content,
+              time: formatTimeFromIso(msg.timestamp),
+            },
+          ];
+        });
+        setIsAgentTyping(false);
+      } catch {
+        // ignore
+      }
+    });
+
+    socket.on("agent:typing", (data: { conversationId: string }) => {
+      if (data?.conversationId !== conversationId) return;
+      setIsAgentTyping(true);
+    });
+    socket.on("agent:typing:stop", (data: { conversationId: string }) => {
+      if (data?.conversationId !== conversationId) return;
+      setIsAgentTyping(false);
+    });
+
     return () => {
-      cancelled = true;
-      if (timer) window.clearTimeout(timer);
+      try {
+        socket.disconnect();
+      } catch {
+        // ignore
+      }
+      socketRef.current = null;
     };
-  }, [conversationId]);
+  }, [conversationId, siteId, visitorId]);
+
+  const emitTypingStartDebounced = () => {
+    const cid = conversationId;
+    const s = socketRef.current;
+    if (!cid || !s) return;
+
+    try {
+      if (!typingStartedRef.current) {
+        typingStartedRef.current = true;
+        s.emit("typing:start", { conversationId: cid });
+      }
+    } catch {
+      // ignore
+    }
+
+    if (typingStopTimerRef.current) window.clearTimeout(typingStopTimerRef.current);
+    typingStopTimerRef.current = window.setTimeout(() => {
+      try {
+        typingStartedRef.current = false;
+        s.emit("typing:stop", { conversationId: cid });
+      } catch {
+        // ignore
+      }
+    }, 3000);
+  };
 
   return (
     <div className="hv-app">
@@ -483,6 +565,15 @@ function App() {
               </div>
             );
           })}
+
+          {isAgentTyping ? (
+            <div className="hv-typing" aria-label="Agent typing">
+              <div className="hv-typing-dot" />
+              <div className="hv-typing-dot" />
+              <div className="hv-typing-dot" />
+            </div>
+          ) : null}
+
           <div ref={messagesEndRef} />
         </div>
       )}
@@ -497,7 +588,10 @@ function App() {
             className="hv-input-field"
             placeholder={ui.placeholder}
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              emitTypingStartDebounced();
+            }}
             onKeyDown={onInputKeyDown}
           />
           <button className="hv-input-send" type="button" onClick={onSend} aria-label="Send">
