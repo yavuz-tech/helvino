@@ -3,6 +3,33 @@ import "./loader.css";
 const FRAME_ORIGIN = "https://api.helvion.io";
 const Z_TOP = 2147483647;
 
+function ensureEmbedCssLoaded(): void {
+  try {
+    if (document.querySelector('link[data-helvion-widget-css="1"]')) return;
+
+    // Try to preserve ?v= cache-busting from the script URL.
+    let v = "";
+    try {
+      const cs = document.currentScript as HTMLScriptElement | null;
+      const src = cs?.src || "";
+      if (src) {
+        const u = new URL(src);
+        v = u.searchParams.get("v") || "";
+      }
+    } catch {
+      // ignore
+    }
+
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = `${FRAME_ORIGIN}/embed.css${v ? `?v=${encodeURIComponent(v)}` : ""}`;
+    link.setAttribute("data-helvion-widget-css", "1");
+    document.head.appendChild(link);
+  } catch {
+    // non-fatal
+  }
+}
+
 function getSiteId(): string {
   const w = window as unknown as Record<string, unknown>;
   if (typeof w.HELVION_SITE_ID === "string" && w.HELVION_SITE_ID) {
@@ -115,6 +142,7 @@ function createContainer(siteId: string): HTMLDivElement {
 
 function init(): void {
   if (document.getElementById("helvion-launcher")) return;
+  ensureEmbedCssLoaded();
 
   const siteId = getSiteId();
   if (!siteId) {
