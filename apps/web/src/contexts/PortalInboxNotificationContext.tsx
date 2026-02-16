@@ -53,60 +53,90 @@ export function usePortalInboxNotification() {
   return useContext(PortalInboxNotificationContext);
 }
 
-// ── Sound helper: HTML5 Audio with base64 WAV (most reliable cross-browser) ──
-// Tiny two-tone WAV generated at build time — no file dependency, no autoplay issues
-// after a single user gesture (click anywhere on portal page).
-let _userHasInteracted = false;
+// ══════════════════════════════════════════════════════════════════════
+// SOUND SYSTEM — persistent AudioContext + old phone ring
+// ══════════════════════════════════════════════════════════════════════
+// Key: AudioContext must be created/resumed inside a user gesture.
+// We create ONE AudioContext on first click/key/touch, then reuse it forever.
 
-if (typeof window !== "undefined") {
-  const markInteracted = () => {
-    _userHasInteracted = true;
-    document.removeEventListener("click", markInteracted);
-    document.removeEventListener("keydown", markInteracted);
-    document.removeEventListener("touchstart", markInteracted);
-  };
-  document.addEventListener("click", markInteracted);
-  document.addEventListener("keydown", markInteracted);
-  document.addEventListener("touchstart", markInteracted);
+let _userHasInteracted = false;
+let _audioCtx: AudioContext | null = null;
+
+function _getOrCreateAudioCtx(): AudioContext | null {
+  try {
+    if (!_audioCtx) {
+      const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) return null;
+      _audioCtx = new Ctor();
+      console.warn("[NOTIF] AudioContext created, state:", _audioCtx.state);
+    }
+    if (_audioCtx.state === "suspended") {
+      _audioCtx.resume().catch(() => {});
+      console.warn("[NOTIF] AudioContext resumed from suspended");
+    }
+    return _audioCtx;
+  } catch (e) {
+    console.warn("[NOTIF] AudioContext create/resume FAIL:", e);
+    return null;
+  }
 }
 
-// ── Old phone ring sound (like Tawk.to) ──
-// Pattern: "brrring-brrring" — two bursts of rapid dual-tone with tremolo.
-// Repeats every 10 seconds until agent opens the conversation.
+if (typeof window !== "undefined") {
+  const initAudioOnGesture = () => {
+    _userHasInteracted = true;
+    // Create AudioContext RIGHT INSIDE the user gesture — guaranteed to be "running"
+    _getOrCreateAudioCtx();
+    document.removeEventListener("click", initAudioOnGesture);
+    document.removeEventListener("keydown", initAudioOnGesture);
+    document.removeEventListener("touchstart", initAudioOnGesture);
+  };
+  document.addEventListener("click", initAudioOnGesture);
+  document.addEventListener("keydown", initAudioOnGesture);
+  document.addEventListener("touchstart", initAudioOnGesture);
+}
+
+// ── Old phone ring: "brrring-brrring" ──
+// Two-tone (440Hz+480Hz) rapid bursts, like a classic rotary phone.
 function playPhoneRing() {
   try {
-    console.warn("[NOTIF] playPhoneRing CALLED");
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
+    const ctx = _getOrCreateAudioCtx();
+    if (!ctx) {
+      console.warn("[NOTIF] playPhoneRing: no AudioContext");
+      return;
+    }
+    console.warn("[NOTIF] playPhoneRing CALLED, ctx.state:", ctx.state);
+
     const now = ctx.currentTime;
 
-    // Single ring burst: dual-tone (440Hz + 480Hz) with rapid on/off tremolo
-    const ringBurst = (offset: number, duration: number) => {
-      const step = 0.04; // 40ms per pulse = 25Hz tremolo
-      const count = Math.floor(duration / step);
-      for (let i = 0; i < count; i++) {
-        const t = now + offset + i * step;
-        [440, 480].forEach((freq) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.type = "sine";
-          osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0, t);
-          gain.gain.linearRampToValueAtTime(0.3, t + 0.004);
-          gain.gain.setValueAtTime(0.3, t + step - 0.006);
-          gain.gain.linearRampToValueAtTime(0, t + step - 0.001);
-          osc.start(t);
-          osc.stop(t + step + 0.01);
-        });
-      }
+    // Helper: play a single note at absolute time
+    const tone = (freq: number, start: number, dur: number, vol: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(vol, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+      osc.start(start);
+      osc.stop(start + dur + 0.02);
     };
 
-    // "brrring --- brrring" pattern
-    ringBurst(0, 0.4);      // First ring: 0.0s–0.4s
-    ringBurst(0.55, 0.4);   // Second ring: 0.55s–0.95s
+    // Ring pattern: 6 rapid ding-dong pairs (like old phone bell)
+    // Each pair = high note + low note, very short
+    const pairs = [
+      // First burst (0.0s - 0.36s)
+      { t: 0.00 }, { t: 0.06 }, { t: 0.12 }, { t: 0.18 }, { t: 0.24 }, { t: 0.30 },
+      // Second burst after pause (0.50s - 0.86s)
+      { t: 0.50 }, { t: 0.56 }, { t: 0.62 }, { t: 0.68 }, { t: 0.74 }, { t: 0.80 },
+    ];
 
-    console.warn("[NOTIF] phone ring OK");
+    pairs.forEach(({ t }) => {
+      tone(880, now + t, 0.05, 0.4);         // high bell
+      tone(698.46, now + t + 0.025, 0.05, 0.3); // lower bell (F5)
+    });
+
+    console.warn("[NOTIF] phone ring OK — 12 pairs scheduled");
   } catch (e) {
     console.warn("[NOTIF] phone ring FAIL:", e);
   }
@@ -129,9 +159,9 @@ function _startRinging(conversationId: string) {
       _stopAllRinging();
       return;
     }
-    if (_userHasInteracted) {
-      playPhoneRing();
-    }
+    // Resume AudioContext (may have been suspended by browser inactivity)
+    try { _audioCtx?.resume().catch(() => {}); } catch { /* */ }
+    playPhoneRing();
     _ringRepeatCount++;
     console.warn("[NOTIF] ring repeat #" + _ringRepeatCount, "pending convs:", Array.from(_ringingConvs));
   }, RING_INTERVAL_MS);
@@ -332,6 +362,8 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
             // 1. SOUND — phone ring for every visitor message, repeats until conv opened
             if (isVisitorMessage) {
+              console.warn("[NOTIF] visitor message → playing phone ring, _userHasInteracted:", _userHasInteracted, "audioCtx state:", _audioCtx?.state);
+              try { _audioCtx?.resume().catch(() => {}); } catch { /* */ }
               playPhoneRing();
               if (conversationId) {
                 _startRinging(conversationId);
