@@ -95,7 +95,16 @@ function createContainer(siteId: string): HTMLDivElement {
 
   const iframe = document.createElement("iframe");
   iframe.id = "helvion-frame";
-  iframe.src = `${FRAME_ORIGIN}/widget-v2/frame.html?siteId=${encodeURIComponent(siteId)}`;
+  let parentHost = "";
+  try {
+    parentHost = window.location.host || window.location.hostname || "";
+  } catch {
+    // ignore
+  }
+  const qs = new URLSearchParams();
+  qs.set("siteId", siteId);
+  if (parentHost) qs.set("parentHost", parentHost);
+  iframe.src = `${FRAME_ORIGIN}/widget-v2/frame.html?${qs.toString()}`;
   iframe.setAttribute("allow", "microphone; camera; clipboard-write");
   iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups");
   iframe.title = "Helvion Chat";

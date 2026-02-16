@@ -5,9 +5,9 @@ import fs from "fs/promises";
 /**
  * Serve widget assets from the API.
  *
- * Files are built by apps/widget (Vite) and copied into the API image:
- *   /app/apps/widget/dist/embed.js           (host-page loader)
- *   /app/apps/widget/dist/widget-frame.js   (iframe UI bundle)
+ * Files are built by apps/widget-v2 (Vite) and copied into the API image:
+ *   /app/apps/widget-v2/dist/loader.js   (host-page loader)
+ *   /app/apps/widget-v2/dist/frame.js    (iframe UI bundle)
  *
  * IMPORTANT:
  * - embed.js must be loadable from ANY customer website
@@ -31,8 +31,8 @@ let frameCssLoadedAt = 0;
 export async function embedRoutes(fastify: FastifyInstance) {
   // ── Serve embed.js ──
   fastify.get("/embed.js", async (_request, reply) => {
-    // In the runner image, WORKDIR is /app/apps/api  →  ../widget/dist/embed.js
-    const filePath = path.join(process.cwd(), "..", "widget", "dist", "embed.js");
+    // In the runner image, WORKDIR is /app/apps/api -> ../widget-v2/dist/loader.js
+    const filePath = path.join(process.cwd(), "..", "widget-v2", "dist", "loader.js");
 
     try {
       const now = Date.now();
@@ -69,7 +69,7 @@ export async function embedRoutes(fastify: FastifyInstance) {
           code: "EMBED_BUILD_MISSING",
           message: isProduction
             ? "Not found"
-            : "Widget embed build missing. Run: pnpm --filter @helvino/widget build",
+            : "Widget embed build missing. Run: pnpm --filter @helvino/widget-v2 build",
         },
       });
     }
@@ -88,7 +88,7 @@ export async function embedRoutes(fastify: FastifyInstance) {
 
   // ── Serve iframe UI bundle ──
   fastify.get("/widget-frame.js", async (_request, reply) => {
-    const filePath = path.join(process.cwd(), "..", "widget", "dist", "widget-frame.js");
+    const filePath = path.join(process.cwd(), "..", "widget-v2", "dist", "frame.js");
     try {
       const now = Date.now();
       if (!cachedFrameJs || now - frameCacheLoadedAt > CACHE_TTL_MS) {
@@ -125,7 +125,7 @@ export async function embedRoutes(fastify: FastifyInstance) {
 
   // ── Serve loader CSS (scoped) ──
   fastify.get("/embed.css", async (_request, reply) => {
-    const filePath = path.join(process.cwd(), "..", "widget", "dist", "embed.css");
+    const filePath = path.join(process.cwd(), "..", "widget-v2", "dist", "loader.css");
     try {
       const now = Date.now();
       if (!cachedEmbedCss || now - embedCssLoadedAt > CACHE_TTL_MS) {
@@ -161,7 +161,7 @@ export async function embedRoutes(fastify: FastifyInstance) {
 
   // ── Serve iframe CSS ──
   fastify.get("/widget-frame.css", async (_request, reply) => {
-    const filePath = path.join(process.cwd(), "..", "widget", "dist", "widget-frame.css");
+    const filePath = path.join(process.cwd(), "..", "widget-v2", "dist", "frame.css");
     try {
       const now = Date.now();
       if (!cachedFrameCss || now - frameCssLoadedAt > CACHE_TTL_MS) {
@@ -207,7 +207,6 @@ export async function embedRoutes(fastify: FastifyInstance) {
 
     // Allow embedding from customer websites.
     reply
-      .header("X-Frame-Options", "ALLOWALL") // best-effort for legacy UAs
       .header(
         "Content-Security-Policy",
         [
@@ -227,21 +226,15 @@ export async function embedRoutes(fastify: FastifyInstance) {
       .header("Expires", "0")
       .type("text/html; charset=utf-8");
 
-    const html = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Helvion Widget</title>
-    <link rel="stylesheet" href="/widget-frame.css" />
-  </head>
-  <body>
-    <div id="helvion-frame-root"></div>
-    <script src="/widget-frame.js"></script>
-  </body>
-</html>`;
-
-    return reply.send(html);
+    const filePath = path.join(process.cwd(), "..", "widget-v2", "dist", "frame.html");
+    try {
+      const html = await fs.readFile(filePath, "utf8");
+      return reply.send(html);
+    } catch (err) {
+      fastify.log.warn({ err: err instanceof Error ? err.message : String(err), filePath }, "widget-v2 frame.html not found");
+      reply.code(404);
+      return reply.send("<!-- not found -->");
+    }
   });
 }
 
