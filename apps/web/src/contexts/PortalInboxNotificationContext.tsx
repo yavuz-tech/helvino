@@ -72,19 +72,14 @@ if (typeof window !== "undefined") {
 
 function playNotificationSound() {
   try {
-    if (typeof window === "undefined") return;
-    const ACtor =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    const ctx = new ACtor();
+    console.warn("[NOTIF] playNotificationSound CALLED");
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
     const now = ctx.currentTime;
-
     const notes = [
       { freq: 880, start: 0, end: 0.12 },
       { freq: 1100, start: 0.15, end: 0.27 },
       { freq: 880, start: 0.30, end: 0.50 },
     ];
-
     notes.forEach((n) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -97,11 +92,9 @@ function playNotificationSound() {
       osc.start(now + n.start);
       osc.stop(now + n.end + 0.05);
     });
-
-    console.warn("[NOTIF] notification sound OK");
-    setTimeout(() => { try { ctx.close(); } catch { /* */ } }, 800);
+    console.warn("[NOTIF] sound OK");
   } catch (e) {
-    console.warn("[NOTIF] sound fail:", e);
+    console.warn("[NOTIF] sound FAIL:", e);
   }
 }
 
@@ -230,18 +223,20 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
         socketInstance.on("message:new", (payload: { conversationId?: string; message?: { id?: string; content?: string; role?: string; timestamp?: string; createdAt?: string; isAIGenerated?: boolean } }) => {
           try {
-            console.warn("[NOTIF] message:new:", payload);
+            console.warn("[NOTIF] === message:new EVENT FIRED ===", payload);
 
             const conversationId = payload?.conversationId || "";
             const role = payload?.message?.role || "";
             const isVisitorMessage = role === "user";
             setLastMessageAt(new Date().toLocaleTimeString());
 
-            // 1. Visitor message only: sound + badge event + per-conversation unread tracking
+            // 1. SOUND — unconditional for every visitor message, no exceptions
             if (isVisitorMessage) {
               playNotificationSound();
+            }
 
-              // Per-conversation unread count (frontend state — API doesn't provide this)
+            // 2. Visitor-only: unread tracking + badge + poll
+            if (isVisitorMessage) {
               if (conversationId) {
                 setUnreadMap(prev => ({
                   ...prev,
@@ -250,11 +245,9 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
                 console.warn("[NOTIF] unreadMap++:", conversationId);
               }
 
-              // Badge increment event — only for visitor messages, never for bot/AI
               try {
                 window.dispatchEvent(new CustomEvent("helvion-new-message", { detail: payload }));
               } catch { /* */ }
-              // Trigger server poll after 500ms (let server update hasUnreadFromUser first)
               setTimeout(() => {
                 try { window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh")); } catch { /* */ }
               }, 500);
