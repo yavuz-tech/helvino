@@ -102,6 +102,12 @@ body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neu
 /* MESAJ ZAMAN */
 .hv-msg-time { font-size: 11px; opacity: 0.6; margin-top: 4px; }
 
+.hv-msg-failed {
+  font-size: 11px;
+  margin-top: 4px;
+  opacity: 0.85;
+}
+
 /* FOOTER */
 .hv-footer { border-top: 1px solid #e5e7eb; background: white; flex-shrink: 0; }
 .hv-input-bar { display: flex; align-items: center; gap: 6px; padding: 10px 12px; }
