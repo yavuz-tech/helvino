@@ -690,8 +690,6 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     grid: `url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0H0v20' fill='none' stroke='rgba(${acRgb},0.04)' stroke-width='0.5'/%3E%3C/svg%3E")`,
     waves: `url("data:image/svg+xml,%3Csvg width='40' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 10c5-4 10-4 15 0s10 4 15 0s10-4 15 0' fill='none' stroke='rgba(${acRgb},0.05)' stroke-width='0.5'/%3E%3C/svg%3E")`,
   };
-  const userAvatarText = lang === "tr" ? "S" : lang === "es" ? "T" : "Y";
-
   return (
     <div
       className="widget-container"
@@ -833,9 +831,10 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
                   const isAgent = msg.role === "assistant";
                   return (
                     <div key={msg.id} className={`msg-row ${isAgent ? "agent" : "user"}`}>
-                      {!isAgent && (
-                        <div className="msg-avatar user-avatar" aria-hidden="true">
-                          {userAvatarText}
+                      {/* Agent/bot: avatar on LEFT (portal parity) */}
+                      {isAgent && (
+                        <div className="msg-avatar agent-avatar" aria-hidden="true">
+                          {botAvatar || "AI"}
                         </div>
                       )}
                       <div className="msg-stack">
@@ -849,11 +848,6 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
                         <div className="msg-bubble" dangerouslySetInnerHTML={{ __html: msg.content }} />
                         <div className="message-time">{new Date(msg.timestamp).toLocaleTimeString()}</div>
                       </div>
-                      {isAgent && (
-                        <div className="msg-avatar agent-avatar" aria-hidden="true">
-                          {botAvatar}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
