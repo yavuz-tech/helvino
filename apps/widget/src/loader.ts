@@ -1,0 +1,245 @@
+/**
+ * Helvion Widget Loader (HOST PAGE)
+ *
+ * Responsibilities:
+ * - Create the fixed launcher button
+ * - Create the iframe container for the chat UI
+ * - Handle open/close, mobile scroll lock, and postMessage close from iframe
+ *
+ * IMPORTANT:
+ * This file MUST NOT import the React widget UI to avoid injecting UI CSS
+ * into customer websites. The UI runs inside an iframe.
+ */
+
+import "./loader.css";
+import { API_URL, loadBootloader } from "./api";
+import { getVisitorId } from "./utils/visitor";
+
+const ROOT_ID = "helvion-widget-root";
+const IFRAME_WRAP_CLASS = "helvion-iframe-wrap";
+const IFRAME_CLASS = "helvion-iframe";
+const LAUNCHER_CLASS = "helvion-launcher";
+
+type ScrollLockState = {
+  scrollY: number;
+  overflow: string;
+  position: string;
+  width: string;
+  top: string;
+} | null;
+
+let scrollLockState: ScrollLockState = null;
+let isOpen = false;
+let iframeLoaded = false;
+
+function clampHexColor(c: string | undefined | null): string | null {
+  if (!c) return null;
+  const s = String(c).trim();
+  return /^#[0-9a-fA-F]{6}$/.test(s) ? s : null;
+}
+
+function darken(hex: string, amt = 0.15): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const d = (v: number) => Math.max(0, Math.min(255, Math.round(v * (1 - amt))));
+  const toHex = (v: number) => v.toString(16).padStart(2, "0");
+  return `#${toHex(d(r))}${toHex(d(g))}${toHex(d(b))}`;
+}
+
+function ensureRoot(): HTMLElement {
+  let root = document.getElementById(ROOT_ID);
+  if (!root) {
+    root = document.createElement("div");
+    root.id = ROOT_ID;
+    root.setAttribute("data-helvion-widget-root", "1");
+    document.body.appendChild(root);
+  }
+  return root;
+}
+
+function lockScrollIfMobile() {
+  if (window.innerWidth > 768) return;
+  if (scrollLockState) return;
+  const scrollY = window.scrollY;
+  scrollLockState = {
+    scrollY,
+    overflow: document.body.style.overflow,
+    position: document.body.style.position,
+    width: document.body.style.width,
+    top: document.body.style.top,
+  };
+  document.body.style.overflow = "hidden";
+  document.body.style.position = "fixed";
+  document.body.style.width = "100%";
+  document.body.style.top = `-${scrollY}px`;
+}
+
+function unlockScroll() {
+  if (!scrollLockState) return;
+  const { scrollY, overflow, position, width, top } = scrollLockState;
+  document.body.style.overflow = overflow;
+  document.body.style.position = position;
+  document.body.style.width = width;
+  document.body.style.top = top;
+  window.scrollTo(0, scrollY);
+  scrollLockState = null;
+}
+
+function setOpen(root: HTMLElement, open: boolean) {
+  const wrap = root.querySelector(`.${IFRAME_WRAP_CLASS}`) as HTMLElement | null;
+  if (!wrap) return;
+  isOpen = open;
+  wrap.classList.toggle("open", open);
+  const launcher = root.querySelector(`.${LAUNCHER_CLASS}`) as HTMLButtonElement | null;
+  if (launcher) launcher.setAttribute("aria-expanded", open ? "true" : "false");
+  if (open) lockScrollIfMobile();
+  else unlockScroll();
+}
+
+function buildFrameUrl() {
+  const w = window as any;
+  const siteId = w.HELVION_SITE_ID || w.HELVINO_SITE_ID || "";
+  const orgKey = w.HELVION_ORG_KEY || w.HELVINO_ORG_KEY || "";
+  const parentHost = window.location.hostname;
+
+  const u = new URL(`${API_URL}/widget-frame.html`);
+  if (siteId) u.searchParams.set("siteId", siteId);
+  if (orgKey) u.searchParams.set("orgKey", orgKey);
+  u.searchParams.set("parentHost", parentHost);
+  return u.toString();
+}
+
+function createLauncher(root: HTMLElement) {
+  const btn = document.createElement("button");
+  btn.className = LAUNCHER_CLASS;
+  btn.type = "button";
+  btn.setAttribute("aria-label", "Open chat");
+  btn.setAttribute("aria-expanded", "false");
+  btn.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 5h16v10H8l-4 4V5z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+    </svg>
+  `;
+  btn.addEventListener("click", () => {
+    if (!iframeLoaded) {
+      const iframe = root.querySelector(`.${IFRAME_CLASS}`) as HTMLIFrameElement | null;
+      if (iframe) {
+        iframe.src = buildFrameUrl();
+        iframeLoaded = true;
+      }
+    }
+    setOpen(root, !isOpen);
+  });
+  root.appendChild(btn);
+}
+
+function createIframe(root: HTMLElement) {
+  const wrap = document.createElement("div");
+  wrap.className = IFRAME_WRAP_CLASS;
+  wrap.setAttribute("role", "dialog");
+  wrap.setAttribute("aria-label", "Helvion chat widget");
+
+  const iframe = document.createElement("iframe");
+  iframe.className = IFRAME_CLASS;
+  iframe.setAttribute("title", "Helvion Widget");
+  iframe.setAttribute("loading", "lazy");
+  // Permissions needed for some mobile behaviors
+  iframe.setAttribute("allow", "clipboard-write");
+
+  wrap.appendChild(iframe);
+  root.appendChild(wrap);
+}
+
+async function hydrateTheme(root: HTMLElement) {
+  try {
+    // Ensure parentHost is passed for allowlist checks in the bootloader.
+    (window as any).HELVION_PARENT_HOST = window.location.hostname;
+    (window as any).HELVINO_PARENT_HOST = (window as any).HELVION_PARENT_HOST;
+    // Ensure visitor id exists early.
+    getVisitorId();
+    const cfg = await loadBootloader();
+    const ws: any = cfg?.config?.widgetSettings || {};
+    const theme: any = cfg?.config?.theme || {};
+    const primary = clampHexColor(ws?.primaryColor) || clampHexColor(theme?.primaryColor) || "#8B5CF6";
+    const primaryDark = darken(primary, 0.15);
+    root.style.setProperty("--primary-color", primary);
+    root.style.setProperty("--primary-dark", primaryDark);
+  } catch {
+    // Best-effort: launcher can render with defaults.
+  }
+}
+
+function setupPostMessageClose(root: HTMLElement) {
+  window.addEventListener("message", (ev) => {
+    const d = ev?.data;
+    if (!d || typeof d !== "object") return;
+    if ((d as any).type === "helvion:close") {
+      setOpen(root, false);
+    }
+  });
+}
+
+function init() {
+  // Ensure loader CSS is applied (Vite extracts CSS as a separate asset in prod build).
+  try {
+    const href = `${API_URL}/embed.css`;
+    const existing = document.querySelector(`link[data-helvion-embed-css="1"]`) as HTMLLinkElement | null;
+    if (!existing) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = href;
+      link.setAttribute("data-helvion-embed-css", "1");
+      document.head.appendChild(link);
+    }
+  } catch {}
+
+  const w = window as any;
+  if (!w.HELVION_SITE_ID && w.HELVINO_SITE_ID) w.HELVION_SITE_ID = w.HELVINO_SITE_ID;
+  if (!w.HELVION_ORG_KEY && w.HELVINO_ORG_KEY) w.HELVION_ORG_KEY = w.HELVINO_ORG_KEY;
+
+  if (!w.HELVION_SITE_ID && !w.HELVION_ORG_KEY) {
+    // Keep error minimal in production embed scenario.
+    // eslint-disable-next-line no-console
+    console.error("Helvion Widget: HELVION_SITE_ID (or HELVION_ORG_KEY) must be set before loading embed.js");
+    return;
+  }
+
+  const root = ensureRoot();
+  createIframe(root);
+  createLauncher(root);
+  setupPostMessageClose(root);
+  hydrateTheme(root);
+
+  // Global API
+  const api = {
+    open: () => {
+      const iframe = root.querySelector(`.${IFRAME_CLASS}`) as HTMLIFrameElement | null;
+      if (iframe && !iframeLoaded) {
+        iframe.src = buildFrameUrl();
+        iframeLoaded = true;
+      }
+      setOpen(root, true);
+    },
+    close: () => setOpen(root, false),
+    toggle: () => {
+      const iframe = root.querySelector(`.${IFRAME_CLASS}`) as HTMLIFrameElement | null;
+      if (iframe && !iframeLoaded) {
+        iframe.src = buildFrameUrl();
+        iframeLoaded = true;
+      }
+      setOpen(root, !isOpen);
+    },
+    isOpen: () => isOpen,
+  };
+  (window as any).Helvion = api;
+  (window as any)["Helv" + "ino"] = api;
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
+

@@ -40,7 +40,10 @@ RUN pnpm --filter @helvino/shared build
 # Build widget embed.js and copy to web public dir
 ENV VITE_API_URL=https://api.helvion.io
 RUN pnpm --filter @helvino/widget build
-RUN cp apps/widget/dist/embed.js apps/web/public/embed.js
+RUN cp apps/widget/dist/embed.js apps/web/public/embed.js \
+  && cp apps/widget/dist/embed.css apps/web/public/embed.css \
+  && cp apps/widget/dist/widget-frame.js apps/web/public/widget-frame.js \
+  && cp apps/widget/dist/widget-frame.css apps/web/public/widget-frame.css
 
 # Bake NEXT_PUBLIC_* env vars into the Next.js build
 ENV NEXT_PUBLIC_API_URL=https://api.helvion.io

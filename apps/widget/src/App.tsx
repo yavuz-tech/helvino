@@ -4,7 +4,6 @@ import { createConversation, sendMessage, requestAiHelp, API_URL, getOrgKey, get
 import { EMOJI_LIST, bubbleBorderRadius, resolveWidgetBubbleTheme } from "@helvino/shared";
 import { sanitizeHTML, sanitizePlainText } from "./sanitize";
 import { getVisitorId } from "./utils/visitor";
-import "./App.css";
 
 const APP_NAME = "Helvion";
 const HELVINO_SITE_URL = "https://helvion.io";
@@ -38,6 +37,9 @@ const UNAUTHORIZED_COPY: Record<string, { title: string; body: string }> = {
 interface AppProps {
   externalIsOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
+  /** iframe mode hides launcher and asks parent to close instead of rendering launcher */
+  mode?: "embed" | "frame";
+  onRequestClose?: () => void;
 }
 
 function sanitizeMessage(message: Message): Message {
@@ -47,17 +49,24 @@ function sanitizeMessage(message: Message): Message {
   };
 }
 
-function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
+function App({ externalIsOpen, onOpenChange, mode = "embed", onRequestClose }: AppProps = {}) {
   const [bootloaderConfig, setBootloaderConfig] = useState<BootloaderConfig | null>(null);
   const [bootloaderError, setBootloaderError] = useState<string | null>(null);
   const [isOpen, setIsOpenInternal] = useState(false);
   const warnedDisabledRef = useRef(false);
   const warnedUnauthorizedRef = useRef(false);
 
+  const isFrame = mode === "frame";
+
   // Use external control if provided, otherwise internal state
-  const actualIsOpen = externalIsOpen !== undefined ? externalIsOpen : isOpen;
+  const actualIsOpen = isFrame ? true : (externalIsOpen !== undefined ? externalIsOpen : isOpen);
   useEffect(() => { console.log("[Widget] isOpen changed:", isOpen, "actualIsOpen:", actualIsOpen); }, [isOpen, actualIsOpen]);
   const setIsOpen = (open: boolean) => {
+    if (isFrame && open === false) {
+      // In iframe mode, closing means "tell parent to hide the iframe".
+      onRequestClose?.();
+      return;
+    }
     setIsOpenInternal(open);
     onOpenChange?.(open);
   };
@@ -102,35 +111,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     conversationIdRef.current = conversationId;
   }, [conversationId]);
 
-  // ── Lock body scroll on mobile when chat is open ──
-  // Prevents iOS Safari from scrolling the background page
-  // while the user interacts with the chat window.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const isMobile = window.innerWidth <= 640;
-    if (!isMobile || !actualIsOpen) return;
-
-    const origOverflow = document.body.style.overflow;
-    const origPosition = document.body.style.position;
-    const origTop = document.body.style.top;
-    const origWidth = document.body.style.width;
-    const scrollY = window.scrollY;
-
-    // Lock body
-    document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
-
-    return () => {
-      // Restore
-      document.body.style.overflow = origOverflow;
-      document.body.style.position = origPosition;
-      document.body.style.top = origTop;
-      document.body.style.width = origWidth;
-      window.scrollTo(0, scrollY);
-    };
-  }, [actualIsOpen]);
+  // Body scroll lock is handled by the HOST loader (iframe architecture).
 
   /** Detect embed-config mismatch: config tries to hide branding but server says required */
   useEffect(() => {
@@ -164,65 +145,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     return () => clearTimeout(timer);
   }, [bootloaderConfig]);
 
-  // ── Mobile keyboard handler — Crisp/Tidio style ──
-  // On iOS Safari, position:fixed elements use the layout viewport
-  // which does NOT shrink when the keyboard opens. This causes the
-  // input bar to hide behind the keyboard.
-  //
-  // Fix: Detect keyboard height via visualViewport API and set
-  // --kb-height CSS variable. The mobile CSS uses
-  //   bottom: var(--kb-height, 0px)
-  // to push the chat window above the keyboard.
-  //
-  // Also: prevent iOS from scrolling the page when input is focused,
-  // and lock body scroll while chat is open on mobile.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const vv = window.visualViewport;
-    if (!vv) return;
-
-    // Use window.innerHeight as the "full" height reference.
-    // visualViewport.height is smaller when keyboard is open.
-    let lastKbOpen = false;
-
-    const update = () => {
-      const root = document.getElementById("helvino-widget-root");
-      if (!root) return;
-
-      // Keyboard height = difference between full viewport and visible viewport
-      const kbHeight = Math.max(0, window.innerHeight - vv.height);
-      root.style.setProperty("--kb-height", `${kbHeight}px`);
-
-      // Detect keyboard open/close (threshold: >100px)
-      const kbOpen = kbHeight > 100;
-      if (kbOpen !== lastKbOpen) {
-        lastKbOpen = kbOpen;
-        const chatWin = root.querySelector(".chat-window");
-        if (chatWin) {
-          chatWin.classList.toggle("keyboard-open", kbOpen);
-        }
-
-        // When keyboard opens:
-        // 1. Scroll messages to bottom so user sees latest
-        // 2. Force page scroll to top to prevent iOS from shifting the viewport
-        if (kbOpen) {
-          window.scrollTo(0, 0);
-          setTimeout(() => {
-            const msgs = root.querySelector(".chat-messages");
-            if (msgs) msgs.scrollTop = msgs.scrollHeight;
-          }, 50);
-        }
-      }
-    };
-
-    update();
-    vv.addEventListener("resize", update);
-    vv.addEventListener("scroll", update);
-    return () => {
-      vv.removeEventListener("resize", update);
-      vv.removeEventListener("scroll", update);
-    };
-  }, []);
+  // Keyboard handling is isolated inside the iframe.
 
   const pickEmoji = (emoji: string) => {
     // Insert at cursor position
@@ -826,6 +749,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
         </div>
       )}
       {!actualIsOpen && (
+        !isFrame &&
         <div
           className={`widget-launcher-wrap ${isLeftV3 ? "left" : "right"}`}
           style={{ bottom: 24 }}

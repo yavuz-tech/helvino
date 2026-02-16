@@ -95,10 +95,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url.toString(), 301);
   }
 
-  // ── /embed.js: cross-origin script served from web public/ ──
-  // This is a fallback copy of the widget script (primary is api.helvion.io/embed.js).
-  // It MUST be loadable cross-origin from customer websites.
-  if (pathname === "/embed.js") {
+  // ── Widget assets: cross-origin scripts served from web public/ ──
+  // Fallback copies (primary is api.helvion.io).
+  // MUST be loadable cross-origin from customer websites.
+  if (pathname === "/embed.js" || pathname === "/widget-frame.js" || pathname === "/embed.css" || pathname === "/widget-frame.css") {
     const res = NextResponse.next();
     res.headers.set("Access-Control-Allow-Origin", "*");
     res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
