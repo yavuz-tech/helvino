@@ -23,6 +23,8 @@ interface BootloaderResponse {
     key: string;
     name: string;
   };
+  /** Monotonic-ish version for lightweight change detection (ms since epoch). */
+  configVersion: number;
   config: {
     widgetEnabled: boolean;
     writeEnabled: boolean;
@@ -176,6 +178,7 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
           firstWidgetEmbedAt: true,
           allowedDomains: true,
           allowLocalhost: true,
+          updatedAt: true,
         },
       });
 
@@ -288,6 +291,7 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
           welcomeMessage: true,
           brandName: true,
           configJson: true,
+          updatedAt: true,
         },
       });
       const chatPageConfig = await prisma.chatPageConfig.findUnique({
@@ -298,6 +302,7 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
           placeholder: true,
           showAgentAvatars: true,
           showOperatingHours: true,
+          updatedAt: true,
         },
       });
 
@@ -323,6 +328,11 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
         .catch(() => {});
 
       // Build response with organization config from database
+      const configVersion = Math.max(
+        org.updatedAt.getTime(),
+        widgetSettings?.updatedAt?.getTime() ?? 0,
+        chatPageConfig?.updatedAt?.getTime() ?? 0
+      );
       const response: BootloaderResponse = {
         ok: true,
         org: {
@@ -330,6 +340,7 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
           key: org.key,
           name: org.name,
         },
+        configVersion,
         config: {
           widgetEnabled: org.widgetEnabled,
           writeEnabled: org.writeEnabled,
@@ -429,6 +440,55 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
       }
       throw err; // re-throw for Fastify error handler
     }
+    }
+  );
+
+  /**
+   * GET /api/bootloader/version
+   *
+   * Lightweight version check for live widget config updates.
+   * Response is intentionally tiny (< 2KB) so widgets can poll it safely.
+   */
+  fastify.get<{
+    Querystring: { siteId?: string; orgKey?: string; parentHost?: string };
+    Reply: { ok: true; orgId: string; configVersion: number; timestamp: string } | ErrorResponse;
+  }>(
+    "/bootloader/version",
+    { preHandler: [bootloaderRateLimit] },
+    async (request, reply) => {
+      const siteId = (request.headers["x-site-id"] as string) || request.query.siteId;
+      const orgKey = (request.headers["x-org-key"] as string) || request.query.orgKey;
+
+      if (!siteId && !orgKey) {
+        reply.code(400);
+        return { error: "siteId or orgKey required" };
+      }
+
+      const org = await prisma.organization.findUnique({
+        where: siteId ? { siteId } : { key: orgKey },
+        select: { id: true, updatedAt: true },
+      });
+      if (!org) {
+        reply.code(404);
+        return { error: "Organization not found" };
+      }
+
+      const ws = await prisma.widgetSettings.findUnique({
+        where: { orgId: org.id },
+        select: { updatedAt: true },
+      });
+      const cpc = await prisma.chatPageConfig.findUnique({
+        where: { orgId: org.id },
+        select: { updatedAt: true },
+      });
+
+      const configVersion = Math.max(
+        org.updatedAt.getTime(),
+        ws?.updatedAt?.getTime() ?? 0,
+        cpc?.updatedAt?.getTime() ?? 0
+      );
+
+      return { ok: true, orgId: org.id, configVersion, timestamp: new Date().toISOString() };
     }
   );
 }

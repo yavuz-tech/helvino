@@ -588,6 +588,7 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
           welcomeTitle: true,
           welcomeMessage: true,
           brandName: true,
+          updatedAt: true,
         },
       });
 
@@ -635,10 +636,12 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
           // Emit to widget-only rooms (server-side isolation)
           fastify.io.to(`org:${orgId}:widgets`).emit("widget:config-updated", {
             settings: returnSettings,
+            settingsVersion: updatedSettings.updatedAt.getTime(),
             timestamp: new Date().toISOString(),
           });
           fastify.io.to(`org:${orgInfo.key}:widgets`).emit("widget:config-updated", {
             settings: returnSettings,
+            settingsVersion: updatedSettings.updatedAt.getTime(),
             timestamp: new Date().toISOString(),
           });
         }
@@ -649,6 +652,7 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
       return {
         ok: true,
         settings: returnSettings,
+        settingsVersion: updatedSettings.updatedAt.getTime(),
         requestId,
       };
     }

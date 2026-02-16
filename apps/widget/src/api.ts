@@ -248,6 +248,8 @@ export interface BootloaderConfig {
     key: string;
     name: string;
   };
+  /** Monotonic-ish version for change detection (ms since epoch). */
+  configVersion?: number;
   config: {
     widgetEnabled: boolean;
     writeEnabled: boolean;
@@ -353,6 +355,13 @@ export interface BootloaderConfig {
   timestamp: string;
 }
 
+export interface BootloaderVersionResponse {
+  ok: true;
+  orgId: string;
+  configVersion: number;
+  timestamp: string;
+}
+
 /**
  * Create a new conversation
  */
@@ -441,6 +450,28 @@ export async function loadBootloader(): Promise<BootloaderConfig> {
     throw new Error(error.error || "Failed to load bootloader config");
   }
 
+  return response.json();
+}
+
+/**
+ * Lightweight config version check (< 2KB).
+ * Widgets poll this and only reload the full bootloader when version changes.
+ */
+export async function loadBootloaderVersion(): Promise<BootloaderVersionResponse> {
+  let url = `${API_URL}/api/bootloader/version`;
+  const parentHost = (window as any).HELVION_PARENT_HOST || (window as any).HELVINO_PARENT_HOST;
+  if (parentHost) {
+    url += `?parentHost=${encodeURIComponent(parentHost)}`;
+  }
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Failed to load bootloader version" }));
+    throw new Error(typeof (error as any).error === "string" ? (error as any).error : "Failed to load bootloader version");
+  }
   return response.json();
 }
 

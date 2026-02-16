@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
-import { createConversation, sendMessage, requestAiHelp, API_URL, getOrgKey, getSiteId, getOrgToken, Message, loadBootloader, BootloaderConfig, setOrgToken } from "./api";
+import { createConversation, sendMessage, requestAiHelp, API_URL, getOrgKey, getSiteId, getOrgToken, Message, loadBootloader, loadBootloaderVersion, BootloaderConfig, setOrgToken } from "./api";
 import { EMOJI_LIST, bubbleBorderRadius, resolveWidgetBubbleTheme } from "@helvino/shared";
 import { sanitizeHTML, sanitizePlainText } from "./sanitize";
 import { getVisitorId } from "./utils/visitor";
@@ -90,6 +90,8 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const conversationIdRef = useRef<string | null>(null);
+  const lastConfigVersionRef = useRef<number | null>(null);
+  const configPollInFlightRef = useRef(false);
 
   /** Whether branding must be shown (server-enforced, defaults true) */
   const brandingRequired = bootloaderConfig?.config?.brandingRequired !== false;
@@ -167,6 +169,9 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
           console.warn("⚠️  No orgToken in bootloader response");
         }
         
+        if (typeof config.configVersion === "number") {
+          lastConfigVersionRef.current = config.configVersion;
+        }
         setBootloaderConfig(config);
         bootloaderLoadedRef.current = true;
       } catch (error) {
@@ -178,6 +183,53 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
 
     initBootloader();
   }, []);
+
+  // Poll for config changes (safe + lightweight): check version every 60s,
+  // reload full bootloader only when version changes.
+  useEffect(() => {
+    if (!bootloaderLoadedRef.current) return;
+
+    const isDebug = () =>
+      (window as any).HELVION_DEBUG_WIDGET === true || (window as any).HELVINO_DEBUG_WIDGET === true;
+
+    const tick = async () => {
+      if (configPollInFlightRef.current) return;
+      configPollInFlightRef.current = true;
+      try {
+        const v = await loadBootloaderVersion();
+        const prev = lastConfigVersionRef.current;
+        if (prev != null && v.configVersion === prev) {
+          if (isDebug()) console.log("[Widget] config poll: unchanged", { configVersion: v.configVersion });
+          return;
+        }
+        if (isDebug()) console.log("[Widget] config poll: changed, refreshing...", { prev, next: v.configVersion });
+
+        const nextConfig = await loadBootloader();
+        if (typeof nextConfig.configVersion === "number") {
+          lastConfigVersionRef.current = nextConfig.configVersion;
+        } else {
+          lastConfigVersionRef.current = v.configVersion;
+        }
+        setBootloaderConfig((current) => {
+          // Avoid re-render when nothing changed (extra safety).
+          const currentV = current?.configVersion;
+          const nextV = nextConfig.configVersion;
+          if (typeof currentV === "number" && typeof nextV === "number" && currentV === nextV) {
+            if (isDebug()) console.log("[Widget] skip setBootloaderConfig: same version", { currentV });
+            return current;
+          }
+          return nextConfig;
+        });
+      } catch (e) {
+        if (isDebug()) console.warn("[Widget] config poll failed (ignored)", e);
+      } finally {
+        configPollInFlightRef.current = false;
+      }
+    };
+
+    const interval = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(interval);
+  }, [bootloaderConfig?.org?.id]);
 
   // Surface "silent" non-render conditions in the console to make production
   // debugging easier for customers who embedded the script correctly.
