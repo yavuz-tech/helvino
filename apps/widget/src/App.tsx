@@ -87,6 +87,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const [attGrabberVisible, setAttGrabberVisible] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const conversationIdRef = useRef<string | null>(null);
 
@@ -549,6 +550,8 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const aiTone = v3.aiTone || "professional";
   const aiLabelEnabled = v3.aiLabel !== false;
   const aiSuggestions = v3.aiSuggestions !== false;
+  const typingIndicatorEnabled = v3.typingIndicator !== false;
+  const fileUploadEnabled = v3.fileUpload !== false;
   const showBrandingFlag = v3.showBranding !== false;
   const soundEnabled = v3.soundEnabled !== false;
   const autoOpenWidget = v3.autoOpen === true;
@@ -635,14 +638,20 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     grid: `url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0H0v20' fill='none' stroke='rgba(${acRgb},0.04)' stroke-width='0.5'/%3E%3C/svg%3E")`,
     waves: `url("data:image/svg+xml,%3Csvg width='40' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 10c5-4 10-4 15 0s10 4 15 0s10-4 15 0' fill='none' stroke='rgba(${acRgb},0.05)' stroke-width='0.5'/%3E%3C/svg%3E")`,
   };
-  const bgPatternStyle = bgPatternId !== "none" && BG_PATTERNS[bgPatternId] ? { backgroundImage: BG_PATTERNS[bgPatternId] } : {};
+  const userAvatarText = lang === "tr" ? "S" : lang === "es" ? "T" : "Y";
 
   return (
     <div
       className="widget-container"
       lang={lang}
       dir={typeof document !== "undefined" ? (document.documentElement.getAttribute("dir") || undefined) : undefined}
-      style={{ "--primary-color": primaryColor, pointerEvents: "auto" } as React.CSSProperties}
+      style={{
+        "--primary-color": primaryColor,
+        "--ac": ac,
+        "--ad": ad,
+        "--ac-rgb": acRgb,
+        pointerEvents: "auto",
+      } as React.CSSProperties}
     >
       {/* Custom CSS from portal */}
       {customCss && <style dangerouslySetInnerHTML={{ __html: customCss }} />}
@@ -706,12 +715,15 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
 
       {actualIsOpen && (
         <div className={isLoginContext ? "widget-auth-overlay" : undefined}>
-          <div className={`chat-window ${isLoginContext ? "auth-mode" : isLeftV3 ? "position-left" : "position-right"}`} style={{ width: widgetDim.w, height: widgetDim.h, zIndex: 2147483646 }}>
-          <div className="chat-header-v3" style={{ background: ag, position: "relative", overflow: "hidden" }}>
+          <div
+            className={`chat-window ${isLoginContext ? "auth-mode" : isLeftV3 ? "position-left" : "position-right"}`}
+            style={{ width: widgetDim.w, height: widgetDim.h, zIndex: 2147483646 }}
+          >
+          <div className="chat-header-v3" style={{ background: ag, position: "relative", overflow: "hidden", padding: "18px 16px 14px" }}>
             <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 85% 15%, rgba(255,255,255,0.12), transparent 60%)" }} />
             <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, border: "1px solid rgba(255,255,255,0.15)" }}>{botAvatar}</div>
+                <div style={{ width: 38, height: 38, borderRadius: 11, background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, border: "1px solid rgba(255,255,255,0.15)" }}>{botAvatar}</div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 16, color: "#FFF" }}>{headerText}</div>
                   <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", gap: 4 }}>
@@ -733,7 +745,10 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
             </div>
           )}
           
-          <div className="chat-messages" style={bgPatternStyle}>
+          <div className="chat-messages">
+            {bgPatternId !== "none" && BG_PATTERNS[bgPatternId] && (
+              <div className="chat-bg-pattern" style={{ backgroundImage: BG_PATTERNS[bgPatternId] }} />
+            )}
             {isUnauthorized && (
               <div style={{ margin: "8px 12px", padding: "10px 14px", borderRadius: 10, background: "#FEF3C7", border: "1px solid #FCD34D", fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
                 <strong style={{ display: "block", marginBottom: 4 }}>{unauthorizedCopy.title}</strong>
@@ -752,7 +767,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
                       <div
                         key={st.id}
                         onClick={() => { setInputValue(st.text.replace(/^[^\s]+\s/, "")); }}
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderRadius: 11, marginBottom: 7, background: "#FAFAF8", border: "1px solid #F1F5F9", cursor: "pointer", fontSize: 13.5, fontWeight: 500, color: "#1A1D23", transition: "all 0.2s" }}
+                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 12px", borderRadius: 10, marginBottom: 6, background: "#FAFAF8", border: "1px solid #F1F5F9", cursor: "pointer", fontSize: 12.5, fontWeight: 500, color: "#1A1D23", transition: "all 0.2s" }}
                       >
                         {st.text}
                       </div>
@@ -762,28 +777,45 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
               </div>
             ) : (
               <>
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`message ${msg.role}${msg.role === "assistant" ? " ai-message" : ""}`}
-                  >
-                    {msg.role === "assistant" && aiLabelEnabled && (
-                      <div className="ai-badge-v3" style={{ background: `rgba(${acRgb}, 0.08)`, color: ac }}>
-                        <span style={{ fontSize: 10, fontWeight: 700 }}>{aiName}</span>
-                        <span style={{ fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 4, background: `rgba(${acRgb}, 0.12)`, color: ac }}>AI</span>
+                {messages.map((msg) => {
+                  const isAgent = msg.role === "assistant";
+                  return (
+                    <div key={msg.id} className={`msg-row ${isAgent ? "agent" : "user"}`}>
+                      {!isAgent && (
+                        <div className="msg-avatar user-avatar" aria-hidden="true">
+                          {userAvatarText}
+                        </div>
+                      )}
+                      <div className="msg-stack">
+                        {isAgent && aiLabelEnabled && (
+                          <div className="ai-label-row">
+                            <div className="ai-label-icon" aria-hidden="true">🤖</div>
+                            <span className="ai-label-name">{aiName}</span>
+                            <span className="ai-label-badge">AI Agent</span>
+                          </div>
+                        )}
+                        <div className="msg-bubble" dangerouslySetInnerHTML={{ __html: msg.content }} />
+                        <div className="message-time">{new Date(msg.timestamp).toLocaleTimeString()}</div>
                       </div>
-                    )}
-                    <div className="message-content" dangerouslySetInnerHTML={{ __html: msg.content }} />
-                    <div className="message-time">
-                      {new Date(msg.timestamp).toLocaleTimeString()}
+                      {isAgent && (
+                        <div className="msg-avatar agent-avatar" aria-hidden="true">
+                          {botAvatar}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {aiSuggestions && messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "4px 0" }}>
-                    {["💰 Planları gör", "📞 İletişim"].map((s, i) => (
-                      <div key={i} onClick={() => setInputValue(s.replace(/^[^\s]+\s/, ""))}
-                        style={{ fontSize: 11, fontWeight: 700, padding: "6px 10px", borderRadius: 9, background: `rgba(${acRgb}, 0.06)`, border: `1.5px solid rgba(${acRgb}, 0.12)`, color: ac, cursor: "pointer" }}>{s}</div>
+                  <div className="quick-replies">
+                    {["💰 Planları gör", "📞 İletişim", "📦 Kargo bilgisi"].map((s, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        className="quick-reply-pill"
+                        onClick={() => setInputValue(s.replace(/^[^\s]+\s/, ""))}
+                      >
+                        {s}
+                      </button>
                     ))}
                   </div>
                 )}
@@ -801,12 +833,14 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
                 </button>
               </div>
             )}
-            {agentTyping && (
-              <div className={`typing-indicator${aiTyping ? " ai-typing" : ""}`}>
-                <span className="typing-dot" />
-                <span className="typing-dot" />
-                <span className="typing-dot" />
-                <span className="typing-label">{aiTyping ? `${aiName} yazıyor...` : "Agent yazıyor..."}</span>
+            {typingIndicatorEnabled && agentTyping && (
+              <div className="typing-preview">
+                <div className="typing-dots">
+                  {[0, 1, 2].map((d) => (
+                    <div key={d} className="typing-dot" style={{ animationDelay: `${d * 0.2}s` }} />
+                  ))}
+                </div>
+                <span className="typing-label">{aiTyping ? "yazıyor..." : "yazıyor..."}</span>
               </div>
             )}
           </div>
@@ -816,14 +850,23 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
               {offlineMsg}
             </div>
           ) : (
-            <div className="chat-input-v3" style={{ borderTop: `1px solid rgba(${acRgb}, 0.08)` }}>
+            <div className="chat-input-bar">
+              {/* Hidden file input (icon is visible if enabled) */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  // Feature parity: show picker; server upload not implemented yet.
+                  if (e.target.files && e.target.files.length > 0) {
+                    console.warn("[Widget] File selected but upload not implemented yet:", e.target.files[0]?.name);
+                  }
+                  e.target.value = "";
+                }}
+              />
+
               {showEmojiPicker && (
-                <button
-                  className="chat-emoji-btn"
-                  onClick={() => setEmojiOpen((v) => !v)}
-                  aria-label="Insert emoji"
-                  type="button"
-                >
+                <button className="chat-emoji-btn" onClick={() => setEmojiOpen((v) => !v)} aria-label="Emoji" type="button">
                   😊
                 </button>
               )}
@@ -845,12 +888,22 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
                 onChange={(e) => { setInputValue(e.target.value); emitTyping(); }}
                 onKeyPress={handleKeyPress}
                 disabled={isLoading || !conversationId}
-                style={{ borderColor: `rgba(${acRgb}, 0.15)` }}
               />
+              {fileUploadEnabled && (
+                <button
+                  type="button"
+                  className="chat-attach-btn"
+                  aria-label="Attach file"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading || !conversationId}
+                >
+                  📎
+                </button>
+              )}
               <button
                 onClick={handleSend}
                 disabled={isLoading || !conversationId || !inputValue.trim()}
-                style={{ background: ag, borderRadius: 10 }}
+                className="chat-send-btn"
               >
                 {isLoading ? "..." : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>}
               </button>
