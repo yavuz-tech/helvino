@@ -224,6 +224,8 @@ function applyConfig(cfg: LauncherConfig): void {
   if (!launcher || !container) return;
 
   const isLeft = cfg.positionId === "bl";
+  const mobile = isMobile();
+  const edgePx = mobile ? "16px" : "20px";
 
   // Color
   launcher.style.background = cfg.primaryColor;
@@ -272,14 +274,23 @@ function applyConfig(cfg: LauncherConfig): void {
   // Position
   if (isLeft) {
     launcher.style.right = "auto";
-    launcher.style.left = "20px";
-    container.style.right = "auto";
-    container.style.left = "20px";
+    launcher.style.left = edgePx;
   } else {
     launcher.style.left = "auto";
-    launcher.style.right = "20px";
+    launcher.style.right = edgePx;
+  }
+
+  // IMPORTANT (mobile): the container is fullscreen via CSS (inset: 0).
+  // Setting left/right inline breaks fullscreen and causes horizontal shifting.
+  if (mobile) {
+    container.style.left = "";
+    container.style.right = "";
+  } else if (isLeft) {
+    container.style.right = "auto";
+    container.style.left = edgePx;
+  } else {
     container.style.left = "auto";
-    container.style.right = "20px";
+    container.style.right = edgePx;
   }
 
   // Attention grabber

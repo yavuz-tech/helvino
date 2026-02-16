@@ -193,7 +193,9 @@ body {
   color: var(--hv-primary, #8B5CF6);
   cursor: pointer;
   transition: all 150ms;
-  white-space: nowrap;
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
 }
 .hv-suggestion-chip:hover {
   background: var(--hv-primary, #8B5CF6);
