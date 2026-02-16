@@ -1457,6 +1457,17 @@ export default function PortalInboxContent() {
               <p className="text-xs text-slate-400 leading-relaxed">{t("inbox.empty.desc")}</p>
             </div>
           ) : conversations.map(conv => {
+            console.warn(
+              "[INBOX]",
+              conv.id,
+              "hasUnread:",
+              conv.hasUnreadMessages,
+              "unreadCount:",
+              // Some API responses may not include unreadCount yet; log as-is.
+              (conv as unknown as { unreadCount?: number }).unreadCount,
+              "lastMsg:",
+              (conv as unknown as { lastMessage?: { content?: string } }).lastMessage?.content?.substring(0, 30)
+            );
             const name = displayName(conv, t);
             const active = conv.id === selectedConversationId;
             const hasUnread = !!conv.hasUnreadMessages;
