@@ -10,6 +10,8 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 // Token management state
 let cachedOrgToken: string | null = null;
 let cachedOrgTokenExp: number | null = null; // Unix timestamp (seconds)
+// Canonical org key from bootloader (used for x-org-key).
+let cachedOrgKey: string | null = null;
 let tokenRefreshPromise: Promise<void> | null = null; // For concurrency control
 const requestQueue: Array<() => void> = []; // Queue for requests waiting on token refresh
 
@@ -123,6 +125,9 @@ async function refreshOrgToken(): Promise<void> {
       if (!config.orgToken) {
         throw new Error("No orgToken in bootloader response");
       }
+      if (config.org?.key) {
+        cachedOrgKey = config.org.key;
+      }
 
       // Parse expiration from token
       const exp = parseTokenExpiration(config.orgToken);
@@ -193,11 +198,15 @@ function getHeaders(options?: { useOrgToken?: boolean }): Record<string, string>
     headers["x-org-key"] = identifier.orgKey;
   }
 
+  // If bootloader provided a canonical org key, always prefer it.
+  // Some API endpoints require x-org-key even when x-site-id is present.
+  if (cachedOrgKey) {
+    headers["x-org-key"] = cachedOrgKey;
+  }
+
   // Add org token for write operations (POST requests)
   if (options?.useOrgToken && cachedOrgToken) {
     headers["x-org-token"] = cachedOrgToken;
-    // Server expects this header; in our API this carries the signed org token.
-    headers["x-org-key"] = cachedOrgToken;
   }
 
   return headers;
