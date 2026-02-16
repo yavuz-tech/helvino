@@ -127,8 +127,18 @@ body, p, span, div, input, button, label {
 }
 
 .sidebar-inbox-flash {
-  animation: sidebarInboxFlash 0.5s ease 4 !important;
+  animation: sidebarInboxFlash 1s ease infinite !important;
   font-weight: 700 !important;
+}
+
+/* ── Inbox conversation flash (keep flashing for up to 60s) ── */
+@keyframes conversationInboxFlash {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(239, 68, 68, 0.12); }
+}
+
+.inbox-conversation-flash {
+  animation: conversationInboxFlash 1s ease infinite !important;
 }
 
 /* ── Helvino brand shimmer (preview renderer) ── */

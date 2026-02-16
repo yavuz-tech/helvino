@@ -145,7 +145,6 @@ function safePlayBeep(): void {
 function safePlayInboxSound(): void {
   try {
     if (typeof window === "undefined") return;
-    if (!_userHasInteracted) return;
 
     // Try MP3 file first. If missing/blocked, fall back to WebAudio beep.
     const audio = new Audio("/sounds/notification.mp3");
@@ -164,6 +163,10 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
   const router = useRouter();
   console.warn("[Portal Notification Context] mounted, user:", user?.email, "orgKey:", user?.orgKey);
   const socketRef = useRef<unknown>(null);
+  const openConversationIdRef = useRef<string | null>(null);
+  const soundRepeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const soundRepeatCountRef = useRef(0);
+  const soundRepeatConversationIdRef = useRef<string | null>(null);
   const [soundEnabled, setSoundEnabledState] = useState(true);
   const soundEnabledRef = useRef(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
@@ -209,6 +212,28 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
         setNotificationPermission(Notification.permission);
       }
     } catch { /* */ }
+  }, []);
+
+  // Track which conversation is currently open (so we can suppress sound when chat is open).
+  useEffect(() => {
+    const onOpened = (event: Event) => {
+      try {
+        const id = String((event as CustomEvent<{ conversationId?: string | null }>).detail?.conversationId || "") || null;
+        openConversationIdRef.current = id;
+        console.warn("[NOTIF] openConversationIdRef ->", id);
+
+        // If we're repeating sound for this conversation, stop immediately.
+        if (id && soundRepeatConversationIdRef.current === id && soundRepeatTimerRef.current) {
+          console.warn("[NOTIF] stop sound repeat (conversation opened):", id);
+          clearInterval(soundRepeatTimerRef.current);
+          soundRepeatTimerRef.current = null;
+          soundRepeatConversationIdRef.current = null;
+          soundRepeatCountRef.current = 0;
+        }
+      } catch { /* */ }
+    };
+    window.addEventListener("portal-inbox-conversation-opened", onOpened as EventListener);
+    return () => window.removeEventListener("portal-inbox-conversation-opened", onOpened as EventListener);
   }, []);
 
   // ── Socket.IO connection (fully wrapped in try-catch, lazy import) ──
@@ -306,34 +331,73 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
               console.warn("[NOTIF] conversation card element:", cardEl);
             } catch { /* */ }
 
-            // Sound (existing)
+            // Sound (rebuilt): play on new visitor message, but NOT if that chat is currently open.
             if (isVisitorMessage && soundEnabledRef.current) {
-              console.warn("[NOTIF] playing sound");
-              safePlayInboxSound();
+              const openId = openConversationIdRef.current;
+              const isChatOpen = Boolean(openId && conversationId && openId === conversationId);
+              if (isChatOpen) {
+                console.warn("[NOTIF] playing sound skipped (chat open):", conversationId);
+              } else {
+                console.warn("[NOTIF] playing sound");
+                safePlayInboxSound();
 
-              // Repeat sound every 10s while unfocused (max 5 times)
-              if (typeof document !== "undefined" && !document.hasFocus()) {
-                let repeatCount = 0;
-                const repeatInterval = setInterval(() => {
-                  try {
-                    if (document.hasFocus() || repeatCount >= 5) {
-                      clearInterval(repeatInterval);
-                      return;
+                // Repeat every 15s while unfocused until conversation opened, max 5 repeats.
+                if (typeof document !== "undefined" && !document.hasFocus()) {
+                  // Reset any previous repeat loop.
+                  if (soundRepeatTimerRef.current) clearInterval(soundRepeatTimerRef.current);
+                  soundRepeatTimerRef.current = null;
+                  soundRepeatCountRef.current = 0;
+                  soundRepeatConversationIdRef.current = conversationId || null;
+                  console.warn("[NOTIF] start sound repeat loop for:", soundRepeatConversationIdRef.current);
+
+                  soundRepeatTimerRef.current = setInterval(() => {
+                    try {
+                      const currentOpen = openConversationIdRef.current;
+                      const targetId = soundRepeatConversationIdRef.current;
+                      const opened = Boolean(currentOpen && targetId && currentOpen === targetId);
+                      const focused = document.hasFocus();
+
+                      if (focused) {
+                        console.warn("[NOTIF] stop sound repeat (focused)");
+                        if (soundRepeatTimerRef.current) clearInterval(soundRepeatTimerRef.current);
+                        soundRepeatTimerRef.current = null;
+                        soundRepeatConversationIdRef.current = null;
+                        soundRepeatCountRef.current = 0;
+                        return;
+                      }
+
+                      if (opened) {
+                        console.warn("[NOTIF] stop sound repeat (conversation opened):", targetId);
+                        if (soundRepeatTimerRef.current) clearInterval(soundRepeatTimerRef.current);
+                        soundRepeatTimerRef.current = null;
+                        soundRepeatConversationIdRef.current = null;
+                        soundRepeatCountRef.current = 0;
+                        return;
+                      }
+
+                      if (soundRepeatCountRef.current >= 5) {
+                        console.warn("[NOTIF] stop sound repeat (max repeats reached)");
+                        if (soundRepeatTimerRef.current) clearInterval(soundRepeatTimerRef.current);
+                        soundRepeatTimerRef.current = null;
+                        soundRepeatConversationIdRef.current = null;
+                        soundRepeatCountRef.current = 0;
+                        return;
+                      }
+
+                      if (soundEnabledRef.current) {
+                        console.warn("[NOTIF] playing sound (repeat)", soundRepeatCountRef.current + 1, "/ 5");
+                        safePlayInboxSound();
+                      }
+                      soundRepeatCountRef.current += 1;
+                    } catch (e) {
+                      console.warn("[NOTIF] sound repeat loop error:", e);
+                      if (soundRepeatTimerRef.current) clearInterval(soundRepeatTimerRef.current);
+                      soundRepeatTimerRef.current = null;
+                      soundRepeatConversationIdRef.current = null;
+                      soundRepeatCountRef.current = 0;
                     }
-                    if (soundEnabledRef.current) {
-                      safePlayInboxSound();
-                    }
-                    repeatCount++;
-                  } catch {
-                    clearInterval(repeatInterval);
-                  }
-                }, 10_000);
-                // Stop repeating on focus
-                const stopOnFocus = () => {
-                  clearInterval(repeatInterval);
-                  window.removeEventListener("focus", stopOnFocus);
-                };
-                window.addEventListener("focus", stopOnFocus);
+                  }, 15_000);
+                }
               }
             }
 

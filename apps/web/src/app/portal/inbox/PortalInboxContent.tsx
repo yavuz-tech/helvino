@@ -306,8 +306,10 @@ export default function PortalInboxContent() {
   const canUseFileAttach = canUseFileUpload;
   const canUseTakeover = planRank >= 2;
 
-  // Track conversations that just received a new message (for flash animation)
-  const [flashingIds, setFlashingIds] = useState<Set<string>>(new Set());
+  // Per-conversation unread count + flash window (rebuilt).
+  const [unreadByConversationId, setUnreadByConversationId] = useState<Record<string, number>>({});
+  const [flashUntilByConversationId, setFlashUntilByConversationId] = useState<Record<string, number>>({});
+  const flashTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Bulk select
   const [bulkMode, setBulkMode] = useState(false);
@@ -593,6 +595,27 @@ export default function PortalInboxContent() {
 
   useEffect(() => { if (!authLoading) fetchConversations(); }, [authLoading, fetchConversations]);
 
+  // Seed per-conversation unread counts when API only provides a boolean.
+  // This keeps the unread badge + decrement logic working even if we don't have exact counts.
+  useEffect(() => {
+    if (conversations.length === 0) return;
+    setUnreadByConversationId((prev) => {
+      let changed = false;
+      const next: Record<string, number> = { ...prev };
+      for (const c of conversations) {
+        if (c.hasUnreadMessages && !Number.isFinite(next[c.id])) {
+          next[c.id] = 1;
+          changed = true;
+        }
+      }
+      if (changed) {
+        console.warn("[NOTIF] seeded unreadByConversationId for hasUnreadMessages conversations");
+        return next;
+      }
+      return prev;
+    });
+  }, [conversations]);
+
   // Background poll for new conversations — only as a safety net.
   // When socket is connected, poll very infrequently (60s).
   // When socket is disconnected, the fallback-polling effect above handles it.
@@ -665,6 +688,35 @@ export default function PortalInboxContent() {
     setMobileView("chat");
     setIsLoadingDetail(true);
 
+    // Mark as "opened" globally (used to suppress sound repeat).
+    try {
+      window.dispatchEvent(new CustomEvent("portal-inbox-conversation-opened", { detail: { conversationId: id } }));
+      console.warn("[NOTIF] conversation opened:", id);
+    } catch { /* */ }
+
+    // Clear local unread count + flash state for this conversation, and decrement global unread.
+    setUnreadByConversationId((prev) => {
+      const current = Number(prev[id] ?? 0) || 0;
+      if (current > 0) {
+        try {
+          window.dispatchEvent(new CustomEvent("portal-inbox-unread-decrement", { detail: { count: current } }));
+        } catch { /* */ }
+      }
+      const next = { ...prev };
+      delete next[id];
+      console.warn("[NOTIF] unreadByConversationId cleared:", id, "count:", current);
+      return next;
+    });
+    setFlashUntilByConversationId((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      const t = flashTimeoutsRef.current[id];
+      if (t) clearTimeout(t);
+      delete flashTimeoutsRef.current[id];
+      console.warn("[NOTIF] flashUntil cleared:", id);
+      return next;
+    });
+
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       params.set("c", id);
@@ -683,6 +735,10 @@ export default function PortalInboxContent() {
 
   const closePanel = useCallback(() => {
     setSelectedConversationId(null); setConversationDetail(null); setNotes([]); setMobileView("list");
+    try {
+      window.dispatchEvent(new CustomEvent("portal-inbox-conversation-opened", { detail: { conversationId: null } }));
+      console.warn("[NOTIF] conversation opened: null");
+    } catch { /* */ }
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       params.delete("c");
@@ -767,6 +823,25 @@ export default function PortalInboxContent() {
           : c
         )));
 
+        // Active chat: ensure local unread indicators are cleared and do NOT flash.
+        setUnreadByConversationId((prev) => {
+          if (!(conversationId in prev)) return prev;
+          const next = { ...prev };
+          delete next[conversationId];
+          console.warn("[NOTIF] cleared unreadByConversationId (active chat):", conversationId);
+          return next;
+        });
+        setFlashUntilByConversationId((prev) => {
+          if (!(conversationId in prev)) return prev;
+          const next = { ...prev };
+          delete next[conversationId];
+          const t = flashTimeoutsRef.current[conversationId];
+          if (t) clearTimeout(t);
+          delete flashTimeoutsRef.current[conversationId];
+          console.warn("[NOTIF] cleared flashUntil (active chat):", conversationId);
+          return next;
+        });
+
         // INSTANT MESSAGE PUSH: inject the message directly into conversationDetail
         // so the chat pane updates immediately without waiting for an HTTP round-trip.
         if (detail.message) {
@@ -783,6 +858,14 @@ export default function PortalInboxContent() {
             };
           });
         }
+
+        // Active chat: force auto-scroll to bottom.
+        try {
+          shouldAutoScrollRef.current = true;
+          requestAnimationFrame(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+          });
+        } catch { /* */ }
 
         // Background fetch: get canonical data (attachments, formatting, etc.)
         fetchConversationDetail(conversationId).then(() => {
@@ -806,12 +889,33 @@ export default function PortalInboxContent() {
         : c
       )));
 
-      // Trigger flash animation on the conversation card
       if (isVisitorMessage) {
-        setFlashingIds(prev => { const next = new Set(prev); next.add(conversationId); return next; });
-        setTimeout(() => {
-          setFlashingIds(prev => { const next = new Set(prev); next.delete(conversationId); return next; });
-        }, 2000);
+        // Increment local unread per conversation
+        setUnreadByConversationId((prev) => {
+          const current = Number(prev[conversationId] ?? 0) || 0;
+          const nextCount = current + 1;
+          console.warn("[NOTIF] unreadByConversationId++:", conversationId, current, "->", nextCount);
+          return { ...prev, [conversationId]: nextCount };
+        });
+
+        // Flash for up to 60s (reset on each new message)
+        setFlashUntilByConversationId((prev) => {
+          const until = Date.now() + 60_000;
+          console.warn("[NOTIF] flashUntil set:", conversationId, "->", new Date(until).toISOString());
+          const next = { ...prev, [conversationId]: until };
+          const existing = flashTimeoutsRef.current[conversationId];
+          if (existing) clearTimeout(existing);
+          flashTimeoutsRef.current[conversationId] = setTimeout(() => {
+            setFlashUntilByConversationId((p) => {
+              if (!(conversationId in p)) return p;
+              const n = { ...p };
+              delete n[conversationId];
+              console.warn("[NOTIF] flashUntil auto-cleared:", conversationId);
+              return n;
+            });
+          }, 60_000);
+          return next;
+        });
       }
 
       fetchConversations();
@@ -1356,7 +1460,10 @@ export default function PortalInboxContent() {
             const name = displayName(conv, t);
             const active = conv.id === selectedConversationId;
             const hasUnread = !!conv.hasUnreadMessages;
-            const isFlashing = flashingIds.has(conv.id);
+            const localUnread = Number(unreadByConversationId[conv.id] ?? 0) || 0;
+            const unreadCountForCard = localUnread > 0 ? localUnread : (hasUnread ? 1 : 0);
+            const flashUntil = Number(flashUntilByConversationId[conv.id] ?? 0) || 0;
+            const shouldFlash = hasUnread && flashUntil > Date.now();
             return (
               <div key={conv.id} data-conversation-id={conv.id} onClick={() => selectConversation(conv.id)} role="button" tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectConversation(conv.id); } }}
@@ -1364,7 +1471,7 @@ export default function PortalInboxContent() {
                   active
                     ? "bg-blue-50/80 ring-1 ring-blue-200/60 shadow-sm"
                     : hasUnread
-                      ? `bg-white hover:bg-red-50/40 animate-pulse-green inbox-unread-dot${isFlashing ? " inbox-item-flash" : ""}`
+                      ? `bg-white hover:bg-red-50/40 animate-pulse-green inbox-unread-dot${shouldFlash ? " inbox-conversation-flash" : ""}`
                       : "hover:bg-slate-50/60"
                 }`}>
                 {/* Active indicator bar */}
@@ -1385,9 +1492,6 @@ export default function PortalInboxContent() {
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-bold text-white shadow-sm ${getAvatarColor(conv.id)}`}>
                       {getInitials(name)}
                     </div>
-                    {hasUnread && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-sm shadow-red-500/40 bell-dot" />
-                    )}
                   </div>
 
                   {/* Content */}
@@ -1430,9 +1534,9 @@ export default function PortalInboxContent() {
                   </div>
 
                   {/* Unread badge */}
-                  {hasUnread && conv.messageCount > 0 && (
+                  {unreadCountForCard > 0 && (
                     <span className="mt-1 min-w-[22px] h-[22px] px-1.5 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 shadow-sm shadow-red-500/30 bell-dot">
-                      {conv.messageCount > 99 ? "99+" : conv.messageCount}
+                      {unreadCountForCard > 99 ? "99+" : unreadCountForCard}
                     </span>
                   )}
                 </div>

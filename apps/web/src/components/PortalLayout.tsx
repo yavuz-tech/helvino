@@ -299,22 +299,38 @@ export default function PortalLayout({
 
   // Update unread count instantly on socket events, and clear on focus.
   useEffect(() => {
-    const onInc = () => setUnreadCount((c) => (Number.isFinite(c) ? c + 1 : 1));
-    const onFocus = () => {
-      setUnreadCount(0);
-      stopTitleFlash();
-    };
+    const onInc = () => setUnreadCount((c) => {
+      const next = Number.isFinite(c) ? c + 1 : 1;
+      console.warn("[NOTIF] unreadCount increment:", c, "->", next);
+      return next;
+    });
     try {
       window.addEventListener("portal-inbox-unread-increment", onInc);
-      window.addEventListener("focus", onFocus);
     } catch { /* */ }
     return () => {
       try {
         window.removeEventListener("portal-inbox-unread-increment", onInc);
-        window.removeEventListener("focus", onFocus);
       } catch { /* */ }
     };
-  }, [stopTitleFlash]);
+  }, []);
+
+  // Allow inbox page to decrement unread count when a conversation is opened/read.
+  useEffect(() => {
+    const onDec = (event: Event) => {
+      try {
+        const detail = (event as CustomEvent<{ count?: number }>).detail;
+        const dec = Math.max(0, Number(detail?.count ?? 1) || 1);
+        setUnreadCount((c) => {
+          const prev = Number.isFinite(c) ? c : 0;
+          const next = Math.max(0, prev - dec);
+          console.warn("[NOTIF] unreadCount decrement:", prev, "-", dec, "=", next);
+          return next;
+        });
+      } catch { /* */ }
+    };
+    window.addEventListener("portal-inbox-unread-decrement", onDec as EventListener);
+    return () => window.removeEventListener("portal-inbox-unread-decrement", onDec as EventListener);
+  }, []);
 
   const fetchWidgetSettings = useCallback(async () => {
     try {
@@ -417,13 +433,17 @@ export default function PortalLayout({
     }
   }, [pathname]);
 
-  // Sidebar inbox flash (state-driven): new message arrives while NOT on inbox page.
+  // Sidebar inbox flash (state-driven): new message arrives -> flash for 60s, reset timer on each new message.
   useEffect(() => {
     const handler = () => {
       if (pathname === "/portal/inbox") return;
       setInboxFlash(true);
+      console.warn("[NOTIF] sidebar inboxFlash -> true (start/reset 60s timer)");
       if (inboxFlashTimeoutRef.current) clearTimeout(inboxFlashTimeoutRef.current);
-      inboxFlashTimeoutRef.current = setTimeout(() => setInboxFlash(false), 4000);
+      inboxFlashTimeoutRef.current = setTimeout(() => {
+        console.warn("[NOTIF] sidebar inboxFlash -> false (timer elapsed)");
+        setInboxFlash(false);
+      }, 60_000);
     };
     window.addEventListener("portal-inbox-unread-increment", handler);
     return () => {
@@ -432,6 +452,16 @@ export default function PortalLayout({
       inboxFlashTimeoutRef.current = null;
     };
   }, [pathname]);
+
+  // Stop flashing when user navigates to inbox (badge stays).
+  useEffect(() => {
+    if (pathname === "/portal/inbox") {
+      if (inboxFlash) console.warn("[NOTIF] sidebar inboxFlash -> false (user entered inbox)");
+      setInboxFlash(false);
+      if (inboxFlashTimeoutRef.current) clearTimeout(inboxFlashTimeoutRef.current);
+      inboxFlashTimeoutRef.current = null;
+    }
+  }, [pathname, inboxFlash]);
 
   // Poll inbox unread count; inbox sayfasındayken daha sık yenile (badge takılı kalmasın)
   useEffect(() => {
@@ -741,9 +771,12 @@ export default function PortalLayout({
                         <Icon className={`h-5 w-5 flex-shrink-0 ${iconToneClass}`} />
                         {showUnread && (
                           sidebarOpen ? (
-                            <span className={`absolute -top-1 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-[10px] px-[7px] text-[10.5px] font-[var(--font-heading)] font-bold ${isActive ? "bg-white/30 text-white" : "bg-[#EF4444] text-white"} bell-dot`}>
-                              {unreadCount > 99 ? "99+" : unreadCount}
-                            </span>
+                            // Inbox item uses the inline badge next to label; keep icon clean.
+                            isInboxItem ? null : (
+                              <span className={`absolute -top-1 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-[10px] px-[7px] text-[10.5px] font-[var(--font-heading)] font-bold ${isActive ? "bg-white/30 text-white" : "bg-[#EF4444] text-white"} bell-dot`}>
+                                {unreadCount > 99 ? "99+" : unreadCount}
+                              </span>
+                            )
                           ) : (
                             <span className={`absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full border-2 ${isActive ? "border-white bg-white/85" : "border-white bg-[#EF4444]"} bell-dot`} />
                           )
@@ -756,6 +789,24 @@ export default function PortalLayout({
                           {t(item.labelKey)}
                           <span className="absolute left-[-4px] top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 bg-[#1A1D23]" />
                         </span>
+                      )}
+
+                      {/* Sidebar inbox badge (requested inline JSX) */}
+                      {sidebarOpen && isInboxItem && unreadCount > 0 && (
+                        <span style={{
+                          background: "#EF4444",
+                          color: "white",
+                          fontSize: "11px",
+                          fontWeight: "700",
+                          minWidth: "18px",
+                          height: "18px",
+                          borderRadius: "9px",
+                          padding: "0 5px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginLeft: "auto",
+                        }}>{unreadCount > 99 ? "99+" : unreadCount}</span>
                       )}
                     </Link>
                   );
