@@ -19,6 +19,7 @@ const ROOT_ID = "helvion-widget-root";
 const IFRAME_WRAP_CLASS = "helvion-iframe-wrap";
 const IFRAME_CLASS = "helvion-iframe";
 const LAUNCHER_CLASS = "helvion-launcher";
+const LOADING_CLASS = "helvion-iframe-loading";
 
 type ScrollLockState = {
   scrollY: number;
@@ -34,6 +35,15 @@ let iframeLoaded = false;
 
 function isMobileViewport() {
   return window.innerWidth <= 768;
+}
+
+function setIframeLoading(root: HTMLElement, loading: boolean) {
+  const wrap = root.querySelector(`.${IFRAME_WRAP_CLASS}`) as HTMLElement | null;
+  if (!wrap) return;
+  const spinner = wrap.querySelector(`.${LOADING_CLASS}`) as HTMLElement | null;
+  const iframe = wrap.querySelector(`.${IFRAME_CLASS}`) as HTMLIFrameElement | null;
+  if (spinner) spinner.style.display = loading ? "flex" : "none";
+  if (iframe) iframe.style.opacity = loading ? "0" : "1";
 }
 
 function applyRootInlineStyle(root: HTMLElement) {
@@ -215,6 +225,7 @@ function createLauncher(root: HTMLElement) {
     if (!iframeLoaded) {
       const iframe = root.querySelector(`.${IFRAME_CLASS}`) as HTMLIFrameElement | null;
       if (iframe) {
+        setIframeLoading(root, true);
         iframe.src = buildFrameUrl();
         iframeLoaded = true;
       }
@@ -232,13 +243,45 @@ function createIframe(root: HTMLElement) {
   wrap.setAttribute("role", "dialog");
   wrap.setAttribute("aria-label", "Helvion chat widget");
 
+  const loading = document.createElement("div");
+  loading.className = LOADING_CLASS;
+  loading.setAttribute("aria-hidden", "true");
+  loading.style.position = "absolute";
+  loading.style.inset = "0";
+  loading.style.display = "none";
+  loading.style.alignItems = "center";
+  loading.style.justifyContent = "center";
+  loading.style.pointerEvents = "none";
+  loading.style.background = "rgba(255,255,255,0.9)";
+
+  const spinner = document.createElement("div");
+  spinner.style.width = "32px";
+  spinner.style.height = "32px";
+  spinner.style.borderRadius = "50%";
+  spinner.style.border = "3px solid rgba(0,0,0,0.15)";
+  spinner.style.borderTopColor = root.style.getPropertyValue("--primary-color")?.trim() || "#8B5CF6";
+  spinner.style.willChange = "transform";
+  loading.appendChild(spinner);
+  try {
+    spinner.animate([{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }], {
+      duration: 900,
+      iterations: Infinity,
+    });
+  } catch {}
+
   const iframe = document.createElement("iframe");
   iframe.className = IFRAME_CLASS;
   iframe.setAttribute("title", "Helvion Widget");
   iframe.setAttribute("loading", "lazy");
   // Permissions needed for some mobile behaviors
   iframe.setAttribute("allow", "clipboard-write");
+  iframe.style.opacity = "0";
+  iframe.style.transition = "opacity 180ms ease";
+  iframe.addEventListener("load", () => {
+    setIframeLoading(root, false);
+  });
 
+  wrap.appendChild(loading);
   wrap.appendChild(iframe);
   // Inline fallback so the container positions correctly without CSS.
   applyWrapInlineStyle(wrap);
@@ -256,9 +299,18 @@ async function hydrateTheme(root: HTMLElement) {
     const ws: any = cfg?.config?.widgetSettings || {};
     const theme: any = cfg?.config?.theme || {};
     const primary = clampHexColor(ws?.primaryColor) || clampHexColor(theme?.primaryColor) || "#8B5CF6";
-    const primaryDark = darken(primary, 0.15);
+    const primaryDark =
+      clampHexColor(ws?.primaryColorDark) ||
+      clampHexColor(theme?.primaryColorDark) ||
+      darken(primary, 0.15);
     root.style.setProperty("--primary-color", primary);
     root.style.setProperty("--primary-dark", primaryDark);
+
+    // Apply bootloader theme to launcher immediately (no need to wait for resize).
+    const launcher = root.querySelector(`.${LAUNCHER_CLASS}`) as HTMLButtonElement | null;
+    if (launcher) applyLauncherInlineStyle(launcher, root);
+    const loadingSpinner = root.querySelector(`.${LOADING_CLASS} > div`) as HTMLElement | null;
+    if (loadingSpinner) loadingSpinner.style.borderTopColor = primary;
   } catch {
     // Best-effort: launcher can render with defaults.
   }
