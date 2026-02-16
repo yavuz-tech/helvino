@@ -212,69 +212,24 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
         socketInstance.on("message:new", (payload: { conversationId?: string; message?: { id?: string; content?: string; role?: string; timestamp?: string; createdAt?: string; isAIGenerated?: boolean } }) => {
           try {
-            console.warn("[NOTIF] message:new received:", payload);
-            console.warn("[NOTIF] current pathname:", window.location.pathname);
+            console.warn("[NOTIF] message:new:", payload);
 
             const conversationId = payload?.conversationId || "";
-            const preview = (payload?.message?.content || "").slice(0, 80);
             const role = payload?.message?.role || "";
             const isVisitorMessage = role === "user";
             setLastMessageAt(new Date().toLocaleTimeString());
 
-            // DOM discovery logs (NO style manipulation)
-            try {
-              const sidebarInboxSelector = 'a[href="/portal/inbox"]';
-              const sidebarEl = document.querySelector(sidebarInboxSelector);
-              console.warn("[NOTIF] sidebar inbox selector:", sidebarInboxSelector);
-              console.warn("[NOTIF] sidebar inbox element:", sidebarEl);
-            } catch { /* */ }
-            try {
-              const cardSelector = conversationId ? `[data-conversation-id="${conversationId}"]` : "";
-              const cardEl = cardSelector ? document.querySelector(cardSelector) : null;
-              console.warn("[NOTIF] conversation card selector:", cardSelector);
-              console.warn("[NOTIF] conversation card element:", cardEl);
-            } catch { /* */ }
-
-            // Sound: single WebAudio beep per message (no repeat, no mp3).
-            if (isVisitorMessage && soundEnabledRef.current) {
+            // 1. Beep (every visitor message, once, immediately)
+            if (isVisitorMessage) {
               playBeep();
             }
 
-            // Browser notification (existing)
+            // 2. Dispatch single unified event for PortalLayout badge + inbox list
             try {
-              if (isVisitorMessage && typeof window !== "undefined" && "Notification" in window) {
-                if (Notification.permission === "default") {
-                  Notification.requestPermission().then((perm) => {
-                    if (perm === "granted") {
-                      const n = new Notification("Yeni mesaj - Helvion", {
-                        body: preview || "Ziyaretçi yeni mesaj gönderdi",
-                        tag: conversationId,
-                        icon: "/favicon.ico",
-                      });
-                      n.onclick = () => { try { window.focus(); n.close(); router.push(`/portal/inbox?c=${conversationId}`); } catch { /* */ } };
-                    }
-                  }).catch(() => {});
-                } else if (Notification.permission === "granted") {
-                  const n = new Notification("Yeni mesaj - Helvion", {
-                    body: preview || "Ziyaretçi yeni mesaj gönderdi",
-                    tag: conversationId,
-                    icon: "/favicon.ico",
-                  });
-                  n.onclick = () => { try { window.focus(); n.close(); router.push(`/portal/inbox?c=${conversationId}`); } catch { /* */ } };
-                }
-              }
+              window.dispatchEvent(new CustomEvent("helvion-new-message", { detail: payload }));
             } catch { /* */ }
 
-            // Dispatch events:
-            // - `portal-inbox-unread-increment` triggers the sidebar flash state in `PortalLayout`.
-            try {
-              if (isVisitorMessage) {
-                window.dispatchEvent(new CustomEvent("portal-inbox-unread-refresh"));
-                window.dispatchEvent(new CustomEvent("portal-inbox-badge-pulse"));
-                window.dispatchEvent(new CustomEvent("portal-inbox-unread-increment"));
-              }
-            } catch { /* */ }
-
+            // 3. Keep existing events for inbox list real-time update
             try {
               const msg = payload?.message;
               window.dispatchEvent(new CustomEvent("portal-inbox-message-new", {

@@ -227,7 +227,6 @@ export default function PortalLayout({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [currentPlanKey, setCurrentPlanKey] = useState<string | null>(null);
-  const [bellPulse, setBellPulse] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [widgetSettings, setWidgetSettings] = useState<WidgetBubbleSettings | null>(null);
   const [bubbleHover, setBubbleHover] = useState(false);
@@ -242,74 +241,17 @@ export default function PortalLayout({
   const normalizedPlanKey = (currentPlanKey || "").trim().toLowerCase();
   const showSidebarUpgradeCta = normalizedPlanKey === "free";
 
-  // ── Tab title flash: blink until page gets focus ──
-  const titleFlashRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const soundRepeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const soundRepeatCountRef = useRef(0);
-  const originalTitleRef = useRef("Helvion");
-
-  const stopTitleFlash = useCallback(() => {
-    if (titleFlashRef.current) {
-      clearInterval(titleFlashRef.current);
-      titleFlashRef.current = null;
-    }
-    if (soundRepeatRef.current) {
-      clearInterval(soundRepeatRef.current);
-      soundRepeatRef.current = null;
-    }
-    soundRepeatCountRef.current = 0;
-    try {
-      document.title = originalTitleRef.current;
-    } catch { /* */ }
-  }, []);
-
-  const startTitleFlash = useCallback((count: number) => {
-    if (typeof document === "undefined") return;
-    if (titleFlashRef.current) return;
-    let show = true;
-    const base = originalTitleRef.current;
-    titleFlashRef.current = setInterval(() => {
-      try {
-        document.title = show
-          ? `\uD83D\uDD34 (${count}) Yeni mesaj! - Helvion`
-          : base;
-        show = !show;
-      } catch { /* */ }
-    }, 1000);
-  }, []);
-
+  // Listen for helvion-new-message from PortalInboxNotificationContext → increment badge
   useEffect(() => {
-    try {
-      if (typeof document === "undefined") return;
-      const base = "Helvion";
-      originalTitleRef.current = base;
-      if (unreadCount > 0) {
-        document.title = `(${unreadCount}) Gelen Kutusu - Helvion`;
-        if (!document.hasFocus()) {
-          startTitleFlash(unreadCount);
-        }
-      } else {
-        stopTitleFlash();
-        document.title = base;
-      }
-    } catch { /* */ }
-  }, [unreadCount, startTitleFlash, stopTitleFlash]);
-
-  // Update unread count instantly on socket events, and clear on focus.
-  useEffect(() => {
-    const onInc = () => setUnreadCount((c) => {
-      const next = Number.isFinite(c) ? c + 1 : 1;
-      console.warn("[NOTIF] unreadCount increment:", c, "->", next);
-      return next;
-    });
-    try {
-      window.addEventListener("portal-inbox-unread-increment", onInc);
-    } catch { /* */ }
-    return () => {
-      try {
-        window.removeEventListener("portal-inbox-unread-increment", onInc);
-      } catch { /* */ }
+    const handler = () => {
+      setUnreadCount((c) => {
+        const next = (Number.isFinite(c) ? c : 0) + 1;
+        console.warn("[NOTIF] unreadCount increment:", c, "->", next);
+        return next;
+      });
     };
+    window.addEventListener("helvion-new-message", handler);
+    return () => window.removeEventListener("helvion-new-message", handler);
   }, []);
 
   // Clear unread badge when user enters inbox.
@@ -392,21 +334,6 @@ export default function PortalLayout({
     };
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
-
-  // Pulse bell when new message arrives
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    const handler = () => {
-      setBellPulse(true);
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => setBellPulse(false), 2500);
-    };
-    window.addEventListener("portal-inbox-badge-pulse", handler);
-    return () => {
-      window.removeEventListener("portal-inbox-badge-pulse", handler);
-      if (timeoutId) clearTimeout(timeoutId);
-    };
   }, []);
 
   // No sidebar flashing; badge only.
@@ -820,7 +747,7 @@ export default function PortalLayout({
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setBellOpen((o) => !o); }}
-                className={`group relative flex h-10 w-10 items-center justify-center rounded-xl border border-black/[0.06] bg-black/[0.03] transition-all duration-200 hover:scale-105 hover:bg-black/[0.06] ${bellPulse ? "bell-wiggle" : ""}`}
+                className={`group relative flex h-10 w-10 items-center justify-center rounded-xl border border-black/[0.06] bg-black/[0.03] transition-all duration-200 hover:scale-105 hover:bg-black/[0.06] `}
                 title={t("inbox.bell.recentMessages")}
                 aria-label={t("inbox.bell.recentMessages")}
                 aria-expanded={bellOpen}
