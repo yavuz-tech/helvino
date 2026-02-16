@@ -108,16 +108,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const [socketStatus, setSocketStatus] = useState("not-initialized");
   const [lastMessageAt, setLastMessageAt] = useState<string | null>(null);
-  const [unreadMap, setUnreadMap] = useState<Record<string, number>>(() => {
-    try {
-      const s = sessionStorage.getItem('helvion_unread');
-      return s ? JSON.parse(s) : {};
-    } catch { return {}; }
-  });
-
-  useEffect(() => {
-    try { sessionStorage.setItem('helvion_unread', JSON.stringify(unreadMap)); } catch {}
-  }, [unreadMap]);
+  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
 
   soundEnabledRef.current = soundEnabled;
 
