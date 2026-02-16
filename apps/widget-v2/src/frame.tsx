@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./frame.css";
 import { io, type Socket } from "socket.io-client";
-import { createConversation, fetchBootloader, getApiBase, getCachedAuth, sendMessage, type ApiMessage } from "./api";
+import { createConversation, fetchBootloader, getApiBase, getCachedAuth, getMessages, sendMessage, type ApiMessage } from "./api";
 import { getVisitorId } from "./visitor";
 
 type ViewMode = "home" | "chat";
@@ -303,11 +303,11 @@ function App() {
     try {
       if (!siteId) throw new Error("missing_site_id");
       if (!bootOk) {
-        // UI works with defaults; sending likely fails if orgToken missing.
         console.warn("[Widget v2] bootOk=false; send may fail until bootloader succeeds");
       }
 
       let cid = conversationId;
+      const isFirstMessage = !cid;
       if (!cid) {
         const conv = await createConversation(siteId, visitorId);
         cid = conv.id;
@@ -328,6 +328,44 @@ function App() {
             : m
         )
       );
+
+      // First message fix: Socket hasn't connected yet when the first message
+      // is sent (it connects after conversationId state update). The AI response
+      // is emitted via socket before the widget joins the room, so it's lost.
+      // Poll once after a delay to catch the AI response.
+      if (isFirstMessage) {
+        const pollCid = cid;
+        const doRecoveryFetch = async (delayMs: number) => {
+          await new Promise((r) => setTimeout(r, delayMs));
+          try {
+            const msgs = await getMessages(pollCid);
+            if (msgs.length > 0) {
+              setMessages((prev) => {
+                const seenIds = new Set(prev.map((m) => m.serverId).filter(Boolean));
+                const newMsgs: ChatMessage[] = [];
+                for (const m of msgs) {
+                  if (seenIds.has(m.id)) continue;
+                  if (m.role === "user") continue;
+                  newMsgs.push({
+                    id: `s_${m.id}`,
+                    serverId: m.id,
+                    role: "agent",
+                    text: m.content,
+                    time: formatTimeFromIso(m.timestamp),
+                  });
+                }
+                if (newMsgs.length === 0) return prev;
+                return [...prev, ...newMsgs];
+              });
+            }
+          } catch {
+            // ignore fetch errors
+          }
+        };
+        // Try twice: once at 3s (AI might have responded), once at 6s (slower models)
+        doRecoveryFetch(3000);
+        doRecoveryFetch(6000);
+      }
     } catch (err) {
       console.error("[Widget v2] send failed:", err);
       setMessages((prev) => prev.map((m) => (m.id === clientId ? { ...m, status: "failed" } : m)));

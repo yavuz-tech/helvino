@@ -108,9 +108,38 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const [socketStatus, setSocketStatus] = useState("not-initialized");
   const [lastMessageAt, setLastMessageAt] = useState<string | null>(null);
-  const [unreadMap, setUnreadMap] = useState<Record<string, number>>(() => { try { const s = sessionStorage.getItem("helvion_unread"); return s ? JSON.parse(s) : {}; } catch { return {}; } });
+  // unreadMap: always initialize with {} to avoid SSR hydration mismatch.
+  // sessionStorage is read/written in a SINGLE useEffect (client-only, after hydration).
+  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
+  const unreadMapLoadedRef = useRef(false);
 
-  useEffect(() => { try { sessionStorage.setItem("helvion_unread", JSON.stringify(unreadMap)); } catch {} }, [unreadMap]);
+  // Combined read-on-mount + write-on-change effect
+  useEffect(() => {
+    if (!unreadMapLoadedRef.current) {
+      // First run: read from sessionStorage, skip writing {} back
+      unreadMapLoadedRef.current = true;
+      try {
+        const s = sessionStorage.getItem("helvion_unread");
+        if (s) {
+          const parsed = JSON.parse(s);
+          if (parsed && typeof parsed === "object" && Object.keys(parsed).length > 0) {
+            console.warn("[NOTIF] restored unreadMap from sessionStorage:", parsed);
+            setUnreadMap(parsed);
+            return; // Don't overwrite storage with {} on initial load
+          }
+        }
+      } catch {
+        // sessionStorage unavailable
+      }
+    }
+    // Subsequent runs: persist to sessionStorage
+    try {
+      sessionStorage.setItem("helvion_unread", JSON.stringify(unreadMap));
+    } catch {
+      // sessionStorage unavailable
+    }
+  }, [unreadMap]);
+
   soundEnabledRef.current = soundEnabled;
 
   // ── Load sound preference from localStorage (safe) ──
