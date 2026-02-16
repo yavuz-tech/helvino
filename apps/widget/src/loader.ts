@@ -185,7 +185,11 @@ function setOpen(root: HTMLElement, open: boolean) {
   isOpen = open;
   wrap.classList.toggle("open", open);
   const launcher = root.querySelector(`.${LAUNCHER_CLASS}`) as HTMLButtonElement | null;
-  if (launcher) launcher.setAttribute("aria-expanded", open ? "true" : "false");
+  if (launcher) {
+    launcher.setAttribute("aria-expanded", open ? "true" : "false");
+    // Hide launcher when chat is open so it doesn't overlap send button.
+    launcher.style.display = open ? "none" : "flex";
+  }
   if (open) lockScrollIfMobile();
   else unlockScroll();
 

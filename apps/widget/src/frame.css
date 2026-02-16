@@ -454,12 +454,14 @@ html, body {
 /* ── Footer ── */
 .widget-powered-by-v3 {
   text-align: center;
-  padding: 8px;
+  padding: 6px 8px;
   font-size: 11px;
   color: var(--text-muted);
   background: #fff;
   border-top: 1px solid rgba(0,0,0,0.04);
   flex-shrink: 0;
+  /* Must stay directly above the input bar; never float in the middle */
+  margin-top: auto;
 }
 
 /* ══════════════════════════════════════════
@@ -538,11 +540,22 @@ html, body {
     margin: 0 0 6px;
   }
 
-  /* Footer */
+  /* Footer: fixed just above the input bar on mobile */
   .widget-powered-by-v3 {
-    padding: 6px;
+    position: fixed !important;
+    bottom: 50px; /* input bar height ~48px + small gap */
+    left: 0;
+    right: 0;
+    padding: 4px;
     font-size: 10px;
-    padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+    background: rgba(255,255,255,0.95);
+    border-top: none;
+    z-index: 9;
+  }
+
+  /* Extra bottom padding on messages to account for footer + input bar */
+  .chat-messages {
+    padding-bottom: 90px;
   }
 }
 
