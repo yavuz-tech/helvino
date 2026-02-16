@@ -269,6 +269,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
         socketInstance.on("message:new", (payload: { conversationId?: string; message?: { id?: string; content?: string; role?: string; timestamp?: string; createdAt?: string; isAIGenerated?: boolean } }) => {
           try {
+            console.log("[Portal Notification] new message received:", payload);
             const conversationId = payload?.conversationId || "";
             const preview = (payload?.message?.content || "").slice(0, 80);
             const role = payload?.message?.role || "";
@@ -277,6 +278,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
             // Sound + notification only for visitor/customer messages
             if (isVisitorMessage && soundEnabledRef.current) {
+              console.log("[Portal Notification] playing sound");
               safePlayInboxSound();
             }
 

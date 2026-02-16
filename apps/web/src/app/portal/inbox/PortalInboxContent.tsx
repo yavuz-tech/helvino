@@ -707,12 +707,12 @@ export default function PortalInboxContent() {
     if (c && !selectedConversationId && conversations.find(cv => cv.id === c)) selectConversation(c);
   }, [authLoading, conversations, searchParams, selectedConversationId, selectConversation]);
 
-  // Fallback polling when Socket.IO is not connected (gentle, with backoff)
+  // Fallback polling when Socket.IO is not connected (gentle, 30s+ interval)
   useEffect(() => {
     if (socketStatus.startsWith("connected")) return;
     let cancelled = false;
-    let delay = 5_000; // start at 5s, back off to max 30s
-    const maxDelay = 30_000;
+    let delay = 30_000; // start at 30s, back off to max 60s
+    const maxDelay = 60_000;
     const tick = () => {
       if (cancelled) return;
       fetchConversations();
