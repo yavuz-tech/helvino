@@ -349,6 +349,8 @@ export default function PortalInboxContent() {
     onUserTyping,
     onUserTypingStop,
     socketStatus,
+    unreadMap,
+    markConversationRead,
   } = usePortalInboxNotification();
   const [userTypingConvId, setUserTypingConvId] = useState<string | null>(null);
   const agentTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -685,6 +687,7 @@ export default function PortalInboxContent() {
     // Immediate UI update — no await, respond to click instantly
     setSelectedConversationId(id);
     setConversations(prev => sortConversations(prev.map(c => c.id === id ? { ...c, hasUnreadMessages: false } : c)));
+    markConversationRead(id);
     setMobileView("chat");
     setIsLoadingDetail(true);
 
@@ -731,7 +734,7 @@ export default function PortalInboxContent() {
       fetchConversations();
       [200, 600, 1200].forEach((ms) => setTimeout(refreshUnreadBadge, ms));
     });
-  }, [router, fetchConversationDetail, fetchNotes, fetchConversations, refreshUnreadBadge, markConversationAsRead]);
+  }, [router, fetchConversationDetail, fetchNotes, fetchConversations, refreshUnreadBadge, markConversationAsRead, markConversationRead]);
 
   const closePanel = useCallback(() => {
     setSelectedConversationId(null); setConversationDetail(null); setNotes([]); setMobileView("list");
@@ -1457,24 +1460,12 @@ export default function PortalInboxContent() {
               <p className="text-xs text-slate-400 leading-relaxed">{t("inbox.empty.desc")}</p>
             </div>
           ) : conversations.map(conv => {
-            console.warn(
-              "[INBOX]",
-              conv.id,
-              "hasUnread:",
-              conv.hasUnreadMessages,
-              "unreadCount:",
-              // Some API responses may not include unreadCount yet; log as-is.
-              (conv as unknown as { unreadCount?: number }).unreadCount,
-              "lastMsg:",
-              (conv as unknown as { lastMessage?: { content?: string } }).lastMessage?.content?.substring(0, 30)
-            );
             const name = displayName(conv, t);
             const active = conv.id === selectedConversationId;
-            const hasUnread = !!conv.hasUnreadMessages;
-            const localUnread = Number(unreadByConversationId[conv.id] ?? 0) || 0;
-            const unreadCountForCard = localUnread > 0 ? localUnread : (hasUnread ? 1 : 0);
-            const flashUntil = Number(flashUntilByConversationId[conv.id] ?? 0) || 0;
-            const shouldFlash = hasUnread && flashUntil > Date.now();
+            // Frontend-driven unread state (API doesn't return reliable hasUnreadMessages)
+            const unreadFromMap = unreadMap[conv.id] || 0;
+            const hasUnread = unreadFromMap > 0;
+            console.warn("[INBOX] conv:", conv.id, "unreadFromMap:", unreadFromMap);
             return (
               <div key={conv.id} data-conversation-id={conv.id} onClick={() => selectConversation(conv.id)} role="button" tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectConversation(conv.id); } }}
@@ -1527,7 +1518,7 @@ export default function PortalInboxContent() {
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <span className="text-[12px] text-slate-400 tabular-nums font-medium" suppressHydrationWarning>{hydrated ? formatRelativeTime(conv.updatedAt, t) : formatTime(conv.updatedAt, hydrated)}</span>
                         {/* Unread count badge */}
-                        {unreadCountForCard > 0 && (
+                        {unreadFromMap > 0 && (
                           <span style={{
                             background: "#EF4444",
                             color: "white",
@@ -1540,7 +1531,7 @@ export default function PortalInboxContent() {
                             display: "inline-flex",
                             alignItems: "center",
                             justifyContent: "center",
-                          }}>{unreadCountForCard > 99 ? "99+" : unreadCountForCard}</span>
+                          }}>{unreadFromMap > 99 ? "99+" : unreadFromMap}</span>
                         )}
                       </div>
                     </div>

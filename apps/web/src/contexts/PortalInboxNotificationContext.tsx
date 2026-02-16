@@ -26,6 +26,8 @@ interface PortalInboxNotificationContextValue {
   testSound: () => void;
   socketStatus: string;
   lastMessageAt: string | null;
+  unreadMap: Record<string, number>;
+  markConversationRead: (conversationId: string) => void;
 }
 
 const noop = () => () => {};
@@ -41,6 +43,8 @@ const defaultValue: PortalInboxNotificationContextValue = {
   testSound: () => {},
   socketStatus: "not-initialized",
   lastMessageAt: null,
+  unreadMap: {},
+  markConversationRead: () => {},
 };
 
 const PortalInboxNotificationContext = createContext<PortalInboxNotificationContextValue>(defaultValue);
@@ -111,6 +115,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
   const [socketStatus, setSocketStatus] = useState("not-initialized");
   const [lastMessageAt, setLastMessageAt] = useState<string | null>(null);
+  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
 
   soundEnabledRef.current = soundEnabled;
 
@@ -232,9 +237,19 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
             const isVisitorMessage = role === "user";
             setLastMessageAt(new Date().toLocaleTimeString());
 
-            // 1. Visitor message only: sound + badge event
+            // 1. Visitor message only: sound + badge event + per-conversation unread tracking
             if (isVisitorMessage) {
               playNotificationSound();
+
+              // Per-conversation unread count (frontend state — API doesn't provide this)
+              if (conversationId) {
+                setUnreadMap(prev => ({
+                  ...prev,
+                  [conversationId]: (prev[conversationId] || 0) + 1,
+                }));
+                console.warn("[NOTIF] unreadMap++:", conversationId);
+              }
+
               // Badge increment event — only for visitor messages, never for bot/AI
               try {
                 window.dispatchEvent(new CustomEvent("helvion-new-message", { detail: payload }));
@@ -317,6 +332,16 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
     return () => window.removeEventListener("portal-user-typing-stop", handler);
   }, []);
 
+  const markConversationRead = useCallback((conversationId: string) => {
+    setUnreadMap(prev => {
+      if (!(conversationId in prev)) return prev;
+      const next = { ...prev };
+      delete next[conversationId];
+      console.warn("[NOTIF] markConversationRead:", conversationId);
+      return next;
+    });
+  }, []);
+
   const testSound = useCallback(() => {
     playNotificationSound();
   }, []);
@@ -333,6 +358,8 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
     testSound,
     socketStatus,
     lastMessageAt,
+    unreadMap,
+    markConversationRead,
   };
 
   // ALWAYS render children — provider must never block page content
