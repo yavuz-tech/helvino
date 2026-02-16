@@ -70,32 +70,90 @@ if (typeof window !== "undefined") {
   document.addEventListener("touchstart", markInteracted);
 }
 
-function playNotificationSound() {
+// ── Old phone ring sound (like Tawk.to) ──
+// Pattern: "brrring-brrring" — two bursts of rapid dual-tone with tremolo.
+// Repeats every 10 seconds until agent opens the conversation.
+function playPhoneRing() {
   try {
-    console.warn("[NOTIF] playNotificationSound CALLED");
+    console.warn("[NOTIF] playPhoneRing CALLED");
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
     const now = ctx.currentTime;
-    const notes = [
-      { freq: 880, start: 0, end: 0.12 },
-      { freq: 1100, start: 0.15, end: 0.27 },
-      { freq: 880, start: 0.30, end: 0.50 },
-    ];
-    notes.forEach((n) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.value = n.freq;
-      gain.gain.setValueAtTime(0.4, now + n.start);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + n.end);
-      osc.start(now + n.start);
-      osc.stop(now + n.end + 0.05);
-    });
-    console.warn("[NOTIF] sound OK");
+
+    // Single ring burst: dual-tone (440Hz + 480Hz) with rapid on/off tremolo
+    const ringBurst = (offset: number, duration: number) => {
+      const step = 0.04; // 40ms per pulse = 25Hz tremolo
+      const count = Math.floor(duration / step);
+      for (let i = 0; i < count; i++) {
+        const t = now + offset + i * step;
+        [440, 480].forEach((freq) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = "sine";
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0, t);
+          gain.gain.linearRampToValueAtTime(0.3, t + 0.004);
+          gain.gain.setValueAtTime(0.3, t + step - 0.006);
+          gain.gain.linearRampToValueAtTime(0, t + step - 0.001);
+          osc.start(t);
+          osc.stop(t + step + 0.01);
+        });
+      }
+    };
+
+    // "brrring --- brrring" pattern
+    ringBurst(0, 0.4);      // First ring: 0.0s–0.4s
+    ringBurst(0.55, 0.4);   // Second ring: 0.55s–0.95s
+
+    console.warn("[NOTIF] phone ring OK");
   } catch (e) {
-    console.warn("[NOTIF] sound FAIL:", e);
+    console.warn("[NOTIF] phone ring FAIL:", e);
   }
+}
+
+// ── Ring repeat manager (module-level) ──
+// Keeps ringing every RING_INTERVAL until agent opens the conversation.
+const _ringingConvs = new Set<string>();
+let _ringInterval: ReturnType<typeof setInterval> | null = null;
+let _ringRepeatCount = 0;
+const RING_INTERVAL_MS = 10_000; // 10 seconds between rings
+const MAX_RING_REPEATS = 30;     // ~5 minutes then stop
+
+function _startRinging(conversationId: string) {
+  _ringingConvs.add(conversationId);
+  _ringRepeatCount = 0;
+  if (_ringInterval) return; // interval already running
+  _ringInterval = setInterval(() => {
+    if (_ringingConvs.size === 0 || _ringRepeatCount >= MAX_RING_REPEATS) {
+      _stopAllRinging();
+      return;
+    }
+    if (_userHasInteracted) {
+      playPhoneRing();
+    }
+    _ringRepeatCount++;
+    console.warn("[NOTIF] ring repeat #" + _ringRepeatCount, "pending convs:", Array.from(_ringingConvs));
+  }, RING_INTERVAL_MS);
+  console.warn("[NOTIF] ring loop started for:", conversationId);
+}
+
+function _stopRingingForConv(conversationId: string) {
+  _ringingConvs.delete(conversationId);
+  console.warn("[NOTIF] ring stopped for:", conversationId, "remaining:", Array.from(_ringingConvs));
+  if (_ringingConvs.size === 0) {
+    _stopAllRinging();
+  }
+}
+
+function _stopAllRinging() {
+  if (_ringInterval) {
+    clearInterval(_ringInterval);
+    _ringInterval = null;
+  }
+  _ringingConvs.clear();
+  _ringRepeatCount = 0;
+  console.warn("[NOTIF] all ringing stopped");
 }
 
 export function PortalInboxNotificationProvider({ children }: { children: ReactNode }) {
@@ -181,6 +239,18 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
     } catch { /* */ }
   }, []);
 
+  // ── Stop ringing when conversation is opened (from inbox click) ──
+  useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        const id = (e as CustomEvent).detail?.conversationId;
+        if (id) _stopRingingForConv(id);
+      } catch { /* */ }
+    };
+    window.addEventListener("portal-inbox-conversation-opened", handler);
+    return () => window.removeEventListener("portal-inbox-conversation-opened", handler);
+  }, []);
+
   // ── Socket.IO connection (fully wrapped in try-catch, lazy import) ──
   useEffect(() => {
     console.warn("[Portal Socket] user check:", !!user, "orgKey:", user?.orgKey);
@@ -260,9 +330,12 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
             const isVisitorMessage = role === "user";
             setLastMessageAt(new Date().toLocaleTimeString());
 
-            // 1. SOUND — unconditional for every visitor message, no exceptions
+            // 1. SOUND — phone ring for every visitor message, repeats until conv opened
             if (isVisitorMessage) {
-              playNotificationSound();
+              playPhoneRing();
+              if (conversationId) {
+                _startRinging(conversationId);
+              }
             }
 
             // 2. Visitor-only: unread tracking + badge + poll
@@ -316,6 +389,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
     return () => {
       cancelled = true;
+      _stopAllRinging();
       try {
         if (socketInstance) {
           socketInstance.off("message:new");
@@ -357,6 +431,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
   const markConversationRead = useCallback((conversationId: string) => {
     console.warn("[INBOX] markConversationRead called with:", conversationId);
+    _stopRingingForConv(conversationId);
     setUnreadMap((prev) => {
       console.warn("[INBOX] unreadMap BEFORE:", JSON.stringify(prev));
       const next = { ...prev };
@@ -367,7 +442,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
   }, []);
 
   const testSound = useCallback(() => {
-    playNotificationSound();
+    playPhoneRing();
   }, []);
 
   const value: PortalInboxNotificationContextValue = {
