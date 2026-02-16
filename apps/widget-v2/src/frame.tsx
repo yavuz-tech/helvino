@@ -67,6 +67,14 @@ function getSiteIdFromRuntime(): string {
   return "";
 }
 
+type UiCopy = {
+  title: string;
+  subtitle: string;
+  welcome: string;
+  placeholder: string;
+  starters: string[];
+};
+
 function App() {
   const close = () => {
     try {
@@ -82,16 +90,9 @@ function App() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [bootOk, setBootOk] = useState(false);
 
-  const [headerTitle, setHeaderTitle] = useState("Nasıl yardımcı olabiliriz?");
-  const [headerSubtitle, setHeaderSubtitle] = useState("Genellikle birkaç dakika içinde yanıt veriyoruz");
-  const [homeTitle, setHomeTitle] = useState("Nasıl yardımcı olabiliriz?");
-  const [homeSubtitle, setHomeSubtitle] = useState("Merhaba! 👋 Size nasıl yardımcı olabilirim?");
-  const [placeholder, setPlaceholder] = useState("Mesajınızı yazın...");
-  const [starters, setStarters] = useState<string[]>([
-    "💰 Fiyatlandırma hakkında bilgi",
-    "🔧 Teknik destek istiyorum",
-    "📦 Siparişimi takip etmek istiyorum",
-  ]);
+  // Avoid theme/text flash: render a loading state until bootloader resolves.
+  const [ui, setUi] = useState<UiCopy | null>(null);
+  const spinnerRef = useRef<HTMLDivElement | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -111,6 +112,17 @@ function App() {
     let cancelled = false;
     if (!siteId) {
       console.error("[Widget v2] Missing siteId (query param ?siteId= or window.HELVION_SITE_ID)");
+      setUi({
+        title: "Nasıl yardımcı olabiliriz?",
+        subtitle: "Genellikle birkaç dakika içinde yanıt veriyoruz",
+        welcome: "Merhaba! 👋 Size nasıl yardımcı olabilirim?",
+        placeholder: "Mesajınızı yazın...",
+        starters: [
+          "💰 Fiyatlandırma hakkında bilgi",
+          "🔧 Teknik destek istiyorum",
+          "📦 Siparişimi takip etmek istiyorum",
+        ],
+      });
       return;
     }
 
@@ -129,63 +141,78 @@ function App() {
         const cfg = (boot?.config || {}) as Record<string, unknown>;
         const ws = (cfg.widgetSettings || {}) as Record<string, unknown>;
         const cpc = (cfg.chatPageConfig || {}) as Record<string, unknown>;
-        const language = typeof cfg.language === "string" ? cfg.language.trim().toLowerCase() : "";
 
-        const normalize = (value: unknown): string => {
-          const s = typeof value === "string" ? value.trim() : "";
+        const enDefaults = new Set([
+          "Chat with us",
+          "We reply as soon as possible",
+          "Write your message...",
+          "We typically reply within minutes",
+        ]);
+        const normalize = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
+        const normalizeCpc = (value: unknown): string => {
+          const s = normalize(value);
           if (!s) return "";
-
-          // If org language is TR but chatPageConfig still contains default EN strings,
-          // treat them as "unset" so widgetSettings (or hardcoded TR) can take over.
-          if (language === "tr") {
-            const enDefaults = new Set([
-              "Chat with us",
-              "We typically reply within minutes",
-              "Write your message...",
-            ]);
-            if (enDefaults.has(s)) return "";
-          }
-          return s;
+          return enDefaults.has(s) ? "" : s;
         };
 
         // Theme: apply primary color from bootloader as CSS variables.
         // Keep hardcoded fallbacks in CSS for when bootloader fails.
-        const primaryColor = typeof ws.primaryColor === "string" ? ws.primaryColor.trim() : "";
-        if (primaryColor && isHexColor(primaryColor)) {
+        const themeId = typeof ws.themeId === "string" ? ws.themeId.trim().toLowerCase() : "";
+        const useCustomColor = ws.useCustomColor === true;
+        const customColor = typeof ws.customColor === "string" ? ws.customColor.trim() : "";
+        const wsPrimaryColor = typeof ws.primaryColor === "string" ? ws.primaryColor.trim() : "";
+        const themeMap: Record<string, string> = {
+          rose: "#F43F5E",
+          violet: "#8B5CF6",
+          ocean: "#0EA5E9",
+          amber: "#F59E0B",
+          emerald: "#10B981",
+        };
+
+        let primaryColor = "";
+        if (useCustomColor && customColor && isHexColor(customColor)) primaryColor = customColor;
+        else if (wsPrimaryColor && isHexColor(wsPrimaryColor)) primaryColor = wsPrimaryColor;
+        else if (themeId && themeMap[themeId] && isHexColor(themeMap[themeId]!)) primaryColor = themeMap[themeId]!;
+
+        if (primaryColor) {
           const root = document.documentElement;
           root.style.setProperty("--hv-primary", primaryColor);
           root.style.setProperty("--hv-primary-dark", darkenColor(primaryColor, 15));
         }
 
-        // Fallback order requested:
-        // chatPageConfig > widgetSettings > hardcoded
+        // New fallback order requested: widgetSettings first.
         const title =
-          normalize(cpc.title) ||
+          normalize(ws.headerText) ||
           normalize(ws.headerTitle) ||
-          normalize(ws.welcomeTitle) ||
+          normalizeCpc(cpc.title) ||
           "Nasıl yardımcı olabiliriz?";
         const subtitle =
-          normalize(cpc.subtitle) ||
+          normalize(ws.subText) ||
           normalize(ws.headerSubtitle) ||
+          normalizeCpc(cpc.subtitle) ||
           "Genellikle birkaç dakika içinde yanıt veriyoruz";
+        const placeholder =
+          normalize(ws.placeholder) ||
+          normalize(ws.inputPlaceholder) ||
+          normalizeCpc(cpc.placeholder) ||
+          "Mesajınızı yazın...";
         const welcome =
+          normalize(ws.welcomeMsg) ||
+          normalize(ws.aiWelcome) ||
           normalize(ws.welcomeMessage) ||
           "Merhaba! 👋 Size nasıl yardımcı olabilirim?";
-        const ph =
-          normalize(cpc.placeholder) ||
-          normalize(ws.placeholder) ||
-          "Mesajınızı yazın...";
 
-        setHeaderTitle(title);
-        setHomeTitle(title);
-        setHeaderSubtitle(subtitle);
-        setHomeSubtitle(welcome);
-        setPlaceholder(ph);
-
-        // Starters: accept array of strings or array of {text, active}
+        let starters: string[] = [];
         const startersRaw = ws.starters;
         if (Array.isArray(startersRaw)) {
-          const parsed = startersRaw
+          starters = startersRaw
+            .filter((x) => {
+              if (typeof x === "string") return true;
+              if (!x || typeof x !== "object") return false;
+              // Only active starters, if provided.
+              if (typeof (x as any).active === "boolean") return (x as any).active === true;
+              return true;
+            })
             .map((x) => {
               if (typeof x === "string") return x;
               if (x && typeof x === "object" && typeof (x as any).text === "string") return String((x as any).text);
@@ -194,18 +221,60 @@ function App() {
             .map((s) => s.trim())
             .filter(Boolean)
             .slice(0, 6);
-          if (parsed.length > 0) setStarters(parsed);
         }
+
+        if (starters.length === 0) {
+          starters = [
+            "💰 Fiyatlandırma hakkında bilgi",
+            "🔧 Teknik destek istiyorum",
+            "📦 Siparişimi takip etmek istiyorum",
+          ];
+        }
+
+        // Set all UI copy at once to avoid partial render/flash.
+        setUi({ title, subtitle, welcome, placeholder, starters });
       })
       .catch((err) => {
         console.error("[Widget v2] Bootloader failed:", err);
         if (!cancelled) setBootOk(false);
+        if (!cancelled) {
+          setUi({
+            title: "Nasıl yardımcı olabiliriz?",
+            subtitle: "Genellikle birkaç dakika içinde yanıt veriyoruz",
+            welcome: "Merhaba! 👋 Size nasıl yardımcı olabilirim?",
+            placeholder: "Mesajınızı yazın...",
+            starters: [
+              "💰 Fiyatlandırma hakkında bilgi",
+              "🔧 Teknik destek istiyorum",
+              "📦 Siparişimi takip etmek istiyorum",
+            ],
+          });
+        }
       });
 
     return () => {
       cancelled = true;
     };
   }, [siteId]);
+
+  // Spinner animation (no CSS changes)
+  useEffect(() => {
+    if (ui) return;
+    const el = spinnerRef.current;
+    if (!el || typeof el.animate !== "function") return;
+    const anim = el.animate([{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }], {
+      duration: 900,
+      iterations: Infinity,
+      easing: "linear",
+    });
+    return () => {
+      try {
+        anim.cancel();
+      } catch {
+        // ignore
+      }
+    };
+  }, [ui]);
 
   // Auto-scroll on new messages in chat
   useEffect(() => {
@@ -329,14 +398,42 @@ function App() {
 
   return (
     <div className="hv-app">
+      {!ui ? (
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px",
+            padding: "24px",
+            textAlign: "center",
+          }}
+        >
+          <div
+            ref={spinnerRef}
+            aria-label="Loading"
+            style={{
+              width: "28px",
+              height: "28px",
+              borderRadius: "999px",
+              border: "3px solid rgba(0,0,0,0.12)",
+              borderTopColor: "rgba(0,0,0,0.45)",
+            }}
+          />
+          <div style={{ fontSize: "13px", color: "#6b7280" }}>Loading...</div>
+        </div>
+      ) : (
+      <>
       {/* HEADER */}
       <div className="hv-header">
         <div className="hv-header-avatar">🤖</div>
         <div className="hv-header-info">
-          <div className="hv-header-title">{headerTitle}</div>
+          <div className="hv-header-title">{ui.title}</div>
           <div className="hv-header-subtitle">
             <span className="hv-status-dot" />
-            {headerSubtitle}
+            {ui.subtitle}
           </div>
         </div>
         <button className="hv-header-close" onClick={close} aria-label="Close chat">
@@ -348,10 +445,10 @@ function App() {
       {view === "home" ? (
         <div className="hv-home">
           <div className="hv-home-icon">💬</div>
-          <h2 className="hv-home-title">{homeTitle}</h2>
-          <p className="hv-home-subtitle">{homeSubtitle}</p>
+          <h2 className="hv-home-title">{ui.title}</h2>
+          <p className="hv-home-subtitle">{ui.welcome}</p>
           <div className="hv-starters">
-            {starters.map((label) => (
+            {ui.starters.map((label) => (
               <button key={label} className="hv-starter" type="button" onClick={() => void pushUserMessage(label)}>
                 {label}
               </button>
@@ -398,7 +495,7 @@ function App() {
           </button>
           <input
             className="hv-input-field"
-            placeholder={placeholder}
+            placeholder={ui.placeholder}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={onInputKeyDown}
@@ -442,6 +539,8 @@ function App() {
           </a>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }
