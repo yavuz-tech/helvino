@@ -120,6 +120,22 @@ body, p, span, div, input, button, label {
   }
 }
 
+/* ── Sidebar inbox: flash red when new message arrives (user not on inbox page) ── */
+@keyframes sidebar-inbox-flash {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(239, 68, 68, 0.15); }
+}
+
+.sidebar-inbox-alert {
+  animation: sidebar-inbox-flash 0.6s ease 4;
+  font-weight: 700 !important;
+}
+
+.sidebar-inbox-alert .sidebar-inbox-label {
+  color: #991B1B !important;
+  font-weight: 700 !important;
+}
+
 /* ── Helvino brand shimmer (preview renderer) ── */
 @keyframes helvino-brand-shimmer {
   0%   { background-position: 0% 50%; }

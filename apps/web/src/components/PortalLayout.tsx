@@ -229,6 +229,7 @@ export default function PortalLayout({
   const [currentPlanKey, setCurrentPlanKey] = useState<string | null>(null);
   const [bellPulse, setBellPulse] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
+  const [inboxAlert, setInboxAlert] = useState(false);
   const [widgetSettings, setWidgetSettings] = useState<WidgetBubbleSettings | null>(null);
   const [bubbleHover, setBubbleHover] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
@@ -402,6 +403,23 @@ export default function PortalLayout({
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, []);
+
+  // Sidebar inbox flash: fire when NOT on inbox page and new message arrives
+  useEffect(() => {
+    const handler = () => {
+      if (pathname === "/portal/inbox") return;
+      setInboxAlert(true);
+    };
+    window.addEventListener("portal-inbox-unread-increment", handler);
+    return () => window.removeEventListener("portal-inbox-unread-increment", handler);
+  }, [pathname]);
+
+  // Clear sidebar alert when user navigates to inbox
+  useEffect(() => {
+    if (pathname === "/portal/inbox") {
+      setInboxAlert(false);
+    }
+  }, [pathname]);
 
   // Poll inbox unread count; inbox sayfasındayken daha sık yenile (badge takılı kalmasın)
   useEffect(() => {
@@ -691,6 +709,8 @@ export default function PortalLayout({
                   const isActive = pathname === item.href;
                   const Icon = item.icon;
                   const showUnread = item.badge === "unread" && unreadCount > 0;
+                  const isInboxItem = item.href === "/portal/inbox";
+                  const shouldFlashSidebar = isInboxItem && inboxAlert && !isActive;
                   const iconToneClass = isActive
                     ? "[--icon-stroke:#FFFFFF] [--icon-bg:rgba(255,255,255,0.3)]"
                     : "[--icon-stroke:#64748B] [--icon-bg:rgba(245,158,11,0.12)] group-hover:[--icon-stroke:#92400E]";
@@ -702,8 +722,8 @@ export default function PortalLayout({
                         isActive
                           ? "bg-gradient-to-br from-[#F59E0B] to-[#D97706] text-white shadow-[0_3px_12px_rgba(245,158,11,0.25)]"
                           : "bg-transparent text-[#52525B] hover:bg-[rgba(245,158,11,0.06)] hover:text-[#92400E]"
-                      } ${sidebarOpen ? "items-center gap-3 px-[14px] py-[9px]" : "items-center justify-center px-2 py-2.5"}`}
-                      onClick={() => setMobileSidebarOpen(false)}
+                      } ${sidebarOpen ? "items-center gap-3 px-[14px] py-[9px]" : "items-center justify-center px-2 py-2.5"} ${shouldFlashSidebar ? "sidebar-inbox-alert" : ""}`}
+                      onClick={() => { setMobileSidebarOpen(false); if (isInboxItem) setInboxAlert(false); }}
                     >
                       <span className="relative flex-shrink-0">
                         <Icon className={`h-5 w-5 flex-shrink-0 ${iconToneClass}`} />
@@ -718,7 +738,7 @@ export default function PortalLayout({
                         )}
                       </span>
                       {sidebarOpen ? (
-                        <span className={`truncate font-[var(--font-body)] text-[13.5px] ${isActive ? "font-bold text-white" : "font-medium text-[#52525B] group-hover:text-[#92400E]"}`}>{t(item.labelKey)}</span>
+                        <span className={`truncate font-[var(--font-body)] text-[13.5px] ${isActive ? "font-bold text-white" : "font-medium text-[#52525B] group-hover:text-[#92400E]"} ${shouldFlashSidebar ? "sidebar-inbox-label" : ""}`}>{t(item.labelKey)}</span>
                       ) : (
                         <span className="pointer-events-none absolute left-full top-1/2 z-40 ml-2 hidden -translate-y-1/2 whitespace-nowrap rounded-lg bg-[#1A1D23] px-3 py-1.5 font-[var(--font-body)] text-xs font-semibold text-white shadow-lg lg:group-hover:block">
                           {t(item.labelKey)}

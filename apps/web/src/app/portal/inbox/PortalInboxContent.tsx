@@ -306,6 +306,9 @@ export default function PortalInboxContent() {
   const canUseFileAttach = canUseFileUpload;
   const canUseTakeover = planRank >= 2;
 
+  // Track conversations that just received a new message (for flash animation)
+  const [flashingIds, setFlashingIds] = useState<Set<string>>(new Set());
+
   // Bulk select
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
@@ -802,6 +805,15 @@ export default function PortalInboxContent() {
           }
         : c
       )));
+
+      // Trigger flash animation on the conversation card
+      if (isVisitorMessage) {
+        setFlashingIds(prev => { const next = new Set(prev); next.add(conversationId); return next; });
+        setTimeout(() => {
+          setFlashingIds(prev => { const next = new Set(prev); next.delete(conversationId); return next; });
+        }, 2000);
+      }
+
       fetchConversations();
     };
     window.addEventListener("portal-inbox-message-new", onMessageNew as EventListener);
@@ -1344,6 +1356,7 @@ export default function PortalInboxContent() {
             const name = displayName(conv, t);
             const active = conv.id === selectedConversationId;
             const hasUnread = !!conv.hasUnreadMessages;
+            const isFlashing = flashingIds.has(conv.id);
             return (
               <div key={conv.id} onClick={() => selectConversation(conv.id)} role="button" tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectConversation(conv.id); } }}
@@ -1351,7 +1364,7 @@ export default function PortalInboxContent() {
                   active
                     ? "bg-blue-50/80 ring-1 ring-blue-200/60 shadow-sm"
                     : hasUnread
-                      ? "bg-white hover:bg-red-50/40 animate-pulse-green inbox-unread-dot inbox-item-flash"
+                      ? `bg-white hover:bg-red-50/40 animate-pulse-green inbox-unread-dot${isFlashing ? " inbox-item-flash" : ""}`
                       : "hover:bg-slate-50/60"
                 }`}>
                 {/* Active indicator bar */}
