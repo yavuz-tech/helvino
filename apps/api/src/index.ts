@@ -96,7 +96,7 @@ import {
 } from "./utils/ai-service";
 import { checkAbandonedCheckouts } from "./jobs/checkAbandonedCheckouts";
 import { prisma } from "./prisma";
-import { verifyPortalSessionToken } from "./utils/portal-session";
+import { verifyPortalSessionToken, PORTAL_SESSION_COOKIE } from "./utils/portal-session";
 import { getOperatingHoursStatus } from "./utils/operating-hours";
 import { runWorkflowsForTrigger } from "./utils/workflow-engine";
 import { sanitizeHTML } from "./utils/sanitize";
@@ -1069,8 +1069,15 @@ fastify.ready().then(() => {
 
       const orgKey = handshakeAuth.orgKey as unknown;
       const siteId = handshakeAuth.siteId as unknown;
-      const token = handshakeAuth.token as unknown;
+      let token = handshakeAuth.token as unknown;
       const visitorKey = handshakeAuth.visitorId as unknown; // widget visitorKey (x-visitor-id)
+
+      // Fallback: read portal session from cookie when auth.token is empty (e.g. page refresh)
+      if (typeof token !== "string" || !token.trim()) {
+        const cookieHeader = (socket.handshake.headers.cookie as string) || "";
+        const match = cookieHeader.match(new RegExp(`${PORTAL_SESSION_COOKIE}=([^;]+)`));
+        if (match?.[1]) token = match[1].trim();
+      }
 
       const ip = getSocketIp(socket);
       const currentCount = socketCountsByIp.get(ip) || 0;

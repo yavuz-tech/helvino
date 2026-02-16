@@ -213,6 +213,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
   // ── Socket.IO connection (fully wrapped in try-catch, lazy import) ──
   useEffect(() => {
     if (!user?.orgKey) {
+      console.log("[Portal Socket] skipping: no user or orgKey");
       setSocketStatus("no-user");
       return;
     }
@@ -222,6 +223,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
     const connect = async () => {
       try {
+        console.log("[Portal Socket] attempting connection...", { orgKey: user.orgKey });
         // Lazy import so socket.io-client failure never crashes the page
         const { io } = await import("socket.io-client");
         const { API_URL } = await import("@/lib/portal-auth");
@@ -247,15 +249,17 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
         socketRef.current = socketInstance;
 
         socketInstance.on("connect", () => {
+          console.log("[Portal Socket] connected:", socketInstance?.id);
           setSocketStatus("connected:" + socketInstance?.id);
         });
 
         socketInstance.on("connect_error", (err: Error) => {
-          console.warn("[Portal Socket] Connection error (non-fatal):", err.message);
+          console.warn("[Portal Socket] error:", err.message);
           setSocketStatus("error:" + err.message);
         });
 
         socketInstance.on("disconnect", (reason: string) => {
+          console.log("[Portal Socket] disconnected:", reason);
           setSocketStatus("disconnected:" + reason);
         });
 
