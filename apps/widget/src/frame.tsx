@@ -20,9 +20,12 @@ function installVisualViewportFix() {
   const apply = () => {
     if (raf) cancelAnimationFrame(raf);
     raf = requestAnimationFrame(() => {
-      const heightPx = `${Math.round(vv.height)}px`;
+      const h = Math.round(vv.height);
+      const heightPx = `${h}px`;
       document.documentElement.style.height = heightPx;
       document.body.style.height = heightPx;
+      // Expose to CSS so .chat-window can use var(--app-height).
+      document.documentElement.style.setProperty("--app-height", heightPx);
       // Keep the input bar visible (avoid the document being scrollable under keyboard).
       try {
         window.scrollTo(0, 0);

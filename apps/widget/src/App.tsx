@@ -75,6 +75,12 @@ function App({ externalIsOpen, onOpenChange, mode = "embed", onRequestClose }: A
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "refreshing" | "error" | null>(null);
+  // Suppress connection banners for the first 5s after mount (initial load grace period).
+  const [connGracePeriod, setConnGracePeriod] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setConnGracePeriod(false), 5000);
+    return () => clearTimeout(t);
+  }, []);
   const [agentTyping, setAgentTyping] = useState(false);
   const [_aiTyping, setAiTyping] = useState(false); // Distinguish AI vs human typing (reserved for future use)
   void _aiTyping;
@@ -810,8 +816,8 @@ function App({ externalIsOpen, onOpenChange, mode = "embed", onRequestClose }: A
             </div>
           </div>
           
-          {/* Connection status banner */}
-          {connectionStatus && (
+          {/* Connection status banner — hidden during initial 5s grace period */}
+          {connectionStatus && !connGracePeriod && (
             <div className={`connection-status ${connectionStatus}`}>
               {connectionStatus === "refreshing" && "🔄 Bağlanıyor..."}
               {connectionStatus === "error" && "⚠️ Bağlantı sorunu, yeniden deneniyor..."}

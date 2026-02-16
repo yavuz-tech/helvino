@@ -222,14 +222,6 @@ function createLauncher(root: HTMLElement) {
     </svg>
   `;
   btn.addEventListener("click", () => {
-    if (!iframeLoaded) {
-      const iframe = root.querySelector(`.${IFRAME_CLASS}`) as HTMLIFrameElement | null;
-      if (iframe) {
-        setIframeLoading(root, true);
-        iframe.src = buildFrameUrl();
-        iframeLoaded = true;
-      }
-    }
     setOpen(root, !isOpen);
   });
   // Inline fallback so launcher is visible even if CSS is blocked.
@@ -272,13 +264,14 @@ function createIframe(root: HTMLElement) {
   const iframe = document.createElement("iframe");
   iframe.className = IFRAME_CLASS;
   iframe.setAttribute("title", "Helvion Widget");
-  iframe.setAttribute("loading", "lazy");
   // Permissions needed for some mobile behaviors
   iframe.setAttribute("allow", "clipboard-write");
   iframe.style.opacity = "0";
   iframe.style.transition = "opacity 180ms ease";
   iframe.addEventListener("load", () => {
     setIframeLoading(root, false);
+    // Notify parent (loader) that content is ready.
+    try { window.parent?.postMessage({ type: "helvion:frame-ready" }, "*"); } catch {}
   });
 
   wrap.appendChild(loading);
@@ -358,6 +351,14 @@ function init() {
   setupPostMessageClose(root);
   hydrateTheme(root);
 
+  // Preload iframe immediately so content is ready when user clicks launcher.
+  const preloadIframe = root.querySelector(`.${IFRAME_CLASS}`) as HTMLIFrameElement | null;
+  if (preloadIframe && !iframeLoaded) {
+    setIframeLoading(root, true);
+    preloadIframe.src = buildFrameUrl();
+    iframeLoaded = true;
+  }
+
   // Keep inline fallback in sync on resize/orientation changes.
   window.addEventListener("resize", () => {
     applyRootInlineStyle(root);
@@ -370,23 +371,9 @@ function init() {
 
   // Global API
   const api = {
-    open: () => {
-      const iframe = root.querySelector(`.${IFRAME_CLASS}`) as HTMLIFrameElement | null;
-      if (iframe && !iframeLoaded) {
-        iframe.src = buildFrameUrl();
-        iframeLoaded = true;
-      }
-      setOpen(root, true);
-    },
+    open: () => setOpen(root, true),
     close: () => setOpen(root, false),
-    toggle: () => {
-      const iframe = root.querySelector(`.${IFRAME_CLASS}`) as HTMLIFrameElement | null;
-      if (iframe && !iframeLoaded) {
-        iframe.src = buildFrameUrl();
-        iframeLoaded = true;
-      }
-      setOpen(root, !isOpen);
-    },
+    toggle: () => setOpen(root, !isOpen),
     isOpen: () => isOpen,
   };
   (window as any).Helvion = api;
