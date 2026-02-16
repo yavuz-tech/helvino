@@ -66,25 +66,38 @@ if (typeof window !== "undefined") {
   document.addEventListener("touchstart", markInteracted);
 }
 
-function playBeep() {
+function playNotificationSound() {
   try {
     if (typeof window === "undefined") return;
     const ACtor =
       window.AudioContext ||
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     const ctx = new ACtor();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 800;
-    gain.gain.value = 0.3;
-    osc.start();
-    osc.stop(ctx.currentTime + 0.15);
-    console.warn("[NOTIF] beep OK");
-    setTimeout(() => { try { ctx.close(); } catch { /* */ } }, 300);
+    const now = ctx.currentTime;
+
+    const notes = [
+      { freq: 880, start: 0, end: 0.12 },
+      { freq: 1100, start: 0.15, end: 0.27 },
+      { freq: 880, start: 0.30, end: 0.50 },
+    ];
+
+    notes.forEach((n) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.value = n.freq;
+      gain.gain.setValueAtTime(0.4, now + n.start);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + n.end);
+      osc.start(now + n.start);
+      osc.stop(now + n.end + 0.05);
+    });
+
+    console.warn("[NOTIF] notification sound OK");
+    setTimeout(() => { try { ctx.close(); } catch { /* */ } }, 800);
   } catch (e) {
-    console.warn("[NOTIF] beep fail:", e);
+    console.warn("[NOTIF] sound fail:", e);
   }
 }
 
@@ -221,7 +234,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
 
             // 1. Beep (every visitor message, once, immediately)
             if (isVisitorMessage) {
-              playBeep();
+              playNotificationSound();
             }
 
             // 2. Dispatch single unified event for PortalLayout badge + inbox list
@@ -302,7 +315,7 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
   }, []);
 
   const testSound = useCallback(() => {
-    playBeep();
+    playNotificationSound();
   }, []);
 
   const value: PortalInboxNotificationContextValue = {
