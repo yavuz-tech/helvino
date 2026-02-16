@@ -40,7 +40,8 @@ const CSP_COMMON_DIRECTIVES = [
   "font-src 'self' data: https://fonts.gstatic.com https://cdn.fontshare.com",
   // Next.js + Tailwind inject inline <style>; cannot remove 'unsafe-inline'.
   // Google Fonts + Fontshare serve CSS stylesheets that must be allowed.
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com",
+  // Helvion widget loader CSS is served from api.helvion.io/embed.css.
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com https://api.helvion.io",
   // Block <object>, <embed>, <applet>
   "object-src 'none'",
   // Restrict <base> to same-origin

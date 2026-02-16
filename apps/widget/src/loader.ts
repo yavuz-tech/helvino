@@ -32,6 +32,89 @@ let scrollLockState: ScrollLockState = null;
 let isOpen = false;
 let iframeLoaded = false;
 
+function isMobileViewport() {
+  return window.innerWidth <= 768;
+}
+
+function applyRootInlineStyle(root: HTMLElement) {
+  // If embed.css is blocked by CSP, ensure the root still behaves like Crisp/Tidio:
+  // fixed overlay anchor with pointer-events disabled (children are fixed too).
+  root.style.position = "fixed";
+  root.style.top = "0";
+  root.style.left = "0";
+  root.style.width = "0";
+  root.style.height = "0";
+  root.style.overflow = "visible";
+  root.style.zIndex = "2147483647";
+  root.style.pointerEvents = "none";
+}
+
+function applyLauncherInlineStyle(btn: HTMLButtonElement, root: HTMLElement) {
+  const primary = root.style.getPropertyValue("--primary-color")?.trim() || "#8B5CF6";
+  const dark = root.style.getPropertyValue("--primary-dark")?.trim() || "#7C3AED";
+  const mobile = isMobileViewport();
+  const size = mobile ? 56 : 60;
+  const right = mobile ? 16 : 20;
+  const bottom = mobile ? 16 : 20;
+
+  btn.style.pointerEvents = "auto";
+  btn.style.position = "fixed";
+  btn.style.right = `${right}px`;
+  btn.style.bottom = `${bottom}px`;
+  btn.style.width = `${size}px`;
+  btn.style.height = `${size}px`;
+  btn.style.borderRadius = "50%";
+  btn.style.border = "none";
+  btn.style.padding = "0";
+  btn.style.cursor = "pointer";
+  btn.style.color = "#fff";
+  btn.style.background = `linear-gradient(135deg, ${primary}, ${dark})`;
+  btn.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+  btn.style.display = "flex";
+  btn.style.alignItems = "center";
+  btn.style.justifyContent = "center";
+  btn.style.willChange = "transform, opacity";
+  btn.style.transform = "translateZ(0)";
+  (btn.style as any).webkitTransform = "translateZ(0)";
+}
+
+function applyWrapInlineStyle(wrap: HTMLElement) {
+  const mobile = isMobileViewport();
+
+  wrap.style.pointerEvents = "none"; // enabled only when open
+  wrap.style.position = "fixed";
+  wrap.style.background = "#fff";
+  wrap.style.overflow = "hidden";
+  wrap.style.zIndex = "2147483646";
+
+  if (mobile) {
+    wrap.style.top = "0";
+    wrap.style.left = "0";
+    wrap.style.right = "0";
+    wrap.style.bottom = "0";
+    wrap.style.width = "auto";
+    wrap.style.height = "auto";
+    wrap.style.borderRadius = "0";
+    wrap.style.boxShadow = "none";
+    wrap.style.transition = "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)";
+    wrap.style.transform = isOpen ? "translate3d(0,0,0)" : "translate3d(0,100%,0)";
+  } else {
+    wrap.style.right = "20px";
+    wrap.style.bottom = "96px";
+    wrap.style.width = "380px";
+    wrap.style.height = "600px";
+    wrap.style.minHeight = "400px";
+    wrap.style.maxHeight = "calc(100vh - 120px)";
+    wrap.style.borderRadius = "16px";
+    wrap.style.boxShadow = "0 8px 32px rgba(0,0,0,0.12)";
+    wrap.style.transformOrigin = "bottom right";
+    wrap.style.transition =
+      "opacity 250ms cubic-bezier(0.4,0,0.2,1), transform 250ms cubic-bezier(0.4,0,0.2,1)";
+    wrap.style.opacity = isOpen ? "1" : "0";
+    wrap.style.transform = isOpen ? "translate3d(0,0,0) scale(1)" : "translate3d(0,20px,0) scale(0.95)";
+  }
+}
+
 function clampHexColor(c: string | undefined | null): string | null {
   if (!c) return null;
   const s = String(c).trim();
@@ -96,6 +179,12 @@ function setOpen(root: HTMLElement, open: boolean) {
   if (launcher) launcher.setAttribute("aria-expanded", open ? "true" : "false");
   if (open) lockScrollIfMobile();
   else unlockScroll();
+
+  // Inline fallback for when embed.css is blocked by CSP.
+  // Keep open/close animations consistent.
+  applyWrapInlineStyle(wrap);
+  if (open) wrap.style.pointerEvents = "auto";
+  else wrap.style.pointerEvents = "none";
 }
 
 function buildFrameUrl() {
@@ -132,6 +221,8 @@ function createLauncher(root: HTMLElement) {
     }
     setOpen(root, !isOpen);
   });
+  // Inline fallback so launcher is visible even if CSS is blocked.
+  applyLauncherInlineStyle(btn, root);
   root.appendChild(btn);
 }
 
@@ -149,6 +240,8 @@ function createIframe(root: HTMLElement) {
   iframe.setAttribute("allow", "clipboard-write");
 
   wrap.appendChild(iframe);
+  // Inline fallback so the container positions correctly without CSS.
+  applyWrapInlineStyle(wrap);
   root.appendChild(wrap);
 }
 
@@ -207,10 +300,21 @@ function init() {
   }
 
   const root = ensureRoot();
+  applyRootInlineStyle(root);
   createIframe(root);
   createLauncher(root);
   setupPostMessageClose(root);
   hydrateTheme(root);
+
+  // Keep inline fallback in sync on resize/orientation changes.
+  window.addEventListener("resize", () => {
+    applyRootInlineStyle(root);
+    const wrap = root.querySelector(`.${IFRAME_WRAP_CLASS}`) as HTMLElement | null;
+    const btn = root.querySelector(`.${LAUNCHER_CLASS}`) as HTMLButtonElement | null;
+    if (btn) applyLauncherInlineStyle(btn, root);
+    if (wrap) applyWrapInlineStyle(wrap);
+    if (wrap) wrap.style.pointerEvents = isOpen ? "auto" : "none";
+  });
 
   // Global API
   const api = {
