@@ -540,22 +540,29 @@ html, body {
     margin: 0 0 6px;
   }
 
-  /* Footer: fixed just above the input bar on mobile */
+  /* Footer: fixed at the very bottom (below the input bar) like Crisp/Tidio */
   .widget-powered-by-v3 {
     position: fixed !important;
-    bottom: 50px; /* input bar height ~48px + small gap */
+    bottom: 0;
     left: 0;
     right: 0;
-    padding: 4px;
+    padding: 3px 8px;
+    padding-bottom: calc(3px + env(safe-area-inset-bottom, 0px));
     font-size: 10px;
-    background: rgba(255,255,255,0.95);
-    border-top: none;
-    z-index: 9;
+    background: #fff;
+    border-top: 1px solid rgba(0,0,0,0.04);
+    z-index: 11; /* above input bar (z:10) */
   }
 
-  /* Extra bottom padding on messages to account for footer + input bar */
+  /* Input bar sits just above the footer */
+  .chat-input-bar {
+    bottom: 22px !important; /* footer height ~22px */
+    padding-bottom: 8px !important;
+  }
+
+  /* Messages padding accounts for input bar + footer */
   .chat-messages {
-    padding-bottom: 90px;
+    padding-bottom: 84px;
   }
 }
 
