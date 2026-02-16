@@ -75,6 +75,7 @@ type UiCopy = {
   welcome: string;
   placeholder: string;
   starters: string[];
+  botAvatar: string;
 };
 
 function PoweredByHelvion() {
@@ -291,6 +292,7 @@ function App() {
           "🔧 Teknik destek istiyorum",
           "📦 Siparişimi takip etmek istiyorum",
         ],
+        botAvatar: "🤖",
       });
       return;
     }
@@ -370,6 +372,7 @@ function App() {
           normalize(ws.aiWelcome) ||
           normalize(ws.welcomeMessage) ||
           "Merhaba! 👋 Size nasıl yardımcı olabilirim?";
+        const botAvatar = normalize(ws.botAvatar) || "🤖";
 
         let starters: string[] = [];
         const startersRaw = ws.starters;
@@ -401,7 +404,7 @@ function App() {
         }
 
         // Set all UI copy at once to avoid partial render/flash.
-        setUi({ title, subtitle, welcome, placeholder, starters });
+        setUi({ title, subtitle, welcome, placeholder, starters, botAvatar });
       })
       .catch((err) => {
         console.error("[Widget v2] Bootloader failed:", err);
@@ -417,6 +420,7 @@ function App() {
               "🔧 Teknik destek istiyorum",
               "📦 Siparişimi takip etmek istiyorum",
             ],
+            botAvatar: "🤖",
           });
         }
       });
@@ -712,7 +716,7 @@ function App() {
         <>
           {/* HEADER */}
           <div className="hv-header">
-            <div className="hv-header-avatar">🤖</div>
+            <div className="hv-header-avatar">{ui.botAvatar}</div>
             <div className="hv-header-info">
               <div className="hv-header-title">{ui.title}</div>
               <div className="hv-header-subtitle">
@@ -745,7 +749,7 @@ function App() {
                 if (m.role === "agent") {
                   return (
                     <div key={m.id} className="hv-msg hv-msg-agent">
-                      <div className="hv-msg-avatar">🤖</div>
+                      <div className="hv-msg-avatar">{ui.botAvatar}</div>
                       <div className="hv-msg-bubble">
                         <div className="hv-msg-sender">
                           Helvion AI <span className="hv-badge-ai">AI</span>
