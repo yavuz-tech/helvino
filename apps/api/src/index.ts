@@ -57,6 +57,7 @@ import { emailRoutes } from "./routes/emails";
 import { organizationSettingsRoutes } from "./routes/organization-settings";
 import { waitlistRoutes } from "./routes/waitlist";
 import { embedRoutes } from "./routes/embed";
+import { widgetV2Routes } from "./routes/widget-v2";
 import { landingWidgetRoutes } from "./routes/landing-widget";
 import { upsertVisitor } from "./utils/visitor";
 import { requestContextPlugin } from "./plugins/request-context";
@@ -197,6 +198,8 @@ const corsPolicy = buildCorsPolicy(process.env.NODE_ENV, [
   "https://helvion.io",
   "https://www.helvion.io",
   "https://helvion-landing.pages.dev",
+  // Widget v2 dev server (frame runs here during dev)
+  "http://localhost:5173",
 ]);
 let corsWarned = false;
 let corsWildcardWarned = false;
@@ -438,6 +441,7 @@ fastify.register(organizationSettingsRoutes); // Organization-level toggles
 fastify.register(waitlistRoutes); // Public waitlist
 fastify.register(embedRoutes); // Widget embed.js (public)
 fastify.register(landingWidgetRoutes); // Landing widget config (admin + public)
+fastify.register(widgetV2Routes); // Widget v2 static assets (no auth)
 
 // Root info
 fastify.get("/", async () => {
