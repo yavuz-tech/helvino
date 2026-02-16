@@ -443,42 +443,27 @@
   flex-shrink: 0;
 }
 
-/* Portal preview input bar — matches WidgetPreviewRenderer.tsx exactly */
+/* ── Portal preview parity: Input bar ──
+   Source: WidgetPreviewRenderer.tsx lines 495-520
+   Container: border-t border-black/[0.04] bg-white px-3.5 py-3
+   Inner flex: gap-2 (8px)
+   Emoji btn: h-9 w-9 (36x36) rounded-lg border-black/[0.08]
+   Input: flex-1 rounded-lg border-black/[0.08] bg-[#FAFAF8] px-3 py-2.5
+   Send btn: h-9 w-9 (36x36) rounded-lg gradient
+*/
 .chat-input-bar {
   border-top: 1px solid rgba(0, 0, 0, 0.04);
   background: #ffffff;
-  padding: 12px 14px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
+  padding: 14px;
   flex-shrink: 0;
   position: relative;
   z-index: 1;
 }
-.chat-input-bar input {
-  flex: 1;
-  min-width: 0;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 8px;
-  background: #FAFAF8;
-  padding: 10px 12px;
-  outline: none;
-  font-size: 12.5px;
-  color: #1A1D23;
-  font-family: inherit;
+.chat-input-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.chat-input-bar input:focus { border-color: rgba(0, 0, 0, 0.15); }
-.chat-input-bar input::placeholder { color: #94A3B8; }
-.chat-attach-btn {
-  font-size: 14px;
-  cursor: pointer;
-  color: #CBD5E1;
-  background: transparent;
-  border: none;
-  padding: 0;
-  flex-shrink: 0;
-}
-.chat-attach-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .chat-emoji-btn {
   flex-shrink: 0;
   width: 36px;
@@ -493,6 +478,33 @@
   justify-content: center;
 }
 .chat-emoji-btn:hover { background: rgba(0, 0, 0, 0.03); }
+.chat-input-bar input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: #FAFAF8;
+  padding: 10px 12px;
+  outline: none;
+  font-size: 12.5px;
+  color: #1A1D23;
+  font-family: inherit;
+}
+.chat-input-bar input[type="text"]:focus { border-color: rgba(0, 0, 0, 0.15); }
+.chat-input-bar input[type="text"]::placeholder { color: #94A3B8; }
+.chat-attach-btn {
+  font-size: 16px;
+  cursor: pointer;
+  color: #CBD5E1;
+  background: transparent;
+  border: none;
+  padding: 0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chat-attach-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .chat-send-btn {
   width: 36px;
   height: 36px;
@@ -527,13 +539,15 @@
   color: rgba(255, 255, 255, 0.9);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
+/* Portal: border-t px-[14px] py-[11px], bg gradient(rgba(255,251,235,...)) */
 .widget-powered-by-v3 {
-  padding: 8px 14px;
+  padding: 11px 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: #ffffff;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  background: linear-gradient(180deg, rgba(255, 251, 235, 0.2), rgba(255, 251, 235, 0.5));
 }
 .widget-powered-by-brand {
   font-weight: 800;
@@ -600,36 +614,61 @@
 
 /* ═══════════════════════════════════════════════
    TYPING INDICATOR — portal preview parity
+   Three dots (●●●) with staggered pulse animation
    ═══════════════════════════════════════════════ */
-.typing-preview {
+.typing-indicator-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.typing-indicator-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 12px;
-  border-radius: 10px;
-  background: #F3F4F6;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--ac, #8B5CF6), var(--ad, #7C3AED));
+  color: #FFF;
+  font-size: 10px;
+  font-weight: 800;
+}
+.typing-bubble {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 16px 16px 16px 2px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   width: fit-content;
-  margin-top: 6px;
 }
 .typing-dots {
   display: flex;
-  gap: 3px;
+  gap: 4px;
+  align-items: center;
 }
 .typing-dot {
-  width: 5px;
-  height: 5px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: #94A3B8;
-  animation: typingPulse 1s infinite;
+  background: var(--ac, #8B5CF6);
+  opacity: 0.4;
+  animation: typingBounce 1.4s infinite ease-in-out;
 }
+.typing-dot:nth-child(1) { animation-delay: 0s; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
 .typing-label {
-  font-size: 9px;
+  font-size: 11px;
   color: #94A3B8;
+  font-weight: 500;
 }
-@keyframes typingPulse {
-  0%   { transform: translateY(0); opacity: 0.75; }
-  50%  { transform: translateY(-2px); opacity: 1; }
-  100% { transform: translateY(0); opacity: 0.75; }
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30%            { transform: translateY(-4px); opacity: 1; }
 }
 
 /* ── AI Help Prompt (offline) ── */

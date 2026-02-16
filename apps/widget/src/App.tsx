@@ -67,7 +67,8 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "refreshing" | "error" | null>(null);
   const [agentTyping, setAgentTyping] = useState(false);
-  const [aiTyping, setAiTyping] = useState(false); // Distinguish AI vs human typing
+  const [_aiTyping, setAiTyping] = useState(false); // Distinguish AI vs human typing (reserved for future use)
+  void _aiTyping;
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const agentTypingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -340,7 +341,7 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
           setAgentTyping(true);
           setAiTyping(Boolean(data.isAI));
           if (agentTypingTimerRef.current) clearTimeout(agentTypingTimerRef.current);
-          agentTypingTimerRef.current = setTimeout(() => { setAgentTyping(false); setAiTyping(false); }, 8000);
+          agentTypingTimerRef.current = setTimeout(() => { setAgentTyping(false); setAiTyping(false); }, 3000);
         }
       });
       socketRef.current.on("agent:typing:stop", (data: { conversationId: string }) => {
@@ -481,14 +482,14 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
     }
   };
 
-  // Emit typing events to server
+  // Emit typing events to server — debounce 500ms, auto-stop after 2s idle
   const emitTyping = () => {
     if (!socketRef.current || !conversationIdRef.current) return;
     socketRef.current.emit("typing:start", { conversationId: conversationIdRef.current });
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     typingTimerRef.current = setTimeout(() => {
       socketRef.current?.emit("typing:stop", { conversationId: conversationIdRef.current });
-    }, 1500);
+    }, 2000);
   };
 
   // Don't render if bootloader failed or widget is disabled
@@ -769,15 +770,15 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
             className={`chat-window ${isLoginContext ? "auth-mode" : isLeftV3 ? "position-left" : "position-right"}`}
             style={{ width: widgetDim.w, height: widgetDim.h, zIndex: 2147483646 }}
           >
-          <div className="chat-header-v3" style={{ background: ag, position: "relative", overflow: "hidden", padding: "18px 16px 14px" }}>
-            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 85% 15%, rgba(255,255,255,0.12), transparent 60%)" }} />
+          <div className="chat-header-v3" style={{ background: ag, position: "relative", overflow: "hidden", padding: 18 }}>
+            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 80% 20%, rgba(255,255,255,0.12), transparent 60%)" }} />
             <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 38, height: 38, borderRadius: 11, background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, border: "1px solid rgba(255,255,255,0.15)" }}>{botAvatar}</div>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(255,255,255,0.2)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, border: "1px solid rgba(255,255,255,0.1)" }}>{botAvatar}</div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: "#FFF" }}>{headerText}</div>
-                  <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", gap: 4 }}>
-                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80" }} />{subText}
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#FFF" }}>{headerText}</div>
+                  <div style={{ marginTop: 2, fontSize: 11, color: "rgba(255,255,255,0.7)", display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ADE80", boxShadow: "0 0 6px rgba(74,222,128,0.5)", display: "inline-block" }} />{subText}
                   </div>
                 </div>
               </div>
@@ -807,23 +808,28 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
             )}
             {messages.length === 0 ? (
               <div className="widget-home-view">
-                <div style={{ textAlign: "center", padding: "16px 12px 8px" }}>
-                  <p style={{ fontWeight: 700, fontSize: 15, color: "#1A1D23", marginBottom: 4 }}>{headerText}</p>
-                  <p style={{ fontSize: 12.5, color: "#64748B" }}>{welcomeMsg}</p>
+                <div style={{ textAlign: "center", padding: "22px 18px 0" }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 12, background: `${ac}1F`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21, margin: "0 auto 10px" }}>💬</div>
+                  <h4 style={{ fontWeight: 700, fontSize: 18, color: "#1A1D23", marginBottom: 4 }}>{headerText}</h4>
+                  <p style={{ fontWeight: 500, fontSize: 13, color: "#94A3B8" }}>{welcomeMsg}</p>
                 </div>
-                {activeStarters.length > 0 && (
-                  <div style={{ padding: "8px 14px" }}>
-                    {activeStarters.slice(0, 4).map((st: any) => (
-                      <div
-                        key={st.id}
-                        onClick={() => { setInputValue(st.text.replace(/^[^\s]+\s/, "")); }}
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 12px", borderRadius: 10, marginBottom: 6, background: "#FAFAF8", border: "1px solid #F1F5F9", cursor: "pointer", fontSize: 12.5, fontWeight: 500, color: "#1A1D23", transition: "all 0.2s" }}
-                      >
-                        {st.text}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "12px 14px 14px" }}>
+                  {activeStarters.length > 0 && activeStarters.slice(0, 4).map((st: any) => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => { setInputValue(st.text.replace(/^[^\s]+\s/, "")); }}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 12px", borderRadius: 12, background: "#ffffff", border: "1px solid rgba(0,0,0,0.05)", cursor: "pointer", textAlign: "left", transition: "all 0.15s", width: "100%" }}
+                    >
+                      <span style={{ width: 34, height: 34, borderRadius: 9, background: `${ac}14`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
+                        {st.text.match(/^(\S+)/)?.[1] || "💬"}
+                      </span>
+                      <span style={{ fontWeight: 600, fontSize: 12.5, color: "#1A1D23" }}>
+                        {st.text.replace(/^[^\s]+\s/, "")}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               <>
@@ -880,13 +886,18 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
               </div>
             )}
             {typingIndicatorEnabled && agentTyping && (
-              <div className="typing-preview">
-                <div className="typing-dots">
-                  {[0, 1, 2].map((d) => (
-                    <div key={d} className="typing-dot" style={{ animationDelay: `${d * 0.2}s` }} />
-                  ))}
+              <div className="typing-indicator-row">
+                <div className="typing-indicator-avatar" aria-hidden="true">
+                  {botAvatar || "AI"}
                 </div>
-                <span className="typing-label">{aiTyping ? "yazıyor..." : "yazıyor..."}</span>
+                <div className="typing-bubble">
+                  <div className="typing-dots">
+                    <div className="typing-dot" />
+                    <div className="typing-dot" />
+                    <div className="typing-dot" />
+                  </div>
+                  <span className="typing-label">{lang === "tr" ? "yazıyor..." : lang === "es" ? "escribiendo..." : "typing..."}</span>
+                </div>
               </div>
             )}
           </div>
@@ -897,25 +908,18 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
             </div>
           ) : (
             <div className="chat-input-bar">
-              {/* Hidden file input (icon is visible if enabled) */}
+              {/* Hidden file input */}
               <input
                 ref={fileInputRef}
                 type="file"
                 style={{ display: "none" }}
                 onChange={(e) => {
-                  // Feature parity: show picker; server upload not implemented yet.
                   if (e.target.files && e.target.files.length > 0) {
                     console.warn("[Widget] File selected but upload not implemented yet:", e.target.files[0]?.name);
                   }
                   e.target.value = "";
                 }}
               />
-
-              {showEmojiPicker && (
-                <button className="chat-emoji-btn" onClick={() => setEmojiOpen((v) => !v)} aria-label="Emoji" type="button">
-                  😊
-                </button>
-              )}
               {showEmojiPicker && emojiOpen && (
                 <div className="chat-emoji-picker">
                   {recentEmojis.length > 0 && recentEmojis.map((e, i) => (
@@ -926,43 +930,55 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
                   ))}
                 </div>
               )}
-              <input
-                ref={inputRef}
-                type="text"
-                placeholder={chatInputPlaceholder}
-                value={inputValue}
-                onChange={(e) => { setInputValue(e.target.value); emitTyping(); }}
-                onKeyPress={handleKeyPress}
-                disabled={isLoading || !conversationId}
-              />
-              {fileUploadEnabled && (
-                <button
-                  type="button"
-                  className="chat-attach-btn"
-                  aria-label="Attach file"
-                  onClick={() => fileInputRef.current?.click()}
+              <div className="chat-input-bar-inner">
+                {showEmojiPicker && (
+                  <button className="chat-emoji-btn" onClick={() => setEmojiOpen((v) => !v)} aria-label="Emoji" type="button">
+                    😀
+                  </button>
+                )}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  placeholder={chatInputPlaceholder}
+                  value={inputValue}
+                  onChange={(e) => { setInputValue(e.target.value); emitTyping(); }}
+                  onKeyPress={handleKeyPress}
                   disabled={isLoading || !conversationId}
+                />
+                {fileUploadEnabled && (
+                  <button
+                    type="button"
+                    className="chat-attach-btn"
+                    aria-label="Attach file"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isLoading || !conversationId}
+                  >
+                    📎
+                  </button>
+                )}
+                <button
+                  onClick={handleSend}
+                  disabled={isLoading || !conversationId || !inputValue.trim()}
+                  className="chat-send-btn"
                 >
-                  📎
+                  {isLoading ? "..." : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>}
                 </button>
-              )}
-              <button
-                onClick={handleSend}
-                disabled={isLoading || !conversationId || !inputValue.trim()}
-                className="chat-send-btn"
-              >
-                {isLoading ? "..." : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>}
-              </button>
+              </div>
             </div>
           )}
 
           {(brandingRequired || showBrandingFlag) && (
-            <div className="widget-powered-by-v3" style={{ borderTop: `1px solid rgba(${acRgb}, 0.06)` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 12px 4px 8px", borderRadius: 20, background: `rgba(${acRgb}, 0.04)` }}>
-                <div style={{ width: 16, height: 16, borderRadius: 5, background: ag, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/></svg>
+            <div className="widget-powered-by-v3">
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 14, height: 14, borderRadius: 4, background: `linear-gradient(135deg, ${ac}, ${ad})`, boxShadow: `0 1px 4px rgba(${acRgb}, 0.3)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontWeight: 900, fontSize: 7, color: "#FFF" }}>H</span>
                 </div>
-                <span style={{ fontSize: 10.5, fontWeight: 600, color: "#9CA3AF" }}>Powered by <a href={HELVINO_SITE_URL} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 800, color: ac, textDecoration: "none" }}>{APP_NAME}</a></span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#92400E" }}>
+                  Powered by{" "}
+                  <a href={HELVINO_SITE_URL} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 800, color: "#92400E", textDecoration: "none" }}>
+                    {APP_NAME}
+                  </a>
+                </span>
               </div>
             </div>
           )}
