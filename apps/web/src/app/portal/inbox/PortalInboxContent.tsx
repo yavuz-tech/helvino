@@ -1351,7 +1351,7 @@ export default function PortalInboxContent() {
                   active
                     ? "bg-blue-50/80 ring-1 ring-blue-200/60 shadow-sm"
                     : hasUnread
-                      ? "bg-white hover:bg-emerald-50/40 animate-pulse-green"
+                      ? "bg-white hover:bg-red-50/40 animate-pulse-green inbox-unread-dot inbox-item-flash"
                       : "hover:bg-slate-50/60"
                 }`}>
                 {/* Active indicator bar */}
@@ -1373,7 +1373,7 @@ export default function PortalInboxContent() {
                       {getInitials(name)}
                     </div>
                     {hasUnread && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white shadow-sm shadow-emerald-500/40 bell-dot" />
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-sm shadow-red-500/40 bell-dot" />
                     )}
                   </div>
 
@@ -1418,7 +1418,7 @@ export default function PortalInboxContent() {
 
                   {/* Unread badge */}
                   {hasUnread && conv.messageCount > 0 && (
-                    <span className="mt-1 min-w-[22px] h-[22px] px-1.5 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 shadow-sm shadow-emerald-500/30 bell-dot">
+                    <span className="mt-1 min-w-[22px] h-[22px] px-1.5 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 shadow-sm shadow-red-500/30 bell-dot">
                       {conv.messageCount > 99 ? "99+" : conv.messageCount}
                     </span>
                   )}

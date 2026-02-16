@@ -294,23 +294,61 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
             if (isVisitorMessage && soundEnabledRef.current) {
               console.warn("[Portal Notification] playing sound");
               safePlayInboxSound();
+
+              // Repeat sound every 10s while unfocused (max 5 times)
+              if (typeof document !== "undefined" && !document.hasFocus()) {
+                let repeatCount = 0;
+                const repeatInterval = setInterval(() => {
+                  try {
+                    if (document.hasFocus() || repeatCount >= 5) {
+                      clearInterval(repeatInterval);
+                      return;
+                    }
+                    if (soundEnabledRef.current) {
+                      safePlayInboxSound();
+                    }
+                    repeatCount++;
+                  } catch {
+                    clearInterval(repeatInterval);
+                  }
+                }, 10_000);
+                // Stop repeating on focus
+                const stopOnFocus = () => {
+                  clearInterval(repeatInterval);
+                  window.removeEventListener("focus", stopOnFocus);
+                };
+                window.addEventListener("focus", stopOnFocus);
+              }
             }
 
-            // Desktop notification
+            // Desktop notification — auto-request permission on first visitor message
             try {
-              if (isVisitorMessage && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-                const n = new Notification("New message", {
-                  body: preview || "New message in conversation",
-                  tag: conversationId,
-                  icon: "/favicon.ico",
-                });
-                n.onclick = () => {
-                  try {
-                    window.focus();
-                    n.close();
-                    router.push(`/portal/inbox?c=${conversationId}`);
-                  } catch { /* */ }
-                };
+              if (isVisitorMessage && typeof window !== "undefined" && "Notification" in window) {
+                if (Notification.permission === "default") {
+                  Notification.requestPermission().then((perm) => {
+                    if (perm === "granted") {
+                      const n = new Notification("Yeni mesaj - Helvion", {
+                        body: preview || "Ziyaretçi yeni mesaj gönderdi",
+                        tag: conversationId,
+                        icon: "/favicon.ico",
+                      });
+                      n.onclick = () => { try { window.focus(); n.close(); router.push(`/portal/inbox?c=${conversationId}`); } catch { /* */ } };
+                    }
+                  }).catch(() => {});
+                } else if (Notification.permission === "granted") {
+                  const n = new Notification("Yeni mesaj - Helvion", {
+                    body: preview || "Ziyaretçi yeni mesaj gönderdi",
+                    tag: conversationId,
+                    icon: "/favicon.ico",
+                  });
+                  n.onclick = () => {
+                    try {
+                      window.focus();
+                      n.close();
+                      router.push(`/portal/inbox?c=${conversationId}`);
+                    } catch { /* */ }
+                  };
+                }
               }
             } catch { /* notification failed, no crash */ }
 

@@ -65,25 +65,57 @@ body, p, span, div, input, button, label {
   }
 }
 
-/* ── Unread conversation: pulsing green glow (inbox list) ── */
-@keyframes pulse-green {
+/* ── Unread conversation: pulsing red glow (inbox list) ── */
+@keyframes inbox-pulse-red {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-    background-color: rgba(34, 197, 94, 0.1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+    background-color: rgba(239, 68, 68, 0.04);
   }
   50% {
-    box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
-    background-color: rgba(34, 197, 94, 0.3);
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+    background-color: rgba(239, 68, 68, 0.10);
   }
 }
 
 .animate-pulse-green {
-  animation: pulse-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  border: 2px solid #22c55e;
+  animation: inbox-pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* ── Red pulsing dot on unread conversations ── */
+@keyframes inbox-dot-pulse {
+  0%, 100% { opacity: 1; transform: translateY(-50%) scale(1); }
+  50% { opacity: 0.5; transform: translateY(-50%) scale(1.4); }
+}
+
+.inbox-unread-dot::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  background: #EF4444;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  animation: inbox-dot-pulse 2s ease-in-out infinite;
+  z-index: 10;
+}
+
+/* ── Flash animation for newly arrived messages ── */
+@keyframes inbox-flash {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(239, 68, 68, 0.08); }
+}
+
+.inbox-item-flash {
+  animation: inbox-flash 0.5s ease 3;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-pulse-green {
+  .animate-pulse-green,
+  .inbox-unread-dot::before,
+  .inbox-item-flash {
     animation: none;
   }
 }

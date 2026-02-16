@@ -242,37 +242,77 @@ export default function PortalLayout({
   const normalizedPlanKey = (currentPlanKey || "").trim().toLowerCase();
   const showSidebarUpgradeCta = normalizedPlanKey === "free";
 
-  // Show unread count in the browser tab title (portal-wide).
-  // Matches requested format: "(1) Gelen Kutusu - Helvion"
+  // ── Tab title flash: blink until page gets focus ──
+  const titleFlashRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const soundRepeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const soundRepeatCountRef = useRef(0);
+  const originalTitleRef = useRef("Helvion");
+
+  const stopTitleFlash = useCallback(() => {
+    if (titleFlashRef.current) {
+      clearInterval(titleFlashRef.current);
+      titleFlashRef.current = null;
+    }
+    if (soundRepeatRef.current) {
+      clearInterval(soundRepeatRef.current);
+      soundRepeatRef.current = null;
+    }
+    soundRepeatCountRef.current = 0;
+    try {
+      document.title = originalTitleRef.current;
+    } catch { /* */ }
+  }, []);
+
+  const startTitleFlash = useCallback((count: number) => {
+    if (typeof document === "undefined") return;
+    if (titleFlashRef.current) return;
+    let show = true;
+    const base = originalTitleRef.current;
+    titleFlashRef.current = setInterval(() => {
+      try {
+        document.title = show
+          ? `\uD83D\uDD34 (${count}) Yeni mesaj! - Helvion`
+          : base;
+        show = !show;
+      } catch { /* */ }
+    }, 1000);
+  }, []);
+
   useEffect(() => {
     try {
       if (typeof document === "undefined") return;
-      const base = "Gelen Kutusu - Helvion";
-      document.title = unreadCount > 0 ? `(${unreadCount}) ${base}` : base;
-    } catch {
-      // non-fatal
-    }
-  }, [unreadCount]);
+      const base = "Helvion";
+      originalTitleRef.current = base;
+      if (unreadCount > 0) {
+        document.title = `(${unreadCount}) Gelen Kutusu - Helvion`;
+        if (!document.hasFocus()) {
+          startTitleFlash(unreadCount);
+        }
+      } else {
+        stopTitleFlash();
+        document.title = base;
+      }
+    } catch { /* */ }
+  }, [unreadCount, startTitleFlash, stopTitleFlash]);
 
   // Update unread count instantly on socket events, and clear on focus.
   useEffect(() => {
     const onInc = () => setUnreadCount((c) => (Number.isFinite(c) ? c + 1 : 1));
-    const onFocus = () => setUnreadCount(0);
+    const onFocus = () => {
+      setUnreadCount(0);
+      stopTitleFlash();
+    };
     try {
       window.addEventListener("portal-inbox-unread-increment", onInc);
       window.addEventListener("focus", onFocus);
-    } catch {
-      // ignore
-    }
+    } catch { /* */ }
     return () => {
       try {
         window.removeEventListener("portal-inbox-unread-increment", onInc);
         window.removeEventListener("focus", onFocus);
-      } catch {
-        // ignore
-      }
+      } catch { /* */ }
     };
-  }, []);
+  }, [stopTitleFlash]);
 
   const fetchWidgetSettings = useCallback(async () => {
     try {
