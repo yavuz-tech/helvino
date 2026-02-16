@@ -81,13 +81,11 @@ function applyLauncherInlineStyle(btn: HTMLButtonElement, root: HTMLElement) {
   btn.style.cursor = "pointer";
   btn.style.color = "#fff";
   btn.style.background = `linear-gradient(135deg, ${primary}, ${dark})`;
-  btn.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+  btn.style.boxShadow = "0 4px 14px rgba(0,0,0,0.18)";
   btn.style.display = "flex";
   btn.style.alignItems = "center";
   btn.style.justifyContent = "center";
-  btn.style.willChange = "transform, opacity";
-  btn.style.transform = "translateZ(0)";
-  (btn.style as any).webkitTransform = "translateZ(0)";
+  btn.style.zIndex = "2147483647";
 }
 
 function applyWrapInlineStyle(wrap: HTMLElement) {
@@ -99,6 +97,7 @@ function applyWrapInlineStyle(wrap: HTMLElement) {
   wrap.style.overflow = "hidden";
   wrap.style.zIndex = "2147483646";
 
+  // Use opacity-only transitions — NO transform, which breaks position:fixed on mobile.
   if (mobile) {
     wrap.style.top = "0";
     wrap.style.left = "0";
@@ -109,8 +108,8 @@ function applyWrapInlineStyle(wrap: HTMLElement) {
     wrap.style.height = "100%";
     wrap.style.borderRadius = "0";
     wrap.style.boxShadow = "none";
-    wrap.style.transition = "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)";
-    wrap.style.transform = isOpen ? "translate3d(0,0,0)" : "translate3d(0,100%,0)";
+    wrap.style.transition = "opacity 200ms ease";
+    wrap.style.opacity = isOpen ? "1" : "0";
   } else {
     wrap.style.right = "20px";
     wrap.style.bottom = "96px";
@@ -120,11 +119,8 @@ function applyWrapInlineStyle(wrap: HTMLElement) {
     wrap.style.maxHeight = "calc(100vh - 120px)";
     wrap.style.borderRadius = "16px";
     wrap.style.boxShadow = "0 8px 32px rgba(0,0,0,0.12)";
-    wrap.style.transformOrigin = "bottom right";
-    wrap.style.transition =
-      "opacity 250ms cubic-bezier(0.4,0,0.2,1), transform 250ms cubic-bezier(0.4,0,0.2,1)";
+    wrap.style.transition = "opacity 250ms cubic-bezier(0.4,0,0.2,1)";
     wrap.style.opacity = isOpen ? "1" : "0";
-    wrap.style.transform = isOpen ? "translate3d(0,0,0) scale(1)" : "translate3d(0,20px,0) scale(0.95)";
   }
 }
 
