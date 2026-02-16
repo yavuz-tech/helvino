@@ -858,7 +858,15 @@ function App({ externalIsOpen, onOpenChange }: AppProps = {}) {
         <div className={isLoginContext ? "widget-auth-overlay" : undefined}>
           <div
             className={`chat-window ${isLoginContext ? "auth-mode" : isLeftV3 ? "position-left" : "position-right"}`}
-            style={{ width: widgetDim.w, height: widgetDim.h, zIndex: 2147483646 }}
+            style={(() => {
+              // CRITICAL: On mobile, inline width/height breaks keyboard-aware CSS.
+              // Let CSS (fixed inset + --kb-height) control the sizing.
+              const isMobile =
+                typeof window !== "undefined" ? window.innerWidth <= 640 : false;
+              return isMobile
+                ? ({ zIndex: 2147483646 } as React.CSSProperties)
+                : ({ width: widgetDim.w, height: widgetDim.h, zIndex: 2147483646 } as React.CSSProperties);
+            })()}
           >
           <div className="chat-header-v3" style={{ background: ag, position: "relative", overflow: "hidden", padding: 18 }}>
             <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 80% 20%, rgba(255,255,255,0.12), transparent 60%)" }} />
