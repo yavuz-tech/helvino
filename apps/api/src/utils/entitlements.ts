@@ -298,6 +298,13 @@ export async function checkConversationEntitlement(
     };
   }
 
+  // Product rule:
+  // Free plan must NOT block manual customer conversations (to avoid losing leads).
+  // We still track usage, but we don't hard-block conversations/messages for free tier.
+  if (org.planKey === "free") {
+    return { allowed: true };
+  }
+
   // Check plan limits (plan base + extra quota from admin grants)
   const monthKey = getMonthKey();
   const usage = await prisma.usage.findUnique({
@@ -383,6 +390,13 @@ export async function checkMessageEntitlement(
       error: t(loc, "plan.subscriptionInactive"),
       code: "SUBSCRIPTION_INACTIVE",
     };
+  }
+
+  // Product rule:
+  // Free plan must NOT block manual customer messages (to avoid losing leads).
+  // We still track usage, but we don't hard-block messages for free tier.
+  if (org.planKey === "free") {
+    return { allowed: true };
   }
 
   const monthKey = getMonthKey();
@@ -499,6 +513,10 @@ async function getOrgMeteringContext(orgId: string) {
 export async function checkM1Entitlement(orgId: string): Promise<EntitlementResult> {
   const ctx = await getOrgMeteringContext(orgId);
   if (!ctx) return { allowed: true };
+  // Product rule: never block manual replies for free tier.
+  if (ctx.org.planKey === "free") {
+    return { allowed: true, used: ctx.usage.m1Count ?? 0, resetAt: ctx.usage.nextResetDate };
+  }
   const used = ctx.usage.m1Count ?? 0;
   const limit = ctx.limits.m1LimitPerMonth;
   if (limit === null || limit <= 0) {

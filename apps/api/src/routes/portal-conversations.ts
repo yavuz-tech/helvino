@@ -19,7 +19,7 @@ import { requireStepUp } from "../middleware/require-step-up";
 import { rateLimit } from "../middleware/rate-limiter";
 import { writeAuditLog } from "../utils/audit-log";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
-import { checkMessageEntitlement, checkM2Entitlement, recordMessageUsage, recordM2Usage } from "../utils/entitlements";
+import { checkMessageEntitlement, checkM1Entitlement, recordMessageUsage, recordM1Usage } from "../utils/entitlements";
 import { validateJsonContentType } from "../middleware/validation";
 import { runWorkflowsForTrigger } from "../utils/workflow-engine";
 import { validateBody } from "../utils/validate";
@@ -621,13 +621,14 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
           error: { code: entitlement.code || "QUOTA_EXCEEDED", message: entitlement.error || "Plan limit exceeded", requestId },
         });
       }
-      const m2Entitlement = await checkM2Entitlement(actor.orgId);
-      if (!m2Entitlement.allowed) {
+      // Manual agent replies should count as M1 (human), not M2 (AI).
+      const m1Entitlement = await checkM1Entitlement(actor.orgId);
+      if (!m1Entitlement.allowed) {
         return reply.status(402).send({
           error: {
-            code: "QUOTA_M2_EXCEEDED",
-            message: m2Entitlement.error || "M2 quota exceeded",
-            resetAt: m2Entitlement.resetAt || null,
+            code: "QUOTA_M1_EXCEEDED",
+            message: m1Entitlement.error || "M1 quota exceeded",
+            resetAt: m1Entitlement.resetAt || null,
             requestId,
           },
         });
@@ -644,7 +645,7 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
       (fastify as any).io?.to(`conv:${id}`).emit("message:new", { conversationId: id, message });
 
       await recordMessageUsage(actor.orgId);
-      recordM2Usage(actor.orgId).catch(() => {});
+      recordM1Usage(actor.orgId).catch(() => {});
 
       writeAuditLog(
         actor.orgId,
