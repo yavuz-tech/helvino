@@ -721,6 +721,17 @@ fastify.post<{
           try {
             const sanitized = sanitizeHTML(String(text || "")).trim();
             if (!sanitized) return;
+            // Avoid spamming the same system/fallback message repeatedly.
+            // If the last assistant message equals this text, do nothing.
+            try {
+              const existing = await store.getMessages(id);
+              const last = existing && existing.length ? existing[existing.length - 1] : null;
+              if (last && last.role === "assistant" && String(last.content || "").trim() === sanitized) {
+                return;
+              }
+            } catch {
+              // ignore read failures
+            }
             const m = await store.addMessage(id, org.id, "assistant", sanitized);
             if (!m) return;
             fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message: m });
@@ -730,26 +741,32 @@ fastify.post<{
           }
         };
 
+        const getNoAiVisitorMessage = (): string => {
+          // Keep visitor copy professional; do NOT mention internal quota/plan codes (M2, etc.).
+          // We rely on portal UI + logs for details.
+          const lang = (org as any)?.language;
+          const isTr = typeof lang === "string" && lang.toLowerCase().startsWith("tr");
+          return isTr
+            ? "Su anda otomatik yanit veremiyoruz. Ekibimiz en kisa surede size geri donecek. Isterseniz e-posta veya telefon numaranizi birakabilirsiniz."
+            : "We can't send an automated reply right now. Our team will get back to you shortly. You can leave your email or phone number.";
+        };
+
         // Check AI quota before generating response
         const quota = await checkAiQuota(org.id);
         if (quota.exceeded) {
           console.warn(`[AI] Quota exceeded for org ${org.id}: ${quota.used}/${quota.limit}`);
           // Avoid silent failure: tell the visitor why there is no AI reply.
-          await emitAssistantToConversation(
-            `AI kotaniz bu ay doldu (AI: ${quota.used}/${quota.limit}). Portal uzerinden planinizi yukselterek devam edebilirsiniz.`
-          );
+          await emitAssistantToConversation(getNoAiVisitorMessage());
           return;
         }
 
         // Check M2 entitlement before generating AI response
         const m2Check = await checkM2Entitlement(org.id);
         if (!m2Check.allowed) {
-          const used = typeof m2Check.used === "number" ? m2Check.used : 0;
-          const limit = typeof m2Check.limit === "number" ? m2Check.limit : 0;
-          const resetAt = typeof m2Check.resetAt === "string" && m2Check.resetAt ? ` Sifirlama: ${m2Check.resetAt}.` : "";
-          await emitAssistantToConversation(
-            `AI plan limitiniz doldu (M2: ${used}/${limit}). Portal uzerinden planinizi yukselterek devam edebilirsiniz.${resetAt}`
+          console.warn(
+            `[AI] M2 entitlement blocked for org ${org.id}: ${m2Check.code || "M2_BLOCKED"} ${m2Check.used ?? "?"}/${m2Check.limit ?? "?"}`
           );
+          await emitAssistantToConversation(getNoAiVisitorMessage());
           return;
         }
 
