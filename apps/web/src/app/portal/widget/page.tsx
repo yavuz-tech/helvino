@@ -25,6 +25,575 @@ interface WidgetConfig {
   requestId?: string;
 }
 
+type InstallPlatformId =
+  | "html"
+  | "wordpress"
+  | "react"
+  | "vue"
+  | "shopify"
+  | "wix"
+  | "webflow"
+  | "gtm";
+
+type InstallPlatform = {
+  id: InstallPlatformId;
+  name: string;
+  letter: string;
+  color: string;
+};
+
+const CARD_STYLE: React.CSSProperties = {
+  background: "#fff",
+  border: "1px solid #E8E5DE",
+  borderRadius: 14,
+  padding: "20px 24px",
+};
+
+const CARD_TITLE_STYLE: React.CSSProperties = {
+  fontFamily: "var(--font-heading)",
+  fontSize: 16,
+  fontWeight: 800,
+  lineHeight: 1.2,
+  color: "#292524",
+};
+
+const CARD_SUBTITLE_STYLE: React.CSSProperties = {
+  marginTop: 6,
+  fontFamily: "var(--font-body)",
+  fontSize: 13,
+  color: "#78716C",
+};
+
+const CODE_BLOCK_STYLE: React.CSSProperties = {
+  background: "#1C1917",
+  border: "1px solid #292524",
+  borderRadius: 12,
+  padding: 16,
+  overflow: "hidden",
+  position: "relative",
+  boxShadow: "0 6px 24px rgba(0,0,0,0.10)",
+};
+
+const CODE_PRE_STYLE: React.CSSProperties = {
+  margin: 0,
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'JetBrains Mono', 'Liberation Mono', monospace",
+  fontSize: 12.5,
+  lineHeight: 1.55,
+  color: "#E7E5E4",
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+};
+
+const INSTALL_PLATFORMS: InstallPlatform[] = [
+  { id: "html", name: "HTML", letter: "H", color: "#E44D26" },
+  { id: "wordpress", name: "WordPress", letter: "W", color: "#21759B" },
+  { id: "react", name: "React / Next.js", letter: "R", color: "#61DAFB" },
+  { id: "vue", name: "Vue / Nuxt", letter: "V", color: "#42B883" },
+  { id: "shopify", name: "Shopify", letter: "S", color: "#96BF48" },
+  { id: "wix", name: "Wix", letter: "X", color: "#FAAD4D" },
+  { id: "webflow", name: "Webflow", letter: "F", color: "#4353FF" },
+  { id: "gtm", name: "GTM", letter: "G", color: "#4285F4" },
+];
+
+function InstallationGuide({
+  embedHtml,
+  scriptSrc,
+  siteId,
+}: {
+  embedHtml: string;
+  scriptSrc: string;
+  siteId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [platform, setPlatform] = useState<InstallPlatformId>("html");
+
+  useEffect(() => {
+    console.warn("WIDGET-SETUP: InstallationGuide rendered");
+  }, []);
+
+  const activePlatform = INSTALL_PLATFORMS.find((p) => p.id === platform) || INSTALL_PLATFORMS[0]!;
+
+  const embedForEcho = (embedHtml || "").trim() || "[standart embed kodu]";
+  const cdnUrl = (scriptSrc || "").trim() || "[CDN_URL]";
+
+  const platformCode = (() => {
+    if (platform === "wordpress") {
+      return [
+        "// functions.php EN SONUNA ekleyin",
+        "function helvion_chat_widget() {",
+        `  echo '${embedForEcho.replace(/'/g, "\\'")}';`,
+        "}",
+        "add_action('wp_footer', 'helvion_chat_widget');",
+      ].join("\n");
+    }
+    if (platform === "react") {
+      return [
+        '"use client";',
+        'import { useEffect } from "react";',
+        "",
+        "export default function HelvionWidget() {",
+        "  useEffect(() => {",
+        '    if (document.getElementById("hv-w")) return;',
+        "    var el = document.createElement(\"script\");",
+        "    el.id = \"hv-w\";",
+        `    el.src = \"${cdnUrl}\";`,
+        "    el.async = true;",
+        `    el.setAttribute(\"data-site\", \"${siteId}\");`,
+        "    document.body.appendChild(el);",
+        "    return () => el.remove();",
+        "  }, []);",
+        "  return null;",
+        "}",
+      ].join("\n");
+    }
+    if (platform === "vue") {
+      return [
+        'import { onMounted } from "vue";',
+        "",
+        "onMounted(() => {",
+        '  if (document.getElementById("hv-w")) return;',
+        "  var el = document.createElement(\"script\");",
+        "  el.id = \"hv-w\";",
+        `  el.src = \"${cdnUrl}\";`,
+        "  el.async = true;",
+        `  el.setAttribute(\"data-site\", \"${siteId}\");`,
+        "  document.body.appendChild(el);",
+        "});",
+      ].join("\n");
+    }
+    return "";
+  })();
+
+  const steps: Record<InstallPlatformId, Array<{ title: string; desc: string }>> = {
+    html: [
+      { title: "Yukaridaki kodu kopyalayin", desc: "Kodu Kopyala butonuna tiklayin." },
+      { title: "HTML dosyanizi acin", desc: "index.html veya index.php dosyasini editorunuzde acin." },
+      { title: "</body> etiketini bulun", desc: "Ctrl+F ile body aratarak bulabilirsiniz." },
+      { title: "Kodu </body> satirinin USTUNE yapistirin", desc: "Onemli: Altina degil, ustune." },
+      { title: "Kaydedin", desc: "Ctrl+S veya hosting panelindeki Kaydet." },
+      { title: "Tarayicida kontrol edin", desc: "Sag altta sohbet balonu gorunecek." },
+    ],
+    wordpress: [
+      { title: "wp-admin'e giris yapin", desc: "siteniz.com/wp-admin" },
+      { title: "Gorunum > Tema Dosya Duzenleyicisi", desc: "Sol menuden Gorunum'u secin." },
+      { title: "functions.php dosyasini secin", desc: "Sag taraftaki listeden tiklayin." },
+      { title: "Dosyanin EN SONUNA gidin", desc: "En alta kaydirin." },
+      { title: "WordPress kodunu yapistirin", desc: "Mevcut kodlari silmeyin!" },
+      { title: "Dosyayi Guncelle", desc: "Alttaki mavi buton." },
+      { title: "Sitenizi kontrol edin", desc: "Cache eklentiniz varsa temizleyin." },
+      { title: "Alternatif: WPCode eklentisi", desc: "Eklentiler > Yeni Ekle > WPCode arayin, Footer'a yapistirin." },
+    ],
+    react: [
+      { title: "Component olusturun", desc: "components/ icinde HelvionWidget.tsx" },
+      { title: "React kodunu yapistirin", desc: "Ozel React kodunu dosyaya yapistirin." },
+      { title: "use client kontrolu", desc: "Next.js App Router icin zorunlu." },
+      { title: "Layout'a ekleyin", desc: "app/layout.tsx icinde import edip return icine koyun." },
+      { title: "Test edin", desc: "npm run dev ile baslatin." },
+    ],
+    vue: [
+      { title: "Component olusturun", desc: "components/HelvionWidget.vue" },
+      { title: "Vue kodunu yapistirin", desc: "Ozel Vue kodunu yapistirin." },
+      { title: "Layout'a ekleyin", desc: "App.vue veya layouts/default.vue" },
+      { title: "Test edin", desc: "npm run dev" },
+    ],
+    shopify: [
+      { title: "Shopify Admin'e girin", desc: "myshopify.com/admin" },
+      { title: "Online Store > Themes", desc: "Sol menuden tiklayin." },
+      { title: "Edit Code secin", desc: "Aktif temanin yanindaki ... > Edit Code" },
+      { title: "theme.liquid acin", desc: "Layout altindan tiklayin." },
+      { title: "body oncesine kodu yapistirin", desc: "Ctrl+F ile body arayin." },
+      { title: "Save tiklayin", desc: "Sag ustteki yesil buton." },
+      { title: "Magazanizi kontrol edin", desc: "Yeni sekmede acin." },
+    ],
+    wix: [
+      { title: "Wix Dashboard'a girin", desc: "wix.com'a giris yapin." },
+      { title: "Settings > Custom Code", desc: "Advanced bolumunde." },
+      { title: "+ Add Custom Code", desc: "Sag ustteki buton." },
+      { title: "Kodu yapistirin", desc: "Acilan alana HTML kodunu yapistirin." },
+      { title: "Ayarlar: Body-end, All pages", desc: "Yerlesim ve sayfa secimi." },
+      { title: "Apply ve Publish", desc: "Kaydedin ve yayinlayin." },
+    ],
+    webflow: [
+      { title: "Project Settings acin", desc: "Projenizi acin." },
+      { title: "Custom Code sekmesi", desc: "Ust menuden tiklayin." },
+      { title: "Footer Code'a yapistirin", desc: "Save Changes." },
+      { title: "Publish edin", desc: "Designer'dan yayinlayin." },
+    ],
+    gtm: [
+      { title: "GTM'e girin", desc: "tagmanager.google.com" },
+      { title: "Yeni Etiket > Ozel HTML", desc: "Etiketler > Yeni" },
+      { title: "Kodu yapistirin", desc: "HTML kutusuna yapistirin." },
+      { title: "Tetikleyici: All Pages", desc: "Tetikleme > All Pages" },
+      { title: "Onizle ve Yayinla", desc: "Preview ile test, Submit > Publish" },
+    ],
+  };
+
+  const stepItems = steps[platform] || steps.html;
+
+  return (
+    <div style={CARD_STYLE}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <div style={CARD_TITLE_STYLE}>Kurulum Rehberi</div>
+          <div style={CARD_SUBTITLE_STYLE}>
+            Yerleştirme kodunu nereye ekleyeceğinizi adım adım gösterir.
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            padding: "8px 10px",
+            borderRadius: 10,
+            color: "#B45309",
+            fontFamily: "var(--font-heading)",
+            fontWeight: 800,
+            fontSize: 13,
+          }}
+          aria-expanded={open}
+        >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 18, display: "inline-flex", justifyContent: "center" }}>{open ? "▼" : "▶"}</span>
+            Nereye yapistirmam gerekiyor? Adim adim rehber
+          </span>
+        </button>
+      </div>
+
+      {open && (
+        <div style={{ marginTop: 16 }}>
+          {/* Platform selector */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {INSTALL_PLATFORMS.map((p) => {
+              const selected = p.id === platform;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPlatform(p.id)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: `1.5px solid ${selected ? p.color : "rgba(0,0,0,0.12)"}`,
+                    background: selected ? "#fff" : "transparent",
+                    cursor: "pointer",
+                    boxShadow: selected ? "0 6px 18px rgba(0,0,0,0.06)" : "none",
+                    transition: "all 150ms ease",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: 9,
+                      background: selected ? p.color : "rgba(0,0,0,0.06)",
+                      color: selected ? "#fff" : "#292524",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontFamily: "var(--font-heading)",
+                      fontWeight: 900,
+                      fontSize: 12,
+                    }}
+                  >
+                    {p.letter}
+                  </span>
+                  <span style={{ fontFamily: "var(--font-body)", fontWeight: 800, fontSize: 13, color: "#292524" }}>
+                    {p.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Platform-specific code */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 14, color: "#292524" }}>
+                Kod
+              </div>
+              <div style={{ fontFamily: "var(--font-body)", fontSize: 12.5, color: "#A8A29E" }}>
+                Seçili platform: <span style={{ fontWeight: 800, color: activePlatform.color }}>{activePlatform.name}</span>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              {platformCode ? (
+                <div style={CODE_BLOCK_STYLE}>
+                  <div style={{ position: "absolute", inset: "0 auto 0 0", width: 3, background: activePlatform.color }} />
+                  <pre style={{ ...CODE_PRE_STYLE, paddingLeft: 10 }}>{platformCode}</pre>
+                </div>
+              ) : (
+                <div style={CODE_BLOCK_STYLE}>
+                  <div style={{ position: "absolute", inset: "0 auto 0 0", width: 3, background: "#F59E0B" }} />
+                  <pre style={{ ...CODE_PRE_STYLE, paddingLeft: 10 }}>{(embedHtml || "").trim()}</pre>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Timeline steps */}
+          <div style={{ marginTop: 18 }}>
+            <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 14, color: "#292524" }}>
+              Adim adim
+            </div>
+            <div style={{ marginTop: 10, position: "relative" }}>
+              <div
+                style={{
+                  position: "absolute",
+                  left: 13,
+                  top: 12,
+                  bottom: 12,
+                  width: 2,
+                  background: "linear-gradient(180deg, rgba(245,158,11,0.95), rgba(245,158,11,0))",
+                }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {stepItems.map((s, idx) => (
+                  <div key={`${platform}_${idx}`} style={{ display: "flex", gap: 12, position: "relative" }}>
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 999,
+                        background: "linear-gradient(135deg, #F59E0B, #D97706)",
+                        color: "#fff",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontFamily: "var(--font-heading)",
+                        fontWeight: 900,
+                        fontSize: 12.5,
+                        flexShrink: 0,
+                        boxShadow: "0 6px 16px rgba(245,158,11,0.25)",
+                      }}
+                    >
+                      {idx + 1}
+                    </div>
+                    <div style={{ paddingTop: 1 }}>
+                      <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 13.5, color: "#292524" }}>
+                        {s.title}
+                      </div>
+                      <div style={{ marginTop: 2, fontFamily: "var(--font-body)", fontSize: 12.5, color: "#78716C", lineHeight: 1.5 }}>
+                        {s.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function JavaScriptApiReference() {
+  useEffect(() => {
+    console.warn("WIDGET-SETUP: JavaScriptApiReference rendered");
+  }, []);
+
+  const rows: Array<{ left: string; right: string }> = [
+    { left: "Helvion.open()", right: "Widget'i acar" },
+    { left: "Helvion.close()", right: "Widget'i kapatir" },
+    { left: "Helvion.toggle()", right: "Ac/kapat" },
+    { left: "Helvion.hide()", right: "Butonu gizler" },
+    { left: "Helvion.show()", right: "Butonu gosterir" },
+    { left: "Helvion.setUser({..})", right: "Kullanici bilgisi atar" },
+    { left: "Helvion.on('ready', fn)", right: "Hazir olunca tetiklenir" },
+    { left: "Helvion.on('message', fn)", right: "Mesaj gelince tetiklenir" },
+  ];
+
+  return (
+    <div style={CARD_STYLE}>
+      <div style={CARD_TITLE_STYLE}>JavaScript API</div>
+      <div style={CARD_SUBTITLE_STYLE}>Widget'i programatik kontrol edin (ileri seviye)</div>
+
+      <div
+        style={{
+          marginTop: 14,
+          display: "grid",
+          gridTemplateColumns: "1fr 1.2fr",
+          gap: 12,
+        }}
+      >
+        {rows.map((r) => (
+          <div
+            key={r.left}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1.2fr",
+              gap: 12,
+              padding: "10px 12px",
+              borderRadius: 12,
+              border: "1px solid rgba(0,0,0,0.08)",
+              background: "rgba(250,250,249,0.6)",
+            }}
+          >
+            <div
+              style={{
+                fontFamily:
+                  "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'JetBrains Mono', 'Liberation Mono', monospace",
+                fontWeight: 900,
+                fontSize: 12.5,
+                color: "#B45309",
+              }}
+            >
+              {r.left}
+            </div>
+            <div style={{ fontFamily: "var(--font-body)", fontSize: 12.5, color: "#78716C", fontWeight: 700 }}>
+              {r.right}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WidgetFaq() {
+  useEffect(() => {
+    console.warn("WIDGET-SETUP: WidgetFaq rendered");
+  }, []);
+
+  const items: Array<{ q: string; a: string }> = [
+    { q: "Site hizimi etkiler mi?", a: "Hayir. Async yuklenir, 45KB gzip, global CDN." },
+    { q: "Birden fazla site?", a: "Evet. Her site icin ayri Site ID." },
+    { q: "Gorunumu nasil degistiririm?", a: "Portal > Widget Gorunumu > 50+ ayar." },
+    { q: "Belirli sayfalarda gizleyebilir miyim?", a: "Portal > Sayfa Kurallari." },
+    { q: "Widget yuklenmiyor?", a: "1. Hard refresh 2. Site ID kontrol 3. body oncesi mi 4. F12 konsol 5. Canli destek." },
+  ];
+
+  const [openIdx, setOpenIdx] = useState<number | null>(0);
+
+  return (
+    <div style={CARD_STYLE}>
+      <div style={CARD_TITLE_STYLE}>Sikca Sorulan Sorular</div>
+      <div style={CARD_SUBTITLE_STYLE}>Kurulum ve genel kullanimla ilgili hizli yanitlar</div>
+
+      <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+        {items.map((it, idx) => {
+          const open = openIdx === idx;
+          return (
+            <div
+              key={it.q}
+              style={{
+                border: "1px solid rgba(0,0,0,0.10)",
+                borderRadius: 14,
+                overflow: "hidden",
+                background: open ? "rgba(255,251,235,0.55)" : "#fff",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOpenIdx((v) => (v === idx ? null : idx))}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  padding: "14px 14px",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+                aria-expanded={open}
+              >
+                <div style={{ fontFamily: "var(--font-heading)", fontWeight: 900, fontSize: 13.5, color: "#292524" }}>
+                  {it.q}
+                </div>
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 999,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: open ? "linear-gradient(135deg, #F59E0B, #D97706)" : "rgba(0,0,0,0.06)",
+                    color: open ? "#fff" : "#78716C",
+                    transform: open ? "rotate(45deg)" : "rotate(0deg)",
+                    transition: "all 180ms ease",
+                    fontFamily: "var(--font-heading)",
+                    fontWeight: 900,
+                  }}
+                  aria-hidden="true"
+                >
+                  +
+                </div>
+              </button>
+              {open && (
+                <div style={{ padding: "0 14px 14px 14px" }}>
+                  <div style={{ fontFamily: "var(--font-body)", fontSize: 12.8, color: "#78716C", lineHeight: 1.6, fontWeight: 650 }}>
+                    {it.a}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function HelpCtaBanner({ onStartSupport }: { onStartSupport: () => void }) {
+  useEffect(() => {
+    console.warn("WIDGET-SETUP: HelpCtaBanner rendered");
+  }, []);
+
+  return (
+    <div
+      style={{
+        ...CARD_STYLE,
+        background: "linear-gradient(135deg, #FFFBEB, #FEF3C7)",
+        borderColor: "#FDE68A",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 16,
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ minWidth: 240 }}>
+        <div style={{ ...CARD_TITLE_STYLE, fontSize: 16 }}>Kurulumda yardima mi ihtiyaciniz var?</div>
+        <div style={{ ...CARD_SUBTITLE_STYLE, marginTop: 4 }}>
+          Teknik ekibimiz widget kurulumunu sizin icin ucretsiz gerceklestirir.
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onStartSupport}
+        style={{
+          border: "none",
+          cursor: "pointer",
+          padding: "12px 16px",
+          borderRadius: 12,
+          background: "linear-gradient(135deg, #F59E0B, #D97706)",
+          color: "#fff",
+          fontFamily: "var(--font-heading)",
+          fontWeight: 900,
+          fontSize: 13,
+          boxShadow: "0 10px 24px rgba(245,158,11,0.25)",
+        }}
+      >
+        Canli Destek Baslat
+      </button>
+    </div>
+  );
+}
+
 function PortalWidgetContent() {
   const { user, loading: authLoading } = usePortalAuth();
   const { t } = useI18n();
@@ -324,6 +893,13 @@ function PortalWidgetContent() {
             </div>
           </div>
 
+          {/* Installation Guide (NEW) — between embed snippet and allowlist */}
+          <InstallationGuide
+            embedHtml={config.embedSnippet.html}
+            scriptSrc={config.embedSnippet.scriptSrc}
+            siteId={config.embedSnippet.siteId}
+          />
+
           {/* Domain Allowlist */}
           <div className="widget-card rounded-2xl border border-[#F3E8D8] bg-white p-6 shadow-sm widget-stagger" style={{ ["--index" as string]: 2 }}>
             <h2 className="mb-1 font-[var(--font-heading)] text-[16px] font-bold leading-tight text-[#1A1D23]">{t("domainAllowlist.title")}</h2>
@@ -392,6 +968,15 @@ function PortalWidgetContent() {
               </div>
             )}
           </div>
+
+          {/* JavaScript API (NEW) — below allowlist */}
+          <JavaScriptApiReference />
+
+          {/* FAQ (NEW) */}
+          <WidgetFaq />
+
+          {/* Help CTA (NEW) */}
+          <HelpCtaBanner onStartSupport={() => { try { window.location.href = "/portal/inbox"; } catch { /* */ } }} />
 
           {/* Widget Gallery (collapsible, default closed) - Only in dev + ?debug=1 */}
           {showDebug && (
