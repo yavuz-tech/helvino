@@ -815,10 +815,18 @@ fastify.post<{
           orgLanguage = undefined;
         }
 
+        const TURKISH_CHARS_RE = /[çğıöşüİ]/i;
+        const TURKISH_WORD_RE = /\b(merhaba|selam|nasilsin|nasılsın|yardim|yardım|tesekkur|teşekkür|lutfen|lütfen)\b/i;
+
         const getNoAiVisitorMessage = (): string => {
           // Keep visitor copy professional; do NOT mention internal quota/plan codes (M2, etc.).
           // We rely on portal UI + logs for details.
-          const isTr = typeof orgLanguage === "string" && orgLanguage.toLowerCase().startsWith("tr");
+          const byOrg =
+            typeof orgLanguage === "string" && orgLanguage.trim().toLowerCase().startsWith("tr");
+          // If org language is unset/mismatched, infer from the visitor message content
+          // so Turkish users don't see English system text.
+          const byContent = TURKISH_CHARS_RE.test(sanitizedContent) || TURKISH_WORD_RE.test(sanitizedContent);
+          const isTr = byOrg || byContent;
           return isTr
             ? "Su anda otomatik yanit veremiyoruz. Ekibimiz en kisa surede size geri donecek. Isterseniz e-posta veya telefon numaranizi birakabilirsiniz."
             : "We can't send an automated reply right now. Our team will get back to you shortly. You can leave your email or phone number.";
