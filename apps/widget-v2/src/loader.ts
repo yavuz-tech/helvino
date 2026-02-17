@@ -92,35 +92,47 @@ function syncLauncherAria(): void {
 
 function lockBody(): void {
   savedScrollY = window.scrollY;
-  document.body.style.overflow = "hidden";
-  document.body.style.position = "fixed";
-  document.body.style.top = `-${savedScrollY}px`;
-  document.body.style.left = "0";
-  document.body.style.right = "0";
-  document.body.style.width = "100%";
-  document.documentElement.style.overflow = "hidden";
-  // Prevent iOS rubber-band bouncing and horizontal overscroll
+  const s = document.body.style;
+  const h = document.documentElement.style;
+  s.overflow = "hidden";
+  s.position = "fixed";
+  s.top = `-${savedScrollY}px`;
+  s.left = "0";
+  s.right = "0";
+  s.width = "100%";
+  h.overflow = "hidden";
   try {
-    (document.body.style as any).overscrollBehavior = "none";
-    (document.body.style as any).touchAction = "none";
-    (document.documentElement.style as any).overscrollBehavior = "none";
+    (s as any).overscrollBehavior = "none";
+    (h as any).overscrollBehavior = "none";
   } catch { /* older browsers */ }
+
+  // Block touch scroll on host page so the underlying site doesn't shift.
+  // The iframe itself handles its own touch events independently.
+  document.addEventListener("touchmove", blockTouch, { passive: false });
 }
 
 function unlockBody(): void {
-  document.body.style.overflow = "";
-  document.body.style.position = "";
-  document.body.style.top = "";
-  document.body.style.left = "";
-  document.body.style.right = "";
-  document.body.style.width = "";
-  document.documentElement.style.overflow = "";
+  const s = document.body.style;
+  const h = document.documentElement.style;
+  s.overflow = "";
+  s.position = "";
+  s.top = "";
+  s.left = "";
+  s.right = "";
+  s.width = "";
+  h.overflow = "";
   try {
-    (document.body.style as any).overscrollBehavior = "";
-    (document.body.style as any).touchAction = "";
-    (document.documentElement.style as any).overscrollBehavior = "";
+    (s as any).overscrollBehavior = "";
+    (h as any).overscrollBehavior = "";
   } catch { /* older browsers */ }
+  document.removeEventListener("touchmove", blockTouch);
   window.scrollTo(0, savedScrollY);
+}
+
+function blockTouch(e: TouchEvent): void {
+  // Only block touches on the host page (not inside the iframe).
+  // Touches inside the iframe don't propagate to the host document.
+  e.preventDefault();
 }
 
 function toggle(): void {

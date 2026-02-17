@@ -412,6 +412,7 @@ function App() {
       return;
     }
 
+    console.warn("[Widget v2] Fetching bootloader for siteId:", siteId);
     fetchBootloader(siteId)
       .then((boot) => {
         if (cancelled) return;
@@ -429,11 +430,28 @@ function App() {
         const ws = (cfg.widgetSettings || {}) as Record<string, unknown>;
         const cpc = (cfg.chatPageConfig || {}) as Record<string, unknown>;
 
+        // Diagnostic: log the exact color values from bootloader
+        console.warn("[Widget v2] Boot OK. lang:", detectedLang,
+          "themeId:", ws.themeId,
+          "primaryColor:", ws.primaryColor,
+          "useCustomColor:", ws.useCustomColor,
+          "customColor:", ws.customColor);
+
         const parsed = parseWidgetSettings(ws, cpc, detectedLang);
+        console.warn("[Widget v2] Resolved color:", parsed.primaryColor);
         setUi(parsed);
+
+        // Forward bootloader settings to parent loader so launcher also gets the correct color
+        try {
+          window.parent.postMessage({
+            type: "helvion:config-update",
+            settings: ws,
+            language: detectedLang,
+          }, "*");
+        } catch { /* cross-origin safety */ }
       })
       .catch((err) => {
-        console.error("[Widget v2] Bootloader failed:", err);
+        console.warn("[Widget v2] Bootloader FAILED:", err?.message || err);
         if (!cancelled) setBootOk(false);
         if (!cancelled) {
           setUi(parseWidgetSettings({}, {}, langRef.current));

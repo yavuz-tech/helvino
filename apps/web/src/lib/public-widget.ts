@@ -75,7 +75,23 @@ export function mountPublicWidgetScript(identity: WidgetIdentity): boolean {
     w.HELVINO_SITE_ID = undefined;
   }
 
-  if (document.querySelector('script[data-helvino-widget="1"]')) return true;
+  if (document.querySelector('script[data-helvino-widget="1"]')) {
+    // Script already loaded — if siteId changed, update the iframe src so
+    // the widget reinitialises with the correct org settings and colors.
+    if (identity.siteId) {
+      const frame = document.getElementById("helvion-frame") as HTMLIFrameElement | null;
+      if (frame) {
+        try {
+          const url = new URL(frame.src);
+          if (url.searchParams.get("siteId") !== identity.siteId) {
+            url.searchParams.set("siteId", identity.siteId);
+            frame.src = url.toString();
+          }
+        } catch { /* malformed URL, ignore */ }
+      }
+    }
+    return true;
+  }
   const script = document.createElement("script");
   // embed.js is served from the API origin, not the frontend.
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.helvion.io";
