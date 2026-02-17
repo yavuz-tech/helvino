@@ -717,16 +717,38 @@ fastify.post<{
     // Fire-and-forget: don't block the user's request
     (async () => {
       try {
+        const emitAssistantToConversation = async (text: string) => {
+          try {
+            const sanitized = sanitizeHTML(String(text || "")).trim();
+            if (!sanitized) return;
+            const m = await store.addMessage(id, org.id, "assistant", sanitized);
+            if (!m) return;
+            fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message: m });
+            fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message: m });
+          } catch {
+            // Never throw from the fire-and-forget AI path.
+          }
+        };
+
         // Check AI quota before generating response
         const quota = await checkAiQuota(org.id);
         if (quota.exceeded) {
           console.warn(`[AI] Quota exceeded for org ${org.id}: ${quota.used}/${quota.limit}`);
+          // Avoid silent failure: tell the visitor why there is no AI reply.
+          await emitAssistantToConversation(
+            "AI kotaniz bu ay doldu. Portal uzerinden planinizi yukselterek devam edebilirsiniz."
+          );
           return;
         }
 
         // Check M2 entitlement before generating AI response
         const m2Check = await checkM2Entitlement(org.id);
-        if (!m2Check.allowed) return;
+        if (!m2Check.allowed) {
+          await emitAssistantToConversation(
+            "AI plan limitiniz doldu. Portal uzerinden planinizi yukselterek devam edebilirsiniz."
+          );
+          return;
+        }
 
         // Load org AI config from database
         const orgRecord = await prisma.organization.findUnique({
@@ -735,6 +757,7 @@ fastify.post<{
         });
         const aiConfig = parseAiConfig(orgRecord?.aiConfigJson);
         if (!aiConfig.autoReplyEnabled) return;
+        const fallbackText = (aiConfig.fallbackMessage || "").trim();
 
         // Override provider from org setting
         if (orgRecord?.aiProvider) {
@@ -761,7 +784,6 @@ fastify.post<{
           console.warn(`[AI] Generation failed for org ${org.id}:`, result.error);
 
           // Graceful fallback: send configured fallback message instead of dropping the reply.
-          const fallbackText = (aiConfig.fallbackMessage || "").trim();
           if (fallbackText) {
             const fallbackMessage = await store.addMessage(id, org.id, "assistant", sanitizeHTML(fallbackText));
             if (fallbackMessage) {
@@ -798,6 +820,19 @@ fastify.post<{
         console.error("[AI] Auto-reply error:", err);
         // Stop typing on error too
         fastify.io.to(`conv:${id}`).emit("agent:typing:stop", { conversationId: id });
+        // Avoid a silent drop for the visitor: try to send a generic fallback message.
+        await (async () => {
+          try {
+            const fallback = "Su an AI yanit uretemiyor. Lutfen biraz sonra tekrar deneyin.";
+            const m = await store.addMessage(id, org.id, "assistant", sanitizeHTML(fallback));
+            if (m) {
+              fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message: m });
+              fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message: m });
+            }
+          } catch {
+            // ignore
+          }
+        })();
       }
     })();
   }
