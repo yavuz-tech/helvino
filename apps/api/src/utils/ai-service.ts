@@ -79,6 +79,20 @@ export const DEFAULT_AI_CONFIG: AiConfig = {
   provider: "openai",
 };
 
+const DEFAULT_AI_CONFIG_TR: Partial<AiConfig> = {
+  systemPrompt: `Sen sirketin yardimci musteri destek asistanisin. Kisa, profesyonel ve yardimci ol. Cevabi bilmiyorsan, kibarca musteriye bildir ve bir insan temsilciye yonlendir. Her zaman empatik ve cozum odakli ol.`,
+  greeting: "Merhaba! Ben AI asistaniyim. Size nasil yardimci olabilirim?",
+  fallbackMessage: "Bu konuda emin degilim. Sizi daha iyi yardimci olabilecek bir temsilciye baglayayim.",
+  language: "tr",
+};
+
+export function getLocalizedDefaultConfig(orgLang?: string | null): AiConfig {
+  if (orgLang === "tr") {
+    return { ...DEFAULT_AI_CONFIG, ...DEFAULT_AI_CONFIG_TR };
+  }
+  return { ...DEFAULT_AI_CONFIG };
+}
+
 const TONE_INSTRUCTIONS: Record<AiConfig["tone"], string> = {
   professional: "Maintain a professional, courteous tone. Be clear and concise.",
   friendly: "Be warm, friendly and conversational. Use a helpful, approachable tone.",
@@ -255,33 +269,40 @@ export async function checkAiQuota(orgId: string): Promise<AiQuotaStatus> {
   });
 
   if (!org) {
-    return { used: 0, limit: 100, remaining: 100, isUnlimited: false, exceeded: false, resetDate: new Date().toISOString(), daysUntilReset: 30, percentUsed: 0 };
+    const fallbackLimit = getAiLimitForPlan("free");
+    return { used: 0, limit: fallbackLimit, remaining: fallbackLimit, isUnlimited: false, exceeded: false, resetDate: new Date().toISOString(), daysUntilReset: 30, percentUsed: 0 };
   }
+
+  // ALWAYS use the current plan's AI limit — never trust stale org.aiMessagesLimit
+  const currentPlanLimit = getAiLimitForPlan(org.planKey);
 
   const resetDate = new Date(org.aiMessagesResetDate);
   const now = new Date();
   const daysSinceReset = Math.floor((now.getTime() - resetDate.getTime()) / (1000 * 60 * 60 * 24));
 
   if (daysSinceReset >= 30) {
-    // Prefer DB plan table limit over hardcoded fallback (defense-in-depth)
-    const planRow = await prisma.plan.findUnique({ where: { key: org.planKey }, select: { maxAiMessagesPerMonth: true } });
-    const newLimit = (planRow?.maxAiMessagesPerMonth != null && planRow.maxAiMessagesPerMonth > 0)
-      ? planRow.maxAiMessagesPerMonth
-      : getAiLimitForPlan(org.planKey);
     await prisma.organization.update({
       where: { id: orgId },
-      data: { currentMonthAIMessages: 0, aiMessagesResetDate: now, aiMessagesLimit: newLimit },
+      data: { currentMonthAIMessages: 0, aiMessagesResetDate: now, aiMessagesLimit: currentPlanLimit },
     });
-    return { used: 0, limit: newLimit, remaining: newLimit, isUnlimited: newLimit === -1, exceeded: false, resetDate: now.toISOString(), daysUntilReset: 30, percentUsed: 0 };
+    return { used: 0, limit: currentPlanLimit, remaining: currentPlanLimit, isUnlimited: currentPlanLimit === -1, exceeded: false, resetDate: now.toISOString(), daysUntilReset: 30, percentUsed: 0 };
   }
 
-  const limit = org.aiMessagesLimit;
+  // If cached limit differs from plan limit, sync it
+  if (org.aiMessagesLimit !== currentPlanLimit) {
+    await prisma.organization.update({
+      where: { id: orgId },
+      data: { aiMessagesLimit: currentPlanLimit },
+    });
+  }
+
+  const limit = currentPlanLimit;
   const used = org.currentMonthAIMessages;
   const isUnlimited = limit === -1;
   const remaining = isUnlimited ? Infinity : Math.max(0, limit - used);
   const exceeded = !isUnlimited && used >= limit;
   const daysUntilReset = Math.max(0, 30 - daysSinceReset);
-  const percentUsed = isUnlimited ? 0 : limit > 0 ? Math.round((used / limit) * 100) : 100;
+  const percentUsed = isUnlimited ? 0 : limit > 0 ? Math.min(Math.round((used / limit) * 100), 100) : 100;
 
   return { used, limit, remaining: isUnlimited ? -1 : remaining, isUnlimited, exceeded, resetDate: resetDate.toISOString(), daysUntilReset, percentUsed };
 }
@@ -591,19 +612,20 @@ export function generateGreeting(config: Partial<AiConfig> = {}): string {
   return cfg.greeting;
 }
 
-export function parseAiConfig(json: unknown): AiConfig {
-  if (!json || typeof json !== "object") return { ...DEFAULT_AI_CONFIG };
+export function parseAiConfig(json: unknown, orgLang?: string | null): AiConfig {
+  const defaults = getLocalizedDefaultConfig(orgLang);
+  if (!json || typeof json !== "object") return { ...defaults };
   const obj = json as Record<string, unknown>;
   return {
-    systemPrompt: typeof obj.systemPrompt === "string" ? obj.systemPrompt : DEFAULT_AI_CONFIG.systemPrompt,
-    model: typeof obj.model === "string" ? obj.model : DEFAULT_AI_CONFIG.model,
-    temperature: typeof obj.temperature === "number" ? obj.temperature : DEFAULT_AI_CONFIG.temperature,
-    maxTokens: typeof obj.maxTokens === "number" ? obj.maxTokens : DEFAULT_AI_CONFIG.maxTokens,
-    autoReplyEnabled: typeof obj.autoReplyEnabled === "boolean" ? obj.autoReplyEnabled : DEFAULT_AI_CONFIG.autoReplyEnabled,
-    greeting: typeof obj.greeting === "string" ? obj.greeting : DEFAULT_AI_CONFIG.greeting,
-    fallbackMessage: typeof obj.fallbackMessage === "string" ? obj.fallbackMessage : DEFAULT_AI_CONFIG.fallbackMessage,
-    tone: ["professional", "friendly", "casual"].includes(obj.tone as string) ? (obj.tone as AiConfig["tone"]) : DEFAULT_AI_CONFIG.tone,
-    language: typeof obj.language === "string" ? obj.language : DEFAULT_AI_CONFIG.language,
-    provider: ["openai", "gemini", "claude"].includes(obj.provider as string) ? (obj.provider as AiProvider) : DEFAULT_AI_CONFIG.provider,
+    systemPrompt: typeof obj.systemPrompt === "string" ? obj.systemPrompt : defaults.systemPrompt,
+    model: typeof obj.model === "string" ? obj.model : defaults.model,
+    temperature: typeof obj.temperature === "number" ? obj.temperature : defaults.temperature,
+    maxTokens: typeof obj.maxTokens === "number" ? obj.maxTokens : defaults.maxTokens,
+    autoReplyEnabled: typeof obj.autoReplyEnabled === "boolean" ? obj.autoReplyEnabled : defaults.autoReplyEnabled,
+    greeting: typeof obj.greeting === "string" ? obj.greeting : defaults.greeting,
+    fallbackMessage: typeof obj.fallbackMessage === "string" ? obj.fallbackMessage : defaults.fallbackMessage,
+    tone: ["professional", "friendly", "casual"].includes(obj.tone as string) ? (obj.tone as AiConfig["tone"]) : defaults.tone,
+    language: typeof obj.language === "string" ? obj.language : defaults.language,
+    provider: ["openai", "gemini", "claude"].includes(obj.provider as string) ? (obj.provider as AiProvider) : defaults.provider,
   };
 }

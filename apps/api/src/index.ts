@@ -914,7 +914,7 @@ fastify.post<{
           where: { id: org.id },
           select: { aiConfigJson: true, aiProvider: true, language: true },
         });
-        const aiConfig = parseAiConfig(orgRecord?.aiConfigJson);
+        const aiConfig = parseAiConfig(orgRecord?.aiConfigJson, orgRecord?.language);
         if (!aiConfig.autoReplyEnabled) return;
         const fallbackText = (aiConfig.fallbackMessage || "").trim();
 
@@ -1054,7 +1054,7 @@ fastify.post<{ Params: { conversationId: string } }>(
       where: { id: org.id },
       select: { aiConfigJson: true, aiProvider: true, language: true },
     });
-    const aiConfig = parseAiConfig(orgRecord?.aiConfigJson);
+    const aiConfig = parseAiConfig(orgRecord?.aiConfigJson, orgRecord?.language);
     if (orgRecord?.aiProvider) {
       aiConfig.provider = orgRecord.aiProvider as "openai" | "gemini" | "claude";
     }

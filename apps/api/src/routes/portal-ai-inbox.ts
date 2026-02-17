@@ -79,7 +79,7 @@ export async function portalAiInboxRoutes(fastify: FastifyInstance) {
           select: { aiConfigJson: true, aiProvider: true, language: true, name: true },
         });
 
-        const aiConfig = parseAiConfig(org?.aiConfigJson);
+        const aiConfig = parseAiConfig(org?.aiConfigJson, org?.language);
         if (org?.aiProvider) aiConfig.provider = org.aiProvider as AiProvider;
 
         const history = conv.messages
@@ -182,7 +182,7 @@ Rules:
           select: { aiConfigJson: true, aiProvider: true, language: true },
         });
 
-        const aiConfig = parseAiConfig(org?.aiConfigJson);
+        const aiConfig = parseAiConfig(org?.aiConfigJson, org?.language);
         if (org?.aiProvider) aiConfig.provider = org.aiProvider as AiProvider;
 
         const history = conv.messages.map((m) => ({
@@ -270,10 +270,10 @@ Rules:
         const message = conv.messages[0];
         const org = await prisma.organization.findUnique({
           where: { id: user.orgId },
-          select: { aiConfigJson: true, aiProvider: true },
+          select: { aiConfigJson: true, aiProvider: true, language: true },
         });
 
-        const aiConfig = parseAiConfig(org?.aiConfigJson);
+        const aiConfig = parseAiConfig(org?.aiConfigJson, org?.language);
         if (org?.aiProvider) aiConfig.provider = org.aiProvider as AiProvider;
 
         const langNames: Record<string, string> = {
@@ -352,9 +352,9 @@ Rules:
 
         const org = await prisma.organization.findUnique({
           where: { id: user.orgId },
-          select: { aiConfigJson: true, aiProvider: true },
+          select: { aiConfigJson: true, aiProvider: true, language: true },
         });
-        const aiConfig = parseAiConfig(org?.aiConfigJson);
+        const aiConfig = parseAiConfig(org?.aiConfigJson, org?.language);
         if (org?.aiProvider) aiConfig.provider = org.aiProvider as AiProvider;
 
         const history = conv.messages.map((m) => ({
@@ -448,7 +448,7 @@ Rules:
           where: { id: user.orgId },
           select: { aiConfigJson: true, aiProvider: true, language: true },
         });
-        const aiConfig = parseAiConfig(org?.aiConfigJson);
+        const aiConfig = parseAiConfig(org?.aiConfigJson, org?.language);
         if (org?.aiProvider) aiConfig.provider = org.aiProvider as AiProvider;
 
         const history = conv.messages.map((m) => ({

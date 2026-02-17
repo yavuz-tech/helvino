@@ -20,7 +20,7 @@ import {
   incrementAiUsage,
   getAvailableProviders,
   getAvailableModels,
-  DEFAULT_AI_CONFIG,
+  getLocalizedDefaultConfig,
   type AiConfig,
   type AiProvider,
 } from "../utils/ai-service";
@@ -42,12 +42,12 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
 
       if (!org) return { error: "Organization not found" };
 
-      const config = parseAiConfig(org.aiConfigJson);
+      const config = parseAiConfig(org.aiConfigJson, org.language);
       return {
         aiEnabled: org.aiEnabled,
         aiProvider: org.aiProvider,
         config,
-        defaults: DEFAULT_AI_CONFIG,
+        defaults: getLocalizedDefaultConfig(org.language),
         available: isAiAvailable(),
         providers: getAvailableProviders(),
         models: getAvailableModels(),
@@ -65,11 +65,11 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
 
       const org = await prisma.organization.findUnique({
         where: { id: user.orgId },
-        select: { aiConfigJson: true, aiEnabled: true, aiProvider: true, planKey: true },
+        select: { aiConfigJson: true, aiEnabled: true, aiProvider: true, planKey: true, language: true },
       });
       if (!org) { reply.code(404); return { error: "Organization not found" }; }
 
-      const currentConfig = parseAiConfig(org.aiConfigJson);
+      const currentConfig = parseAiConfig(org.aiConfigJson, org.language);
 
       // Plan-based provider restriction: free/starter locked to gemini
       const orgPlanKey = (org.planKey || "free").toLowerCase();
@@ -205,7 +205,7 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
         select: { aiConfigJson: true, aiProvider: true, language: true },
       });
 
-      const config = parseAiConfig(org?.aiConfigJson);
+      const config = parseAiConfig(org?.aiConfigJson, org?.language);
       if (provider) config.provider = provider;
       else if (org?.aiProvider) config.provider = org.aiProvider as AiProvider;
 
