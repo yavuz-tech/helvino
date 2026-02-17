@@ -116,7 +116,9 @@ export function validateDomainAllowlist() {
     const referer = request.headers.referer as string | undefined;
 
     // Helvion platform domains are always allowed (widget demo on our own site).
-    const PLATFORM_DOMAINS = ["app.helvion.io", "helvion.io", "www.helvion.io"];
+    // api.helvion.io is included because the widget iframe is served from the API
+    // origin, so all requests from the iframe carry this Referer/Origin.
+    const PLATFORM_DOMAINS = ["app.helvion.io", "helvion.io", "www.helvion.io", "api.helvion.io"];
     const rawOrigin = origin || referer;
     if (rawOrigin) {
       const dom = extractDomain(rawOrigin);

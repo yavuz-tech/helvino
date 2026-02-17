@@ -972,7 +972,8 @@ fastify.ready().then(() => {
     const normalizedAllowlist = rawAllowlist.map((d) => String(d || "").trim()).filter(Boolean);
 
     // Helvion platform domains are always allowed (widget demo / portal preview).
-    const PLATFORM_DOMAINS = ["app.helvion.io", "helvion.io", "www.helvion.io"];
+    // api.helvion.io is included because the widget iframe is served from the API origin.
+    const PLATFORM_DOMAINS = ["app.helvion.io", "helvion.io", "www.helvion.io", "api.helvion.io"];
     if (input.requestOrigin) {
       const dom = extractDomain(input.requestOrigin);
       if (dom && PLATFORM_DOMAINS.includes(dom)) return;

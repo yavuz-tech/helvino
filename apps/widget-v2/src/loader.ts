@@ -377,6 +377,11 @@ function createContainer(siteId: string): HTMLDivElement {
 }
 
 // ── Bootloader fetch ──
+// The loader fetches the bootloader independently for fast launcher styling.
+// However, this is a CROSS-ORIGIN request (host page → api.helvion.io) and may
+// fail due to CORS on customer websites. The iframe also fetches the bootloader
+// (same-origin, always works) and forwards settings via postMessage.
+// CRITICAL: On failure, only apply defaults if the iframe hasn't sent settings yet.
 async function fetchAndApply(siteId: string): Promise<void> {
   const fallbackTimer = window.setTimeout(() => {
     if (!currentConfig) applyConfig(parseConfig({}));
@@ -389,14 +394,20 @@ async function fetchAndApply(siteId: string): Promise<void> {
     });
     const data = await res.json().catch(() => null);
     window.clearTimeout(fallbackTimer);
-    if (!res.ok || !data) { applyConfig(parseConfig({})); return; }
+    if (!res.ok || !data) {
+      // Only use defaults if iframe hasn't already provided correct settings
+      if (!currentConfig) applyConfig(parseConfig({}));
+      return;
+    }
     currentLang = resolveWidgetLang(data?.config?.language);
     syncLauncherAria();
     const ws = (data?.config?.widgetSettings || {}) as Record<string, unknown>;
     applyConfig(parseConfig(ws));
   } catch {
     window.clearTimeout(fallbackTimer);
-    applyConfig(parseConfig({}));
+    // CORS failure on customer websites is expected — the iframe will forward
+    // the correct settings via postMessage. Don't overwrite with defaults.
+    if (!currentConfig) applyConfig(parseConfig({}));
   }
 }
 

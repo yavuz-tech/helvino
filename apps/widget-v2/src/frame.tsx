@@ -567,8 +567,8 @@ function App() {
         doRecoveryFetch(3000);
         doRecoveryFetch(6000);
       }
-    } catch (err) {
-      console.error("[Widget v2] send failed:", err);
+    } catch (err: any) {
+      console.warn("[Widget v2] send FAILED:", err?.message || err);
       setMessages((prev) => prev.map((m) => (m.id === clientId ? { ...m, status: "failed" } : m)));
     }
   };

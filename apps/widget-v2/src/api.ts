@@ -4,6 +4,8 @@ let cachedOrgToken: string | null = null;
 let cachedOrgKey: string | null = null;
 let cachedSiteId: string | null = null;
 let cachedVisitorId: string | null = null;
+let tokenFetchedAt = 0; // timestamp (ms) when orgToken was obtained
+const TOKEN_REFRESH_MS = 4 * 60 * 1000; // refresh 1 min before 5-min expiry
 
 export function getApiBase(): string {
   return API_BASE;
@@ -153,13 +155,35 @@ export async function fetchBootloader(siteId: string): Promise<BootloaderRespons
   if (!res.ok) {
     throw new Error((data as any)?.error || `bootloader_failed_${res.status}`);
   }
-  if (data?.orgToken) setContext({ orgToken: data.orgToken });
+  if (data?.orgToken) {
+    setContext({ orgToken: data.orgToken });
+    tokenFetchedAt = Date.now();
+  }
   if (data?.org?.key) setContext({ orgKey: data.org.key });
   return data;
 }
 
+/**
+ * Silently refresh orgToken if it's close to expiry (4 min mark of 5 min TTL).
+ * Called before write operations (createConversation, sendMessage) to ensure
+ * the token is always fresh. Failures are silent — the existing token might
+ * still be valid for another minute.
+ */
+async function ensureFreshToken(): Promise<void> {
+  if (!cachedSiteId || !tokenFetchedAt) return;
+  const age = Date.now() - tokenFetchedAt;
+  if (age < TOKEN_REFRESH_MS) return; // still fresh
+  try {
+    console.warn("[Widget v2] Refreshing orgToken (age:", Math.round(age / 1000), "s)");
+    await fetchBootloader(cachedSiteId);
+  } catch {
+    // silent — existing token might still work
+  }
+}
+
 export async function createConversation(siteId: string, visitorId: string): Promise<CreateConversationResponse> {
   setContext({ siteId, visitorId });
+  await ensureFreshToken();
   const { orgToken, orgKey } = assertContext();
 
   const res = await fetch(`${API_BASE}/conversations`, {
@@ -177,6 +201,7 @@ export async function createConversation(siteId: string, visitorId: string): Pro
 }
 
 export async function sendMessage(conversationId: string, text: string): Promise<ApiMessage> {
+  await ensureFreshToken();
   const { siteId, visitorId, orgToken, orgKey } = assertContext();
 
   const body = {
