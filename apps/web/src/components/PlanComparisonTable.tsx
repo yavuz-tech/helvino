@@ -102,6 +102,11 @@ export default function PlanComparisonTable({
   const { formatUsd } = useCurrency();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
 
+  const formatLimit = (n: number): string => {
+    if (n < 0) return t("pricing.unlimited" as TranslationKey);
+    return n.toLocaleString();
+  };
+
   const translatePlanName = (key: string, fallbackName: string): string => {
     const i18nKey = `billing.planName.${key}` as TranslationKey;
     const translated = t(i18nKey);
@@ -157,7 +162,7 @@ export default function PlanComparisonTable({
       )}
 
       {/* Plan cards grid */}
-      <div className="grid gap-10 md:grid-cols-3 items-stretch">
+      <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-stretch">
         {plans.map((plan) => {
           const isCurrent = plan.key === currentPlanKey;
           const isRecommended = !isCurrent && plan.key === recommendedPlan;
@@ -308,11 +313,11 @@ export default function PlanComparisonTable({
 
                     // Dynamic limit features
                     if (fKey === "pricing.feature.conversations") {
-                      value = String(plan.maxConversationsPerMonth);
+                      value = formatLimit(plan.maxConversationsPerMonth);
                     } else if (fKey === "pricing.feature.messages") {
-                      value = String(plan.maxMessagesPerMonth);
+                      value = formatLimit(plan.maxMessagesPerMonth);
                     } else if (fKey === "pricing.feature.agents") {
-                      value = String(plan.maxAgents);
+                      value = plan.maxAgents.toLocaleString();
                     } else {
                       value = features[fKey] ?? false;
                     }
