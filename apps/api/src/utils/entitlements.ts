@@ -35,7 +35,8 @@ export interface MeteringLimits {
 }
 
 const PLAN_METERING_LIMITS: Record<string, MeteringLimits> = {
-  free:     { m1LimitPerMonth: 50,   m2LimitPerMonth: 50,   m3LimitVisitorsPerMonth: 100 },
+  // Product rule: Free plan manual chat should be unlimited (do not cap M1).
+  free:     { m1LimitPerMonth: null, m2LimitPerMonth: 50,   m3LimitVisitorsPerMonth: 100 },
   starter:  { m1LimitPerMonth: 150,  m2LimitPerMonth: 100,  m3LimitVisitorsPerMonth: 500 },
   pro:      { m1LimitPerMonth: 500,  m2LimitPerMonth: 250,  m3LimitVisitorsPerMonth: 2000 },
   business: { m1LimitPerMonth: 2000, m2LimitPerMonth: 1000, m3LimitVisitorsPerMonth: 10000 },
@@ -214,8 +215,9 @@ const FREE_PLAN_FALLBACK = {
   monthlyPriceTry: 0,
   yearlyPriceTry: 0,
   maxAgents: 3,
-  maxConversationsPerMonth: 200,
-  maxMessagesPerMonth: 1000,
+  // Product rule: Free plan manual chat is unlimited.
+  maxConversationsPerMonth: -1,
+  maxMessagesPerMonth: -1,
   maxAiMessagesPerMonth: 20,
   sortOrder: 0,
 } as const;
@@ -599,12 +601,16 @@ export async function getPlanLimits(orgId: string) {
 
   const metering = getMeteringLimitsForPlan(plan.key);
 
+  // Product rule: Free plan manual chat should be unlimited in UI too,
+  // even if the DB plan table still has legacy numeric limits.
+  const freeUnlimitedChat = plan.key === "free";
+
   return {
     planKey: plan.key,
     planName: plan.name,
     monthlyPriceUsd: plan.monthlyPriceUsd,
-    maxConversationsPerMonth: plan.maxConversationsPerMonth + (org.extraConversationQuota || 0),
-    maxMessagesPerMonth: plan.maxMessagesPerMonth + (org.extraMessageQuota || 0),
+    maxConversationsPerMonth: freeUnlimitedChat ? -1 : plan.maxConversationsPerMonth + (org.extraConversationQuota || 0),
+    maxMessagesPerMonth: freeUnlimitedChat ? -1 : plan.maxMessagesPerMonth + (org.extraMessageQuota || 0),
     maxAgents: plan.maxAgents,
     m1LimitPerMonth: metering.m1LimitPerMonth,
     m2LimitPerMonth: metering.m2LimitPerMonth,

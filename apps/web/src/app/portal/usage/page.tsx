@@ -195,6 +195,18 @@ export default function PortalUsagePage() {
     ? usageMetrics.aiMessages.used / usageMetrics.messages.used
     : 0;
 
+  // Metering (M1/M2/M3) — always sourced from billing/status so it matches backend enforcement
+  const m1Used = billing?.usage?.m1Count ?? 0;
+  const m2Used = billing?.usage?.m2Count ?? 0;
+  const m3Used = billing?.usage?.m3Count ?? 0;
+  const m1LimitRaw = billing?.limits?.m1LimitPerMonth ?? null;
+  const m2LimitRaw = billing?.limits?.m2LimitPerMonth ?? null;
+  const m3LimitRaw = billing?.limits?.m3LimitVisitorsPerMonth ?? null;
+  const m1Limit = m1LimitRaw == null || m1LimitRaw <= 0 ? -1 : m1LimitRaw;
+  const m2Limit = m2LimitRaw == null || m2LimitRaw <= 0 ? -1 : m2LimitRaw;
+  const m3Limit = m3LimitRaw == null || m3LimitRaw <= 0 ? -1 : m3LimitRaw;
+  const m2Pct = metricPercent(m2Used, m2Limit < 0 ? null : m2Limit);
+
   const handleExport = async () => {
     if (!analytics) return;
     const res = await portalApiFetch(`/api/analytics/export?format=csv&period=${encodeURIComponent(analytics.period)}`);
@@ -505,8 +517,8 @@ export default function PortalUsagePage() {
                   emoji: "💬",
                   label: "M1",
                   title: t("usage.m1Label"),
-                  used: usageMetrics.conversations.used,
-                  limit: usageMetrics.conversations.limit,
+                  used: m1Used,
+                  limit: m1Limit,
                   bar: "linear-gradient(135deg,#3B82F6,#60A5FA)",
                   color: "#3B82F6",
                 },
@@ -514,17 +526,17 @@ export default function PortalUsagePage() {
                   emoji: "🤖",
                   label: "M2",
                   title: t("usage.m2Label"),
-                  used: usageMetrics.aiMessages.used,
-                  limit: usageMetrics.aiMessages.limit,
+                  used: m2Used,
+                  limit: m2Limit,
                   bar: "linear-gradient(135deg,#EF4444,#FB7185)",
-                  color: aiPct >= 80 ? "#EF4444" : "#64748B",
+                  color: m2Pct >= 80 ? "#EF4444" : "#64748B",
                 },
                 {
                   emoji: "⚡",
                   label: "M3",
                   title: t("usage.m3Label"),
-                  used: usageMetrics.automationReached.used,
-                  limit: usageMetrics.automationReached.limit,
+                  used: m3Used,
+                  limit: m3Limit,
                   bar: "linear-gradient(135deg,#10B981,#34D399)",
                   color: "#F59E0B",
                 },
@@ -620,13 +632,17 @@ export default function PortalUsagePage() {
                 <div style={{ background: colors.neutral[50], borderRadius: 10, padding: "10px 14px" }}>
                   <p style={{ fontSize: 11, color: colors.neutral[400] }}>💬 {t("usage.conversations")}</p>
                   <p style={{ fontSize: 15, fontWeight: 700, color: colors.neutral[900] }} suppressHydrationWarning>
-                    {usageMetrics.conversations.limit < 0 ? t("usage.unlimited") : `${usageMetrics.conversations.limit.toLocaleString()}${t("billing.perMonth")}`}
+                    {billing?.limits?.maxConversationsPerMonth != null && billing.limits.maxConversationsPerMonth < 0
+                      ? t("usage.unlimited")
+                      : `${(billing?.limits?.maxConversationsPerMonth ?? 0).toLocaleString()}${t("billing.perMonth")}`}
                   </p>
                 </div>
                 <div style={{ background: colors.neutral[50], borderRadius: 10, padding: "10px 14px" }}>
                   <p style={{ fontSize: 11, color: colors.neutral[400] }}>📨 {t("usage.messages")}</p>
                   <p style={{ fontSize: 15, fontWeight: 700, color: colors.neutral[900] }} suppressHydrationWarning>
-                    {usageMetrics.messages.limit < 0 ? t("usage.unlimited") : `${usageMetrics.messages.limit.toLocaleString()}${t("billing.perMonth")}`}
+                    {billing?.limits?.maxMessagesPerMonth != null && billing.limits.maxMessagesPerMonth < 0
+                      ? t("usage.unlimited")
+                      : `${(billing?.limits?.maxMessagesPerMonth ?? 0).toLocaleString()}${t("billing.perMonth")}`}
                   </p>
                 </div>
                 <div style={{ background: colors.neutral[50], borderRadius: 10, padding: "10px 14px" }}>

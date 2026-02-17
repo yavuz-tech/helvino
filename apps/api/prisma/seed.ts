@@ -91,8 +91,9 @@ async function main() {
       monthlyPriceTry: 0,
       yearlyPriceTry: 0,
       maxAgents: 3,
-      maxConversationsPerMonth: 200,
-      maxMessagesPerMonth: 1000,
+      // Product rule: Free plan manual chat is unlimited
+      maxConversationsPerMonth: -1,
+      maxMessagesPerMonth: -1,
       maxAiMessagesPerMonth: 20,
       sortOrder: 0,
     },

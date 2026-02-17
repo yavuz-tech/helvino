@@ -70,8 +70,8 @@ const PLANS = [
     ctaHref: "/register",
     capacity: [
       { labelKey: "pricingV2.capacity.agent", value: "3", bold: true },
-      { labelKey: "pricingV2.capacity.chatPerMonth", value: "200", bold: true },
-      { labelKey: "pricingV2.capacity.messagePerMonth", value: "1.000", bold: true },
+      { labelKey: "pricingV2.capacity.chatPerMonth", valueKey: "pricing.unlimited", bold: true },
+      { labelKey: "pricingV2.capacity.messagePerMonth", valueKey: "pricing.unlimited", bold: true },
       { labelKey: "pricingV2.capacity.aiReplyPerMonth", value: "20", bold: true },
     ],
     features: [

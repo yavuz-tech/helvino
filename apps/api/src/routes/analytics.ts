@@ -2,21 +2,7 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import { requirePortalUser } from "../middleware/require-portal-user";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
-import { getMeteringLimitsForPlan } from "../utils/entitlements";
-
-type PlanLimitSet = {
-  conversations: number;
-  messages: number;
-  aiMessages: number;
-  automation: number;
-  operators: number;
-};
-
-const PLAN_LIMITS: Record<string, PlanLimitSet> = {
-  FREE: { conversations: 100, messages: 500, aiMessages: 50, automation: 100, operators: 2 },
-  PRO: { conversations: 2000, messages: 20000, aiMessages: 1000, automation: 5000, operators: 5 },
-  BUSINESS: { conversations: -1, messages: -1, aiMessages: 5000, automation: -1, operators: 15 },
-};
+import { getMeteringLimitsForPlan, getPlanLimits } from "../utils/entitlements";
 
 function monthWindow(date: Date): { start: Date; end: Date; key: string } {
   const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1, 0, 0, 0, 0));
@@ -38,13 +24,6 @@ function parsePeriod(period: string | undefined): { start: Date; end: Date; key:
   return monthWindow(new Date(Date.UTC(year, month - 1, 1)));
 }
 
-function resolvePlanLimits(planKey: string): PlanLimitSet {
-  const normalized = planKey.trim().toUpperCase();
-  if (normalized === "FREE") return PLAN_LIMITS.FREE;
-  if (normalized === "BUSINESS" || normalized === "ENTERPRISE") return PLAN_LIMITS.BUSINESS;
-  return PLAN_LIMITS.PRO;
-}
-
 export async function analyticsRoutes(fastify: FastifyInstance) {
   fastify.get(
     "/api/analytics/usage",
@@ -64,24 +43,20 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
         return { error: "Organization not found" };
       }
 
-      const limits = resolvePlanLimits(org.planKey);
+      const planLimits = await getPlanLimits(orgId);
       const metering = getMeteringLimitsForPlan(org.planKey);
       const m2LimitRaw = metering.m2LimitPerMonth;
+      const m3LimitRaw = metering.m3LimitVisitorsPerMonth;
       const m2Limit = m2LimitRaw == null || m2LimitRaw <= 0 ? -1 : m2LimitRaw;
-      const plan = await prisma.plan.findUnique({
-        where: { key: org.planKey },
-        select: { name: true, monthlyPriceUsd: true, key: true },
-      });
+      const m3Limit = m3LimitRaw == null || m3LimitRaw <= 0 ? -1 : m3LimitRaw;
 
       const [
         conversationsUsed,
         conversationsLastMonth,
         messagesUsed,
         messagesLastMonth,
-        m2Now,
-        m2Prev,
-        automationReached,
-        automationReachedLastMonth,
+        usageNow,
+        usagePrev,
       ] = await Promise.all([
         prisma.conversation.count({
           where: { orgId, createdAt: { gte: nowWindow.start, lt: nowWindow.end } },
@@ -95,20 +70,8 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
         prisma.message.count({
           where: { orgId, timestamp: { gte: prevWindow.start, lt: prevWindow.end } },
         }),
-        prisma.usage.findUnique({
-          where: { orgId_monthKey: { orgId, monthKey: nowWindow.key } },
-          select: { m2Count: true },
-        }),
-        prisma.usage.findUnique({
-          where: { orgId_monthKey: { orgId, monthKey: prevWindow.key } },
-          select: { m2Count: true },
-        }),
-        prisma.usageVisitor.count({
-          where: { orgId, periodKey: nowWindow.key },
-        }),
-        prisma.usageVisitor.count({
-          where: { orgId, periodKey: prevWindow.key },
-        }),
+        prisma.usage.findUnique({ where: { orgId_monthKey: { orgId, monthKey: nowWindow.key } }, select: { m2Count: true, m3Count: true } }),
+        prisma.usage.findUnique({ where: { orgId_monthKey: { orgId, monthKey: prevWindow.key } }, select: { m2Count: true, m3Count: true } }),
       ]);
 
       return {
@@ -116,31 +79,31 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
         resetDate: nowWindow.end.toISOString(),
         conversations: {
           used: conversationsUsed,
-          limit: limits.conversations,
+          limit: planLimits?.maxConversationsPerMonth ?? -1,
           lastMonthUsed: conversationsLastMonth,
         },
         messages: {
           used: messagesUsed,
-          limit: limits.messages,
+          limit: planLimits?.maxMessagesPerMonth ?? -1,
           lastMonthUsed: messagesLastMonth,
         },
         aiMessages: {
           // IMPORTANT:
           // "AI supported (M2)" in the portal usage UI must match the same source as enforcement.
           // Enforcement uses `usage.m2Count` with `m2LimitPerMonth` (plan metering).
-          used: m2Now?.m2Count ?? 0,
+          used: usageNow?.m2Count ?? 0,
           limit: m2Limit,
-          lastMonthUsed: m2Prev?.m2Count ?? 0,
+          lastMonthUsed: usagePrev?.m2Count ?? 0,
         },
         automationReached: {
-          used: automationReached,
-          limit: limits.automation,
-          lastMonthUsed: automationReachedLastMonth,
+          used: usageNow?.m3Count ?? 0,
+          limit: m3Limit,
+          lastMonthUsed: usagePrev?.m3Count ?? 0,
         },
         plan: {
-          key: (plan?.key ?? org.planKey).toUpperCase(),
-          name: plan?.name ?? org.planKey.toUpperCase(),
-          price: plan?.monthlyPriceUsd ?? 0,
+          key: (planLimits?.planKey ?? org.planKey).toUpperCase(),
+          name: planLimits?.planName ?? org.planKey.toUpperCase(),
+          price: planLimits?.monthlyPriceUsd ?? 0,
           status: org.planStatus || "inactive",
         },
       };
@@ -165,25 +128,22 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
       }
 
       const period = parsePeriod(q.period);
-      const [conversationsUsed, messagesUsed, aiMessagesUsed] = await Promise.all([
+      const [conversationsUsed, messagesUsed, m2Usage] = await Promise.all([
         prisma.conversation.count({
           where: { orgId, createdAt: { gte: period.start, lt: period.end } },
         }),
         prisma.message.count({
           where: { orgId, timestamp: { gte: period.start, lt: period.end } },
         }),
-        prisma.message.count({
-          where: {
-            orgId,
-            timestamp: { gte: period.start, lt: period.end },
-            OR: [{ isAIGenerated: true }, { aiProvider: { not: null } }],
-          },
+        prisma.usage.findUnique({
+          where: { orgId_monthKey: { orgId, monthKey: period.key } },
+          select: { m2Count: true },
         }),
       ]);
 
       const csv = [
         "date,conversations,messages,aiMessages",
-        `${period.key},${conversationsUsed},${messagesUsed},${aiMessagesUsed}`,
+        `${period.key},${conversationsUsed},${messagesUsed},${m2Usage?.m2Count ?? 0}`,
       ].join("\n");
 
       reply.header("Content-Type", "text/csv; charset=utf-8");
