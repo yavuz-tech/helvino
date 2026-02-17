@@ -2586,6 +2586,8 @@
   "aiQuota.messagesMonth": "mesaj/ay",
   "aiQuota.used": "Kullanilan",
   "aiQuota.remaining": "Kalan",
+  "aiQuota.planLimitExceeded": "AI plan limiti asildi (M2)",
+  "aiQuota.planLimitUsed": "{used} / {limit} kullanildi",
   "aiQuota.viewPlans": "Planlari Gor",
   "upgrade.title": "AI Mesaj Limiti Doldu",
   "upgrade.description": "Bu ay {limit} AI mesajinizin tamamini kullandiniz.",

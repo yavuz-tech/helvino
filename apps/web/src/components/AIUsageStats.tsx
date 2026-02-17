@@ -16,6 +16,14 @@ interface AiQuota {
   daysUntilReset: number;
   percentUsed: number;
   plan: string;
+  m2?: {
+    allowed: boolean;
+    error?: string;
+    code?: string;
+    limit?: number | null;
+    used?: number;
+    resetAt?: string;
+  };
 }
 
 interface AIUsageStatsProps {
@@ -69,7 +77,8 @@ export default function AIUsageStats({ prominent = false, compact = false, onUpg
   }
 
   const isNearLimit = quota.percentUsed >= 80;
-  const isExceeded = quota.exceeded;
+  const m2Exceeded = quota.m2?.allowed === false;
+  const isExceeded = quota.exceeded || m2Exceeded;
   const showProminent = prominent || isNearLimit;
   const colors = isExceeded
     ? { bg: "from-red-50 to-rose-50", border: "border-red-200/60", bar: "from-red-500 to-rose-500", text: "text-red-900", sub: "text-red-700" }
@@ -90,6 +99,16 @@ export default function AIUsageStats({ prominent = false, compact = false, onUpg
         <div className="w-full h-1.5 bg-white/60 rounded-full overflow-hidden">
           <div className={`h-full rounded-full bg-gradient-to-r ${colors.bar} transition-all duration-500`} style={{ width: `${Math.min(quota.percentUsed, 100)}%` }} />
         </div>
+        {m2Exceeded && (
+          <div className={`mt-2 text-[11px] font-semibold ${colors.sub}`}>
+            {t("aiQuota.planLimitExceeded")}{" "}
+            {typeof quota.m2?.used === "number" && typeof quota.m2?.limit === "number"
+              ? t("aiQuota.planLimitUsed")
+                  .replace("{used}", String(quota.m2.used))
+                  .replace("{limit}", String(quota.m2.limit))
+              : ""}
+          </div>
+        )}
         {isExceeded && onUpgradeNeeded && (
           <button onClick={onUpgradeNeeded} className="mt-2 text-xs font-semibold text-red-600 hover:text-red-700 flex items-center gap-1">
             {t("aiQuota.viewPlans")} <ArrowRight size={10} />
@@ -111,6 +130,16 @@ export default function AIUsageStats({ prominent = false, compact = false, onUpg
             <p className="font-[var(--font-body)] text-[12px] text-[#94A3B8]">
               {isExceeded ? t("aiQuota.exceeded") : t("aiQuota.resetsIn").replace("{days}", String(quota.daysUntilReset))}
             </p>
+            {m2Exceeded && (
+              <p className="mt-1 font-[var(--font-body)] text-[12px] text-red-700">
+                {t("aiQuota.planLimitExceeded")}{" "}
+                {typeof quota.m2?.used === "number" && typeof quota.m2?.limit === "number"
+                  ? t("aiQuota.planLimitUsed")
+                      .replace("{used}", String(quota.m2.used))
+                      .replace("{limit}", String(quota.m2.limit))
+                  : ""}
+              </p>
+            )}
           </div>
         </div>
         <div className="text-right">

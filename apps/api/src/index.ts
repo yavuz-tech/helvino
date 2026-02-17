@@ -736,7 +736,7 @@ fastify.post<{
           console.warn(`[AI] Quota exceeded for org ${org.id}: ${quota.used}/${quota.limit}`);
           // Avoid silent failure: tell the visitor why there is no AI reply.
           await emitAssistantToConversation(
-            "AI kotaniz bu ay doldu. Portal uzerinden planinizi yukselterek devam edebilirsiniz."
+            `AI kotaniz bu ay doldu (AI: ${quota.used}/${quota.limit}). Portal uzerinden planinizi yukselterek devam edebilirsiniz.`
           );
           return;
         }
@@ -744,8 +744,11 @@ fastify.post<{
         // Check M2 entitlement before generating AI response
         const m2Check = await checkM2Entitlement(org.id);
         if (!m2Check.allowed) {
+          const used = typeof m2Check.used === "number" ? m2Check.used : 0;
+          const limit = typeof m2Check.limit === "number" ? m2Check.limit : 0;
+          const resetAt = typeof m2Check.resetAt === "string" && m2Check.resetAt ? ` Sifirlama: ${m2Check.resetAt}.` : "";
           await emitAssistantToConversation(
-            "AI plan limitiniz doldu. Portal uzerinden planinizi yukselterek devam edebilirsiniz."
+            `AI plan limitiniz doldu (M2: ${used}/${limit}). Portal uzerinden planinizi yukselterek devam edebilirsiniz.${resetAt}`
           );
           return;
         }

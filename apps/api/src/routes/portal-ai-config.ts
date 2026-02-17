@@ -24,6 +24,7 @@ import {
   type AiConfig,
   type AiProvider,
 } from "../utils/ai-service";
+import { checkM2Entitlement } from "../utils/entitlements";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 
 export async function portalAiConfigRoutes(fastify: FastifyInstance) {
@@ -160,11 +161,12 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
     async (request) => {
       const user = request.portalUser!;
       const quota = await checkAiQuota(user.orgId);
+      const m2 = await checkM2Entitlement(user.orgId);
       const org = await prisma.organization.findUnique({
         where: { id: user.orgId },
         select: { planKey: true },
       });
-      return { ...quota, plan: org?.planKey ?? "free" };
+      return { ...quota, plan: org?.planKey ?? "free", m2 };
     }
   );
 
