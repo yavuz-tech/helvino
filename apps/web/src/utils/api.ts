@@ -20,6 +20,21 @@ interface ApiFetchOptions extends RequestInit {
   orgKey?: string; // Optional org key for multi-tenant requests
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (err) {
+    const method = String(init.method || "GET").toUpperCase();
+    if (method !== "GET" && method !== "HEAD") throw err;
+    await sleep(250);
+    return await fetch(url, init);
+  }
+}
+
 /**
  * Fetch wrapper that logs requests to debug panel
  * 
@@ -53,7 +68,7 @@ export async function apiFetch(path: string, options: ApiFetchOptions = {}) {
       headers["x-org-key"] = orgKey;
     }
 
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       ...fetchOptions,
       credentials: "include", // CRITICAL: Send session cookie for admin auth
       headers,

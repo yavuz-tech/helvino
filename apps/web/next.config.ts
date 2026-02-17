@@ -14,6 +14,14 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_WIDGET_EMBED_VERSION:
       process.env.NEXT_PUBLIC_WIDGET_EMBED_VERSION || String(Date.now()),
+    // Ensure API base URL is always defined at build time for client bundles.
+    // If missing in production env, some pages fall back to localhost and the
+    // browser throws "TypeError: Failed to fetch" during navigation.
+    NEXT_PUBLIC_API_URL:
+      process.env.NEXT_PUBLIC_API_URL ||
+      (process.env.NODE_ENV === "production"
+        ? "https://api.helvion.io"
+        : "http://localhost:4000"),
   },
   // Fix "multiple lockfiles" warning: pin monorepo root so Next.js doesn't
   // pick up package-lock.json from parent dirs (/Users/...)

@@ -336,6 +336,15 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
   const isFree = planKey === "free";
   const showUpgrade = (feat) => setProModal({ show: true, feature: feat });
 
+  // If the org loses PRO, immediately coerce locked AI options back to defaults.
+  useEffect(() => {
+    if (isPro) return;
+    if (aiTone !== "friendly") setAiTone("friendly");
+    if (aiLength !== "standard") setAiLength("standard");
+    if (aiModel !== "auto") setAiModel("auto");
+    if (aiSuggestions) setAiSuggestions(false);
+  }, [isPro]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const ac = useCustom ? customColor : theme.color;
   const ad = useCustom ? customColor : theme.dark;
   const al = useCustom ? customColor + "15" : theme.light;
@@ -402,12 +411,12 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
     if (typeof s2.visitorNotes === "boolean") setVisitorNotes(s2.visitorNotes);
     // AI
     if (s2.aiName != null) setAiName(s2.aiName);
-    if (s2.aiTone) setAiTone(s2.aiTone);
-    if (s2.aiLength) setAiLength(s2.aiLength);
+    if (s2.aiTone) setAiTone(isPro ? s2.aiTone : "friendly");
+    if (s2.aiLength) setAiLength(isPro ? s2.aiLength : "standard");
     if (typeof s2.aiEmoji === "boolean") setAiEmoji(s2.aiEmoji);
     if (typeof s2.aiLabel === "boolean") setAiLabel(s2.aiLabel);
     if (s2.aiWelcome != null) setAiWelcome(s2.aiWelcome);
-    if (s2.aiModel) setAiModel(s2.aiModel);
+    if (s2.aiModel) setAiModel(isPro ? s2.aiModel : "auto");
     if (typeof s2.aiSuggestions === "boolean") setAiSuggestions(isPro ? s2.aiSuggestions : false);
     // PRO features
     if (typeof s2.csat === "boolean") setCsat(s2.csat);
@@ -947,7 +956,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                   {/* Tone */}
                   <label style={{...s.label, marginBottom: 8}}>🎭 İletişim Tonu</label>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6, marginBottom: 14 }}>
-                    {AI_TONES.map(t => { const sel = aiTone===t.id; const locked = isFree && t.id !== "friendly"; return (
+                    {AI_TONES.map(t => { const sel = aiTone===t.id; const locked = !isPro && t.id !== "friendly"; return (
                       <div key={t.id} onClick={()=>{if(locked){showUpgrade("İletişim Tonu");return;}setAiTone(t.id);markChanged();}} style={{ padding: "10px 6px", borderRadius: 10, cursor: "pointer", textAlign: "center", border: "none", boxShadow: sel ? `0 0 0 2px ${ac}, 0 4px 10px rgba(${acRgb},0.12)` : "0 1px 3px rgba(0,0,0,0.05)", background: sel ? `rgba(${acRgb},0.04)` : "#FAFAF8", transition: "all 0.25s", opacity: locked ? 0.6 : 1, position: "relative" }}>
                         {locked && <span style={{ position: "absolute", top: 2, right: 2, fontSize: 7, fontWeight: 700, padding: "1px 4px", borderRadius: 4, background: "linear-gradient(135deg,#8B5CF6,#7C3AED)", color: "#FFF" }}>PRO</span>}
                         <div style={{ fontSize: 18, marginBottom: 3 }}>{t.emoji}</div>
@@ -960,7 +969,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                   {/* Response Length */}
                   <label style={{...s.label, marginBottom: 8}}>📏 Yanıt Uzunluğu</label>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginBottom: 14 }}>
-                    {AI_LENGTHS.map(l => { const sel = aiLength===l.id; const locked = isFree && l.id !== "standard"; return (
+                    {AI_LENGTHS.map(l => { const sel = aiLength===l.id; const locked = !isPro && l.id !== "standard"; return (
                       <div key={l.id} onClick={()=>{if(locked){showUpgrade("Yanıt Uzunluğu");return;}setAiLength(l.id);markChanged();}} style={{ padding: "10px 8px", borderRadius: 10, cursor: "pointer", textAlign: "center", border: "none", boxShadow: sel ? `0 0 0 2px ${ac}, 0 3px 8px rgba(${acRgb},0.09)` : "0 1px 3px rgba(0,0,0,0.05)", background: sel ? `rgba(${acRgb},0.04)` : "#FAFAF8", transition: "all 0.25s", opacity: locked ? 0.6 : 1, position: "relative" }}>
                         {locked && <span style={{ position: "absolute", top: 2, right: 2, fontSize: 7, fontWeight: 700, padding: "1px 4px", borderRadius: 4, background: "linear-gradient(135deg,#8B5CF6,#7C3AED)", color: "#FFF" }}>PRO</span>}
                         <div style={{ fontFamily: s.fontH, fontSize: 12, fontWeight: 700, color: sel ? ac : "#1A1D23" }}>{l.label}</div>

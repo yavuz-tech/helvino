@@ -6,6 +6,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -59,6 +60,16 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const pathnameRef = useRef<string>("");
+  const userRef = useRef<PortalUser | null>(null);
+
+  useEffect(() => {
+    pathnameRef.current = pathname || "";
+  }, [pathname]);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const isPublicPath = PUBLIC_PATHS.some((p) => pathname?.startsWith(p));
   const isOnboardingExemptPath = ONBOARDING_EXEMPT_PATHS.some((p) => pathname?.startsWith(p));
@@ -83,23 +94,35 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
   const verify = useCallback(async () => {
     try {
       const portalUser = await checkPortalAuth();
-      setUser(portalUser);
+      // Avoid redirect flicker while navigating: if we already have a user and a
+      // single auth check returns null (network hiccup / cookie race), keep the
+      // existing session and don't bounce to /portal/login.
+      const hadUser = Boolean(userRef.current);
+      const currentPath = pathnameRef.current || pathname || "";
+      const isPublicNow = PUBLIC_PATHS.some((p) => currentPath.startsWith(p));
+
+      if (portalUser) {
+        setUser(portalUser);
+      } else if (!portalUser && !isPublicNow && !hadUser) {
+        setUser(null);
+        router.push("/portal/login");
+      }
       if (shouldForceSecurityOnboarding(portalUser)) {
         hardRedirectToOnboarding();
         return;
       }
-      if (!portalUser && !isPublicPath) {
-        router.push("/portal/login");
-      }
     } catch {
-      setUser(null);
-      if (!isPublicPath) {
+      const hadUser = Boolean(userRef.current);
+      const currentPath = pathnameRef.current || pathname || "";
+      const isPublicNow = PUBLIC_PATHS.some((p) => currentPath.startsWith(p));
+      if (!isPublicNow && !hadUser) {
+        setUser(null);
         router.push("/portal/login");
       }
     } finally {
       setLoading(false);
     }
-  }, [router, isPublicPath, shouldForceSecurityOnboarding, hardRedirectToOnboarding]);
+  }, [router, pathname, shouldForceSecurityOnboarding, hardRedirectToOnboarding]);
 
   useEffect(() => {
     verify();
@@ -118,12 +141,12 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
     if (!loading) return;
     const timeout = window.setTimeout(() => {
       setLoading(false);
-      if (!user && !isPublicPath) {
-        router.push("/portal/login");
-      }
+      // Do NOT redirect here. A slow auth check can cause a "login → portal"
+      // flicker during navigation. The verify() flow handles redirects when
+      // we're confidently unauthenticated.
     }, 3000);
     return () => window.clearTimeout(timeout);
-  }, [loading, user, isPublicPath, router]);
+  }, [loading]);
 
   useAuth({
     enabled: Boolean(user),

@@ -92,10 +92,32 @@ async function fetchWithTimeout(
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs = REQUEST_TIMEOUT_MS
+): Promise<Response> {
+  // One lightweight retry for transient network hiccups (common cause of
+  // browser "TypeError: Failed to fetch" while navigating).
+  try {
+    return await fetchWithTimeout(input, init, timeoutMs);
+  } catch (err) {
+    // Only retry safe/idempotent requests.
+    const method = String((init.method || "GET")).toUpperCase();
+    if (method !== "GET" && method !== "HEAD") throw err;
+    await sleep(250);
+    return await fetchWithTimeout(input, init, timeoutMs);
+  }
+}
+
 export async function checkPortalAuth(): Promise<PortalUser | null> {
   try {
     const accessToken = readAccessToken();
-    let response = await fetchWithTimeout(`${API_URL}/portal/auth/me`, {
+    let response = await fetchWithRetry(`${API_URL}/portal/auth/me`, {
       credentials: "include",
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     });
@@ -108,7 +130,7 @@ export async function checkPortalAuth(): Promise<PortalUser | null> {
         const refreshed = await portalRefreshAccessToken();
         if (!refreshed.ok) return null;
         const refreshedAccessToken = readAccessToken();
-        response = await fetchWithTimeout(`${API_URL}/portal/auth/me`, {
+        response = await fetchWithRetry(`${API_URL}/portal/auth/me`, {
           credentials: "include",
           headers: refreshedAccessToken ? { Authorization: `Bearer ${refreshedAccessToken}` } : undefined,
         });
@@ -138,7 +160,7 @@ export async function portalLogin(
   try {
     // New login should re-enable onboarding checks unless user chooses "later" again.
     clearPortalOnboardingDeferredForSession();
-    const response = await fetchWithTimeout(`${API_URL}/portal/auth/login`, {
+    const response = await fetchWithRetry(`${API_URL}/portal/auth/login`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -190,7 +212,7 @@ export async function portalLogout(): Promise<void> {
     saveRefreshToken(null);
     storePortalAccessToken(null);
     clearPortalOnboardingDeferredForSession();
-    await fetchWithTimeout(`${API_URL}/portal/auth/logout`, {
+    await fetchWithRetry(`${API_URL}/portal/auth/logout`, {
       method: "POST",
       credentials: "include",
     });
@@ -206,7 +228,7 @@ export async function portalRefreshAccessToken(): Promise<{ ok: boolean; refresh
   }
 
   try {
-    const response = await fetchWithTimeout(`${API_URL}/portal/auth/refresh`, {
+    const response = await fetchWithRetry(`${API_URL}/portal/auth/refresh`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -237,7 +259,7 @@ export async function portalApiFetch(
   options: RequestInit = {}
 ) {
   const accessToken = readAccessToken();
-  let response = await fetchWithTimeout(`${API_URL}${path}`, {
+  let response = await fetchWithRetry(`${API_URL}${path}`, {
     ...options,
     credentials: "include",
     headers: {
@@ -250,7 +272,7 @@ export async function portalApiFetch(
     const refreshed = await portalRefreshAccessToken();
     if (refreshed.ok) {
       const refreshedAccessToken = readAccessToken();
-      response = await fetchWithTimeout(`${API_URL}${path}`, {
+      response = await fetchWithRetry(`${API_URL}${path}`, {
         ...options,
         credentials: "include",
         headers: {

@@ -74,6 +74,9 @@ export default function PortalWidgetAppearancePage() {
 
     // Server-side plan gating safety net
     if (!isPro) {
+      // AI persona: non-PRO must stay on defaults (prevents plan/UI desync).
+      payloadSettings.aiTone = "friendly";
+      payloadSettings.aiLength = "standard";
       payloadSettings.aiModel = "auto";
       payloadSettings.aiSuggestions = false;
       payloadSettings.csat = false;
