@@ -136,7 +136,6 @@ function parseWidgetSettings(
     const root = document.documentElement;
     root.style.setProperty("--hv-primary", primaryColor);
     root.style.setProperty("--hv-primary-dark", darkenColor(primaryColor, 15));
-    // RGB values for suggestion chips rgba()
     if (isHexColor(primaryColor)) {
       const r = parseInt(primaryColor.slice(1, 3), 16);
       const g = parseInt(primaryColor.slice(3, 5), 16);
@@ -149,30 +148,22 @@ function parseWidgetSettings(
     normalize(ws.headerText) ||
     normalize(ws.headerTitle) ||
     normalizeCpc(cpc.title) ||
-    (lang === "en" ? "How can we help?" : lang === "es" ? "¿Como podemos ayudar?" : "Nasıl yardımcı olabiliriz?");
+    tWidget(lang, "defaultTitle");
   const subtitle =
     normalize(ws.subText) ||
     normalize(ws.headerSubtitle) ||
     normalizeCpc(cpc.subtitle) ||
-    (lang === "en"
-      ? "We typically reply within minutes"
-      : lang === "es"
-        ? "Solemos responder en minutos"
-        : "Genellikle birkaç dakika içinde yanıt veriyoruz");
+    tWidget(lang, "defaultSubtitle");
   const placeholder =
     normalize(ws.placeholder) ||
     normalize(ws.inputPlaceholder) ||
     normalizeCpc(cpc.placeholder) ||
-    (lang === "en" ? "Write your message..." : lang === "es" ? "Escribe tu mensaje..." : "Mesajınızı yazın...");
+    tWidget(lang, "defaultPlaceholder");
   const welcome =
     normalize(ws.welcomeMsg) ||
     normalize(ws.aiWelcome) ||
     normalize(ws.welcomeMessage) ||
-    (lang === "en"
-      ? "Hi! 👋 How can we help you?"
-      : lang === "es"
-        ? "Hola! 👋 En que podemos ayudarte?"
-        : "Merhaba! 👋 Size nasıl yardımcı olabilirim?");
+    tWidget(lang, "defaultWelcome");
   const botAvatar = normalize(ws.botAvatar) || "🤖";
 
   let starters: string[] = [];
@@ -197,9 +188,9 @@ function parseWidgetSettings(
 
   if (starters.length === 0) {
     starters = [
-      "💰 Fiyatlandırma hakkında bilgi",
-      "🔧 Teknik destek istiyorum",
-      "📦 Siparişimi takip etmek istiyorum",
+      tWidget(lang, "starterPricing"),
+      tWidget(lang, "starterSupport"),
+      tWidget(lang, "starterOrder"),
     ];
   }
 
@@ -385,6 +376,7 @@ function App() {
   const [bootOk, setBootOk] = useState(false);
   const [isAgentTyping, setIsAgentTyping] = useState(false);
   const [lang, setLang] = useState<WidgetLang>("tr");
+  const langRef = useRef<WidgetLang>("tr");
 
   // Avoid theme/text flash: render a loading state until bootloader resolves.
   const [ui, setUi] = useState<UiCopy | null>(null);
@@ -423,6 +415,7 @@ function App() {
         const cfg = (boot?.config || {}) as Record<string, unknown>;
         const detectedLang = resolveWidgetLang((cfg as any).language);
         setLang(detectedLang);
+        langRef.current = detectedLang;
         try {
           document.documentElement.lang = detectedLang;
         } catch {
@@ -431,7 +424,6 @@ function App() {
         const ws = (cfg.widgetSettings || {}) as Record<string, unknown>;
         const cpc = (cfg.chatPageConfig || {}) as Record<string, unknown>;
 
-        // Parse and apply all settings at once (no flash)
         const parsed = parseWidgetSettings(ws, cpc, detectedLang);
         setUi(parsed);
       })
@@ -439,7 +431,7 @@ function App() {
         console.error("[Widget v2] Bootloader failed:", err);
         if (!cancelled) setBootOk(false);
         if (!cancelled) {
-          setUi(parseWidgetSettings({}, {}, lang));
+          setUi(parseWidgetSettings({}, {}, langRef.current));
         }
       });
 
@@ -620,39 +612,31 @@ function App() {
       console.warn("[Widget v2] Socket connect_error", err?.message || err);
     });
 
-    // Live config updates — API emits this when portal saves widget settings
-    socket.on("widget:config-updated", (data: { settings?: Record<string, unknown> }) => {
+    // Live config updates — API emits this when portal saves widget settings.
+    // The payload now includes `language` so we can update locale immediately.
+    socket.on("widget:config-updated", (data: { settings?: Record<string, unknown>; language?: string }) => {
       try {
         const ws = data?.settings;
         if (!ws || typeof ws !== "object") return;
-        console.log("[Widget v2] Live config update received");
-        const parsed = parseWidgetSettings(ws, {}, lang);
+        console.log("[Widget v2] Live config update received", data.language || "no-lang");
+
+        // Update language from event payload (API now includes org.language)
+        const newLang = resolveWidgetLang(data.language);
+        setLang(newLang);
+        langRef.current = newLang;
+        try { document.documentElement.lang = newLang; } catch { /* ignore */ }
+
+        const parsed = parseWidgetSettings(ws, {}, newLang);
         setUi(parsed);
 
-        // Forward full settings to parent (loader.ts) so launcher updates too
+        // Forward settings + language to parent (loader.ts) so launcher updates too
         try {
-          window.parent.postMessage({ type: "helvion:config-update", settings: ws }, "*");
+          window.parent.postMessage({
+            type: "helvion:config-update",
+            settings: ws,
+            language: newLang,
+          }, "*");
         } catch { /* cross-origin safety */ }
-
-        // Language is not included in this event. Refresh bootloader once (best-effort)
-        // so the widget stays in sync with org.language changes.
-        try {
-          void fetchBootloader(siteId).then((boot) => {
-            const cfg = (boot?.config || {}) as Record<string, unknown>;
-            const detectedLang = resolveWidgetLang((cfg as any).language);
-            setLang(detectedLang);
-            try {
-              document.documentElement.lang = detectedLang;
-            } catch {
-              // ignore
-            }
-            const ws2 = (cfg.widgetSettings || {}) as Record<string, unknown>;
-            const cpc2 = (cfg.chatPageConfig || {}) as Record<string, unknown>;
-            setUi(parseWidgetSettings(ws2, cpc2, detectedLang));
-          });
-        } catch {
-          // ignore
-        }
       } catch {
         // ignore
       }

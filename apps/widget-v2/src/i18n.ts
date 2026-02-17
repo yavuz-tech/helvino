@@ -16,7 +16,14 @@ type Key =
   | "typing"
   | "failedSend"
   | "aiAgentBadge"
-  | "poweredByLine";
+  | "poweredByLine"
+  | "defaultTitle"
+  | "defaultSubtitle"
+  | "defaultPlaceholder"
+  | "defaultWelcome"
+  | "starterPricing"
+  | "starterSupport"
+  | "starterOrder";
 
 const DICT: Record<WidgetLang, Record<Key, string>> = {
   tr: {
@@ -27,9 +34,16 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     attach: "Dosya ekle",
     send: "Gönder",
     typing: "yazıyor...",
-    failedSend: "⚠︎ gonderilemedi",
+    failedSend: "⚠︎ gönderilemedi",
     aiAgentBadge: "AI Agent",
     poweredByLine: "tarafından desteklenmektedir",
+    defaultTitle: "Nasıl yardımcı olabiliriz?",
+    defaultSubtitle: "Genellikle birkaç dakika içinde yanıt veriyoruz",
+    defaultPlaceholder: "Mesajınızı yazın...",
+    defaultWelcome: "Merhaba! 👋 Size nasıl yardımcı olabilirim?",
+    starterPricing: "💰 Fiyatlandırma hakkında bilgi",
+    starterSupport: "🔧 Teknik destek istiyorum",
+    starterOrder: "📦 Siparişimi takip etmek istiyorum",
   },
   en: {
     loading: "Loading...",
@@ -42,6 +56,13 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     failedSend: "⚠︎ failed to send",
     aiAgentBadge: "AI Agent",
     poweredByLine: "powered by",
+    defaultTitle: "How can we help?",
+    defaultSubtitle: "We typically reply within minutes",
+    defaultPlaceholder: "Write your message...",
+    defaultWelcome: "Hi! 👋 How can we help you?",
+    starterPricing: "💰 Pricing information",
+    starterSupport: "🔧 I need technical support",
+    starterOrder: "📦 Track my order",
   },
   es: {
     loading: "Cargando...",
@@ -53,7 +74,14 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     typing: "escribiendo...",
     failedSend: "⚠︎ no se pudo enviar",
     aiAgentBadge: "AI Agent",
-    poweredByLine: "con la tecnologia de",
+    poweredByLine: "con la tecnología de",
+    defaultTitle: "¿Cómo podemos ayudar?",
+    defaultSubtitle: "Solemos responder en minutos",
+    defaultPlaceholder: "Escribe tu mensaje...",
+    defaultWelcome: "¡Hola! 👋 ¿En qué podemos ayudarte?",
+    starterPricing: "💰 Información de precios",
+    starterSupport: "🔧 Necesito soporte técnico",
+    starterOrder: "📦 Rastrear mi pedido",
   },
 };
 

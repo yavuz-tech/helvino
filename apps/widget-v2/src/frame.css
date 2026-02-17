@@ -275,9 +275,10 @@ body {
 /* ══ MOBILE — FULL EXPERIENCE ══ */
 @media (max-width: 768px) {
   html, body, #root, .hv-app {
-    width: 100vw; max-width: 100vw;
-    height: 100%; height: 100dvh;
-    overflow: hidden;
+    width: 100vw !important; max-width: 100vw !important;
+    height: 100% !important; height: 100dvh !important;
+    overflow: hidden !important;
+    overscroll-behavior: none;
   }
 
   .hv-header {

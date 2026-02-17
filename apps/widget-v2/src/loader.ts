@@ -280,11 +280,17 @@ function applyConfig(cfg: LauncherConfig): void {
     launcher.style.right = edgePx;
   }
 
-  // IMPORTANT (mobile): the container is fullscreen via CSS (inset: 0).
-  // Setting left/right inline breaks fullscreen and causes horizontal shifting.
+  // On mobile: clear ALL inline position styles so CSS !important rules take over
+  // (fullscreen via top/left/right/bottom: 0 !important in loader.css).
+  // On desktop: position the chat popup next to the launcher.
   if (mobile) {
     container.style.left = "";
     container.style.right = "";
+    container.style.top = "";
+    container.style.bottom = "";
+    container.style.width = "";
+    container.style.height = "";
+    container.style.borderRadius = "";
   } else if (isLeft) {
     container.style.right = "auto";
     container.style.left = edgePx;
@@ -378,7 +384,22 @@ function onFrameMessage(e: MessageEvent): void {
   if (e.data?.type === "helvion:config-update" && e.data.settings) {
     const ws = e.data.settings as Record<string, unknown>;
     applyConfig(parseConfig(ws));
+
+    // Update language from live config (iframe forwards the resolved language)
+    if (typeof e.data.language === "string") {
+      currentLang = resolveWidgetLang(e.data.language);
+      syncLauncherAria();
+    }
   }
+}
+
+// ── Handle orientation/resize changes ──
+let resizeTimer: number | null = null;
+function onResize(): void {
+  if (resizeTimer) window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(() => {
+    if (currentConfig) applyConfig(currentConfig);
+  }, 150);
 }
 
 // ── Init ──
@@ -399,6 +420,8 @@ function init(): void {
   document.body.appendChild(launcher);
 
   window.addEventListener("message", onFrameMessage);
+  window.addEventListener("resize", onResize);
+  window.addEventListener("orientationchange", onResize);
 
   void fetchAndApply(siteId);
 }

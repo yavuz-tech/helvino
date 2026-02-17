@@ -605,10 +605,12 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
         : SPANISH_CHARS_RE.test(contentSample) ? "es"
         : null; // null = don't change
       if (detectedLanguage) {
-        prisma.organization.update({
-          where: { id: orgId },
-          data: { language: detectedLanguage },
-        }).catch(() => {});
+        try {
+          await prisma.organization.update({
+            where: { id: orgId },
+            data: { language: detectedLanguage },
+          });
+        } catch { /* best-effort */ }
       }
 
       // Audit log (best-effort)
@@ -626,24 +628,23 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
         ...((updatedSettings.configJson as Record<string, unknown>) || {}),
       };
 
-      // Emit real-time event so connected widgets refresh their config instantly
+      // Emit real-time event so connected widgets refresh their config instantly.
+      // Include the current org.language so widgets can update locale without
+      // needing a full bootloader refetch.
       try {
         const orgInfo = await prisma.organization.findUnique({
           where: { id: orgId },
-          select: { key: true },
+          select: { key: true, language: true },
         });
         if (orgInfo && fastify.io) {
-          // Emit to widget-only rooms (server-side isolation)
-          fastify.io.to(`org:${orgId}:widgets`).emit("widget:config-updated", {
+          const eventPayload = {
             settings: returnSettings,
+            language: orgInfo.language || "tr",
             settingsVersion: updatedSettings.updatedAt.getTime(),
             timestamp: new Date().toISOString(),
-          });
-          fastify.io.to(`org:${orgInfo.key}:widgets`).emit("widget:config-updated", {
-            settings: returnSettings,
-            settingsVersion: updatedSettings.updatedAt.getTime(),
-            timestamp: new Date().toISOString(),
-          });
+          };
+          fastify.io.to(`org:${orgId}:widgets`).emit("widget:config-updated", eventPayload);
+          fastify.io.to(`org:${orgInfo.key}:widgets`).emit("widget:config-updated", eventPayload);
         }
       } catch {
         // Best-effort — don't fail the save if socket emit fails
