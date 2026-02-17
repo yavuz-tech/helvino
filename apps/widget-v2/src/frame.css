@@ -111,6 +111,7 @@ body {
 .hv-msg-agent {
   display: flex; gap: 8px; max-width: 88%;
   align-items: flex-end;
+  min-width: 0;
 }
 .hv-msg-agent .hv-msg-avatar {
   width: 28px; height: 28px; border-radius: 50%;
@@ -126,6 +127,7 @@ body {
   border-radius: 2px 16px 16px 16px;
   max-width: 100%; order: 1;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  min-width: 0;
 }
 .hv-msg-sender {
   font-size: 12px; opacity: 0.9; margin-bottom: 4px;
@@ -147,11 +149,13 @@ body {
   border-radius: 16px 2px 16px 16px;
   max-width: 88%;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  min-width: 0;
 }
 
 .hv-msg-text {
   font-size: 14px; line-height: 1.55;
   word-break: break-word; overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 .hv-msg-time { font-size: 11px; opacity: 0.6; margin-top: 4px; }
 .hv-msg-failed { font-size: 11px; margin-top: 4px; opacity: 0.85; }

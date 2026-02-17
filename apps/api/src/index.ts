@@ -818,6 +818,13 @@ fastify.post<{
         const TURKISH_CHARS_RE = /[çğıöşüİ]/i;
         const TURKISH_WORD_RE = /\b(merhaba|selam|nasilsin|nasılsın|yardim|yardım|tesekkur|teşekkür|lutfen|lütfen)\b/i;
         const looksTurkish = (text: string) => TURKISH_CHARS_RE.test(text) || TURKISH_WORD_RE.test(text);
+        const looksLikeEmail = (text: string) => /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text);
+        const looksLikePhone = (text: string) => {
+          const digits = String(text || "").replace(/[^\d+]/g, "");
+          // Very loose: require at least 9 digits to avoid false positives.
+          const digitCount = digits.replace(/[^\d]/g, "").length;
+          return digitCount >= 9;
+        };
 
         // If org.language is not Turkish but the conversation is clearly Turkish (e.g. first message),
         // keep the fallback in Turkish even when the visitor later sends an email/number.
@@ -848,12 +855,42 @@ fastify.post<{
             : "We can't send an automated reply right now. Our team will get back to you shortly. You can leave your email or phone number.";
         };
 
+        const getContactThanksMessage = (): string => {
+          const byOrg = typeof orgLanguage === "string" && orgLanguage.trim().toLowerCase().startsWith("tr");
+          const byContent = looksTurkish(sanitizedContent);
+          const isTr = byOrg || isTrFromHistory || byContent;
+          return isTr
+            ? "Tesekkurler! Bilgilerinizi aldik. Ekibimiz en kisa surede sizinle iletisime gececek."
+            : "Thanks! We received your contact details. Our team will reach out shortly.";
+        };
+
+        // Conversation-level spam guard:
+        // - Show the "no automated reply" notice at most once per conversation.
+        // - If the visitor provides contact info (email/phone), send a one-time thank-you instead.
+        let hasShownNoAiNotice = false;
+        let hasShownContactThanks = false;
+        try {
+          const hist = await store.getMessages(id);
+          const noAiText = getNoAiVisitorMessage();
+          const thanksText = getContactThanksMessage();
+          for (const m of (hist || []).slice(-40)) {
+            if ((m as any)?.role !== "assistant") continue;
+            const c = String((m as any)?.content || "").trim();
+            if (c === noAiText) hasShownNoAiNotice = true;
+            if (c === thanksText) hasShownContactThanks = true;
+          }
+        } catch {
+          // ignore
+        }
+
         // Check AI quota before generating response
         const quota = await checkAiQuota(org.id);
         if (quota.exceeded) {
           console.warn(`[AI] Quota exceeded for org ${org.id}: ${quota.used}/${quota.limit}`);
           // Avoid silent failure: tell the visitor why there is no AI reply.
-          await emitAssistantToConversation(getNoAiVisitorMessage());
+          if (!hasShownNoAiNotice) {
+            await emitAssistantToConversation(getNoAiVisitorMessage());
+          }
           return;
         }
 
@@ -863,7 +900,12 @@ fastify.post<{
           console.warn(
             `[AI] M2 entitlement blocked for org ${org.id}: ${m2Check.code || "M2_BLOCKED"} ${m2Check.used ?? "?"}/${m2Check.limit ?? "?"}`
           );
-          await emitAssistantToConversation(getNoAiVisitorMessage());
+          const contactProvided = looksLikeEmail(sanitizedContent) || looksLikePhone(sanitizedContent);
+          if (contactProvided && !hasShownContactThanks) {
+            await emitAssistantToConversation(getContactThanksMessage());
+          } else if (!hasShownNoAiNotice) {
+            await emitAssistantToConversation(getNoAiVisitorMessage());
+          }
           return;
         }
 
