@@ -74,11 +74,12 @@ const DAYS_TR = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 // ════ COMPONENTS ════
 
 function Toggle({ checked, onChange, label, desc, pro, disabled }) {
+  const isLocked = pro || disabled;
   return (
     <div style={{
       display: "flex", alignItems: "center", justifyContent: "space-between",
       padding: "14px 0", borderBottom: "1px solid #F3EDE4",
-      opacity: disabled ? 0.45 : 1, pointerEvents: disabled ? "none" : "auto",
+      opacity: isLocked ? 0.55 : 1,
     }}>
       <div style={{ flex: 1, marginRight: 16 }}>
         <div style={{ fontFamily: "'Satoshi',sans-serif", fontSize: 13.5, fontWeight: 700, color: "#1A1D23", display: "flex", alignItems: "center", gap: 7 }}>
@@ -91,18 +92,19 @@ function Toggle({ checked, onChange, label, desc, pro, disabled }) {
         {desc && <div style={{ fontFamily: "'Manrope',sans-serif", fontSize: 11.5, color: "#94A3B8", marginTop: 3 }}>{desc}</div>}
       </div>
       <div onClick={() => onChange(!checked)} style={{
-        width: 56, minWidth: 56, height: 30, minHeight: 30, borderRadius: 15, cursor: "pointer",
-        background: checked ? "linear-gradient(135deg,#F59E0B,#D97706)" : "#C9CDD4",
+        width: 56, minWidth: 56, height: 30, minHeight: 30, borderRadius: 15,
+        cursor: isLocked ? "pointer" : "pointer",
+        background: isLocked ? "#D1D5DB" : (checked ? "linear-gradient(135deg,#F59E0B,#D97706)" : "#C9CDD4"),
         transition: "all 0.4s cubic-bezier(0.4,0,0.2,1)",
-        boxShadow: checked
+        boxShadow: isLocked ? "none" : (checked
           ? "0 4px 14px rgba(245,158,11,0.4), inset 0 1px 1px rgba(255,255,255,0.15)"
-          : "inset 0 2px 4px rgba(0,0,0,0.12), inset 0 0 0 1px rgba(0,0,0,0.04)",
+          : "inset 0 2px 4px rgba(0,0,0,0.12), inset 0 0 0 1px rgba(0,0,0,0.04)"),
         flexShrink: 0, position: "relative",
       }}>
         <div style={{
           width: 24, height: 24, borderRadius: 12, background: "#FFF",
           boxShadow: "0 2px 6px rgba(0,0,0,0.2), 0 0 0 0.5px rgba(0,0,0,0.04)",
-          position: "absolute", top: 3, left: checked ? 29 : 3,
+          position: "absolute", top: 3, left: (isLocked ? false : checked) ? 29 : 3,
           transition: "left 0.4s cubic-bezier(0.4,0,0.2,1)",
         }} />
       </div>
@@ -343,13 +345,20 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
   const isFree = tier === 0;     // Free only
   const showUpgrade = (feat) => setProModal({ show: true, feature: feat });
 
-  // If the org loses PRO, immediately coerce locked AI options back to defaults.
+  // If the org loses PRO, immediately coerce ALL pro-only features back to defaults.
   useEffect(() => {
     if (isPro) return;
     if (aiTone !== "friendly") setAiTone("friendly");
     if (aiLength !== "standard") setAiLength("standard");
     if (aiModel !== "auto") setAiModel("auto");
     if (aiSuggestions) setAiSuggestions(false);
+    if (csat) setCsat(false);
+    if (whiteLabel) setWhiteLabel(false);
+    if (preChatEnabled) setPreChatEnabled(false);
+    if (consentEnabled) setConsentEnabled(false);
+    if (customCss) setCustomCss("");
+    if (pageRules.length > 0) setPageRules([]);
+    if (!showBranding) setShowBranding(true);
   }, [isPro]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // If the org loses Starter, coerce starter-only features back to defaults.
@@ -358,6 +367,8 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
     if (autoReply) setAutoReply(false);
     if (transcriptEmail) setTranscriptEmail(false);
     if (hoursEnabled) setHoursEnabled(false);
+    if (readReceipts) setReadReceipts(false);
+    if (fileUpload) setFileUpload(false);
   }, [isStarter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ac = useCustom ? customColor : theme.color;
@@ -410,19 +421,14 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
     if (s2.timezone) setTimezone(s2.timezone);
     if (Array.isArray(s2.hours)) setHours(s2.hours);
     // Toggles
-    if (typeof s2.showBranding === "boolean") setShowBranding(s2.showBranding);
     if (typeof s2.showOnMobile === "boolean") setShowOnMobile(s2.showOnMobile);
     if (typeof s2.showOffline === "boolean") setShowOffline(s2.showOffline);
     if (typeof s2.soundEnabled === "boolean") setSoundEnabled(s2.soundEnabled);
     if (typeof s2.autoOpen === "boolean") setAutoOpen(s2.autoOpen);
     if (typeof s2.showUnread === "boolean") setShowUnread(s2.showUnread);
-    if (typeof s2.preChatEnabled === "boolean") setPreChatEnabled(s2.preChatEnabled);
     if (typeof s2.typingIndicator === "boolean") setTypingIndicator(s2.typingIndicator);
-    if (typeof s2.fileUpload === "boolean") setFileUpload(s2.fileUpload);
     if (typeof s2.emojiPicker === "boolean") setEmojiPicker(s2.emojiPicker);
-    if (typeof s2.readReceipts === "boolean") setReadReceipts(s2.readReceipts);
     if (typeof s2.responseTime === "boolean") setResponseTime(s2.responseTime);
-    if (typeof s2.transcriptEmail === "boolean") setTranscriptEmail(s2.transcriptEmail);
     if (typeof s2.visitorNotes === "boolean") setVisitorNotes(s2.visitorNotes);
     // AI
     if (s2.aiName != null) setAiName(s2.aiName);
@@ -433,15 +439,20 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
     if (s2.aiWelcome != null) setAiWelcome(s2.aiWelcome);
     if (s2.aiModel) setAiModel(isPro ? s2.aiModel : "auto");
     if (typeof s2.aiSuggestions === "boolean") setAiSuggestions(isPro ? s2.aiSuggestions : false);
-    // PRO features
-    if (typeof s2.csat === "boolean") setCsat(s2.csat);
-    if (typeof s2.whiteLabel === "boolean") setWhiteLabel(s2.whiteLabel);
-    if (typeof s2.autoReply === "boolean") setAutoReply(s2.autoReply);
-    if (s2.autoReplyMsg != null) setAutoReplyMsg(s2.autoReplyMsg);
-    if (s2.customCss != null) setCustomCss(s2.customCss);
-    if (typeof s2.consentEnabled === "boolean") setConsentEnabled(s2.consentEnabled);
-    if (s2.consentText != null) setConsentText(s2.consentText);
-    if (Array.isArray(s2.pageRules)) setPageRules(s2.pageRules);
+    // PRO features — client-side safety net: coerce to defaults if plan insufficient
+    if (typeof s2.csat === "boolean") setCsat(isPro ? s2.csat : false);
+    if (typeof s2.whiteLabel === "boolean") setWhiteLabel(isPro ? s2.whiteLabel : false);
+    if (typeof s2.autoReply === "boolean") setAutoReply(isStarter ? s2.autoReply : false);
+    if (s2.autoReplyMsg != null) setAutoReplyMsg(isStarter ? s2.autoReplyMsg : "");
+    if (s2.customCss != null) setCustomCss(isPro ? s2.customCss : "");
+    if (typeof s2.consentEnabled === "boolean") setConsentEnabled(isPro ? s2.consentEnabled : false);
+    if (s2.consentText != null) setConsentText(isPro ? s2.consentText : "");
+    if (Array.isArray(s2.pageRules)) setPageRules(isPro ? s2.pageRules : []);
+    if (typeof s2.preChatEnabled === "boolean") setPreChatEnabled(isPro ? s2.preChatEnabled : false);
+    if (typeof s2.showBranding === "boolean") setShowBranding(isPro ? s2.showBranding : true);
+    if (typeof s2.transcriptEmail === "boolean") setTranscriptEmail(isStarter ? s2.transcriptEmail : false);
+    if (typeof s2.readReceipts === "boolean") setReadReceipts(isStarter ? s2.readReceipts : false);
+    if (typeof s2.fileUpload === "boolean") setFileUpload(isStarter ? s2.fileUpload : false);
   }, [initialSettings, settingsVersion]);
 
   const markChanged = useCallback(() => { setHasChanges(true); setSaved(false); }, []);
