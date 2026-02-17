@@ -628,14 +628,22 @@ export async function getAvailablePlans() {
     orderBy: { monthlyPriceUsd: "asc" },
   });
 
+  const normalizePriceUsd = (v: number | null | undefined): number | null => {
+    if (typeof v !== "number" || !Number.isFinite(v)) return null;
+    // Some environments store USD prices in cents (e.g. 3900 for $39).
+    // Normalize to dollars for the frontend price components.
+    return v >= 1000 ? Math.round((v / 100) * 100) / 100 : v;
+  };
+
   return plans.map((p) => ({
     key: p.key,
     name: p.name,
     // Legacy field for older consumers.
     stripePriceId: p.stripePriceMonthlyUsd || p.stripePriceYearlyUsd || null,
-    monthlyPriceUsd: p.monthlyPriceUsd,
-    maxConversationsPerMonth: p.maxConversationsPerMonth,
-    maxMessagesPerMonth: p.maxMessagesPerMonth,
+    monthlyPriceUsd: normalizePriceUsd(p.monthlyPriceUsd),
+    // Product rule: free plan manual chat is unlimited in UI.
+    maxConversationsPerMonth: p.key === "free" ? -1 : p.maxConversationsPerMonth,
+    maxMessagesPerMonth: p.key === "free" ? -1 : p.maxMessagesPerMonth,
     maxAgents: p.maxAgents,
   }));
 }
