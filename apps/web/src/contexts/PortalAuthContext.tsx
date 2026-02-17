@@ -62,6 +62,8 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const pathnameRef = useRef<string>("");
   const userRef = useRef<PortalUser | null>(null);
+  const verifyCalledRef = useRef(false);
+  const consecutiveFailsRef = useRef(0);
 
   useEffect(() => {
     pathnameRef.current = pathname || "";
@@ -72,15 +74,19 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const isPublicPath = PUBLIC_PATHS.some((p) => pathname?.startsWith(p));
-  const isOnboardingExemptPath = ONBOARDING_EXEMPT_PATHS.some((p) => pathname?.startsWith(p));
 
   const shouldForceSecurityOnboarding = useCallback(
-    (portalUser: PortalUser | null) =>
-      Boolean(portalUser?.showSecurityOnboarding) &&
-      !isPortalOnboardingDeferredForSession() &&
-      Boolean(pathname?.startsWith("/portal")) &&
-      !isOnboardingExemptPath,
-    [pathname, isOnboardingExemptPath]
+    (portalUser: PortalUser | null) => {
+      const currentPath = pathnameRef.current || pathname || "";
+      const isOnboardingExempt = ONBOARDING_EXEMPT_PATHS.some((p) => currentPath.startsWith(p));
+      return (
+        Boolean(portalUser?.showSecurityOnboarding) &&
+        !isPortalOnboardingDeferredForSession() &&
+        currentPath.startsWith("/portal") &&
+        !isOnboardingExempt
+      );
+    },
+    [pathname]
   );
 
   const hardRedirectToOnboarding = useCallback(() => {
@@ -91,40 +97,53 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
     router.replace("/portal/security-onboarding");
   }, [router]);
 
+  // verify runs ONCE on mount, not on every route change
   const verify = useCallback(async () => {
     try {
       const portalUser = await checkPortalAuth();
-      // Avoid redirect flicker while navigating: if we already have a user and a
-      // single auth check returns null (network hiccup / cookie race), keep the
-      // existing session and don't bounce to /portal/login.
       const hadUser = Boolean(userRef.current);
-      const currentPath = pathnameRef.current || pathname || "";
+      const currentPath = pathnameRef.current || "";
       const isPublicNow = PUBLIC_PATHS.some((p) => currentPath.startsWith(p));
 
       if (portalUser) {
         setUser(portalUser);
-      } else if (!portalUser && !isPublicNow && !hadUser) {
-        setUser(null);
-        router.push("/portal/login");
+        consecutiveFailsRef.current = 0;
+      } else if (!isPublicNow && !hadUser) {
+        // Only redirect to login if we never had a user
+        consecutiveFailsRef.current++;
+        if (consecutiveFailsRef.current >= 2) {
+          setUser(null);
+          router.push("/portal/login");
+        }
+        // First fail: don't redirect yet, might be a transient hiccup
       }
-      if (shouldForceSecurityOnboarding(portalUser)) {
+      // If hadUser and portalUser is null, keep existing user (transient failure)
+
+      if (portalUser && shouldForceSecurityOnboarding(portalUser)) {
         hardRedirectToOnboarding();
         return;
       }
     } catch {
       const hadUser = Boolean(userRef.current);
-      const currentPath = pathnameRef.current || pathname || "";
+      const currentPath = pathnameRef.current || "";
       const isPublicNow = PUBLIC_PATHS.some((p) => currentPath.startsWith(p));
       if (!isPublicNow && !hadUser) {
-        setUser(null);
-        router.push("/portal/login");
+        consecutiveFailsRef.current++;
+        if (consecutiveFailsRef.current >= 2) {
+          setUser(null);
+          router.push("/portal/login");
+        }
       }
     } finally {
       setLoading(false);
     }
-  }, [router, pathname, shouldForceSecurityOnboarding, hardRedirectToOnboarding]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
+  // Run verify ONCE on mount — not on every pathname change
   useEffect(() => {
+    if (verifyCalledRef.current) return;
+    verifyCalledRef.current = true;
     verify();
   }, [verify]);
 
@@ -134,16 +153,13 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
     if (shouldForceSecurityOnboarding(user)) {
       hardRedirectToOnboarding();
     }
-  }, [loading, user, router, shouldForceSecurityOnboarding, hardRedirectToOnboarding]);
+  }, [loading, user, shouldForceSecurityOnboarding, hardRedirectToOnboarding]);
 
   // Fail-safe: never keep portal UI in infinite loading state.
   useEffect(() => {
     if (!loading) return;
     const timeout = window.setTimeout(() => {
       setLoading(false);
-      // Do NOT redirect here. A slow auth check can cause a "login → portal"
-      // flicker during navigation. The verify() flow handles redirects when
-      // we're confidently unauthenticated.
     }, 3000);
     return () => window.clearTimeout(timeout);
   }, [loading]);
@@ -151,8 +167,11 @@ export function PortalAuthProvider({ children }: { children: ReactNode }) {
   useAuth({
     enabled: Boolean(user),
     onRefreshFailed: () => {
-      setUser(null);
-      if (!isPublicPath) {
+      // Don't immediately redirect — the user might still have a valid httpOnly cookie.
+      // Only clear user if a subsequent verify also fails.
+      consecutiveFailsRef.current++;
+      if (consecutiveFailsRef.current >= 2 && !isPublicPath) {
+        setUser(null);
         router.push("/portal/login");
       }
     },
