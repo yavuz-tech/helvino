@@ -15,9 +15,14 @@ function readIdentityFromSearch(): WidgetIdentity {
 
 function readIdentityFromStorage(): WidgetIdentity {
   if (typeof window === "undefined") return {};
-  const siteId = localStorage.getItem(STORAGE_SITE_ID_KEY) || undefined;
-  const orgKey = localStorage.getItem(STORAGE_ORG_KEY_KEY) || undefined;
-  return { siteId, orgKey };
+  try {
+    const siteId = localStorage.getItem(STORAGE_SITE_ID_KEY) || undefined;
+    const orgKey = localStorage.getItem(STORAGE_ORG_KEY_KEY) || undefined;
+    return { siteId, orgKey };
+  } catch {
+    // Safari private mode / hardened browsers may throw on localStorage access.
+    return {};
+  }
 }
 
 // Hardcoded fallback so the widget always loads on public pages (login, landing)
@@ -51,8 +56,12 @@ export function resolvePublicWidgetIdentity(): WidgetIdentity {
 
 export function rememberPublicWidgetIdentity(identity: WidgetIdentity): void {
   if (typeof window === "undefined") return;
-  if (identity.siteId) localStorage.setItem(STORAGE_SITE_ID_KEY, identity.siteId);
-  if (identity.orgKey) localStorage.setItem(STORAGE_ORG_KEY_KEY, identity.orgKey);
+  try {
+    if (identity.siteId) localStorage.setItem(STORAGE_SITE_ID_KEY, identity.siteId);
+    if (identity.orgKey) localStorage.setItem(STORAGE_ORG_KEY_KEY, identity.orgKey);
+  } catch {
+    // Non-fatal: widget still works for this session via window vars.
+  }
 }
 
 export function mountPublicWidgetScript(identity: WidgetIdentity): boolean {

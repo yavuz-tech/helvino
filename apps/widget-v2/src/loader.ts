@@ -38,7 +38,15 @@ function getSiteId(): string {
   return "";
 }
 
-function isMobile(): boolean { return window.innerWidth <= 768; }
+function isMobile(): boolean {
+  // matchMedia is more reliable on mobile browsers (esp. iOS Safari) than innerWidth.
+  try {
+    if (typeof window.matchMedia === "function") {
+      return window.matchMedia("(max-width: 768px)").matches;
+    }
+  } catch { /* */ }
+  return window.innerWidth <= 768;
+}
 
 // ── Launcher settings parsed from bootloader/live update ──
 interface LauncherConfig {
@@ -84,6 +92,23 @@ let currentConfig: LauncherConfig | null = null;
 let attGrabberTimer: number | null = null;
 let attGrabberDismissed = false;
 let currentLang: WidgetLang = "tr";
+
+function syncLauncherVisibility(): void {
+  if (!launcher) return;
+  // On mobile fullscreen, the launcher can sit on top of the iframe and block the
+  // send button area. Hide + disable it while chat is open on mobile.
+  const hide = isOpen && isMobile();
+  // Use display:none to guarantee it won't render above the iframe.
+  launcher.style.display = hide ? "none" : "flex";
+  launcher.style.pointerEvents = hide ? "none" : "auto";
+  launcher.style.opacity = hide ? "0" : "1";
+  launcher.style.zIndex = String(hide ? (Z_TOP - 2) : Z_TOP);
+  if (hide) {
+    // Also hide any attention/pulse artifacts while fullscreen is open.
+    if (pulseRing) pulseRing.style.display = "none";
+    if (attGrabberEl) attGrabberEl.classList.remove("helvion-att-visible");
+  }
+}
 
 function syncLauncherAria(): void {
   if (!launcher) return;
@@ -139,6 +164,7 @@ function toggle(): void {
   if (!container || !launcher) return;
   isOpen = !isOpen;
   syncLauncherAria();
+  syncLauncherVisibility();
 
   if (isOpen) {
     hideAttGrabber();
@@ -332,7 +358,8 @@ function applyConfig(cfg: LauncherConfig): void {
   scheduleAttGrabber(cfg);
 
   // Reveal
-  launcher.style.opacity = "1";
+  // Respect mobile-open visibility rules (launcher should not block iframe UI).
+  syncLauncherVisibility();
 }
 
 // ── Build launcher DOM ──
