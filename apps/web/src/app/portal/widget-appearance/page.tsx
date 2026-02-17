@@ -102,6 +102,8 @@ export default function PortalWidgetAppearancePage() {
       payloadSettings.autoReplyMsg = "";
       payloadSettings.transcriptEmail = false;
       payloadSettings.hoursEnabled = false;
+      payloadSettings.readReceipts = false;
+      payloadSettings.fileUpload = false;
     }
     // FREE-only restrictions
     if (isFree) {

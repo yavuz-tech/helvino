@@ -93,7 +93,7 @@ function Toggle({ checked, onChange, label, desc, pro, disabled }) {
       </div>
       <div onClick={() => onChange(!checked)} style={{
         width: 56, minWidth: 56, height: 30, minHeight: 30, borderRadius: 15,
-        cursor: isLocked ? "pointer" : "pointer",
+        cursor: "pointer",
         background: isLocked ? "#D1D5DB" : (checked ? "linear-gradient(135deg,#F59E0B,#D97706)" : "#C9CDD4"),
         transition: "all 0.4s cubic-bezier(0.4,0,0.2,1)",
         boxShadow: isLocked ? "none" : (checked
@@ -545,18 +545,30 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
       pageRules,
     };
 
+    // PRO+ features (tier >= 2): coerce to defaults for non-PRO users
     if (!isPro) {
+      payloadSettings.aiTone = "friendly";
+      payloadSettings.aiLength = "standard";
       payloadSettings.aiModel = "auto";
+      payloadSettings.aiSuggestions = false;
       payloadSettings.csat = false;
       payloadSettings.whiteLabel = false;
-      payloadSettings.autoReply = false;
       payloadSettings.consentEnabled = false;
       payloadSettings.customCss = "";
-      payloadSettings.transcriptEmail = false;
       payloadSettings.showBranding = true;
       payloadSettings.preChatEnabled = false;
       payloadSettings.pageRules = [];
     }
+    // STARTER+ features (tier >= 1): coerce to defaults for FREE users
+    if (!isStarter) {
+      payloadSettings.autoReply = false;
+      payloadSettings.autoReplyMsg = "";
+      payloadSettings.transcriptEmail = false;
+      payloadSettings.hoursEnabled = false;
+      payloadSettings.readReceipts = false;
+      payloadSettings.fileUpload = false;
+    }
+    // FREE-only restrictions
     if (isFree) {
       const premiumThemes = new Set(["sunset", "aurora", "midnight", "cherry"]);
       const premiumPatterns = new Set(["diamonds", "circles", "confetti"]);
@@ -1042,15 +1054,15 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                     Ziyaretçinin dikkatini çekmek için widget'ın yanında bir animasyon veya mesaj gösterin.
                   </p>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 6, marginBottom: 14 }}>
-                    {ATTENTION_GRABBERS.map(ag => {
-                      const sel = attGrabber.id===ag.id;
+                    {ATTENTION_GRABBERS.map(grab => {
+                      const sel = attGrabber.id===grab.id;
                       return (
-                        <div key={ag.id} onClick={()=>{setAttGrabber(ag);markChanged();}} style={{
+                        <div key={grab.id} onClick={()=>{setAttGrabber(grab);markChanged();}} style={{
                           padding: "10px 4px", borderRadius: 10, cursor: "pointer", textAlign: "center",
                           border: sel?`2px solid ${ac}`:"2px solid #F1F5F9", background: sel?`rgba(${acRgb},0.04)`:"#FAFAF8", transition: "all 0.25s",
                         }}>
-                          <div style={{ fontSize: 20, marginBottom: 4 }}>{ag.emoji}</div>
-                          <div style={{ fontFamily: s.font, fontSize: 9, fontWeight: 600, color: sel?ac:"#64748B" }}>{ag.label}</div>
+                          <div style={{ fontSize: 20, marginBottom: 4 }}>{grab.emoji}</div>
+                          <div style={{ fontFamily: s.font, fontSize: 9, fontWeight: 600, color: sel?ac:"#64748B" }}>{grab.label}</div>
                         </div>
                       );
                     })}
