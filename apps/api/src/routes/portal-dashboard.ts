@@ -13,6 +13,7 @@ import { requirePortalUser, requirePortalRole } from "../middleware/require-port
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { store } from "../store";
 import { getAiLimitForPlan } from "../utils/ai-service";
+import { getMonthKey } from "../utils/entitlements";
 
 /**
  * Parse user-agent into human-readable browser + OS
@@ -169,7 +170,9 @@ export async function portalDashboardRoutes(fastify: FastifyInstance) {
 
     try {
       const now = new Date();
-      const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      // CRITICAL: Use the same UTC monthKey as the metering/usage writers.
+      // Otherwise, usage can appear "reset to 0" depending on server timezone.
+      const monthKey = getMonthKey(now);
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
@@ -196,8 +199,8 @@ export async function portalDashboardRoutes(fastify: FastifyInstance) {
             planKey: true,
           },
         }),
-        prisma.usage.findFirst({
-          where: { orgId: user.orgId, monthKey },
+        prisma.usage.findUnique({
+          where: { orgId_monthKey: { orgId: user.orgId, monthKey } },
           select: { conversationsCreated: true, messagesSent: true, m1Count: true, m2Count: true, m3Count: true },
         }),
         prisma.conversation.count({ where: { orgId: user.orgId, status: "OPEN" } }),

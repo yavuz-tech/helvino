@@ -103,6 +103,38 @@ function getDefaultV3Config(): Record<string, unknown> {
 }
 
 export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
+  function isProPlan(planKey: string | null | undefined): boolean {
+    const key = String(planKey || "free").toLowerCase();
+    return key === "pro" || key === "business" || key === "enterprise";
+  }
+
+  function applyPlanGatingToConfigPayload(
+    payload: Record<string, unknown>,
+    planKey: string | null | undefined
+  ): void {
+    if (isProPlan(planKey)) return;
+
+    // Non-PRO orgs must not persist PRO-only config. This prevents UI/plan desync
+    // and ensures bootloader returns consistent settings too.
+    payload.aiTone = "friendly";
+    payload.aiLength = "standard";
+    payload.aiModel = "auto";
+    payload.aiSuggestions = false;
+
+    // Keep in sync with portal UI safety net.
+    payload.csat = false;
+    payload.whiteLabel = false;
+    payload.autoReply = false;
+    payload.autoReplyMsg = "";
+    payload.customCss = "";
+    payload.consentEnabled = false;
+    payload.consentText = "";
+    payload.transcriptEmail = false;
+    payload.showBranding = true;
+    payload.preChatEnabled = false;
+    payload.pageRules = [];
+  }
+
   async function resolveAdminOrgIdFromHeader(orgKeyHeader: unknown): Promise<{ orgId: string; orgKey: string } | null> {
     const orgKey = typeof orgKeyHeader === "string" ? orgKeyHeader.trim().toLowerCase() : "";
     if (!orgKey) return null;
@@ -191,8 +223,13 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
           })
         : null;
 
+      // Response-level gating: if a downgraded org still has old PRO values in DB,
+      // do not leak them back to the UI.
+      const effectiveSettings = { ...settings };
+      applyPlanGatingToConfigPayload(effectiveSettings, orgInfo?.planKey);
+
       return {
-        settings,
+        settings: effectiveSettings,
         planKey: orgInfo?.planKey ?? "free",
         brandingRequired: orgInfo?.planKey === "free",
         maxAgents: plan?.maxAgents ?? 1,
@@ -502,6 +539,13 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
         // Store everything in configJson (including legacy fields for a complete snapshot)
         configPayload[key] = value;
       }
+
+      // Server-authoritative plan gating for PRO-only fields.
+      const orgInfoForPlan = await prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { planKey: true },
+      });
+      applyPlanGatingToConfigPayload(configPayload, orgInfoForPlan?.planKey);
 
       // Basic validation for legacy fields
       if (legacyUpdate.primaryColor !== undefined) {

@@ -84,6 +84,26 @@ interface ErrorResponse {
   error: string;
 }
 
+function isProPlan(planKey: string | null | undefined): boolean {
+  const key = String(planKey || "free").toLowerCase();
+  return key === "pro" || key === "business" || key === "enterprise";
+}
+
+function sanitizeWidgetSettingsForPlan<T extends Record<string, unknown>>(
+  input: T,
+  planKey: string | null | undefined
+): T {
+  if (isProPlan(planKey)) return input;
+  // Keep the bootloader response consistent with portal save-gating.
+  return {
+    ...input,
+    aiTone: "friendly",
+    aiLength: "standard",
+    aiModel: "auto",
+    aiSuggestions: false,
+  } as T;
+}
+
 export async function bootloaderRoutes(fastify: FastifyInstance) {
   const bootloaderRateLimit = createRateLimitMiddleware({
     limit: 120,
@@ -382,7 +402,7 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
           unauthorizedDomain,
           // Widget appearance settings (Step 11.52) — includes v3 extended config
           widgetSettings: widgetSettings
-            ? {
+            ? sanitizeWidgetSettingsForPlan({
                 primaryColor: widgetSettings.primaryColor,
                 position: widgetSettings.position,
                 launcher: widgetSettings.launcher,
@@ -397,7 +417,7 @@ export async function bootloaderRoutes(fastify: FastifyInstance) {
                 brandName: widgetSettings.brandName,
                 // v3-ultimate extended config (theme, launcher style, starters, AI, etc.)
                 ...((widgetSettings.configJson as Record<string, unknown>) || {}),
-              }
+              }, org.planKey)
             : {
                 primaryColor: "#0F5C5C",
                 position: "right",
