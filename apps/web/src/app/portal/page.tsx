@@ -114,9 +114,24 @@ export default function PortalOverviewPage() {
   const [showMfaBanner, setShowMfaBanner] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [chatLoading, setChatLoading] = useState<string | null>(null);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [visitors, setVisitors] = useState<VisitorsData | null>(null);
-  const [convCounts, setConvCounts] = useState({ unassigned: 0, myOpen: 0, solved: 0 });
+  const [stats, setStats] = useState<DashboardStats | null>(() => {
+    try {
+      const cached = sessionStorage.getItem("helvion_dashboard_stats");
+      return cached ? JSON.parse(cached) : null;
+    } catch { return null; }
+  });
+  const [visitors, setVisitors] = useState<VisitorsData | null>(() => {
+    try {
+      const cached = sessionStorage.getItem("helvion_dashboard_visitors");
+      return cached ? JSON.parse(cached) : null;
+    } catch { return null; }
+  });
+  const [convCounts, setConvCounts] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("helvion_dashboard_convCounts");
+      return cached ? JSON.parse(cached) : { unassigned: 0, myOpen: 0, solved: 0 };
+    } catch { return { unassigned: 0, myOpen: 0, solved: 0 }; }
+  });
   const [widgetAppearance, setWidgetAppearance] = useState<WidgetAppearance | null>(null);
   const [widgetLauncherStyle, setWidgetLauncherStyle] = useState<"bubble" | "button">("bubble");
   const [widgetLauncherLabel, setWidgetLauncherLabel] = useState("");
@@ -177,18 +192,32 @@ export default function PortalOverviewPage() {
     portalApiFetch("/portal/conversations/counts")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d) setConvCounts({ unassigned: d.unassigned ?? 0, myOpen: d.myOpen ?? 0, solved: d.solved ?? 0 });
+        if (d) {
+          const counts = { unassigned: d.unassigned ?? 0, myOpen: d.myOpen ?? 0, solved: d.solved ?? 0 };
+          setConvCounts(counts);
+          try { sessionStorage.setItem("helvion_dashboard_convCounts", JSON.stringify(counts)); } catch {}
+        }
       })
       .catch(() => {});
 
     portalApiFetch(`/portal/dashboard/stats?_t=${Date.now()}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setStats(d); })
+      .then((d) => {
+        if (d) {
+          setStats(d);
+          try { sessionStorage.setItem("helvion_dashboard_stats", JSON.stringify(d)); } catch {}
+        }
+      })
       .catch(() => {});
 
     portalApiFetch(`/portal/dashboard/visitors?_t=${Date.now()}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setVisitors(d); })
+      .then((d) => {
+        if (d) {
+          setVisitors(d);
+          try { sessionStorage.setItem("helvion_dashboard_visitors", JSON.stringify(d)); } catch {}
+        }
+      })
       .catch(() => {});
 
     portalApiFetch(`/portal/widget/settings?_t=${Date.now()}`, { cache: "no-store" })
@@ -231,7 +260,12 @@ export default function PortalOverviewPage() {
     const interval = setInterval(() => {
       portalApiFetch(`/portal/dashboard/visitors?_t=${Date.now()}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((d) => { if (d) setVisitors(d); })
+        .then((d) => {
+          if (d) {
+            setVisitors(d);
+            try { sessionStorage.setItem("helvion_dashboard_visitors", JSON.stringify(d)); } catch {}
+          }
+        })
         .catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
