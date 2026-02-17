@@ -287,24 +287,27 @@ export default function PortalInboxContent() {
   // Plan info
   const [planKey, setPlanKey] = useState<string>("free");
   const normalizedPlanKey = String(planKey || "free").trim().toLowerCase();
+  // Plan hierarchy: free=0, starter=1, pro=2, business=3, enterprise=4
   const planRank = normalizedPlanKey === "enterprise"
     ? 4
     : normalizedPlanKey === "business"
       ? 3
       : normalizedPlanKey === "pro"
-        ? 3
+        ? 2
         : normalizedPlanKey === "starter"
-          ? 2
-          : 1;
-  const isPro = planRank >= 3;
-  const isProPlus = isPro; // Pro+ features (AI assist, smart filters)
+          ? 1
+          : 0;
+  const isPro = planRank >= 2;       // Pro, Business, Enterprise
+  const isStarter = planRank >= 1;   // Starter+
+  const isBusiness = planRank >= 3;  // Business, Enterprise
+  const isProPlus = isPro;
   const [upgradeModal, setUpgradeModal] = useState<{ show: boolean; feature: string; minPlan: string } | null>(null);
-  const maxTagsForPlan = planRank >= 4 ? Infinity : planRank >= 3 ? 50 : planRank >= 2 ? 10 : 2;
-  const canUseAiSuggest = planRank >= 3;
-  const canUseInternalNotes = planRank >= 2;
-  const canUseFileUpload = planRank >= 2;
+  const maxTagsForPlan = planRank >= 3 ? Infinity : planRank >= 2 ? 50 : planRank >= 1 ? 10 : 2;
+  const canUseAiSuggest = planRank >= 2;   // Pro+
+  const canUseInternalNotes = planRank >= 1; // Starter+
+  const canUseFileUpload = planRank >= 1;   // Starter+
   const canUseFileAttach = canUseFileUpload;
-  const canUseTakeover = planRank >= 2;
+  const canUseTakeover = planRank >= 1;     // Starter+
 
   // Per-conversation unread count + flash window (rebuilt).
   const [unreadByConversationId, setUnreadByConversationId] = useState<Record<string, number>>({});
@@ -2605,8 +2608,8 @@ export default function PortalInboxContent() {
                     { icon: "📊", label: t("inbox.detail.visitHistory" as TranslationKey), value: selectedConvExtra?.visitCount ? `${selectedConvExtra.visitCount} ${t("inbox.detail.visits" as TranslationKey)}` : "-" },
                   ];
                   const visibleFields = (() => {
-                    if (planRank >= 3) return [...standardFields, ...baseFields, ...fullFields];
-                    if (planRank >= 2) return [...standardFields, ...baseFields];
+                    if (planRank >= 2) return [...standardFields, ...baseFields, ...fullFields];
+                    if (planRank >= 1) return [...standardFields, ...baseFields];
                     return baseFields;
                   })();
                   return (
@@ -2625,7 +2628,7 @@ export default function PortalInboxContent() {
                         </div>
                       ))}
 
-                      {planRank < 2 && (
+                      {planRank < 1 && (
                         <button
                           onClick={() => openUpgradeForPlan("starter", "visitorStandard")}
                           style={{
@@ -2667,7 +2670,7 @@ export default function PortalInboxContent() {
                         </button>
                       )}
 
-                      {planRank >= 2 && planRank < 3 && (
+                      {planRank >= 1 && planRank < 2 && (
                         <button
                           onClick={() => openUpgradeForPlan("pro", "visitorFull")}
                           style={{

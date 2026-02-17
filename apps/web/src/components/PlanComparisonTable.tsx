@@ -41,12 +41,23 @@ interface PlanComparisonTableProps {
   recommendedPlan?: string;
 }
 
-/** Static feature checklist per plan tier */
+/** Static feature checklist per plan tier — aligned with pricing-page.jsx */
 const FEATURE_MATRIX: Record<string, Record<string, boolean | string>> = {
   free: {
     "pricing.feature.teamManagement": true,
     "pricing.feature.widgetCustomization": true,
-    "pricing.feature.apiAccess": true,
+    "pricing.feature.apiAccess": false,
+    "pricing.feature.mfa": true,
+    "pricing.feature.passkeys": true,
+    "pricing.feature.auditLog": false,
+    "pricing.feature.customDomains": false,
+    "pricing.feature.prioritySupport": false,
+    "pricing.feature.sla": false,
+  },
+  starter: {
+    "pricing.feature.teamManagement": true,
+    "pricing.feature.widgetCustomization": true,
+    "pricing.feature.apiAccess": false,
     "pricing.feature.mfa": true,
     "pricing.feature.passkeys": true,
     "pricing.feature.auditLog": false,

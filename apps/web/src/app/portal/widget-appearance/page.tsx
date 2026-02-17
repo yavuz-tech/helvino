@@ -34,8 +34,16 @@ export default function PortalWidgetAppearancePage() {
   const [settingsVersion, setSettingsVersion] = useState(0);
   const fetchIdRef = useRef(0);
 
-  const isPro = planKey === "pro" || planKey === "business" || planKey === "enterprise";
-  const isFree = planKey === "free";
+  const tier = (() => {
+    const k = planKey.toLowerCase();
+    if (k === "business" || k === "enterprise") return 3;
+    if (k === "pro") return 2;
+    if (k === "starter") return 1;
+    return 0;
+  })();
+  const isPro = tier >= 2;
+  const isStarter = tier >= 1;
+  const isFree = tier === 0;
 
   const fetchSettings = useCallback(async () => {
     const thisId = ++fetchIdRef.current;
@@ -72,25 +80,30 @@ export default function PortalWidgetAppearancePage() {
       ...(incomingPayload ?? {}),
     };
 
-    // Server-side plan gating safety net
-    if (!isPro) {
-      // AI persona: non-PRO must stay on defaults (prevents plan/UI desync).
+    // Client-side plan gating safety net (aligned with backend applyPlanGatingToConfigPayload)
+    // PRO+ features (tier >= 2)
+    if (tier < 2) {
       payloadSettings.aiTone = "friendly";
       payloadSettings.aiLength = "standard";
       payloadSettings.aiModel = "auto";
       payloadSettings.aiSuggestions = false;
       payloadSettings.csat = false;
       payloadSettings.whiteLabel = false;
-      payloadSettings.autoReply = false;
-      payloadSettings.autoReplyMsg = "";
       payloadSettings.customCss = "";
       payloadSettings.consentEnabled = false;
       payloadSettings.consentText = "";
-      payloadSettings.transcriptEmail = false;
       payloadSettings.showBranding = true;
       payloadSettings.preChatEnabled = false;
       payloadSettings.pageRules = [];
     }
+    // STARTER+ features (tier >= 1)
+    if (tier < 1) {
+      payloadSettings.autoReply = false;
+      payloadSettings.autoReplyMsg = "";
+      payloadSettings.transcriptEmail = false;
+      payloadSettings.hoursEnabled = false;
+    }
+    // FREE-only restrictions
     if (isFree) {
       const premiumThemes = new Set(["sunset", "aurora", "midnight", "cherry"]);
       const premiumPatterns = new Set(["diamonds", "circles", "confetti"]);

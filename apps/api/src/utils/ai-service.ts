@@ -175,6 +175,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 export function getDefaultProviderForPlan(planKey: string): AiProvider {
   switch (planKey) {
     case "free":       return "gemini";   // cheapest
+    case "starter":    return "gemini";   // cost-efficient
     case "pro":        return "openai";   // quality
     case "business":   return "openai";   // premium
     default:           return "openai";

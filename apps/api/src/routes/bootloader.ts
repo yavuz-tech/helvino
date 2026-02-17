@@ -84,24 +84,34 @@ interface ErrorResponse {
   error: string;
 }
 
-function isProPlan(planKey: string | null | undefined): boolean {
+/**
+ * Plan hierarchy: free(0) < starter(1) < pro(2) < business(3)
+ */
+function planTier(planKey: string | null | undefined): number {
   const key = String(planKey || "free").toLowerCase();
-  return key === "pro" || key === "business" || key === "enterprise";
+  if (key === "business" || key === "enterprise") return 3;
+  if (key === "pro") return 2;
+  if (key === "starter") return 1;
+  return 0; // free
 }
 
 function sanitizeWidgetSettingsForPlan<T extends Record<string, unknown>>(
   input: T,
   planKey: string | null | undefined
 ): T {
-  if (isProPlan(planKey)) return input;
-  // Keep the bootloader response consistent with portal save-gating.
-  return {
-    ...input,
-    aiTone: "friendly",
-    aiLength: "standard",
-    aiModel: "auto",
-    aiSuggestions: false,
-  } as T;
+  const tier = planTier(planKey);
+  const overrides: Record<string, unknown> = {};
+
+  // PRO+ features (tier >= 2): AI persona tuning
+  if (tier < 2) {
+    overrides.aiTone = "friendly";
+    overrides.aiLength = "standard";
+    overrides.aiModel = "auto";
+    overrides.aiSuggestions = false;
+  }
+
+  if (Object.keys(overrides).length === 0) return input;
+  return { ...input, ...overrides } as T;
 }
 
 export async function bootloaderRoutes(fastify: FastifyInstance) {

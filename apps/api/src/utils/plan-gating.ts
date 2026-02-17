@@ -5,10 +5,27 @@ export type PlanKey = "free" | "starter" | "pro" | "business";
 export type FeatureKey =
   | "ai_inbox"
   | "ai_config"
+  | "ai_persona"
+  | "ai_suggestions"
   | "workflows"
   | "macros"
   | "billing_checkout"
-  | "billing_portal";
+  | "billing_portal"
+  | "custom_css"
+  | "page_rules"
+  | "pre_chat_form"
+  | "csat"
+  | "white_label"
+  | "remove_branding"
+  | "audit_log"
+  | "auto_reply"
+  | "working_hours"
+  | "file_sharing"
+  | "read_receipts"
+  | "transcript_email"
+  | "priority_support"
+  | "sla"
+  | "custom_domains";
 
 function normalizePlanKey(input: unknown): PlanKey {
   const raw = typeof input === "string" ? input.trim().toLowerCase() : "free";
@@ -25,14 +42,45 @@ function planRank(planKey: PlanKey): number {
   }
 }
 
+/**
+ * Minimum plan required for each feature.
+ * Aligned with pricing-page.jsx feature matrix:
+ *   Free:     basic widget, 2 starters, offline form
+ *   Starter:  adv. widget, 5 starters, auto-reply, working hours, file sharing, read receipts
+ *   Pro:      all AI models, AI persona, remove branding, pre-chat, CSAT, custom CSS, page rules, audit
+ *   Business: priority support, SLA, custom domains
+ */
 const FEATURE_MIN_PLAN: Record<FeatureKey, PlanKey> = {
-  // NOTE: These are conservative defaults. Most enforcement is done via quotas/limits today.
+  // Free-tier features (quotas still apply)
   ai_inbox: "free",
   ai_config: "free",
-  workflows: "free",
-  macros: "free",
   billing_checkout: "free",
   billing_portal: "free",
+
+  // Starter+ features
+  auto_reply: "starter",
+  working_hours: "starter",
+  file_sharing: "starter",
+  read_receipts: "starter",
+  transcript_email: "starter",
+  workflows: "starter",
+  macros: "starter",
+
+  // Pro+ features
+  ai_persona: "pro",
+  ai_suggestions: "pro",
+  custom_css: "pro",
+  page_rules: "pro",
+  pre_chat_form: "pro",
+  csat: "pro",
+  white_label: "pro",
+  remove_branding: "pro",
+  audit_log: "pro",
+
+  // Business+ features
+  priority_support: "business",
+  sla: "business",
+  custom_domains: "business",
 };
 
 export function isPlanAllowedForFeature(planKey: string, feature: FeatureKey): boolean {

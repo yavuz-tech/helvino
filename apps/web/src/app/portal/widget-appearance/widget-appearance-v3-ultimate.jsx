@@ -331,9 +331,16 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
   const [responseTime, setResponseTime] = useState(true);
   const [transcriptEmail, setTranscriptEmail] = useState(false);
   const [visitorNotes, setVisitorNotes] = useState(true);
-  const isPro = planKey === "pro" || planKey === "business" || planKey === "enterprise";
-  const isStarter = planKey === "starter" || isPro;
-  const isFree = planKey === "free";
+  const tier = (() => {
+    const k = String(planKey || "free").toLowerCase();
+    if (k === "business" || k === "enterprise") return 3;
+    if (k === "pro") return 2;
+    if (k === "starter") return 1;
+    return 0;
+  })();
+  const isPro = tier >= 2;       // Pro, Business, Enterprise
+  const isStarter = tier >= 1;   // Starter, Pro, Business, Enterprise
+  const isFree = tier === 0;     // Free only
   const showUpgrade = (feat) => setProModal({ show: true, feature: feat });
 
   // If the org loses PRO, immediately coerce locked AI options back to defaults.
@@ -344,6 +351,14 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
     if (aiModel !== "auto") setAiModel("auto");
     if (aiSuggestions) setAiSuggestions(false);
   }, [isPro]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // If the org loses Starter, coerce starter-only features back to defaults.
+  useEffect(() => {
+    if (isStarter) return;
+    if (autoReply) setAutoReply(false);
+    if (transcriptEmail) setTranscriptEmail(false);
+    if (hoursEnabled) setHoursEnabled(false);
+  }, [isStarter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ac = useCustom ? customColor : theme.color;
   const ad = useCustom ? customColor : theme.dark;
@@ -1178,7 +1193,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
               <SectionHeader icon="🕐" title={_t("wA.sec.hours")} count={7} isOpen={openSection===8} onToggle={()=>tog(8)} isNew />
               {openSection===8 && (
                 <div style={{ padding: 18, animation: "fadeUp 0.3s ease both" }}>
-                  <Toggle checked={hoursEnabled} onChange={v=>{setHoursEnabled(v);markChanged();}} label="Zamanlayıcı Aktif" desc="Widget otomatik olarak çevrimiçi/çevrimdışı olsun" />
+                  <Toggle checked={hoursEnabled} onChange={v=>{if(!isStarter){showUpgrade("Çalışma Saatleri");return;}setHoursEnabled(v);markChanged();}} label="Zamanlayıcı Aktif" desc="Widget otomatik olarak çevrimiçi/çevrimdışı olsun" pro={!isStarter} />
                   <div style={{ marginTop: 8, opacity: hoursEnabled?1:0.4, pointerEvents: hoursEnabled?"auto":"none" }}>
                     {/* Timezone */}
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
@@ -1228,12 +1243,12 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                   <Toggle checked={autoOpen} onChange={v=>{setAutoOpen(v);markChanged();}} label="Otomatik Aç" desc="Sayfa yüklendiğinde widget açılsın" />
                   <Toggle checked={showUnread} onChange={v=>{setShowUnread(v);markChanged();}} label="Okunmamış Rozet" desc="Başlatıcıda okunmamış sayısı" />
                   <Toggle checked={typingIndicator} onChange={v=>{setTypingIndicator(v);markChanged();}} label="Yazıyor Göstergesi" desc="Karşı taraf yazarken göster" />
-                  <Toggle checked={readReceipts} onChange={v=>{setReadReceipts(v);markChanged();}} label="Okundu Bilgisi" desc="Mesaj okunduğunda ✓✓ göster" />
+                  <Toggle checked={readReceipts} onChange={v=>{if(!isStarter){showUpgrade("Okundu Bilgisi");return;}setReadReceipts(v);markChanged();}} label="Okundu Bilgisi" desc="Mesaj okunduğunda ✓✓ göster" pro={!isStarter} />
                   <Toggle checked={responseTime} onChange={v=>{setResponseTime(v);markChanged();}} label="Yanıt Süresi Rozeti" desc="'Genellikle X dk içinde yanıt' göster" />
-                  <Toggle checked={fileUpload} onChange={v=>{setFileUpload(v);markChanged();}} label="Dosya Yükleme" desc="Ziyaretçilerin dosya göndermesine izin ver" />
+                  <Toggle checked={fileUpload} onChange={v=>{if(!isStarter){showUpgrade("Dosya Yükleme");return;}setFileUpload(v);markChanged();}} label="Dosya Yükleme" desc="Ziyaretçilerin dosya göndermesine izin ver" pro={!isStarter} />
                   <Toggle checked={emojiPicker} onChange={v=>{setEmojiPicker(v);markChanged();}} label="Emoji Seçici" desc="Sohbette emoji menüsü" />
                   <Toggle checked={visitorNotes} onChange={v=>{setVisitorNotes(v);markChanged();}} label="Ziyaretçi Notları" desc="Temsilcilerin ziyaretçi hakkında not eklemesi" />
-                  <Toggle checked={transcriptEmail} onChange={v=>{if(!isPro){showUpgrade("Sohbet Dökümü Email");return;}setTranscriptEmail(v);markChanged();}} label="Sohbet Dökümü Email" desc="Sohbet bitince ziyaretçiye döküm gönder" pro={!isPro} />
+                  <Toggle checked={transcriptEmail} onChange={v=>{if(!isStarter){showUpgrade("Sohbet Dökümü Email");return;}setTranscriptEmail(v);markChanged();}} label="Sohbet Dökümü Email" desc="Sohbet bitince ziyaretçiye döküm gönder" pro={!isStarter} />
                   <Toggle checked={showBranding} onChange={v=>{if(!isPro && !v){showUpgrade("Markayı Kaldır");return;}setShowBranding(v);markChanged();}} label="Helvion Markası" desc="Kaldırmak için PRO plan gerekli" pro={!isPro} />
                 </div>
               )}
@@ -1246,7 +1261,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                 <div style={{ padding: "6px 18px 18px", animation: "fadeUp 0.3s ease both" }}>
                   <Toggle checked={csat} onChange={v=>{if(!isPro){showUpgrade("CSAT Anketi");return;}setCsat(v);markChanged();}} label="Memnuniyet Anketi (CSAT)" desc="Sohbet sonunda ⭐ puan iste" pro={!isPro} />
                   <Toggle checked={whiteLabel} onChange={v=>{if(!isPro){showUpgrade("White Label");return;}setWhiteLabel(v);markChanged();}} label="White Label" desc="Helvion markasını tamamen kaldır" pro={!isPro} />
-                  <Toggle checked={autoReply} onChange={v=>{if(!isPro){showUpgrade("Otomatik Yanıt");return;}setAutoReply(v);markChanged();}} label="Otomatik Yanıt" desc="Çevrimdışıyken otomatik mesaj gönder" pro={!isPro} />
+                  <Toggle checked={autoReply} onChange={v=>{if(!isStarter){showUpgrade("Otomatik Yanıt");return;}setAutoReply(v);markChanged();}} label="Otomatik Yanıt" desc="Çevrimdışıyken otomatik mesaj gönder" pro={!isStarter} />
                   {autoReply && (
                     <div style={{ paddingLeft: 8, paddingBottom: 8 }}>
                       <textarea value={autoReplyMsg} onChange={e=>{setAutoReplyMsg(e.target.value);markChanged();}}

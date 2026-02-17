@@ -103,36 +103,47 @@ function getDefaultV3Config(): Record<string, unknown> {
 }
 
 export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
-  function isProPlan(planKey: string | null | undefined): boolean {
+  /**
+   * Plan hierarchy: free(0) < starter(1) < pro(2) < business(3)
+   * Each feature has a minimum plan tier required.
+   */
+  function planTier(planKey: string | null | undefined): number {
     const key = String(planKey || "free").toLowerCase();
-    return key === "pro" || key === "business" || key === "enterprise";
+    if (key === "business" || key === "enterprise") return 3;
+    if (key === "pro") return 2;
+    if (key === "starter") return 1;
+    return 0; // free
   }
 
   function applyPlanGatingToConfigPayload(
     payload: Record<string, unknown>,
     planKey: string | null | undefined
   ): void {
-    if (isProPlan(planKey)) return;
+    const tier = planTier(planKey);
 
-    // Non-PRO orgs must not persist PRO-only config. This prevents UI/plan desync
-    // and ensures bootloader returns consistent settings too.
-    payload.aiTone = "friendly";
-    payload.aiLength = "standard";
-    payload.aiModel = "auto";
-    payload.aiSuggestions = false;
+    // === PRO+ features (tier >= 2): AI persona tuning, CSAT, white-label, custom CSS, etc. ===
+    if (tier < 2) {
+      payload.aiTone = "friendly";
+      payload.aiLength = "standard";
+      payload.aiModel = "auto";
+      payload.aiSuggestions = false;
+      payload.csat = false;
+      payload.whiteLabel = false;
+      payload.customCss = "";
+      payload.consentEnabled = false;
+      payload.consentText = "";
+      payload.showBranding = true;
+      payload.preChatEnabled = false;
+      payload.pageRules = [];
+    }
 
-    // Keep in sync with portal UI safety net.
-    payload.csat = false;
-    payload.whiteLabel = false;
-    payload.autoReply = false;
-    payload.autoReplyMsg = "";
-    payload.customCss = "";
-    payload.consentEnabled = false;
-    payload.consentText = "";
-    payload.transcriptEmail = false;
-    payload.showBranding = true;
-    payload.preChatEnabled = false;
-    payload.pageRules = [];
+    // === STARTER+ features (tier >= 1): auto-reply, transcript email, working hours ===
+    if (tier < 1) {
+      payload.autoReply = false;
+      payload.autoReplyMsg = "";
+      payload.transcriptEmail = false;
+      payload.hoursEnabled = false;
+    }
   }
 
   async function resolveAdminOrgIdFromHeader(orgKeyHeader: unknown): Promise<{ orgId: string; orgKey: string } | null> {

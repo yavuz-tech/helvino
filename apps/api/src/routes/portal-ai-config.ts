@@ -64,11 +64,23 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
 
       const org = await prisma.organization.findUnique({
         where: { id: user.orgId },
-        select: { aiConfigJson: true, aiEnabled: true, aiProvider: true },
+        select: { aiConfigJson: true, aiEnabled: true, aiProvider: true, planKey: true },
       });
       if (!org) { reply.code(404); return { error: "Organization not found" }; }
 
       const currentConfig = parseAiConfig(org.aiConfigJson);
+
+      // Plan-based provider restriction: free/starter locked to gemini
+      const orgPlanKey = (org.planKey || "free").toLowerCase();
+      const orgTier = orgPlanKey === "business" || orgPlanKey === "enterprise" ? 3
+        : orgPlanKey === "pro" ? 2
+        : orgPlanKey === "starter" ? 1 : 0;
+      if (orgTier < 2 && body.aiProvider && body.aiProvider !== "gemini") {
+        body.aiProvider = "gemini" as AiProvider;
+      }
+      if (orgTier < 2 && body.provider && body.provider !== "gemini") {
+        body.provider = "gemini" as AiProvider;
+      }
 
       // SECURITY: Input validation — max lengths for AI config string fields
       if (body.systemPrompt !== undefined && typeof body.systemPrompt === "string" && body.systemPrompt.length > 10000) {
