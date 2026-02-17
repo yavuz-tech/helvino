@@ -817,16 +817,32 @@ fastify.post<{
 
         const TURKISH_CHARS_RE = /[çğıöşüİ]/i;
         const TURKISH_WORD_RE = /\b(merhaba|selam|nasilsin|nasılsın|yardim|yardım|tesekkur|teşekkür|lutfen|lütfen)\b/i;
+        const looksTurkish = (text: string) => TURKISH_CHARS_RE.test(text) || TURKISH_WORD_RE.test(text);
+
+        // If org.language is not Turkish but the conversation is clearly Turkish (e.g. first message),
+        // keep the fallback in Turkish even when the visitor later sends an email/number.
+        let isTrFromHistory = false;
+        if (!(typeof orgLanguage === "string" && orgLanguage.trim().toLowerCase().startsWith("tr"))) {
+          try {
+            const hist = await store.getMessages(id);
+            const sample = (hist || [])
+              .slice(-12)
+              .map((m: any) => String(m?.content || ""))
+              .join(" ");
+            isTrFromHistory = looksTurkish(sample);
+          } catch {
+            isTrFromHistory = false;
+          }
+        }
 
         const getNoAiVisitorMessage = (): string => {
           // Keep visitor copy professional; do NOT mention internal quota/plan codes (M2, etc.).
           // We rely on portal UI + logs for details.
-          const byOrg =
-            typeof orgLanguage === "string" && orgLanguage.trim().toLowerCase().startsWith("tr");
+          const byOrg = typeof orgLanguage === "string" && orgLanguage.trim().toLowerCase().startsWith("tr");
           // If org language is unset/mismatched, infer from the visitor message content
           // so Turkish users don't see English system text.
-          const byContent = TURKISH_CHARS_RE.test(sanitizedContent) || TURKISH_WORD_RE.test(sanitizedContent);
-          const isTr = byOrg || byContent;
+          const byContent = looksTurkish(sanitizedContent);
+          const isTr = byOrg || isTrFromHistory || byContent;
           return isTr
             ? "Su anda otomatik yanit veremiyoruz. Ekibimiz en kisa surede size geri donecek. Isterseniz e-posta veya telefon numaranizi birakabilirsiniz."
             : "We can't send an automated reply right now. Our team will get back to you shortly. You can leave your email or phone number.";
