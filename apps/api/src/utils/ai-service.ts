@@ -79,16 +79,37 @@ export const DEFAULT_AI_CONFIG: AiConfig = {
   provider: "openai",
 };
 
-const DEFAULT_AI_CONFIG_TR: Partial<AiConfig> = {
-  systemPrompt: `Sen sirketin yardimci musteri destek asistanisin. Kisa, profesyonel ve yardimci ol. Cevabi bilmiyorsan, kibarca musteriye bildir ve bir insan temsilciye yonlendir. Her zaman empatik ve cozum odakli ol.`,
-  greeting: "Merhaba! Ben AI asistaniyim. Size nasil yardimci olabilirim?",
-  fallbackMessage: "Bu konuda emin degilim. Sizi daha iyi yardimci olabilecek bir temsilciye baglayayim.",
-  language: "tr",
+const LOCALIZED_DEFAULTS: Record<string, Partial<AiConfig>> = {
+  tr: {
+    systemPrompt: `Sen sirketin yardimci musteri destek asistanisin. Kisa, profesyonel ve yardimci ol. Cevabi bilmiyorsan, kibarca musteriye bildir ve bir insan temsilciye yonlendir. Her zaman empatik ve cozum odakli ol.`,
+    greeting: "Merhaba! Ben AI asistaniyim. Size nasil yardimci olabilirim?",
+    fallbackMessage: "Bu konuda emin degilim. Sizi daha iyi yardimci olabilecek bir temsilciye baglayayim.",
+    language: "tr",
+  },
+  es: {
+    systemPrompt: `Eres un asistente de soporte al cliente de la empresa. Se conciso, profesional y util. Si no sabes la respuesta, informa amablemente al cliente y sugiere que espere a un agente humano. Siempre se empatico y orientado a soluciones.`,
+    greeting: "Hola! Soy un asistente de IA. Como puedo ayudarte hoy?",
+    fallbackMessage: "No estoy seguro de eso. Permiteme conectarte con un agente humano que pueda ayudarte mejor.",
+    language: "es",
+  },
+  de: {
+    systemPrompt: `Du bist ein hilfreicher Kundensupport-Assistent des Unternehmens. Sei kurz, professionell und hilfreich. Wenn du die Antwort nicht weisst, teile es dem Kunden hoeflich mit und schlage vor, auf einen menschlichen Agenten zu warten. Sei immer empathisch und loesungsorientiert.`,
+    greeting: "Hallo! Ich bin ein KI-Assistent. Wie kann ich Ihnen heute helfen?",
+    fallbackMessage: "Da bin ich mir nicht sicher. Lassen Sie mich Sie mit einem Mitarbeiter verbinden, der Ihnen besser helfen kann.",
+    language: "de",
+  },
+  fr: {
+    systemPrompt: `Vous etes un assistant de support client de l'entreprise. Soyez concis, professionnel et utile. Si vous ne connaissez pas la reponse, informez poliment le client et suggerez qu'il attende un agent humain. Soyez toujours empathique et oriente vers les solutions.`,
+    greeting: "Bonjour! Je suis un assistant IA. Comment puis-je vous aider aujourd'hui?",
+    fallbackMessage: "Je ne suis pas sur de cela. Permettez-moi de vous mettre en contact avec un agent humain qui pourra mieux vous aider.",
+    language: "fr",
+  },
 };
 
 export function getLocalizedDefaultConfig(orgLang?: string | null): AiConfig {
-  if (orgLang === "tr") {
-    return { ...DEFAULT_AI_CONFIG, ...DEFAULT_AI_CONFIG_TR };
+  const lang = orgLang?.toLowerCase().split("-")[0];
+  if (lang && LOCALIZED_DEFAULTS[lang]) {
+    return { ...DEFAULT_AI_CONFIG, ...LOCALIZED_DEFAULTS[lang] };
   }
   return { ...DEFAULT_AI_CONFIG };
 }
@@ -616,14 +637,23 @@ export function parseAiConfig(json: unknown, orgLang?: string | null): AiConfig 
   const defaults = getLocalizedDefaultConfig(orgLang);
   if (!json || typeof json !== "object") return { ...defaults };
   const obj = json as Record<string, unknown>;
+
+  // If a text field still holds the ENGLISH default and org language differs,
+  // replace with the localized default so non-EN orgs see their own language.
+  const useLocalized = (val: unknown, enDefault: string, localDefault: string): string => {
+    if (typeof val !== "string") return localDefault;
+    if (val.trim() === enDefault.trim() && orgLang && orgLang !== "en") return localDefault;
+    return val;
+  };
+
   return {
-    systemPrompt: typeof obj.systemPrompt === "string" ? obj.systemPrompt : defaults.systemPrompt,
+    systemPrompt: useLocalized(obj.systemPrompt, DEFAULT_AI_CONFIG.systemPrompt, defaults.systemPrompt),
     model: typeof obj.model === "string" ? obj.model : defaults.model,
     temperature: typeof obj.temperature === "number" ? obj.temperature : defaults.temperature,
     maxTokens: typeof obj.maxTokens === "number" ? obj.maxTokens : defaults.maxTokens,
     autoReplyEnabled: typeof obj.autoReplyEnabled === "boolean" ? obj.autoReplyEnabled : defaults.autoReplyEnabled,
-    greeting: typeof obj.greeting === "string" ? obj.greeting : defaults.greeting,
-    fallbackMessage: typeof obj.fallbackMessage === "string" ? obj.fallbackMessage : defaults.fallbackMessage,
+    greeting: useLocalized(obj.greeting, DEFAULT_AI_CONFIG.greeting, defaults.greeting),
+    fallbackMessage: useLocalized(obj.fallbackMessage, DEFAULT_AI_CONFIG.fallbackMessage, defaults.fallbackMessage),
     tone: ["professional", "friendly", "casual"].includes(obj.tone as string) ? (obj.tone as AiConfig["tone"]) : defaults.tone,
     language: typeof obj.language === "string" ? obj.language : defaults.language,
     provider: ["openai", "gemini", "claude"].includes(obj.provider as string) ? (obj.provider as AiProvider) : defaults.provider,
