@@ -107,10 +107,6 @@ function InstallationGuide({
   const [open, setOpen] = useState(false);
   const [platform, setPlatform] = useState<InstallPlatformId>("html");
 
-  useEffect(() => {
-    console.warn("WIDGET-SETUP: InstallationGuide rendered");
-  }, []);
-
   const activePlatform = INSTALL_PLATFORMS.find((p) => p.id === platform) || INSTALL_PLATFORMS[0]!;
 
   const embedForEcho = (embedHtml || "").trim() || "[standart embed kodu]";
@@ -398,10 +394,6 @@ function InstallationGuide({
 }
 
 function WidgetFaq() {
-  useEffect(() => {
-    console.warn("WIDGET-SETUP: WidgetFaq rendered");
-  }, []);
-
   const items: Array<{ q: string; a: string }> = [
     { q: "Site hizimi etkiler mi?", a: "Hayir. Async yuklenir, 45KB gzip, global CDN." },
     { q: "Birden fazla site?", a: "Evet. Her site icin ayri Site ID." },
@@ -486,10 +478,6 @@ function WidgetFaq() {
 }
 
 function HelpCtaBanner({ onStartSupport }: { onStartSupport: () => void }) {
-  useEffect(() => {
-    console.warn("WIDGET-SETUP: HelpCtaBanner rendered");
-  }, []);
-
   return (
     <div
       style={{
