@@ -259,27 +259,45 @@ export async function portalApiFetch(
   options: RequestInit = {}
 ) {
   const accessToken = readAccessToken();
+  const method = String(options.method || "GET").toUpperCase();
+  const hasBody = options.body != null;
+
+  // IMPORTANT:
+  // Do NOT set "Content-Type: application/json" on GET/HEAD requests.
+  // That header triggers a CORS preflight on cross-origin requests (api.*),
+  // which makes portal metrics/pages feel slow on reload.
+  const baseHeaders: Record<string, string> = {
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    ...(options.headers as Record<string, string> | undefined),
+  };
+  if ((method === "POST" || method === "PUT" || method === "PATCH") && hasBody) {
+    if (!("Content-Type" in baseHeaders)) {
+      baseHeaders["Content-Type"] = "application/json";
+    }
+  }
+
   let response = await fetchWithRetry(`${API_URL}${path}`, {
     ...options,
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...options.headers,
-    },
+    headers: baseHeaders,
   });
   if (response.status === 401) {
     const refreshed = await portalRefreshAccessToken();
     if (refreshed.ok) {
       const refreshedAccessToken = readAccessToken();
+      const refreshedHeaders: Record<string, string> = {
+        ...(refreshedAccessToken ? { Authorization: `Bearer ${refreshedAccessToken}` } : {}),
+        ...(options.headers as Record<string, string> | undefined),
+      };
+      if ((method === "POST" || method === "PUT" || method === "PATCH") && hasBody) {
+        if (!("Content-Type" in refreshedHeaders)) {
+          refreshedHeaders["Content-Type"] = "application/json";
+        }
+      }
       response = await fetchWithRetry(`${API_URL}${path}`, {
         ...options,
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...(refreshedAccessToken ? { Authorization: `Bearer ${refreshedAccessToken}` } : {}),
-          ...options.headers,
-        },
+        headers: refreshedHeaders,
       });
     }
   }

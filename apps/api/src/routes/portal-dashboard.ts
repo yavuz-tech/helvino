@@ -54,6 +54,9 @@ export async function portalDashboardRoutes(fastify: FastifyInstance) {
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
 
     try {
+      // Prevent stale dashboards due to browser/CDN caching.
+      reply.header("Cache-Control", "no-store, max-age=0");
+      reply.header("Pragma", "no-cache");
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
@@ -169,6 +172,9 @@ export async function portalDashboardRoutes(fastify: FastifyInstance) {
     if (!user) return reply.code(401).send({ error: "Unauthorized" });
 
     try {
+      // Prevent stale dashboards due to browser/CDN caching.
+      reply.header("Cache-Control", "no-store, max-age=0");
+      reply.header("Pragma", "no-cache");
       const now = new Date();
       // CRITICAL: Use the same UTC monthKey as the metering/usage writers.
       // Otherwise, usage can appear "reset to 0" depending on server timezone.

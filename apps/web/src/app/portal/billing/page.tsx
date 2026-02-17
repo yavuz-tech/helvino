@@ -122,7 +122,7 @@ export default function PortalBillingPage() {
         const [bR, lR, sR, oR] = await Promise.all([
           portalApiFetch("/portal/billing/status"),
           portalApiFetch("/portal/billing/lock-status"),
-          portalApiFetch("/portal/dashboard/stats"),
+          portalApiFetch(`/portal/dashboard/stats?_t=${Date.now()}`, { cache: "no-store" }),
           portalApiFetch("/portal/org/me"),
         ]);
         if (bR.ok) setBilling(await bR.json()); else { setErrorRequestId(bR.headers.get("x-request-id") || null); setError(t("billing.failedLoad")); }

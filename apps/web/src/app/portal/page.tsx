@@ -181,12 +181,12 @@ export default function PortalOverviewPage() {
       })
       .catch(() => {});
 
-    portalApiFetch("/portal/dashboard/stats")
+    portalApiFetch(`/portal/dashboard/stats?_t=${Date.now()}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d) setStats(d); })
       .catch(() => {});
 
-    portalApiFetch("/portal/dashboard/visitors")
+    portalApiFetch(`/portal/dashboard/visitors?_t=${Date.now()}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d) setVisitors(d); })
       .catch(() => {});
@@ -229,7 +229,7 @@ export default function PortalOverviewPage() {
   useEffect(() => {
     if (authLoading || !user) return;
     const interval = setInterval(() => {
-      portalApiFetch("/portal/dashboard/visitors")
+      portalApiFetch(`/portal/dashboard/visitors?_t=${Date.now()}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => { if (d) setVisitors(d); })
         .catch(() => {});
