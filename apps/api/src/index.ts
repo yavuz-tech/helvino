@@ -100,6 +100,8 @@ import { verifyPortalSessionToken, PORTAL_SESSION_COOKIE } from "./utils/portal-
 import { getOperatingHoursStatus } from "./utils/operating-hours";
 import { runWorkflowsForTrigger } from "./utils/workflow-engine";
 import { sanitizeHTML } from "./utils/sanitize";
+import { sendEmailAsync, getDefaultFromAddress, isMailProviderConfigured } from "./utils/mailer";
+import { getWidgetOfflineMessageEmail } from "./utils/email-templates";
 import { validateBody } from "./utils/validate";
 import { widgetSendMessageSchema } from "./utils/schemas";
 import { hashPassword } from "./utils/password";
@@ -700,6 +702,65 @@ fastify.post<{
     fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message });
   }
 
+  // ── Offline email notifications ───────────────────────────────
+  // If no portal agents are currently connected, email the org owner/admins
+  // on every new visitor message so they don't miss it.
+  if (role === "user") {
+    try {
+      const agentsRoom = (fastify.io as any)?.sockets?.adapter?.rooms?.get?.(`org:${org.id}:agents`);
+      const anyAgentsOnline = Boolean(agentsRoom && typeof agentsRoom.size === "number" && agentsRoom.size > 0);
+
+      if (!anyAgentsOnline) {
+        (async () => {
+          try {
+            const orgRow = await prisma.organization.findUnique({
+              where: { id: org.id },
+              select: { name: true, language: true },
+            });
+            const recipients = await prisma.orgUser.findMany({
+              where: {
+                orgId: org.id,
+                isActive: true,
+                isLocked: false,
+                emailVerifiedAt: { not: null },
+                role: { in: ["owner", "admin"] },
+              },
+              select: { email: true },
+            });
+            if (!recipients.length) return;
+
+            if (process.env.NODE_ENV !== "production" || isMailProviderConfigured()) {
+              const appUrl =
+                process.env.APP_PUBLIC_URL ||
+                process.env.NEXT_PUBLIC_WEB_URL ||
+                "https://app.helvion.io";
+              const inboxUrl = `${String(appUrl).replace(/\/+$/, "")}/portal/inbox?c=${encodeURIComponent(id)}`;
+              const emailContent = getWidgetOfflineMessageEmail(orgRow?.language, {
+                orgName: orgRow?.name || "Helvion",
+                messagePreview: sanitizedContent,
+                inboxUrl,
+              });
+              for (const r of recipients) {
+                sendEmailAsync({
+                  from: getDefaultFromAddress(),
+                  to: r.email,
+                  subject: emailContent.subject,
+                  html: emailContent.html,
+                  text: emailContent.text,
+                  tags: ["widget-message", "offline-notification"],
+                });
+              }
+            }
+          } catch (err) {
+            console.error("[email] Offline widget message email failed:", err);
+          }
+        })();
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   await recordMessageUsage(org.id);
   if (role === "assistant") {
     recordM2Usage(org.id).catch(() => {});
@@ -741,11 +802,23 @@ fastify.post<{
           }
         };
 
+        // Org language is not present on request.org (auth select is minimal).
+        // Fetch once so visitor-facing fallback respects the org's locale.
+        let orgLanguage: string | undefined;
+        try {
+          const orgLangRow = await prisma.organization.findUnique({
+            where: { id: org.id },
+            select: { language: true },
+          });
+          orgLanguage = orgLangRow?.language || undefined;
+        } catch {
+          orgLanguage = undefined;
+        }
+
         const getNoAiVisitorMessage = (): string => {
           // Keep visitor copy professional; do NOT mention internal quota/plan codes (M2, etc.).
           // We rely on portal UI + logs for details.
-          const lang = (org as any)?.language;
-          const isTr = typeof lang === "string" && lang.toLowerCase().startsWith("tr");
+          const isTr = typeof orgLanguage === "string" && orgLanguage.toLowerCase().startsWith("tr");
           return isTr
             ? "Su anda otomatik yanit veremiyoruz. Ekibimiz en kisa surede size geri donecek. Isterseniz e-posta veya telefon numaranizi birakabilirsiniz."
             : "We can't send an automated reply right now. Our team will get back to you shortly. You can leave your email or phone number.";

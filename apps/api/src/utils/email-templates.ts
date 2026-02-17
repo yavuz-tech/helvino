@@ -137,6 +137,94 @@ function buttonHtml(url: string, label: string, color = warmEmailColors.accent):
 
 // ── Templates ──
 
+// ── Widget Message Notification (Offline) ──
+
+const widgetMessageTemplates: Record<
+  Locale,
+  {
+    subject: (orgName: string) => string;
+    body: (orgName: string, messagePreview: string, inboxUrl: string) => string;
+    buttonLabel: string;
+    hint: string;
+  }
+> = {
+  en: {
+    subject: (orgName) => `New chat message — ${orgName}`,
+    buttonLabel: "Open Inbox",
+    hint: "You’re receiving this because your team is currently offline.",
+    body: (orgName, messagePreview, inboxUrl) =>
+      wrapHtml(
+        `
+<p style="margin:0 0 8px;color:#6d28d9;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">New message</p>
+<h2 style="margin:0 0 10px;color:#0b1020;font-size:22px;line-height:1.25;">A visitor sent a message</h2>
+<p style="margin:0 0 18px;color:#475569;font-size:14px;line-height:1.7;">
+  Organization: <strong>${escapeHtml(orgName)}</strong>
+</p>
+<div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:#FFFBEB;border:1px solid #FDE68A;">
+  <p style="margin:0 0 6px;color:#B45309;font-size:12px;font-weight:700;">Message preview</p>
+  <p style="margin:0;color:#1A1D23;font-size:14px;line-height:1.7;white-space:pre-wrap;">${escapeHtml(messagePreview)}</p>
+</div>
+${buttonHtml(inboxUrl, "Open Inbox", "#F59E0B")}
+<p style="margin:10px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">
+  You’re receiving this because your team is currently offline.
+</p>
+`,
+        "#1f1b4d",
+        "en"
+      ),
+  },
+  tr: {
+    subject: (orgName) => `Yeni sohbet mesaji — ${orgName}`,
+    buttonLabel: "Gelen Kutusunu Ac",
+    hint: "Bu e-postayi, ekibiniz su anda cevrimdisi oldugu icin aliyorsunuz.",
+    body: (orgName, messagePreview, inboxUrl) =>
+      wrapHtml(
+        `
+<p style="margin:0 0 8px;color:#6d28d9;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Yeni mesaj</p>
+<h2 style="margin:0 0 10px;color:#0b1020;font-size:22px;line-height:1.25;">Ziyaretci yeni bir mesaj gonderdi</h2>
+<p style="margin:0 0 18px;color:#475569;font-size:14px;line-height:1.7;">
+  Organizasyon: <strong>${escapeHtml(orgName)}</strong>
+</p>
+<div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:#FFFBEB;border:1px solid #FDE68A;">
+  <p style="margin:0 0 6px;color:#B45309;font-size:12px;font-weight:700;">Mesaj onizleme</p>
+  <p style="margin:0;color:#1A1D23;font-size:14px;line-height:1.7;white-space:pre-wrap;">${escapeHtml(messagePreview)}</p>
+</div>
+${buttonHtml(inboxUrl, "Gelen Kutusunu Ac", "#F59E0B")}
+<p style="margin:10px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">
+  Bu e-postayi, ekibiniz su anda cevrimdisi oldugu icin aliyorsunuz.
+</p>
+`,
+        "#1f1b4d",
+        "tr"
+      ),
+  },
+  es: {
+    subject: (orgName) => `Nuevo mensaje de chat — ${orgName}`,
+    buttonLabel: "Abrir bandeja",
+    hint: "Recibes este correo porque tu equipo esta actualmente desconectado.",
+    body: (orgName, messagePreview, inboxUrl) =>
+      wrapHtml(
+        `
+<p style="margin:0 0 8px;color:#6d28d9;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Nuevo mensaje</p>
+<h2 style="margin:0 0 10px;color:#0b1020;font-size:22px;line-height:1.25;">Un visitante envio un mensaje</h2>
+<p style="margin:0 0 18px;color:#475569;font-size:14px;line-height:1.7;">
+  Organizacion: <strong>${escapeHtml(orgName)}</strong>
+</p>
+<div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:#FFFBEB;border:1px solid #FDE68A;">
+  <p style="margin:0 0 6px;color:#B45309;font-size:12px;font-weight:700;">Vista previa</p>
+  <p style="margin:0;color:#1A1D23;font-size:14px;line-height:1.7;white-space:pre-wrap;">${escapeHtml(messagePreview)}</p>
+</div>
+${buttonHtml(inboxUrl, "Abrir bandeja", "#F59E0B")}
+<p style="margin:10px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;">
+  Recibes este correo porque tu equipo esta actualmente desconectado.
+</p>
+`,
+        "#1f1b4d",
+        "es"
+      ),
+  },
+};
+
 // ── 1. Portal Invite ──
 
 const inviteTemplates: Record<Locale, { subject: (orgName: string) => string; body: (orgName: string, role: string, link: string, expiresIn: string) => string }> = {
@@ -677,6 +765,20 @@ export function getInviteEmail(locale: string | undefined, orgName: string, role
     subject: inviteTemplates[l].subject(orgName),
     html: inviteTemplates[l].body(orgName, localizedRole, link, expiresIn),
     text: invitePlainTexts[l](orgName, localizedRole, link, expiresIn),
+  };
+}
+
+export function getWidgetOfflineMessageEmail(
+  locale: string | undefined,
+  data: { orgName: string; messagePreview: string; inboxUrl: string }
+) {
+  const l = resolveLocale(locale);
+  const tpl = widgetMessageTemplates[l];
+  const preview = (data.messagePreview || "").trim().slice(0, 1200);
+  return {
+    subject: tpl.subject(data.orgName),
+    html: tpl.body(data.orgName, preview, data.inboxUrl),
+    text: `${tpl.subject(data.orgName)}\n\n${preview}\n\n${data.inboxUrl}\n\n${tpl.hint}`,
   };
 }
 
