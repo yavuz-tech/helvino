@@ -50,6 +50,7 @@ ENV NEXT_PUBLIC_API_URL=https://api.helvion.io
 ENV NEXT_PUBLIC_SOCKET_URL=https://api.helvion.io
 ENV NEXT_PUBLIC_WEB_URL=https://app.helvion.io
 ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=
+ENV NEXT_PUBLIC_DEFAULT_WIDGET_SITE_ID=site_C7ivjNo0nuH5IX0r
 
 # Build Next.js app with standalone output
 ENV NEXT_TELEMETRY_DISABLED=1

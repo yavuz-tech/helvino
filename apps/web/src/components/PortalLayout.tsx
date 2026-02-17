@@ -257,17 +257,19 @@ export default function PortalLayout({
   const syncPublicWidgetIdentity = useCallback(async () => {
     try {
       const res = await portalApiFetch(`/portal/widget/config?_t=${Date.now()}`, { cache: "no-store" });
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn("[Portal] widget/config failed:", res.status);
+        return;
+      }
       const data = await res.json();
       const siteId = data?.embedSnippet?.siteId;
+      console.warn("[Portal] widget/config siteId:", siteId || "(missing)");
       if (siteId) {
         rememberPublicWidgetIdentity({ siteId });
-        // Ensure the embedded widget script gets a siteId BEFORE loading.
-        // Widget-v2 loader requires siteId; orgKey-only identity is insufficient.
         mountPublicWidgetScript({ siteId });
       }
-    } catch {
-      // silent
+    } catch (err: any) {
+      console.warn("[Portal] widget/config error:", err?.message || err);
     }
   }, []);
 

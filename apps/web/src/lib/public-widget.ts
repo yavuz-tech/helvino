@@ -22,7 +22,7 @@ function readIdentityFromStorage(): WidgetIdentity {
 
 // Hardcoded fallback so the widget always loads on public pages (login, landing)
 // even when NEXT_PUBLIC_DEFAULT_WIDGET_SITE_ID is missing from the build env.
-const FALLBACK_SITE_ID = "site_61b617b492db931ff6e5dcde";
+const FALLBACK_SITE_ID = "site_C7ivjNo0nuH5IX0r";
 
 function readIdentityFromEnv(): WidgetIdentity {
   const siteId = process.env.NEXT_PUBLIC_DEFAULT_WIDGET_SITE_ID || FALLBACK_SITE_ID;
@@ -58,6 +58,7 @@ export function rememberPublicWidgetIdentity(identity: WidgetIdentity): void {
 export function mountPublicWidgetScript(identity: WidgetIdentity): boolean {
   if (typeof window === "undefined") return false;
   if (!identity.siteId && !identity.orgKey) return false;
+  console.warn("[PublicWidget] mounting with siteId:", identity.siteId || "(none)");
 
   const w = window as unknown as {
     HELVION_SITE_ID?: string; HELVION_ORG_KEY?: string;
