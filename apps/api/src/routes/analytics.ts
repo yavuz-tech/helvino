@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import { requirePortalUser } from "../middleware/require-portal-user";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
+import { getMeteringLimitsForPlan } from "../utils/entitlements";
 
 type PlanLimitSet = {
   conversations: number;
@@ -64,6 +65,9 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
       }
 
       const limits = resolvePlanLimits(org.planKey);
+      const metering = getMeteringLimitsForPlan(org.planKey);
+      const m2LimitRaw = metering.m2LimitPerMonth;
+      const m2Limit = m2LimitRaw == null || m2LimitRaw <= 0 ? -1 : m2LimitRaw;
       const plan = await prisma.plan.findUnique({
         where: { key: org.planKey },
         select: { name: true, monthlyPriceUsd: true, key: true },
@@ -74,8 +78,8 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
         conversationsLastMonth,
         messagesUsed,
         messagesLastMonth,
-        aiMessagesUsed,
-        aiMessagesLastMonth,
+        m2Now,
+        m2Prev,
         automationReached,
         automationReachedLastMonth,
       ] = await Promise.all([
@@ -91,19 +95,13 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
         prisma.message.count({
           where: { orgId, timestamp: { gte: prevWindow.start, lt: prevWindow.end } },
         }),
-        prisma.message.count({
-          where: {
-            orgId,
-            timestamp: { gte: nowWindow.start, lt: nowWindow.end },
-            OR: [{ isAIGenerated: true }, { aiProvider: { not: null } }],
-          },
+        prisma.usage.findUnique({
+          where: { orgId_monthKey: { orgId, monthKey: nowWindow.key } },
+          select: { m2Count: true },
         }),
-        prisma.message.count({
-          where: {
-            orgId,
-            timestamp: { gte: prevWindow.start, lt: prevWindow.end },
-            OR: [{ isAIGenerated: true }, { aiProvider: { not: null } }],
-          },
+        prisma.usage.findUnique({
+          where: { orgId_monthKey: { orgId, monthKey: prevWindow.key } },
+          select: { m2Count: true },
         }),
         prisma.usageVisitor.count({
           where: { orgId, periodKey: nowWindow.key },
@@ -127,9 +125,12 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
           lastMonthUsed: messagesLastMonth,
         },
         aiMessages: {
-          used: aiMessagesUsed,
-          limit: limits.aiMessages,
-          lastMonthUsed: aiMessagesLastMonth,
+          // IMPORTANT:
+          // "AI supported (M2)" in the portal usage UI must match the same source as enforcement.
+          // Enforcement uses `usage.m2Count` with `m2LimitPerMonth` (plan metering).
+          used: m2Now?.m2Count ?? 0,
+          limit: m2Limit,
+          lastMonthUsed: m2Prev?.m2Count ?? 0,
         },
         automationReached: {
           used: automationReached,
