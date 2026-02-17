@@ -397,69 +397,6 @@ function InstallationGuide({
   );
 }
 
-function JavaScriptApiReference() {
-  useEffect(() => {
-    console.warn("WIDGET-SETUP: JavaScriptApiReference rendered");
-  }, []);
-
-  const rows: Array<{ left: string; right: string }> = [
-    { left: "Helvion.open()", right: "Widget'i acar" },
-    { left: "Helvion.close()", right: "Widget'i kapatir" },
-    { left: "Helvion.toggle()", right: "Ac/kapat" },
-    { left: "Helvion.hide()", right: "Butonu gizler" },
-    { left: "Helvion.show()", right: "Butonu gosterir" },
-    { left: "Helvion.setUser({..})", right: "Kullanici bilgisi atar" },
-    { left: "Helvion.on('ready', fn)", right: "Hazir olunca tetiklenir" },
-    { left: "Helvion.on('message', fn)", right: "Mesaj gelince tetiklenir" },
-  ];
-
-  return (
-    <div style={CARD_STYLE}>
-      <div style={CARD_TITLE_STYLE}>JavaScript API</div>
-      <div style={CARD_SUBTITLE_STYLE}>Widget'i programatik kontrol edin (ileri seviye)</div>
-
-      <div
-        style={{
-          marginTop: 14,
-          display: "grid",
-          gridTemplateColumns: "1fr 1.2fr",
-          gap: 12,
-        }}
-      >
-        {rows.map((r) => (
-          <div
-            key={r.left}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1.2fr",
-              gap: 12,
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.08)",
-              background: "rgba(250,250,249,0.6)",
-            }}
-          >
-            <div
-              style={{
-                fontFamily:
-                  "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'JetBrains Mono', 'Liberation Mono', monospace",
-                fontWeight: 900,
-                fontSize: 12.5,
-                color: "#B45309",
-              }}
-            >
-              {r.left}
-            </div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 12.5, color: "#78716C", fontWeight: 700 }}>
-              {r.right}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function WidgetFaq() {
   useEffect(() => {
     console.warn("WIDGET-SETUP: WidgetFaq rendered");
@@ -968,9 +905,6 @@ function PortalWidgetContent() {
               </div>
             )}
           </div>
-
-          {/* JavaScript API (NEW) — below allowlist */}
-          <JavaScriptApiReference />
 
           {/* FAQ (NEW) */}
           <WidgetFaq />
