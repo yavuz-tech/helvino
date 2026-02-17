@@ -77,6 +77,8 @@ type UiCopy = {
   placeholder: string;
   starters: string[];
   botAvatar: string;
+  primaryColor: string;
+  primaryColorDark: string;
 };
 
 // Full theme map matching the API's THEME_COLORS (12 themes)
@@ -194,7 +196,10 @@ function parseWidgetSettings(
     ];
   }
 
-  return { title, subtitle, welcome, placeholder, starters, botAvatar };
+  const resolvedColor = primaryColor || "#8B5CF6";
+  const resolvedDark = primaryColor ? darkenColor(primaryColor, 15) : "#7C3AED";
+
+  return { title, subtitle, welcome, placeholder, starters, botAvatar, primaryColor: resolvedColor, primaryColorDark: resolvedDark };
 }
 
 function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
@@ -754,8 +759,8 @@ function App() {
         </div>
       ) : (
         <>
-          {/* HEADER */}
-          <div className="hv-header">
+          {/* HEADER — inline style guarantees color even if CSS var fails */}
+          <div className="hv-header" style={{ background: `linear-gradient(135deg, ${ui.primaryColor}, ${ui.primaryColorDark})` }}>
             <div className="hv-header-avatar">{ui.botAvatar}</div>
             <div className="hv-header-info">
               <div className="hv-header-title">{ui.title}</div>
@@ -790,9 +795,9 @@ function App() {
                   return (
                     <div key={m.id} className="hv-msg hv-msg-agent">
                       <div className="hv-msg-avatar">{ui.botAvatar}</div>
-                      <div className="hv-msg-bubble">
+                      <div className="hv-msg-bubble" style={{ background: `linear-gradient(135deg, ${ui.primaryColor}, ${ui.primaryColorDark})` }}>
                         <div className="hv-msg-sender">
-                          Helvion AI <span className="hv-badge-ai">AI Agent</span>
+                          Helvion AI <span className="hv-badge-ai">{tWidget(lang, "aiAgentBadge")}</span>
                         </div>
                         <div className="hv-msg-text">{m.text}</div>
                         <div className="hv-msg-time">{m.time}</div>
@@ -814,7 +819,7 @@ function App() {
 
               {isAgentTyping ? (
                 <div className="hv-typing-wrap">
-                  <div className="hv-typing" aria-label="Agent typing">
+                  <div className="hv-typing" aria-label="Agent typing" style={{ background: `linear-gradient(135deg, ${ui.primaryColor}, ${ui.primaryColorDark})` }}>
                     <div className="hv-typing-dot" />
                     <div className="hv-typing-dot" />
                     <div className="hv-typing-dot" />
@@ -858,13 +863,15 @@ function App() {
                   emitTypingStartDebounced();
                 }}
                 onKeyDown={onInputKeyDown}
+                onFocus={(e) => { e.currentTarget.style.borderColor = ui.primaryColor; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = ""; }}
               />
               <button className="hv-input-attach" type="button" aria-label={tWidget(lang, "attach")}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
                 </svg>
               </button>
-              <button className="hv-input-send" type="button" onClick={onSend} aria-label={tWidget(lang, "send")}>
+              <button className="hv-input-send" type="button" onClick={onSend} aria-label={tWidget(lang, "send")} style={{ background: ui.primaryColor }}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="18"

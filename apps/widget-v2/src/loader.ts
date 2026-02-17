@@ -97,6 +97,14 @@ function lockBody(): void {
   document.body.style.top = `-${savedScrollY}px`;
   document.body.style.left = "0";
   document.body.style.right = "0";
+  document.body.style.width = "100%";
+  document.documentElement.style.overflow = "hidden";
+  // Prevent iOS rubber-band bouncing and horizontal overscroll
+  try {
+    (document.body.style as any).overscrollBehavior = "none";
+    (document.body.style as any).touchAction = "none";
+    (document.documentElement.style as any).overscrollBehavior = "none";
+  } catch { /* older browsers */ }
 }
 
 function unlockBody(): void {
@@ -105,6 +113,13 @@ function unlockBody(): void {
   document.body.style.top = "";
   document.body.style.left = "";
   document.body.style.right = "";
+  document.body.style.width = "";
+  document.documentElement.style.overflow = "";
+  try {
+    (document.body.style as any).overscrollBehavior = "";
+    (document.body.style as any).touchAction = "";
+    (document.documentElement.style as any).overscrollBehavior = "";
+  } catch { /* older browsers */ }
   window.scrollTo(0, savedScrollY);
 }
 

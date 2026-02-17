@@ -1,23 +1,30 @@
 /* ══ RESET ══ */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root {
-  width: 100%; height: 100%; overflow: hidden;
+  width: 100%; height: 100%;
+  overflow: hidden;
+  overflow-x: hidden !important;
+  max-width: 100vw;
   -webkit-text-size-adjust: 100%;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
 }
 body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden !important;
 }
-#root { display: flex; flex-direction: column; background: #fff; }
+#root { display: flex; flex-direction: column; background: #fff; overflow: hidden; }
 
 /* ══ APP ══ */
 .hv-app {
   display: flex; flex-direction: column;
   width: 100%; height: 100%;
   overflow: hidden;
+  overflow-x: hidden !important;
   max-width: 100vw;
+  overscroll-behavior: none;
 }
 
 /* ══ HEADER ══ */
