@@ -35,11 +35,12 @@ export interface MeteringLimits {
 }
 
 const PLAN_METERING_LIMITS: Record<string, MeteringLimits> = {
-  // Product rule: Free plan manual chat should be unlimited (do not cap M1).
-  free:     { m1LimitPerMonth: null, m2LimitPerMonth: 50,   m3LimitVisitorsPerMonth: 100 },
-  starter:  { m1LimitPerMonth: 150,  m2LimitPerMonth: 100,  m3LimitVisitorsPerMonth: 500 },
-  pro:      { m1LimitPerMonth: 500,  m2LimitPerMonth: 250,  m3LimitVisitorsPerMonth: 2000 },
-  business: { m1LimitPerMonth: 2000, m2LimitPerMonth: 1000, m3LimitVisitorsPerMonth: 10000 },
+  // Product rule: Manual chat (M1) is unlimited on ALL plans — never block human conversations.
+  // M2 (AI replies) MUST match PLAN_AI_LIMITS in ai-service.ts and Plan table maxAiMessagesPerMonth.
+  free:     { m1LimitPerMonth: null, m2LimitPerMonth: 20,    m3LimitVisitorsPerMonth: 100 },
+  starter:  { m1LimitPerMonth: null, m2LimitPerMonth: 100,   m3LimitVisitorsPerMonth: 500 },
+  pro:      { m1LimitPerMonth: null, m2LimitPerMonth: 500,   m3LimitVisitorsPerMonth: 2000 },
+  business: { m1LimitPerMonth: null, m2LimitPerMonth: 2000,  m3LimitVisitorsPerMonth: 10000 },
 };
 
 export function getMeteringLimitsForPlan(planKey: string): MeteringLimits {
@@ -288,11 +289,11 @@ export async function checkConversationEntitlement(
     return { allowed: false, error: t("en", "plan.configError"), code: "SUBSCRIPTION_INACTIVE" };
   }
 
-  const { org, plan } = result;
-  const loc = normalizeRequestLocale(org.language || undefined) as Locale;
+  const { org } = result;
 
   // Check subscription status for paid plans
   if (!isSubscriptionActive(org)) {
+    const loc = normalizeRequestLocale(org.language || undefined) as Locale;
     return {
       allowed: false,
       error: t(loc, "plan.subscriptionInactive"),
@@ -301,30 +302,8 @@ export async function checkConversationEntitlement(
   }
 
   // Product rule:
-  // Free plan must NOT block manual customer conversations (to avoid losing leads).
-  // We still track usage, but we don't hard-block conversations/messages for free tier.
-  if (org.planKey === "free") {
-    return { allowed: true };
-  }
-
-  // Check plan limits (plan base + extra quota from admin grants)
-  const monthKey = getMonthKey();
-  const usage = await prisma.usage.findUnique({
-    where: { orgId_monthKey: { orgId, monthKey } },
-  });
-  const used = usage?.conversationsCreated || 0;
-  const effectiveLimit = plan.maxConversationsPerMonth + (org.extraConversationQuota || 0);
-
-  if (used >= effectiveLimit) {
-    return {
-      allowed: false,
-      error: t(loc, "plan.conversationLimitReached", { used, limit: effectiveLimit }),
-      code: "LIMIT_CONVERSATIONS",
-      limit: effectiveLimit,
-      used,
-    };
-  }
-
+  // Manual conversations are UNLIMITED on ALL plans — never block customer interactions.
+  // We still track usage for analytics, but never hard-block.
   return { allowed: true };
 }
 
@@ -383,10 +362,10 @@ export async function checkMessageEntitlement(
     return { allowed: false, error: t("en", "plan.configError"), code: "SUBSCRIPTION_INACTIVE" };
   }
 
-  const { org, plan } = result;
-  const loc = normalizeRequestLocale(org.language || undefined) as Locale;
+  const { org } = result;
 
   if (!isSubscriptionActive(org)) {
+    const loc = normalizeRequestLocale(org.language || undefined) as Locale;
     return {
       allowed: false,
       error: t(loc, "plan.subscriptionInactive"),
@@ -395,29 +374,8 @@ export async function checkMessageEntitlement(
   }
 
   // Product rule:
-  // Free plan must NOT block manual customer messages (to avoid losing leads).
-  // We still track usage, but we don't hard-block messages for free tier.
-  if (org.planKey === "free") {
-    return { allowed: true };
-  }
-
-  const monthKey = getMonthKey();
-  const usage = await prisma.usage.findUnique({
-    where: { orgId_monthKey: { orgId, monthKey } },
-  });
-  const used = usage?.messagesSent || 0;
-  const effectiveLimit = plan.maxMessagesPerMonth + (org.extraMessageQuota || 0);
-
-  if (used >= effectiveLimit) {
-    return {
-      allowed: false,
-      error: t(loc, "plan.messageLimitReached", { used, limit: effectiveLimit }),
-      code: "LIMIT_MESSAGES",
-      limit: effectiveLimit,
-      used,
-    };
-  }
-
+  // Manual messages are UNLIMITED on ALL plans — never block customer interactions.
+  // We still track usage for analytics, but never hard-block.
   return { allowed: true };
 }
 
@@ -515,26 +473,9 @@ async function getOrgMeteringContext(orgId: string) {
 export async function checkM1Entitlement(orgId: string): Promise<EntitlementResult> {
   const ctx = await getOrgMeteringContext(orgId);
   if (!ctx) return { allowed: true };
-  // Product rule: never block manual replies for free tier.
-  if (ctx.org.planKey === "free") {
-    return { allowed: true, used: ctx.usage.m1Count ?? 0, resetAt: ctx.usage.nextResetDate };
-  }
+  // Product rule: M1 (manual/human replies) is unlimited on ALL plans — never block.
   const used = ctx.usage.m1Count ?? 0;
-  const limit = ctx.limits.m1LimitPerMonth;
-  if (limit === null || limit <= 0) {
-    return { allowed: true, limit: limit ?? undefined, used, resetAt: ctx.usage.nextResetDate };
-  }
-  if (used >= limit) {
-    return {
-      allowed: false,
-      error: `M1 quota exceeded (${used}/${limit}).`,
-      code: "QUOTA_M1_EXCEEDED",
-      limit,
-      used,
-      resetAt: ctx.usage.nextResetDate,
-    };
-  }
-  return { allowed: true, limit, used, resetAt: ctx.usage.nextResetDate };
+  return { allowed: true, used, resetAt: ctx.usage.nextResetDate };
 }
 
 export async function checkM2Entitlement(orgId: string): Promise<EntitlementResult> {
@@ -601,16 +542,14 @@ export async function getPlanLimits(orgId: string) {
 
   const metering = getMeteringLimitsForPlan(plan.key);
 
-  // Product rule: Free plan manual chat should be unlimited in UI too,
-  // even if the DB plan table still has legacy numeric limits.
-  const freeUnlimitedChat = plan.key === "free";
-
+  // Product rule: Manual chat is unlimited on ALL plans.
+  // Always return -1 for conversations/messages regardless of DB values.
   return {
     planKey: plan.key,
     planName: plan.name,
     monthlyPriceUsd: plan.monthlyPriceUsd,
-    maxConversationsPerMonth: freeUnlimitedChat ? -1 : plan.maxConversationsPerMonth + (org.extraConversationQuota || 0),
-    maxMessagesPerMonth: freeUnlimitedChat ? -1 : plan.maxMessagesPerMonth + (org.extraMessageQuota || 0),
+    maxConversationsPerMonth: -1,
+    maxMessagesPerMonth: -1,
     maxAgents: plan.maxAgents,
     m1LimitPerMonth: metering.m1LimitPerMonth,
     m2LimitPerMonth: metering.m2LimitPerMonth,
@@ -641,9 +580,9 @@ export async function getAvailablePlans() {
     // Legacy field for older consumers.
     stripePriceId: p.stripePriceMonthlyUsd || p.stripePriceYearlyUsd || null,
     monthlyPriceUsd: normalizePriceUsd(p.monthlyPriceUsd),
-    // Product rule: free plan manual chat is unlimited in UI.
-    maxConversationsPerMonth: p.key === "free" ? -1 : p.maxConversationsPerMonth,
-    maxMessagesPerMonth: p.key === "free" ? -1 : p.maxMessagesPerMonth,
+    // Product rule: manual chat is unlimited on ALL plans.
+    maxConversationsPerMonth: -1,
+    maxMessagesPerMonth: -1,
     maxAgents: p.maxAgents,
   }));
 }

@@ -107,8 +107,8 @@ const PLANS = [
     ctaHref: "/register?plan=starter",
     capacity: [
       { labelKey: "pricingV2.capacity.agent", value: "5", bold: true },
-      { labelKey: "pricingV2.capacity.chatPerMonth", value: "1.500", bold: true },
-      { labelKey: "pricingV2.capacity.messagePerMonth", value: "15.000", bold: true },
+      { labelKey: "pricingV2.capacity.chatPerMonth", valueKey: "pricing.unlimited", bold: true },
+      { labelKey: "pricingV2.capacity.messagePerMonth", valueKey: "pricing.unlimited", bold: true },
       { labelKey: "pricingV2.capacity.aiReplyPerMonth", value: "100", bold: true },
     ],
     features: [
@@ -145,8 +145,8 @@ const PLANS = [
     ctaHref: "/register?plan=pro",
     capacity: [
       { labelKey: "pricingV2.capacity.agent", value: "15", bold: true },
-      { labelKey: "pricingV2.capacity.chatPerMonth", value: "5.000", bold: true },
-      { labelKey: "pricingV2.capacity.messagePerMonth", value: "50.000", bold: true },
+      { labelKey: "pricingV2.capacity.chatPerMonth", valueKey: "pricing.unlimited", bold: true },
+      { labelKey: "pricingV2.capacity.messagePerMonth", valueKey: "pricing.unlimited", bold: true },
       { labelKey: "pricingV2.capacity.aiReplyPerMonth", value: "500", bold: true },
     ],
     features: [
@@ -242,8 +242,8 @@ const TABLE_SECTIONS = [
     titleKey: "pricingV2.table.capacity.title",
     rows: [
       { labelKey: "pricingV2.table.row.agentCount", values: ["3", "5", { v: "15", hl: "amber" }, "50"] },
-      { labelKey: "pricingV2.table.row.monthlyChat", values: ["200", "1.500", { v: "5.000", hl: "amber" }, { key: "pricing.unlimited", hl: "amber" }] },
-      { labelKey: "pricingV2.table.row.monthlyMessage", values: ["1.000", "15.000", { v: "50.000", hl: "amber" }, { key: "pricing.unlimited", hl: "amber" }] },
+      { labelKey: "pricingV2.table.row.monthlyChat", values: [{ key: "pricing.unlimited" }, { key: "pricing.unlimited" }, { key: "pricing.unlimited", hl: "amber" }, { key: "pricing.unlimited", hl: "amber" }] },
+      { labelKey: "pricingV2.table.row.monthlyMessage", values: [{ key: "pricing.unlimited" }, { key: "pricing.unlimited" }, { key: "pricing.unlimited", hl: "amber" }, { key: "pricing.unlimited", hl: "amber" }] },
       { labelKey: "pricingV2.table.row.monthlyAi", values: ["20", "100", { v: "500", hl: "amber" }, { v: "2.000", hl: "amber" }] },
     ],
   },

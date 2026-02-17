@@ -69,14 +69,15 @@ export default function AIUsageStats({ prominent = false, compact = false, onUpg
           </div>
           <div>
             <p className="text-sm font-bold text-emerald-900">{t("aiQuota.unlimited")}</p>
-            <p className="text-xs text-emerald-700">Enterprise</p>
+            <p className="text-xs text-emerald-700">{String(quota.plan).toUpperCase()}</p>
           </div>
         </div>
       </div>
     );
   }
 
-  const isNearLimit = quota.percentUsed >= 80;
+  const cappedPercent = Math.min(quota.percentUsed, 100);
+  const isNearLimit = cappedPercent >= 80;
   const m2Exceeded = quota.m2?.allowed === false;
   const isExceeded = quota.exceeded || m2Exceeded;
   const showProminent = prominent || isNearLimit;
@@ -97,16 +98,11 @@ export default function AIUsageStats({ prominent = false, compact = false, onUpg
           <span className={`text-xs font-semibold ${colors.sub}`}>{quota.used}/{quota.limit}</span>
         </div>
         <div className="w-full h-1.5 bg-white/60 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full bg-gradient-to-r ${colors.bar} transition-all duration-500`} style={{ width: `${Math.min(quota.percentUsed, 100)}%` }} />
+          <div className={`h-full rounded-full bg-gradient-to-r ${colors.bar} transition-all duration-500`} style={{ width: `${cappedPercent}%` }} />
         </div>
-        {m2Exceeded && (
+        {isExceeded && (
           <div className={`mt-2 text-[11px] font-semibold ${colors.sub}`}>
-            {t("aiQuota.planLimitExceeded")}{" "}
-            {typeof quota.m2?.used === "number" && typeof quota.m2?.limit === "number"
-              ? t("aiQuota.planLimitUsed")
-                  .replace("{used}", String(quota.m2.used))
-                  .replace("{limit}", String(quota.m2.limit))
-              : ""}
+            {t("aiQuota.exceeded")}
           </div>
         )}
         {isExceeded && onUpgradeNeeded && (
@@ -130,22 +126,12 @@ export default function AIUsageStats({ prominent = false, compact = false, onUpg
             <p className="font-[var(--font-body)] text-[12px] text-[#94A3B8]">
               {isExceeded ? t("aiQuota.exceeded") : t("aiQuota.resetsIn").replace("{days}", String(quota.daysUntilReset))}
             </p>
-            {m2Exceeded && (
-              <p className="mt-1 font-[var(--font-body)] text-[12px] text-red-700">
-                {t("aiQuota.planLimitExceeded")}{" "}
-                {typeof quota.m2?.used === "number" && typeof quota.m2?.limit === "number"
-                  ? t("aiQuota.planLimitUsed")
-                      .replace("{used}", String(quota.m2.used))
-                      .replace("{limit}", String(quota.m2.limit))
-                  : ""}
-              </p>
-            )}
           </div>
         </div>
         <div className="text-right">
-          <p className="font-[var(--font-heading)] text-[28px] font-extrabold text-[#F59E0B]">{quota.percentUsed}%</p>
+          <p className="font-[var(--font-heading)] text-[28px] font-extrabold text-[#F59E0B]">{cappedPercent}%</p>
           <p className="font-[var(--font-body)] text-[11px] text-[#94A3B8]">
-            {quota.remaining} {t("aiQuota.remaining").toLowerCase()}
+            {quota.remaining < 0 ? 0 : quota.remaining} {t("aiQuota.remaining").toLowerCase()}
           </p>
         </div>
       </div>
@@ -154,7 +140,7 @@ export default function AIUsageStats({ prominent = false, compact = false, onUpg
         <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-[rgba(245,158,11,0.1)]">
           <div
             className="h-full rounded-full bg-gradient-to-r from-[#F59E0B] to-[#D97706] transition-all duration-700 ease-out"
-            style={{ width: `${Math.min(quota.percentUsed, 100)}%` }}
+            style={{ width: `${cappedPercent}%` }}
           />
         </div>
 
@@ -173,7 +159,11 @@ export default function AIUsageStats({ prominent = false, compact = false, onUpg
         <div className="mx-6 mt-1 border-t border-amber-200/40 pb-4 pt-3">
           <p className="flex items-center gap-1.5 font-[var(--font-body)] text-xs text-amber-700">
             <TrendingUp size={12} />
-            {quota.plan === "free" ? t("aiQuota.upgradeStarter") : t("aiQuota.upgradePro")}
+            {quota.plan === "free"
+              ? t("aiQuota.upgradeStarter")
+              : quota.plan === "starter"
+                ? t("aiQuota.upgradePro")
+                : t("aiQuota.upgradeBusiness")}
           </p>
         </div>
       )}
