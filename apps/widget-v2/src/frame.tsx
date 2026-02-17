@@ -108,10 +108,24 @@ function normalize(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function normForDefaultCompare(s: string): string {
+  // Normalize small variations: case, whitespace, unicode ellipsis.
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/\u2026/g, "...") // unicode ellipsis
+    .replace(/\s+/g, " ");
+}
+
 function normalizeCpc(value: unknown): string {
   const s = normalize(value);
   if (!s) return "";
-  return EN_DEFAULTS.has(s) ? "" : s;
+  // Ignore default English boilerplate coming from chatPageConfig.
+  // Compare loosely to avoid missing due to casing/ellipsis variations.
+  for (const d of EN_DEFAULTS) {
+    if (normForDefaultCompare(s) === normForDefaultCompare(d)) return "";
+  }
+  return s;
 }
 
 /**
@@ -200,6 +214,30 @@ function parseWidgetSettings(
   const resolvedDark = primaryColor ? darkenColor(primaryColor, 15) : "#7C3AED";
 
   return { title, subtitle, welcome, placeholder, starters, botAvatar, primaryColor: resolvedColor, primaryColorDark: resolvedDark };
+}
+
+const TURKISH_CHARS_RE = /[çğıöşüİ]/i;
+
+function inferLangFromContent(
+  initial: WidgetLang,
+  ws: Record<string, unknown>,
+  cpc: Record<string, unknown>
+): WidgetLang {
+  // If org.language is "en" but the configured widget copy is Turkish,
+  // prefer Turkish so placeholder/buttons match the actual UI.
+  if (initial !== "en") return initial;
+  const sample = [
+    normalize(ws.headerText),
+    normalize(ws.subText),
+    normalize(ws.welcomeMsg),
+    normalize(ws.welcomeMessage),
+    normalize(ws.launcherLabel),
+    normalizeCpc(cpc.title),
+    normalizeCpc(cpc.subtitle),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return TURKISH_CHARS_RE.test(sample) ? "tr" : initial;
 }
 
 function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
@@ -419,7 +457,10 @@ function App() {
         setBootOk(Boolean(boot?.ok));
 
         const cfg = (boot?.config || {}) as Record<string, unknown>;
-        const detectedLang = resolveWidgetLang((cfg as any).language);
+        const ws = (cfg.widgetSettings || {}) as Record<string, unknown>;
+        const cpc = (cfg.chatPageConfig || {}) as Record<string, unknown>;
+        const resolvedLang = resolveWidgetLang((cfg as any).language);
+        const detectedLang = inferLangFromContent(resolvedLang, ws, cpc);
         setLang(detectedLang);
         langRef.current = detectedLang;
         try {
@@ -427,8 +468,6 @@ function App() {
         } catch {
           // ignore
         }
-        const ws = (cfg.widgetSettings || {}) as Record<string, unknown>;
-        const cpc = (cfg.chatPageConfig || {}) as Record<string, unknown>;
 
         // Diagnostic: log the exact color values from bootloader
         console.warn("[Widget v2] Boot OK. lang:", detectedLang,

@@ -318,9 +318,6 @@ body {
   .hv-input-bar {
     padding: 8px 10px;
     padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
-    /* Safety: if the host launcher overlaps the iframe (mobile fullscreen),
-       keep the send button away from the bottom-right corner. */
-    padding-right: max(76px, calc(10px + env(safe-area-inset-right, 0px)));
     gap: 4px;
   }
   .hv-input-emoji { width: 30px; height: 30px; font-size: 16px; }
