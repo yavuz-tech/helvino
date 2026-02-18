@@ -1895,7 +1895,7 @@ export const TRANSLATION_KEYS = {
   "widgetPreview.sendBtn": "Send message",
   "widgetPreview.enterToSend": "Press Enter to send",
   "widgetPreview.emojiBtn": "Insert emoji",
-  "widgetPreview.poweredByPrefix": "Powered by ",
+  "widgetPreview.poweredByPrefix": "Powered by",
   "widgetPreview.poweredBySuffix": "",
   "widgetConfig.sizeTitle": "Size",
   "widgetConfig.widthPreset": "Width",

@@ -55,7 +55,7 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     typing: "typing...",
     failedSend: "⚠︎ failed to send",
     aiAgentBadge: "AI Agent",
-    poweredByLine: "powered by",
+    poweredByLine: "Powered by",
     defaultTitle: "How can we help?",
     defaultSubtitle: "We typically reply within minutes",
     defaultPlaceholder: "Write your message...",

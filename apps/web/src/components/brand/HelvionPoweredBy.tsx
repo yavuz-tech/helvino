@@ -11,7 +11,7 @@ export default function HelvionPoweredBy({
   logoVariant = "light",
   logoHeightClassName = "h-3.5",
   textClassName = "text-[11px] font-semibold text-stone-500",
-  containerClassName = "inline-flex items-center gap-[7px]",
+  containerClassName = "inline-flex items-center gap-1.5",
 }: {
   href?: string;
   prefixKey?: TranslationKey;
@@ -37,7 +37,7 @@ export default function HelvionPoweredBy({
         className="inline-flex items-center"
         aria-label="Helvion"
       >
-        <HelvionLogo variant={logoVariant} heightClassName={logoHeightClassName} />
+        <HelvionLogo variant={logoVariant} heightClassName={logoHeightClassName} className="align-middle" />
       </a>
       {hasSuffix && <span className={textClassName}>{suffix}</span>}
     </span>

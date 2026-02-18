@@ -332,15 +332,26 @@ export default function WidgetPreviewRenderer({
             opacity: hovered ? 1 : 0.75,
           }}
         />
-        <span className="inline-flex items-center justify-center gap-[7px]" style={{ position: "relative", zIndex: 1 }}>
-          <HelvionPoweredBy
-            href="https://helvion.io"
-            prefixKey="widgetPreview.poweredByPrefix"
-            suffixKey="widgetPreview.poweredBySuffix"
-            logoVariant="light"
-            logoHeightClassName="h-4"
-            textClassName={`font-[var(--font-body)] font-semibold text-[11px] ${hovered ? "text-stone-600" : "text-zinc-400"}`}
-          />
+        <span className="inline-flex items-center justify-center" style={{ position: "relative", zIndex: 1 }}>
+          <span
+            className="inline-flex items-center rounded-full border px-3 py-1.5 shadow-sm"
+            style={{
+              borderColor: hovered ? "rgba(245,158,11,0.18)" : "rgba(0,0,0,0.06)",
+              background: hovered ? "rgba(245,158,11,0.06)" : "rgba(255,255,255,0.65)",
+              backdropFilter: "blur(6px)",
+              transition: "all 180ms ease",
+            }}
+          >
+            <HelvionPoweredBy
+              href="https://helvion.io"
+              prefixKey="widgetPreview.poweredByPrefix"
+              suffixKey="widgetPreview.poweredBySuffix"
+              logoVariant="light"
+              logoHeightClassName="h-[18px]"
+              containerClassName="inline-flex items-center gap-2"
+              textClassName={`font-[var(--font-body)] font-semibold text-[11.5px] ${hovered ? "text-stone-600" : "text-zinc-400"}`}
+            />
+          </span>
         </span>
       </div>
     );

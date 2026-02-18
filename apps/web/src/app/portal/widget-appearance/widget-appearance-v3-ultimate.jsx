@@ -1576,7 +1576,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                             prefixKey="widgetPreview.poweredByPrefix"
                             suffixKey="widgetPreview.poweredBySuffix"
                             logoVariant="light"
-                            logoHeightClassName="h-4"
+                            logoHeightClassName="h-[18px]"
                             textClassName="text-[10.5px] font-semibold text-slate-400"
                             containerClassName="inline-flex items-center gap-[6px]"
                           />

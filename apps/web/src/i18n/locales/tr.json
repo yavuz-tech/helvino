@@ -2399,7 +2399,7 @@
   "widgetPreview.enterToSend": "Göndermek için Enter'a basın",
   "widgetPreview.emojiBtn": "Emoji ekle",
   "widgetPreview.poweredByPrefix": "",
-  "widgetPreview.poweredBySuffix": " tarafından desteklenmektedir",
+  "widgetPreview.poweredBySuffix": "tarafından desteklenmektedir",
   "widgetConfig.sizeTitle": "Boyut",
   "widgetConfig.widthPreset": "Genişlik",
   "widgetConfig.widthCompact": "Dar",

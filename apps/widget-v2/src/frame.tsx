@@ -252,7 +252,7 @@ function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
   const [hovered, setHovered] = React.useState(false);
   const suffixMode = lang === "tr";
 
-  const HelvionFullLogo = ({ height = 16 }: { height?: number }) => (
+  const HelvionFullLogo = ({ height = 18 }: { height?: number }) => (
     <svg
       width={(280 / 48) * height}
       height={height}
@@ -351,7 +351,7 @@ function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "11px 0",
+        padding: "11px 12px",
         cursor: "pointer",
         position: "relative",
         background: "linear-gradient(180deg, #FAFAFA, #F5F5F7)",
@@ -370,40 +370,48 @@ function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
           pointerEvents: "none",
         }}
       />
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "6px",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        <span
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <div
           style={{
-            fontSize: "12px",
-            color: hovered ? "#78716C" : "#A1A1AA",
-            fontFamily: "system-ui, -apple-system, sans-serif",
-            fontWeight: 600,
-            letterSpacing: "0.005em",
-            transition: "color 0.3s",
             display: "inline-flex",
             alignItems: "center",
-            gap: "6px",
+            gap: 8,
+            padding: "6px 10px",
+            borderRadius: 999,
+            background: hovered ? "rgba(var(--hv-primary-rgb,245,158,11),0.08)" : "rgba(255,255,255,0.7)",
+            border: hovered ? "1px solid rgba(var(--hv-primary-rgb,245,158,11),0.20)" : "1px solid rgba(0,0,0,0.06)",
+            boxShadow: hovered ? "0 6px 16px rgba(245,158,11,0.12)" : "0 2px 10px rgba(0,0,0,0.06)",
+            backdropFilter: "blur(8px)",
+            transition: "all 180ms ease",
           }}
         >
-          {suffixMode ? (
-            <>
-              <HelvionFullLogo height={16} />
-              <span>{tWidget(lang, "poweredByLine")}</span>
-            </>
-          ) : (
-            <>
-              <span style={{ textTransform: "capitalize" }}>{tWidget(lang, "poweredByLine")}</span>
-              <HelvionFullLogo height={16} />
-            </>
-          )}
-        </span>
+          <span
+            style={{
+              fontSize: 11.5,
+              color: hovered ? "#57534E" : "#A1A1AA",
+              fontFamily: "system-ui, -apple-system, sans-serif",
+              fontWeight: 700,
+              letterSpacing: "0.005em",
+              transition: "color 0.18s",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {suffixMode ? (
+              <>
+                <HelvionFullLogo height={18} />
+                <span>{tWidget(lang, "poweredByLine")}</span>
+              </>
+            ) : (
+              <>
+                <span>{tWidget(lang, "poweredByLine")}</span>
+                <HelvionFullLogo height={18} />
+              </>
+            )}
+          </span>
+        </div>
       </div>
     </div>
   );
