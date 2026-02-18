@@ -46,12 +46,12 @@ export default function OrgLoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center">
-            <HelvionLogo variant="light" heightClassName="h-14" />
+            <HelvionLogo variant="light" heightClassName="h-14 sm:h-16" className="hv-logo-float" />
           </div>
         </div>
 
         <div className="bg-white rounded-lg border border-[#F3E8D8] p-8 shadow-sm">
-          <h2 className="text-xl font-semibold text-[#1A1D23] mb-6">{t("auth.signIn")}</h2>
+          <h2 className="text-center text-xl font-semibold text-[#1A1D23] mb-6">{t("auth.signIn")}</h2>
 
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">

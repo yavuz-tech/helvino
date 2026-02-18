@@ -220,7 +220,7 @@ export default function AdminLoginPage() {
             <div className="rounded-3xl bg-gradient-to-br from-amber-300/55 via-rose-200/45 to-amber-100/65 p-[1px] shadow-[0_30px_80px_rgba(149,115,22,0.25)]">
               <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl">
                 <div className="mb-6 flex flex-col items-center justify-center text-center">
-                  <HelvionLogo variant="light" heightClassName="h-12" />
+                  <HelvionLogo variant="light" heightClassName="h-12 sm:h-14" className="hv-logo-float" />
                 </div>
 
                 {error ? (
@@ -266,7 +266,7 @@ export default function AdminLoginPage() {
                   </>
                 ) : (
                   <>
-                    <h2 className="mb-5 font-[var(--font-heading)] text-lg font-semibold text-[var(--text-primary)]">{t("auth.signIn")}</h2>
+                    <h2 className="mb-5 text-center font-[var(--font-heading)] text-lg font-semibold text-[var(--text-primary)]">{t("auth.signIn")}</h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <div>
                         <label htmlFor="email" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">

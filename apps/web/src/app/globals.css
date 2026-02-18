@@ -58,10 +58,24 @@ body, p, span, div, input, button, label {
   animation: dot-breathe 2s ease-in-out infinite;
 }
 
+/* ── Login logo: subtle floating motion ── */
+@keyframes helvion-logo-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -6px, 0); }
+}
+
+.hv-logo-float {
+  animation: helvion-logo-float 3.8s ease-in-out infinite;
+  will-change: transform;
+  filter: drop-shadow(0 18px 30px rgba(245, 158, 11, 0.14));
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bell-wiggle svg,
-  .bell-dot {
+  .bell-dot,
+  .hv-logo-float {
     animation: none;
+    filter: none;
   }
 }
 
