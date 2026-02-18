@@ -220,7 +220,7 @@ export default function AdminLoginPage() {
             <div className="rounded-3xl bg-gradient-to-br from-amber-300/55 via-rose-200/45 to-amber-100/65 p-[1px] shadow-[0_30px_80px_rgba(149,115,22,0.25)]">
               <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl">
                 <div className="mb-6 flex flex-col items-center justify-center text-center">
-                  <HelvionLogo variant="light" heightClassName="h-12 sm:h-14" className="hv-logo-float" />
+                  <HelvionLogo variant="light" heightClassName="h-14 sm:h-16" className="hv-logo-float" />
                 </div>
 
                 {error ? (

@@ -742,7 +742,7 @@ export default function PortalLoginPage() {
           <section className="mx-auto w-full max-w-[560px] md:w-1/2">
             <div className="mb-6 text-center md:hidden">
               <div className="mx-auto mb-4 inline-flex items-center justify-center">
-                <HelvionLogo variant="light" heightClassName="h-12" className="hv-logo-float" />
+                <HelvionLogo variant="light" heightClassName="h-14" className="hv-logo-float" />
               </div>
               <h1 className="mb-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t("nav.customerPortal")}</h1>
               <p className="text-sm text-[var(--text-secondary)]">{t("auth.tenantAccess")}</p>
@@ -751,7 +751,7 @@ export default function PortalLoginPage() {
             <div className="rounded-3xl bg-gradient-to-br from-amber-300/55 via-rose-200/45 to-amber-100/65 p-[1px] shadow-[0_30px_80px_rgba(149,115,22,0.25)]">
               <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl">
                 <div className="mb-6 flex flex-col items-center justify-center text-center">
-                  <HelvionLogo variant="light" heightClassName="h-12 sm:h-14" className="hv-logo-float" />
+                  <HelvionLogo variant="light" heightClassName="h-14 sm:h-16" className="hv-logo-float" />
                 </div>
                 {cardContent}
               </div>
