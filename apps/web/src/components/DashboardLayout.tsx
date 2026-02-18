@@ -85,7 +85,7 @@ export default function DashboardLayout({
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-5 border-b border-[#F3E8D8]">
           <Link href="/" className="flex items-center" aria-label="Helvion">
-            <HelvionLogo variant="light" heightClassName="h-7" />
+            <HelvionLogo variant="light" heightClassName="h-8" />
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}

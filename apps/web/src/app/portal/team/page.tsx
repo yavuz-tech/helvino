@@ -126,7 +126,10 @@ export default function PortalTeamPage() {
       }
       premiumToast.error({
         title: t("team.failedInvite"),
-        description: (typeof d?.error === "string" ? d.error : undefined) || t("common.error"),
+        description:
+          code === "MAX_AGENTS_REACHED"
+            ? t("team.agentLimitReachedDesc")
+            : ((typeof d?.error === "string" ? d.error : undefined) || t("common.error")),
       });
     } else {
       const d = result.data as Record<string, unknown> | undefined;

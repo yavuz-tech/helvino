@@ -1941,7 +1941,7 @@ export const TRANSLATION_KEYS = {
   "widgetConfig.brandingUpgrade": "Upgrade to remove branding",
   "widgetConfig.maxAgentsReached": "Agent limit reached for your plan.",
   "widgetConfig.upgradeForMore": "Upgrade for more agents",
-  "widgetConfig.agentLimitFree": "Free plan: 3 agents. Upgrade to add more.",
+  "widgetConfig.agentLimitFree": "Free plan: 2 agents. Upgrade to add more.",
   "widgetConfig.agentSlotsFree": "{count} of {total} agent slots available",
   "widgetConfig.agentSlotsPro": "Up to {count} agents available",
   "widgetConfig.upgradeAgentsTitle": "Need more team members?",

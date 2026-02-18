@@ -110,7 +110,9 @@ export function getAiLimitForPlan(planKey: unknown): number {
 
 // Max agents per plan
 export const PLAN_MAX_AGENTS: Record<PlanKey, number> = {
-  free: 3,
+  // Team rule: total 3 users (1 owner + 2 members).
+  // This value represents members excluding the owner.
+  free: 2,
   starter: 5,
   pro: 15,
   business: 50,

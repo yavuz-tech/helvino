@@ -146,7 +146,8 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
         : null;
       const maxAgents = planForLimit?.maxAgents ?? 1;
 
-      // Count active agents (non-owner users) + pending invites
+      // Count active members (excluding owner) + pending invites.
+      // NOTE: maxAgents is defined as "additional members besides the owner".
       const [activeAgentCount, pendingInviteCount] = await Promise.all([
         prisma.orgUser.count({
           where: { orgId: actor.orgId, isActive: true, role: { not: "owner" } },
@@ -159,7 +160,7 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
       if (activeAgentCount + pendingInviteCount >= maxAgents) {
         reply.code(403);
         return {
-          error: "Agent limit reached",
+          error: "Team member limit reached",
           code: "MAX_AGENTS_REACHED",
           maxAgents,
           current: activeAgentCount + pendingInviteCount,
@@ -621,6 +622,39 @@ export async function portalTeamRoutes(fastify: FastifyInstance) {
       if (existingUser) {
         reply.code(409);
         return { error: "An account with this email already exists" };
+      }
+
+      // ── maxAgents enforcement (plan limit) at ACCEPT time ──
+      // Accepting an invite converts 1 pending invite into 1 active member.
+      // That means (active + pending) does NOT increase, so we only block when
+      // the org is already above limit (e.g. limit lowered after invite created).
+      const orgForPlan = await prisma.organization.findUnique({
+        where: { id: invite.orgId },
+        select: { planKey: true },
+      });
+      const planForLimit = orgForPlan
+        ? await prisma.plan.findUnique({
+            where: { key: orgForPlan.planKey },
+            select: { maxAgents: true },
+          })
+        : null;
+      const maxAgents = planForLimit?.maxAgents ?? 1;
+      const [activeAgentCount, pendingInviteCount] = await Promise.all([
+        prisma.orgUser.count({
+          where: { orgId: invite.orgId, isActive: true, role: { not: "owner" } },
+        }),
+        prisma.portalInvite.count({
+          where: { orgId: invite.orgId, acceptedAt: null, expiresAt: { gt: new Date() } },
+        }),
+      ]);
+      if (activeAgentCount + pendingInviteCount > maxAgents) {
+        reply.code(403);
+        return {
+          error: "Team member limit reached",
+          code: "MAX_AGENTS_REACHED",
+          maxAgents,
+          current: activeAgentCount + pendingInviteCount,
+        };
       }
 
       // Create OrgUser

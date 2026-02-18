@@ -217,7 +217,9 @@ const FREE_PLAN_FALLBACK = {
   yearlyPriceUsd: 0,
   monthlyPriceTry: 0,
   yearlyPriceTry: 0,
-  maxAgents: 3,
+  // Team rule: total 3 users (1 owner + 2 members).
+  // maxAgents counts "additional members besides the owner".
+  maxAgents: 2,
   // Product rule: Free plan manual chat is unlimited.
   maxConversationsPerMonth: -1,
   maxMessagesPerMonth: -1,
