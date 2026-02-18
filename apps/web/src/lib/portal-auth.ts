@@ -266,34 +266,48 @@ export async function portalApiFetch(
   // Do NOT set "Content-Type: application/json" on GET/HEAD requests.
   // That header triggers a CORS preflight on cross-origin requests (api.*),
   // which makes portal metrics/pages feel slow on reload.
-  const baseHeaders: Record<string, string> = {
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    ...(options.headers as Record<string, string> | undefined),
-  };
-  if ((method === "POST" || method === "PUT" || method === "PATCH") && hasBody) {
-    if (!("Content-Type" in baseHeaders)) {
-      baseHeaders["Content-Type"] = "application/json";
-    }
-  }
+  const optionHeaders = (options.headers as Record<string, string> | undefined) || undefined;
 
+  const withJsonContentType = (headers: Record<string, string>) => {
+    if ((method === "POST" || method === "PUT" || method === "PATCH") && hasBody) {
+      if (!("Content-Type" in headers)) {
+        headers["Content-Type"] = "application/json";
+      }
+    }
+    return headers;
+  };
+
+  const buildHeaders = (includeAuth: boolean, token: string | null) => {
+    const h: Record<string, string> = {
+      ...(includeAuth && token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(optionHeaders || {}),
+    };
+    return withJsonContentType(h);
+  };
+
+  // Avoid CORS preflight for same-site GET/HEAD by not sending Authorization unless needed.
+  // This fixes intermittent "Failed to fetch" on navigation when preflight fails.
+  const preferCookieOnly = method === "GET" || method === "HEAD";
   let response = await fetchWithRetry(`${API_URL}${path}`, {
     ...options,
     credentials: "include",
-    headers: baseHeaders,
+    headers: buildHeaders(!preferCookieOnly, accessToken),
   });
+
+  // If cookie-only GET/HEAD failed with 401 but we have an access token, retry with Authorization.
+  if (preferCookieOnly && response.status === 401 && accessToken) {
+    response = await fetchWithRetry(`${API_URL}${path}`, {
+      ...options,
+      credentials: "include",
+      headers: buildHeaders(true, accessToken),
+    });
+  }
+
   if (response.status === 401) {
     const refreshed = await portalRefreshAccessToken();
     if (refreshed.ok) {
       const refreshedAccessToken = readAccessToken();
-      const refreshedHeaders: Record<string, string> = {
-        ...(refreshedAccessToken ? { Authorization: `Bearer ${refreshedAccessToken}` } : {}),
-        ...(options.headers as Record<string, string> | undefined),
-      };
-      if ((method === "POST" || method === "PUT" || method === "PATCH") && hasBody) {
-        if (!("Content-Type" in refreshedHeaders)) {
-          refreshedHeaders["Content-Type"] = "application/json";
-        }
-      }
+      const refreshedHeaders = buildHeaders(true, refreshedAccessToken);
       response = await fetchWithRetry(`${API_URL}${path}`, {
         ...options,
         credentials: "include",
