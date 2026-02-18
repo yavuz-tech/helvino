@@ -252,7 +252,7 @@ function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
   const [hovered, setHovered] = React.useState(false);
   const suffixMode = lang === "tr";
 
-  const HelvionFullLogo = ({ height = 18 }: { height?: number }) => (
+  const HelvionFullLogo = ({ height = 22 }: { height?: number }) => (
     <svg
       width={(280 / 48) * height}
       height={height}
@@ -376,7 +376,7 @@ function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
             display: "inline-flex",
             alignItems: "center",
             gap: 8,
-            padding: "6px 10px",
+            padding: "6px 12px",
             borderRadius: 999,
             background: hovered ? "rgba(var(--hv-primary-rgb,245,158,11),0.08)" : "rgba(255,255,255,0.7)",
             border: hovered ? "1px solid rgba(var(--hv-primary-rgb,245,158,11),0.20)" : "1px solid rgba(0,0,0,0.06)",
@@ -401,13 +401,13 @@ function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
           >
             {suffixMode ? (
               <>
-                <HelvionFullLogo height={18} />
+                <HelvionFullLogo />
                 <span>{tWidget(lang, "poweredByLine")}</span>
               </>
             ) : (
               <>
                 <span>{tWidget(lang, "poweredByLine")}</span>
-                <HelvionFullLogo height={18} />
+                <HelvionFullLogo />
               </>
             )}
           </span>
@@ -426,14 +426,26 @@ function App() {
     }
   };
 
+  const hostLangPref = useMemo(() => {
+    try {
+      const qs = new URLSearchParams(window.location.search);
+      // `hl` is set by loader.ts from Helvion's `helvino_lang` cookie or
+      // an explicit window.HELVION_WIDGET_LANG provided by the embedder.
+      return resolveWidgetLangExplicit(qs.get("hl"));
+    } catch {
+      return resolveWidgetLangExplicit("");
+    }
+  }, []);
+  const hostLangPinnedRef = useRef<boolean>(hostLangPref.explicit);
+
   const [view, setView] = useState<ViewMode>("home");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [bootOk, setBootOk] = useState(false);
   const [isAgentTyping, setIsAgentTyping] = useState(false);
-  const [lang, setLang] = useState<WidgetLang>("tr");
-  const langRef = useRef<WidgetLang>("tr");
+  const [lang, setLang] = useState<WidgetLang>(hostLangPref.explicit ? hostLangPref.lang : "tr");
+  const langRef = useRef<WidgetLang>(hostLangPref.explicit ? hostLangPref.lang : "tr");
 
   // Avoid theme/text flash: render a loading state until bootloader resolves.
   const [ui, setUi] = useState<UiCopy | null>(null);
@@ -460,8 +472,17 @@ function App() {
     let cancelled = false;
     if (!siteId) {
       console.error("[Widget v2] Missing siteId (query param ?siteId= or window.HELVION_SITE_ID)");
-      setUi(parseWidgetSettings({}, {}, lang));
+      setUi(parseWidgetSettings({}, {}, langRef.current));
       return;
+    }
+
+    // If the host page pinned a locale, apply it immediately so footer copy doesn't flash.
+    if (hostLangPinnedRef.current) {
+      try {
+        document.documentElement.lang = langRef.current;
+      } catch {
+        // ignore
+      }
     }
 
     console.warn("[Widget v2] Fetching bootloader for siteId:", siteId);
@@ -477,7 +498,9 @@ function App() {
         // Allow legacy inference only when language is missing/invalid/"auto".
         const rawLang = (cfg as any).language ?? (ws as any).language;
         const { lang: resolvedLang, explicit } = resolveWidgetLangExplicit(rawLang);
-        const detectedLang = explicit ? resolvedLang : inferLangFromContent(resolvedLang, ws, cpc);
+        const detectedLang = hostLangPinnedRef.current
+          ? langRef.current
+          : (explicit ? resolvedLang : inferLangFromContent(resolvedLang, ws, cpc));
         setLang(detectedLang);
         langRef.current = detectedLang;
         try {
@@ -698,7 +721,7 @@ function App() {
         console.log("[Widget v2] Live config update received", data.language || "no-lang");
 
         // Update language from event payload (explicit only).
-        if (typeof data?.language === "string") {
+        if (!hostLangPinnedRef.current && typeof data?.language === "string") {
           const { lang: newLang, explicit } = resolveWidgetLangExplicit(data.language);
           if (explicit) {
             setLang(newLang);

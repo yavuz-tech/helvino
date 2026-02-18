@@ -4,6 +4,50 @@ import { resolveWidgetLang, tWidget, type WidgetLang } from "./i18n";
 const FRAME_ORIGIN = "https://api.helvion.io";
 const Z_TOP = 2147483647;
 
+function resolveWidgetLangOrNull(raw: unknown): WidgetLang | null {
+  const v = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  if (v === "tr" || v === "en" || v === "es") return v;
+  return null;
+}
+
+function getCookie(name: string): string | null {
+  try {
+    const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+    return match ? decodeURIComponent(match[1] || "") : null;
+  } catch {
+    return null;
+  }
+}
+
+function getEmbedVersionParam(): string {
+  // If the embed script URL includes ?v=..., carry it into CSS + iframe URLs.
+  // This is a safe cache-buster for production CDNs.
+  try {
+    const cs = document.currentScript as HTMLScriptElement | null;
+    const src = cs?.src || "";
+    if (!src) return "";
+    const u = new URL(src);
+    return u.searchParams.get("v") || "";
+  } catch {
+    return "";
+  }
+}
+
+function getHostLang(): WidgetLang | null {
+  // Highest priority: explicit language set by embedder.
+  const w = window as unknown as Record<string, unknown>;
+  const explicit = resolveWidgetLangOrNull(w.HELVION_WIDGET_LANG);
+  if (explicit) return explicit;
+
+  // Helvion public site uses this cookie for i18n, so carry it into the widget.
+  const cookie = resolveWidgetLangOrNull(getCookie("helvino_lang"));
+  if (cookie) return cookie;
+
+  // Don't force documentElement.lang by default (can conflict with an explicitly
+  // configured widget language on customer sites).
+  return null;
+}
+
 // ── Theme map (matches API's THEME_COLORS — 12 themes) ──
 const THEME_MAP: Record<string, string> = {
   amber: "#F59E0B", ocean: "#0EA5E9", emerald: "#10B981", violet: "#8B5CF6",
@@ -16,15 +60,9 @@ function isHexColor(v: string): boolean { return /^#[0-9a-fA-F]{6}$/.test(v); }
 function ensureEmbedCssLoaded(): void {
   try {
     if (document.querySelector('link[data-helvion-widget-css="1"]')) return;
-    let v = "";
-    try {
-      const cs = document.currentScript as HTMLScriptElement | null;
-      const src = cs?.src || "";
-      if (src) { const u = new URL(src); v = u.searchParams.get("v") || ""; }
-    } catch { /* */ }
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = `${FRAME_ORIGIN}/embed.css${v ? `?v=${encodeURIComponent(v)}` : ""}`;
+    link.href = `${FRAME_ORIGIN}/embed.css${embedVersion ? `?v=${encodeURIComponent(embedVersion)}` : ""}`;
     link.setAttribute("data-helvion-widget-css", "1");
     document.head.appendChild(link);
   } catch { /* */ }
@@ -92,6 +130,11 @@ let currentConfig: LauncherConfig | null = null;
 let attGrabberTimer: number | null = null;
 let attGrabberDismissed = false;
 let currentLang: WidgetLang = "tr";
+const hostLang = getHostLang();
+const embedVersion = getEmbedVersionParam();
+// Always bust iframe HTML caching (CDNs can be sticky). If the embed script
+// already has a version param, reuse it; otherwise use a per-page-load value.
+const frameVersion = embedVersion || String(Date.now());
 
 function syncLauncherVisibility(): void {
   if (!launcher) return;
@@ -394,6 +437,8 @@ function createContainer(siteId: string): HTMLDivElement {
   const qs = new URLSearchParams();
   qs.set("siteId", siteId);
   if (parentHost) qs.set("parentHost", parentHost);
+  if (hostLang) qs.set("hl", hostLang);
+  qs.set("v", frameVersion);
   iframe.src = `${FRAME_ORIGIN}/widget-v2/frame.html?${qs.toString()}`;
   iframe.setAttribute("allow", "microphone; camera; clipboard-write");
   iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups");
@@ -426,7 +471,8 @@ async function fetchAndApply(siteId: string): Promise<void> {
       if (!currentConfig) applyConfig(parseConfig({}));
       return;
     }
-    currentLang = resolveWidgetLang(data?.config?.language);
+    // If host page provided a locale, keep launcher aria consistent with it.
+    currentLang = hostLang || resolveWidgetLang(data?.config?.language);
     syncLauncherAria();
     const ws = (data?.config?.widgetSettings || {}) as Record<string, unknown>;
     applyConfig(parseConfig(ws));
