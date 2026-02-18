@@ -42,6 +42,146 @@ type InstallPlatform = {
   color: string;
 };
 
+function PlatformLogoMark({ id, selected, color }: { id: InstallPlatformId; selected: boolean; color: string }) {
+  const fg = selected ? "#fff" : color;
+  const common: React.SVGProps<SVGSVGElement> = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    "aria-hidden": true,
+    focusable: false,
+    style: { display: "block" },
+  };
+
+  // NOTE: These are clean vector marks (not pixel images) so they look sharp at any resolution.
+  switch (id) {
+    case "html":
+      // HTML5-like shield
+      return (
+        <svg {...common}>
+          <path
+            d="M4 3h16l-1.5 17L12 22 5.5 20 4 3z"
+            fill={fg}
+            opacity={selected ? 0.95 : 0.9}
+          />
+          <path d="M7 7h10l-.3 3H9.2l.2 2h7L16 17l-4 1.2L8 17l-.2-2.2H10l.1 1 2 .5 2-.5.2-2H7.6L7 7z" fill={selected ? "#fff" : "#fff"} opacity={selected ? 1 : 0.9} />
+        </svg>
+      );
+    case "wordpress":
+      // WP-like circle + W
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9.2" fill="none" stroke={fg} strokeWidth="2" />
+          <path
+            d="M7.6 9.1c.5 0 .9.4.9.9 0 .4-.1.7-.2 1l2 6.2 1.4-4.4-1-2.8c-.2-.6.2-1 .8-1 .6 0 .8.4.7 1l2.6 7.2 1.9-6c.1-.4.2-.8.2-1.2 0-.5-.2-.9-.4-1.3"
+            fill="none"
+            stroke={fg}
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    case "react":
+      // React atom
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="1.7" fill={fg} />
+          <ellipse cx="12" cy="12" rx="9" ry="3.8" fill="none" stroke={fg} strokeWidth="1.6" />
+          <ellipse
+            cx="12"
+            cy="12"
+            rx="9"
+            ry="3.8"
+            fill="none"
+            stroke={fg}
+            strokeWidth="1.6"
+            transform="rotate(60 12 12)"
+          />
+          <ellipse
+            cx="12"
+            cy="12"
+            rx="9"
+            ry="3.8"
+            fill="none"
+            stroke={fg}
+            strokeWidth="1.6"
+            transform="rotate(120 12 12)"
+          />
+        </svg>
+      );
+    case "vue":
+      // Vue V
+      return (
+        <svg {...common}>
+          <path d="M4.5 6h4.3L12 11.7 15.2 6h4.3L12 19 4.5 6z" fill={fg} opacity={0.95} />
+          <path d="M8.7 6h3.3L12 7.6 11.9 7.7 8.7 6z" fill={selected ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.0)"} />
+        </svg>
+      );
+    case "shopify":
+      // Shopping bag mark
+      return (
+        <svg {...common}>
+          <path
+            d="M7.5 8.8V8a4.5 4.5 0 0 1 9 0v.8"
+            fill="none"
+            stroke={fg}
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+          <path
+            d="M6.8 8.8h10.4l-.9 11.2a2 2 0 0 1-2 1.8H9.7a2 2 0 0 1-2-1.8L6.8 8.8z"
+            fill="none"
+            stroke={fg}
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+          />
+          <path d="M10.1 13.2h3.8" stroke={fg} strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      );
+    case "wix":
+      // Wix-like strokes
+      return (
+        <svg {...common}>
+          <path d="M5.5 16.5 8 8l2.3 6.8L12.5 8l2.2 6.8L16 8l2.5 8.5" fill="none" stroke={fg} strokeWidth="1.8" strokeLinejoin="round" />
+          <circle cx="19.2" cy="9.2" r="1" fill={fg} />
+        </svg>
+      );
+    case "webflow":
+      // Webflow W monogram
+      return (
+        <svg {...common}>
+          <path
+            d="M5.2 8h3.2l1.5 6.9 2.4-6.9h2.6l2.4 6.9L20.8 8H24l-4 12h-2.7l-2.5-7-2.5 7H9.2L5.2 8z"
+            fill={fg}
+            transform="translate(-1.2 0)"
+          />
+        </svg>
+      );
+    case "gtm":
+      // Tag Manager: tag + arrows
+      return (
+        <svg {...common}>
+          <path
+            d="M7.5 7.5h7.8l2.7 2.7v7.8H7.5V7.5z"
+            fill="none"
+            stroke={fg}
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+          />
+          <path d="M15.3 7.5v2.7H18" fill="none" stroke={fg} strokeWidth="1.8" strokeLinejoin="round" />
+          <path d="M9.2 12h5.6" stroke={fg} strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8" fill={fg} opacity={0.9} />
+        </svg>
+      );
+  }
+}
+
 const CARD_STYLE: React.CSSProperties = {
   background: "#fff",
   border: "1px solid #E8E5DE",
@@ -291,16 +431,12 @@ function InstallationGuide({
                       height: 26,
                       borderRadius: 9,
                       background: selected ? p.color : "rgba(0,0,0,0.06)",
-                      color: selected ? "#fff" : "#292524",
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontFamily: "var(--font-heading)",
-                      fontWeight: 900,
-                      fontSize: 12,
                     }}
                   >
-                    {p.letter}
+                    <PlatformLogoMark id={p.id} selected={selected} color={p.color} />
                   </span>
                   <span style={{ fontFamily: "var(--font-body)", fontWeight: 800, fontSize: 13, color: "#292524" }}>
                     {p.name}
