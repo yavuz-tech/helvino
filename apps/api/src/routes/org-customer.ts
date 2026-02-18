@@ -368,6 +368,17 @@ export async function orgCustomerRoutes(fastify: FastifyInstance) {
         },
       });
 
+      // If language changed, notify all embedded widgets live (no page refresh).
+      // Widget-v2 listens for "widget:config-updated" and updates locale immediately.
+      if (updates.language !== undefined && fastify.io) {
+        try {
+          fastify.io.to(`org:${orgUser.orgId}:widgets`).emit("widget:config-updated", { language: updatedOrg.language });
+          fastify.io.to(`org:${updatedOrg.key}:widgets`).emit("widget:config-updated", { language: updatedOrg.language });
+        } catch {
+          // non-fatal
+        }
+      }
+
       return {
         org: {
           id: updatedOrg.id,

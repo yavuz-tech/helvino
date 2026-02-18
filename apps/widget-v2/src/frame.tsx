@@ -223,8 +223,7 @@ function inferLangFromContent(
   ws: Record<string, unknown>,
   cpc: Record<string, unknown>
 ): WidgetLang {
-  // If org.language is "en" but the configured widget copy is Turkish,
-  // prefer Turkish so placeholder/buttons match the actual UI.
+  // Legacy fallback: only used when language is NOT explicitly set.
   if (initial !== "en") return initial;
   const sample = [
     normalize(ws.headerText),
@@ -238,6 +237,12 @@ function inferLangFromContent(
     .filter(Boolean)
     .join(" ");
   return TURKISH_CHARS_RE.test(sample) ? "tr" : initial;
+}
+
+function resolveWidgetLangExplicit(raw: unknown): { lang: WidgetLang; explicit: boolean } {
+  const v = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  const explicit = v === "tr" || v === "en" || v === "es";
+  return { lang: resolveWidgetLang(raw), explicit };
 }
 
 function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
@@ -459,8 +464,11 @@ function App() {
         const cfg = (boot?.config || {}) as Record<string, unknown>;
         const ws = (cfg.widgetSettings || {}) as Record<string, unknown>;
         const cpc = (cfg.chatPageConfig || {}) as Record<string, unknown>;
-        const resolvedLang = resolveWidgetLang((cfg as any).language);
-        const detectedLang = inferLangFromContent(resolvedLang, ws, cpc);
+        // Language: respect explicit language selection (do NOT override via inference).
+        // Allow legacy inference only when language is missing/invalid/"auto".
+        const rawLang = (cfg as any).language ?? (ws as any).language;
+        const { lang: resolvedLang, explicit } = resolveWidgetLangExplicit(rawLang);
+        const detectedLang = explicit ? resolvedLang : inferLangFromContent(resolvedLang, ws, cpc);
         setLang(detectedLang);
         langRef.current = detectedLang;
         try {
@@ -678,27 +686,38 @@ function App() {
     // The payload now includes `language` so we can update locale immediately.
     socket.on("widget:config-updated", (data: { settings?: Record<string, unknown>; language?: string }) => {
       try {
-        const ws = data?.settings;
-        if (!ws || typeof ws !== "object") return;
         console.log("[Widget v2] Live config update received", data.language || "no-lang");
 
-        // Update language from event payload (API now includes org.language)
-        const newLang = resolveWidgetLang(data.language);
-        setLang(newLang);
-        langRef.current = newLang;
-        try { document.documentElement.lang = newLang; } catch { /* ignore */ }
+        // Update language from event payload (explicit only).
+        if (typeof data?.language === "string") {
+          const { lang: newLang, explicit } = resolveWidgetLangExplicit(data.language);
+          if (explicit) {
+            setLang(newLang);
+            langRef.current = newLang;
+            try { document.documentElement.lang = newLang; } catch { /* ignore */ }
 
-        const parsed = parseWidgetSettings(ws, {}, newLang);
-        setUi(parsed);
+            // Forward language update to parent so launcher aria labels stay in sync.
+            try {
+              window.parent.postMessage({ type: "helvion:config-update", settings: null, language: newLang }, "*");
+            } catch { /* */ }
+          }
+        }
 
-        // Forward settings + language to parent (loader.ts) so launcher updates too
-        try {
-          window.parent.postMessage({
-            type: "helvion:config-update",
-            settings: ws,
-            language: newLang,
-          }, "*");
-        } catch { /* cross-origin safety */ }
+        const ws = data?.settings;
+        if (ws && typeof ws === "object") {
+          const langNow = langRef.current;
+          const parsed = parseWidgetSettings(ws, {}, langNow);
+          setUi(parsed);
+
+          // Forward settings + language to parent (loader.ts) so launcher updates too
+          try {
+            window.parent.postMessage({
+              type: "helvion:config-update",
+              settings: ws,
+              language: langNow,
+            }, "*");
+          } catch { /* cross-origin safety */ }
+        }
       } catch {
         // ignore
       }

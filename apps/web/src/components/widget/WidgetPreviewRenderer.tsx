@@ -233,31 +233,125 @@ export default function WidgetPreviewRenderer({
     { key: "open", labelKey: "widgetPreview.stateChat", emoji: "💬" },
   ];
 
-  const WidgetBrandFooter = () => (
-    <div
-      className="border-t px-[14px] py-[11px] text-center"
-      style={{
-        borderColor: "rgba(0,0,0,0.04)",
-        background: "linear-gradient(180deg, rgba(255,251,235,0.2), rgba(255,251,235,0.5))",
-      }}
-      role="contentinfo"
-    >
-      <span className="inline-flex items-center justify-center gap-[6px]">
-        <span
-          className="inline-flex h-[14px] w-[14px] items-center justify-center rounded"
+  const PoweredByHelvionFooter = () => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const animRef = useRef<number>(0);
+    const starsRef = useRef<Array<{ x: number; y: number; r: number; phase: number; hue: string }>>([]);
+    const [hovered, setHovered] = useState(false);
+
+    useEffect(() => {
+      if (starsRef.current.length === 0) {
+        for (let i = 0; i < 18; i++) {
+          starsRef.current.push({
+            x: Math.random() * 340,
+            y: Math.random() * 40,
+            r: Math.random() * 1.4 + 0.5,
+            phase: Math.random() * Math.PI * 2,
+            hue: Math.random() > 0.4 ? "245,158,11" : "217,119,6",
+          });
+        }
+      }
+
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const W = 340;
+      const H = 40;
+      canvas.width = W * 2;
+      canvas.height = H * 2;
+      ctx.setTransform(2, 0, 0, 2, 0, 0);
+
+      let t0 = 0;
+      const draw = () => {
+        ctx.clearRect(0, 0, W, H);
+        t0 += 0.01;
+        const intensity = hovered ? 1 : 0.45;
+        const stars = starsRef.current;
+
+        for (let i = 0; i < stars.length; i++) {
+          for (let j = i + 1; j < stars.length; j++) {
+            const dx = stars[i].x - stars[j].x;
+            const dy = stars[i].y - stars[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 65) {
+              const alpha = (1 - dist / 65) * 0.18 * intensity;
+              ctx.beginPath();
+              ctx.moveTo(stars[i].x, stars[i].y);
+              ctx.lineTo(stars[j].x, stars[j].y);
+              ctx.strokeStyle = `rgba(217,119,6,${alpha})`;
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+            }
+          }
+        }
+
+        for (const s of stars) {
+          const twinkle = (Math.sin(t0 * 3 + s.phase) + 1) / 2;
+          const alpha = (0.3 + twinkle * 0.7) * intensity;
+          const radius = s.r * (hovered ? 1 + twinkle * 0.5 : 1);
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${s.hue},${alpha})`;
+          ctx.fill();
+        }
+
+        animRef.current = requestAnimationFrame(draw);
+      };
+
+      draw();
+      return () => cancelAnimationFrame(animRef.current);
+    }, [hovered]);
+
+    return (
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onClick={() => window.open("https://helvion.io", "_blank")}
+        className="border-t px-[14px] py-[11px] text-center"
+        style={{
+          borderColor: "rgba(0,0,0,0.04)",
+          background: "linear-gradient(180deg, #FAFAFA, #F5F5F7)",
+          cursor: "pointer",
+          position: "relative",
+        }}
+        role="contentinfo"
+      >
+        <canvas
+          ref={canvasRef}
           style={{
-            background: "linear-gradient(135deg, #F59E0B, #D97706, #B45309)",
-            boxShadow: "0 1px 4px rgba(245,158,11,0.3)",
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 340,
+            height: 40,
+            pointerEvents: "none",
+            opacity: hovered ? 1 : 0.75,
           }}
-        >
-          <span style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 900, fontSize: 7, color: "#FFF" }}>H</span>
+        />
+        <span className="inline-flex items-center justify-center gap-[7px]" style={{ position: "relative", zIndex: 1 }}>
+          <span
+            style={{
+              fontFamily: "'Satoshi', sans-serif",
+              fontWeight: 900,
+              fontSize: 13,
+              letterSpacing: "-0.01em",
+              background: "linear-gradient(135deg, #F59E0B, #D97706)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            Helvion
+          </span>
+          <span style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 600, fontSize: 11, color: hovered ? "#78716C" : "#A1A1AA" }}>
+            {t("widgetPreview.poweredBy")}
+          </span>
         </span>
-        <span style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 600, fontSize: 11, color: "#92400E" }}>
-          {t("widgetPreview.poweredBy")}
-        </span>
-      </span>
-    </div>
-  );
+      </div>
+    );
+  };
 
   return (
     <div className="overflow-hidden rounded-[20px] border border-black/[0.05] bg-white shadow-[0_8px_40px_rgba(0,0,0,0.06)]">
@@ -469,7 +563,7 @@ export default function WidgetPreviewRenderer({
                       </span>
                     </button>
                   </div>
-                  <WidgetBrandFooter />
+                  <PoweredByHelvionFooter />
                 </>
               ) : (
                 <>
@@ -519,7 +613,7 @@ export default function WidgetPreviewRenderer({
                       </button>
                     </div>
                   </div>
-                  <WidgetBrandFooter />
+                  <PoweredByHelvionFooter />
                 </>
               )}
             </div>
