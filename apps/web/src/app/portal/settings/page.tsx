@@ -249,7 +249,7 @@ export default function PortalSettingsPage() {
                         verticalAlign: "middle",
                       }}
                     >
-                      BUSINESS
+                      {t("billing.planName.business").toUpperCase()}
                     </span>
                   )}
                 </h3>

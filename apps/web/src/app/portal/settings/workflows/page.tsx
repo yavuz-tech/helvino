@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Plus, Trash2, Workflow as WorkflowIcon } from "lucide-react";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { useI18n } from "@/i18n/I18nContext";
+import type { TranslationKey } from "@/i18n/translations";
 import { premiumToast } from "@/components/PremiumToast";
 import ErrorBanner from "@/components/ErrorBanner";
 import Card from "@/components/ui/Card";
@@ -33,6 +34,14 @@ export default function PortalSettingsWorkflowsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const { can } = useFeatureAccess();
   const starterPlus = can("workflows");
+  const triggerLabel = (raw: string): string => {
+    const map: Record<string, string> = {
+      message_created: "settingsPortal.triggerMessageCreated",
+      conversation_created: "settingsPortal.triggerConversationCreated",
+      conversation_closed: "settingsPortal.triggerConversationClosed",
+    };
+    return map[raw] ? t(map[raw] as TranslationKey) : raw.replace(/_/g, " ");
+  };
 
   const load = async () => {
     setLoading(true);
@@ -172,7 +181,7 @@ export default function PortalSettingsWorkflowsPage() {
                   <div className="min-w-0 flex-1">
                     <p className={p.h3}>{item.name}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <span className={p.badgeSlate}>{item.trigger.replace(/_/g, " ")}</span>
+                      <span className={p.badgeSlate}>{triggerLabel(item.trigger)}</span>
                       <span className={item.enabled ? p.badgeGreen : p.badgeRed}>
                         {item.enabled ? t("common.enabled") : t("common.disabled")}
                       </span>

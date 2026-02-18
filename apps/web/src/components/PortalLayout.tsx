@@ -22,6 +22,7 @@ import { usePortalInboxNotification } from "@/contexts/PortalInboxNotificationCo
 import CampaignTopBanner from "@/components/CampaignTopBanner";
 import { bubbleBorderRadius, resolveWidgetBubbleTheme } from "@helvino/shared";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { getDeployEnv } from "@/lib/runtime-env";
 
 interface WidgetBubbleSettings {
   primaryColor: string;
@@ -242,6 +243,7 @@ export default function PortalLayout({
   const avatarLetter = (userName?.charAt(0) || user?.email?.charAt(0) || "U").toUpperCase();
   const normalizedPlanKey = (currentPlanKey || "").trim().toLowerCase();
   const showSidebarUpgradeCta = normalizedPlanKey === "free";
+  const deployEnv = getDeployEnv();
 
   const fetchWidgetSettings = useCallback(async () => {
     try {
@@ -258,18 +260,16 @@ export default function PortalLayout({
     try {
       const res = await portalApiFetch(`/portal/widget/config?_t=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) {
-        console.warn("[Portal] widget/config failed:", res.status);
         return;
       }
       const data = await res.json();
       const siteId = data?.embedSnippet?.siteId;
-      console.warn("[Portal] widget/config siteId:", siteId || "(missing)");
       if (siteId) {
         rememberPublicWidgetIdentity({ siteId });
         mountPublicWidgetScript({ siteId });
       }
     } catch (err: any) {
-      console.warn("[Portal] widget/config error:", err?.message || err);
+      // Silent: public widget is optional; avoid console noise in production.
     }
   }, []);
 
@@ -544,7 +544,7 @@ export default function PortalLayout({
                         isActive
                           ? "bg-gradient-to-br from-[#F59E0B] to-[#D97706] text-white shadow-[0_3px_12px_rgba(245,158,11,0.25)]"
                           : "bg-transparent text-[#52525B] hover:bg-[rgba(245,158,11,0.06)] hover:text-[#92400E]"
-                      } ${sidebarOpen ? "items-center gap-3 px-[14px] py-[9px]" : "items-center justify-center px-2 py-2.5"}`}
+                      } ${sidebarOpen ? "items-center gap-3 px-[14px] py-[9px]" : "items-center justify-center px-2 py-2.5"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
                       onClick={() => { setMobileSidebarOpen(false); }}
                     >
                       <span className="relative flex-shrink-0">
@@ -576,20 +576,9 @@ export default function PortalLayout({
 
                       {/* Sidebar inbox badge (requested inline JSX) */}
                       {sidebarOpen && isInboxItem && totalUnread > 0 && (
-                        <span style={{
-                          background: "#EF4444",
-                          color: "white",
-                          fontSize: "11px",
-                          fontWeight: "700",
-                          minWidth: "18px",
-                          height: "18px",
-                          borderRadius: "9px",
-                          padding: "0 5px",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          marginLeft: "auto",
-                        }}>{totalUnread}</span>
+                        <span className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold leading-none text-white">
+                          {totalUnread > 99 ? "99+" : totalUnread}
+                        </span>
                       )}
                     </Link>
                   );
@@ -638,7 +627,7 @@ export default function PortalLayout({
         <header className="relative h-16 bg-white/95 backdrop-blur-md border-b border-[#F3E8D8] flex items-center px-5 sticky top-0 z-[100] shadow-sm pointer-events-auto">
           <button
             onClick={() => setMobileSidebarOpen(true)}
-            className="relative z-[2] lg:hidden hover:bg-amber-50 rounded-lg p-2 transition-colors"
+            className="relative z-[2] lg:hidden hover:bg-amber-50 rounded-lg p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             <Menu size={20} strokeWidth={2} className="text-amber-500" />
           </button>
@@ -649,11 +638,16 @@ export default function PortalLayout({
           </div>
 
           <div className="relative z-[2] ml-auto flex items-center gap-2">
+            {deployEnv === "staging" && (
+              <span className="hidden sm:inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold tracking-wide text-amber-800">
+                STAGING
+              </span>
+            )}
             <div className="relative" ref={bellRef}>
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setBellOpen((o) => !o); }}
-                className={`group relative flex h-10 w-10 items-center justify-center rounded-xl border border-black/[0.06] bg-black/[0.03] transition-all duration-200 hover:scale-105 hover:bg-black/[0.06] `}
+                className="group relative flex h-10 w-10 items-center justify-center rounded-xl border border-black/[0.06] bg-black/[0.03] transition-all duration-200 hover:scale-105 hover:bg-black/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 title={t("inbox.bell.recentMessages")}
                 aria-label={t("inbox.bell.recentMessages")}
                 aria-expanded={bellOpen}

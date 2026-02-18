@@ -236,6 +236,12 @@ export default function PortalInboxContent() {
   const { t, locale } = useI18n();
   const hydrated = useHydrated();
   const { user, loading: authLoading } = usePortalAuth();
+  const debug = (...args: any[]) => {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.warn(...args);
+    }
+  };
 
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -614,7 +620,7 @@ export default function PortalInboxContent() {
         }
       }
       if (changed) {
-        console.warn("[NOTIF] seeded unreadByConversationId for hasUnreadMessages conversations");
+        debug("[NOTIF] seeded unreadByConversationId for hasUnreadMessages conversations");
         return next;
       }
       return prev;
@@ -688,10 +694,10 @@ export default function PortalInboxContent() {
 
   const selectConversation = useCallback((id: string) => {
     // Immediate UI update — no await, respond to click instantly
-    console.warn("[INBOX] selecting conversation:", id);
+    debug("[INBOX] selecting conversation:", id);
     setSelectedConversationId(id);
     setConversations(prev => sortConversations(prev.map(c => c.id === id ? { ...c, hasUnreadMessages: false } : c)));
-    console.warn("[INBOX] calling markConversationRead for:", id);
+    debug("[INBOX] calling markConversationRead for:", id);
     markConversationRead(id);
     setMobileView("chat");
     setIsLoadingDetail(true);
@@ -699,7 +705,7 @@ export default function PortalInboxContent() {
     // Mark as "opened" globally (used to suppress sound repeat).
     try {
       window.dispatchEvent(new CustomEvent("portal-inbox-conversation-opened", { detail: { conversationId: id } }));
-      console.warn("[NOTIF] conversation opened:", id);
+      debug("[NOTIF] conversation opened:", id);
     } catch { /* */ }
 
     // Clear local unread count + flash state for this conversation, and decrement global unread.
@@ -712,7 +718,7 @@ export default function PortalInboxContent() {
       }
       const next = { ...prev };
       delete next[id];
-      console.warn("[NOTIF] unreadByConversationId cleared:", id, "count:", current);
+      debug("[NOTIF] unreadByConversationId cleared:", id, "count:", current);
       return next;
     });
     setFlashUntilByConversationId((prev) => {
@@ -721,7 +727,7 @@ export default function PortalInboxContent() {
       const t = flashTimeoutsRef.current[id];
       if (t) clearTimeout(t);
       delete flashTimeoutsRef.current[id];
-      console.warn("[NOTIF] flashUntil cleared:", id);
+      debug("[NOTIF] flashUntil cleared:", id);
       return next;
     });
 
@@ -745,7 +751,7 @@ export default function PortalInboxContent() {
     setSelectedConversationId(null); setConversationDetail(null); setNotes([]); setMobileView("list");
     try {
       window.dispatchEvent(new CustomEvent("portal-inbox-conversation-opened", { detail: { conversationId: null } }));
-      console.warn("[NOTIF] conversation opened: null");
+      debug("[NOTIF] conversation opened: null");
     } catch { /* */ }
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -836,7 +842,7 @@ export default function PortalInboxContent() {
           if (!(conversationId in prev)) return prev;
           const next = { ...prev };
           delete next[conversationId];
-          console.warn("[NOTIF] cleared unreadByConversationId (active chat):", conversationId);
+          debug("[NOTIF] cleared unreadByConversationId (active chat):", conversationId);
           return next;
         });
         setFlashUntilByConversationId((prev) => {
@@ -846,7 +852,7 @@ export default function PortalInboxContent() {
           const t = flashTimeoutsRef.current[conversationId];
           if (t) clearTimeout(t);
           delete flashTimeoutsRef.current[conversationId];
-          console.warn("[NOTIF] cleared flashUntil (active chat):", conversationId);
+          debug("[NOTIF] cleared flashUntil (active chat):", conversationId);
           return next;
         });
 
@@ -902,14 +908,14 @@ export default function PortalInboxContent() {
         setUnreadByConversationId((prev) => {
           const current = Number(prev[conversationId] ?? 0) || 0;
           const nextCount = current + 1;
-          console.warn("[NOTIF] unreadByConversationId++:", conversationId, current, "->", nextCount);
+          debug("[NOTIF] unreadByConversationId++:", conversationId, current, "->", nextCount);
           return { ...prev, [conversationId]: nextCount };
         });
 
         // Flash for up to 60s (reset on each new message)
         setFlashUntilByConversationId((prev) => {
           const until = Date.now() + 60_000;
-          console.warn("[NOTIF] flashUntil set:", conversationId, "->", new Date(until).toISOString());
+          debug("[NOTIF] flashUntil set:", conversationId, "->", new Date(until).toISOString());
           const next = { ...prev, [conversationId]: until };
           const existing = flashTimeoutsRef.current[conversationId];
           if (existing) clearTimeout(existing);
@@ -918,7 +924,7 @@ export default function PortalInboxContent() {
               if (!(conversationId in p)) return p;
               const n = { ...p };
               delete n[conversationId];
-              console.warn("[NOTIF] flashUntil auto-cleared:", conversationId);
+              debug("[NOTIF] flashUntil auto-cleared:", conversationId);
               return n;
             });
           }, 60_000);
@@ -1452,10 +1458,29 @@ export default function PortalInboxContent() {
         <div className="flex-1 overflow-y-auto">
           {error && <div className="m-3"><ErrorBanner message={error} /></div>}
           {isLoading && conversations.length === 0 ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
-                <span className="text-[11px] text-slate-400 font-medium">{t("common.loading")}</span>
+            <div className="px-3 py-3">
+              <div className="space-y-2">
+                {Array.from({ length: 8 }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className="mx-2 my-1 rounded-xl border border-slate-100 bg-white px-[14px] py-[13px] shadow-sm"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 h-9 w-9 rounded-xl bg-slate-100 animate-pulse" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="h-3.5 w-32 rounded bg-slate-100 animate-pulse" />
+                          <div className="h-3 w-16 rounded bg-slate-100 animate-pulse" />
+                        </div>
+                        <div className="mt-2 h-3 w-56 rounded bg-slate-100 animate-pulse" />
+                        <div className="mt-2 flex gap-2">
+                          <div className="h-5 w-14 rounded-md bg-slate-100 animate-pulse" />
+                          <div className="h-5 w-20 rounded-md bg-slate-100 animate-pulse" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ) : conversations.length === 0 ? (
@@ -1470,11 +1495,10 @@ export default function PortalInboxContent() {
             // Frontend-driven unread state (API doesn't return reliable hasUnreadMessages)
             const unreadFromMap = unreadMap[conv.id] || 0;
             const hasUnread = unreadFromMap > 0;
-            console.warn("[INBOX] conv:", conv.id, "unreadFromMap:", unreadFromMap);
             return (
               <div key={conv.id} data-conversation-id={conv.id} onClick={() => selectConversation(conv.id)} role="button" tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectConversation(conv.id); } }}
-                className={`group relative mx-2 my-1 cursor-pointer rounded-xl transition-all duration-200 ${
+                className={`group relative mx-2 my-1 cursor-pointer rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                   active
                     ? "ring-1 ring-blue-200/60 shadow-sm"
                     : "hover:bg-slate-50/60"
@@ -1489,15 +1513,7 @@ export default function PortalInboxContent() {
                 <div className="flex items-start gap-3">
                   {/* Unread red dot */}
                   {hasUnread && !active && (
-                    <span style={{
-                      width: "10px",
-                      height: "10px",
-                      borderRadius: "50%",
-                      background: "#EF4444",
-                      flexShrink: 0,
-                      marginTop: "6px",
-                      animation: "pulse 2s infinite",
-                    }} />
+                    <span className="mt-[6px] h-2.5 w-2.5 rounded-full bg-red-500 flex-shrink-0 animate-pulse" />
                   )}
 
                   {/* Bulk checkbox */}
@@ -1524,19 +1540,9 @@ export default function PortalInboxContent() {
                         <span className="text-[12px] text-slate-400 tabular-nums font-medium" suppressHydrationWarning>{hydrated ? formatRelativeTime(conv.updatedAt, t) : formatTime(conv.updatedAt, hydrated)}</span>
                         {/* Unread count badge */}
                         {unreadFromMap > 0 && (
-                          <span style={{
-                            background: "#EF4444",
-                            color: "white",
-                            fontSize: "11px",
-                            fontWeight: "700",
-                            minWidth: "18px",
-                            height: "18px",
-                            borderRadius: "9px",
-                            padding: "0 5px",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}>{unreadFromMap > 99 ? "99+" : unreadFromMap}</span>
+                          <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
+                            {unreadFromMap > 99 ? "99+" : unreadFromMap}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -2388,6 +2394,7 @@ export default function PortalInboxContent() {
                 </div>
               )}
               <div
+                className="focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:ring-offset-2 focus-within:ring-offset-white transition-shadow"
                 style={{
                   display: "flex",
                   alignItems: "flex-end",
@@ -2441,6 +2448,7 @@ export default function PortalInboxContent() {
                       if (!canUseFileAttach) { openUpgradeForPlan("starter", "fileAttach"); return; }
                       fileInputRef.current?.click();
                     }}
+                    className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     style={{ width: "34px", height: "34px", borderRadius: "7px", border: "none", background: "transparent", cursor: "pointer", fontSize: "17px", display: "flex", alignItems: "center", justifyContent: "center", opacity: canUseFileAttach ? 1 : 0.45 }}
                     title={t("inbox.upload.tooltip" as TranslationKey)}
                   >
@@ -2449,6 +2457,7 @@ export default function PortalInboxContent() {
                   <div style={{ position: "relative" }}>
                     <button
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       style={{ width: "34px", height: "34px", borderRadius: "7px", border: "none", background: showEmojiPicker ? "#FEF3C7" : "transparent", cursor: "pointer", fontSize: "17px", display: "flex", alignItems: "center", justifyContent: "center" }}
                     >
                       😊
@@ -2476,6 +2485,7 @@ export default function PortalInboxContent() {
                   <button
                     onClick={handleComposerSend}
                     disabled={!replyBody.trim()}
+                    className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/25 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     style={{
                       width: "40px",
                       height: "40px",

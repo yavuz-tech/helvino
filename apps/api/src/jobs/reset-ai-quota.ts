@@ -9,6 +9,8 @@
 import { prisma } from "../prisma";
 import { getAiLimitForPlan } from "../utils/ai-service";
 
+let lastDbDownLogAt = 0;
+
 /**
  * Resolve the correct AI message limit for an org.
  * Prefers the DB plan table's `maxAiMessagesPerMonth` over the hardcoded fallback,
@@ -31,13 +33,24 @@ export async function resetExpiredAiQuotas(): Promise<{ resetCount: number }> {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   // Find all orgs whose reset date is older than 30 days
-  const expiredOrgs = await prisma.organization.findMany({
-    where: {
-      aiMessagesResetDate: { lt: thirtyDaysAgo },
-      isActive: true,
-    },
-    select: { id: true, planKey: true },
-  });
+  let expiredOrgs: Array<{ id: string; planKey: string }> = [];
+  try {
+    expiredOrgs = await prisma.organization.findMany({
+      where: {
+        aiMessagesResetDate: { lt: thirtyDaysAgo },
+        isActive: true,
+      },
+      select: { id: true, planKey: true },
+    });
+  } catch (err) {
+    // In local dev, DB might not be running yet. Never crash the API because of a background job.
+    const now = Date.now();
+    if (now - lastDbDownLogAt > 60_000) {
+      lastDbDownLogAt = now;
+      console.warn("[AI Quota Reset] Skipping run: database unavailable");
+    }
+    return { resetCount: 0 };
+  }
 
   if (expiredOrgs.length === 0) return { resetCount: 0 };
 
@@ -67,18 +80,20 @@ export async function resetExpiredAiQuotas(): Promise<{ resetCount: number }> {
 /** Start a daily interval timer (runs every 24h). Call once at server boot. */
 export function scheduleAiQuotaReset(): void {
   const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  const safeRun = async (label: string) => {
+    try {
+      console.info(`[AI Quota Reset] Running ${label} check...`);
+      await resetExpiredAiQuotas();
+    } catch (err) {
+      console.warn("[AI Quota Reset] Job failed (non-fatal):", err);
+    }
+  };
 
   // Run once on startup (deferred)
-  setTimeout(async () => {
-    console.info("[AI Quota Reset] Running initial check...");
-    await resetExpiredAiQuotas();
-  }, 5000);
+  setTimeout(() => { void safeRun("initial"); }, 5000);
 
   // Then run every 24 hours
-  setInterval(async () => {
-    console.info("[AI Quota Reset] Running scheduled check...");
-    await resetExpiredAiQuotas();
-  }, TWENTY_FOUR_HOURS);
+  setInterval(() => { void safeRun("scheduled"); }, TWENTY_FOUR_HOURS);
 
   console.info("[AI Quota Reset] Scheduled daily reset job");
 }

@@ -138,7 +138,7 @@ export default function PortalSettingsAppearancePage() {
               style={{ backgroundColor: s?.primaryColor ?? "#3B82F6" }}
             >
               <p className="text-[12px] font-semibold text-white/90">
-                {s?.brandName ?? "Helvion"}
+                {s?.brandName ?? t("common.brandName")}
               </p>
             </div>
             {/* Content */}

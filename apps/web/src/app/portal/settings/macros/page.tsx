@@ -134,7 +134,7 @@ export default function PortalSettingsMacrosPage() {
               style={{ borderColor: "#F59E0B", color: "#D97706", background: "#FFFBEB" }}
             >
               <Plus size={13} />
-              ➕ {t("settingsPortal.addMacro")}
+              {t("settingsPortal.addMacro")}
             </button>
           </div>
         </Card>

@@ -13,6 +13,8 @@ import Card from "@/components/ui/Card";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import { p } from "@/styles/theme";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
+import { planTier } from "@helvino/shared";
 
 type Channel = {
   channelType: string;
@@ -50,9 +52,9 @@ const FREE_CHANNELS = new Set(["live_chat", "email"]);
 
 export default function PortalSettingsChannelsPage() {
   const { t } = useI18n();
+  const { planKey } = useFeatureAccess();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [saving, setSaving] = useState<string | null>(null);
-  const [planKey, setPlanKey] = useState<string>("free");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -62,29 +64,11 @@ export default function PortalSettingsChannelsPage() {
     setLoading(true);
     setLoadError(null);
 
-    Promise.allSettled([
-      portalApiFetch("/portal/settings/channels").then(async (r) => {
+    portalApiFetch("/portal/settings/channels")
+      .then(async (r) => {
         const data = await r.json().catch(() => null);
         if (!r.ok) throw new Error("CHANNELS_FAILED");
-        return data;
-      }),
-      portalApiFetch("/portal/org/me").then(async (r) => (r.ok ? r.json() : null)),
-    ])
-      .then((results) => {
-        if (cancelled) return;
-        const [channelsRes, orgRes] = results;
-
-        if (channelsRes.status === "fulfilled") {
-          setChannels(channelsRes.value?.channels || []);
-        } else {
-          setChannels([]);
-          setLoadError(t("common.networkError"));
-        }
-
-        if (orgRes.status === "fulfilled") {
-          const pk = orgRes.value?.org?.planKey;
-          if (pk) setPlanKey(String(pk).toLowerCase());
-        }
+        if (!cancelled) setChannels(data?.channels || []);
       })
       .catch(() => {
         if (cancelled) return;
@@ -100,11 +84,7 @@ export default function PortalSettingsChannelsPage() {
     };
   }, []);
 
-  const isPro =
-    planKey === "pro" ||
-    planKey === "business" ||
-    planKey === "enterprise" ||
-    planKey === "unlimited";
+  const isPro = planTier(planKey) >= 2;
 
   const toggleChannel = async (channelType: string, enabled: boolean) => {
     setSaving(channelType);
