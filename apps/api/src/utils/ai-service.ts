@@ -318,8 +318,19 @@ export async function checkAiQuota(orgId: string): Promise<AiQuotaStatus> {
   }
 
   const limit = currentPlanLimit;
-  const used = org.currentMonthAIMessages;
   const isUnlimited = limit === -1;
+  let used = org.currentMonthAIMessages;
+
+  // HARD CAP: keep stored usage within limit to avoid "47/20" confusion and
+  // ensure quota state is stable across UI, API, and future checks.
+  if (!isUnlimited && limit > 0 && used > limit) {
+    used = limit;
+    await prisma.organization.update({
+      where: { id: orgId },
+      data: { currentMonthAIMessages: limit },
+    });
+  }
+
   const remaining = isUnlimited ? Infinity : Math.max(0, limit - used);
   const exceeded = !isUnlimited && used >= limit;
   const daysUntilReset = Math.max(0, 30 - daysSinceReset);
@@ -329,10 +340,35 @@ export async function checkAiQuota(orgId: string): Promise<AiQuotaStatus> {
 }
 
 export async function incrementAiUsage(orgId: string): Promise<void> {
-  await prisma.organization.update({
+  const org = await prisma.organization.findUnique({
     where: { id: orgId },
-    data: { currentMonthAIMessages: { increment: 1 } },
+    select: { planKey: true },
   });
+  const limit = getAiLimitForPlan(org?.planKey ?? "free");
+
+  // Unlimited plan: keep counting for analytics.
+  if (limit === -1 || limit <= 0) {
+    await prisma.organization.update({
+      where: { id: orgId },
+      data: { currentMonthAIMessages: { increment: 1 }, aiMessagesLimit: limit },
+    });
+    return;
+  }
+
+  // HARD CAP (concurrency-safe): only increment while below limit.
+  const res = await prisma.organization.updateMany({
+    where: { id: orgId, currentMonthAIMessages: { lt: limit } },
+    data: { currentMonthAIMessages: { increment: 1 }, aiMessagesLimit: limit },
+  });
+
+  // If we're already at/over limit, do not increment. Also clamp to limit
+  // so any previously-over-limit values are normalized.
+  if (res.count === 0) {
+    await prisma.organization.updateMany({
+      where: { id: orgId, currentMonthAIMessages: { gt: limit } },
+      data: { currentMonthAIMessages: limit, aiMessagesLimit: limit },
+    });
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
