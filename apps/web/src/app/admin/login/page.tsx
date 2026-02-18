@@ -9,7 +9,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ErrorBanner from "@/components/ErrorBanner";
 import PasskeyLoginButton from "@/components/PasskeyLoginButton";
 import TurnstileWidget from "@/components/TurnstileWidget";
-import HelvionLogo from "@/components/brand/HelvionLogo";
+import HelvionMark from "@/components/brand/HelvionMark";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
@@ -220,7 +220,7 @@ export default function AdminLoginPage() {
             <div className="rounded-3xl bg-gradient-to-br from-amber-300/55 via-rose-200/45 to-amber-100/65 p-[1px] shadow-[0_30px_80px_rgba(149,115,22,0.25)]">
               <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl">
                 <div className="mb-6 flex flex-col items-center justify-center text-center">
-                  <HelvionLogo variant="light" heightClassName="h-14 sm:h-16" className="hv-logo-float" />
+                  <HelvionMark height={62} variant="dark" className="hv-logo-float" />
                 </div>
 
                 {error ? (

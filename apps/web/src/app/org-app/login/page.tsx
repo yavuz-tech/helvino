@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { orgLogin, checkOrgAuth } from "@/lib/org-auth";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import HelvionLogo from "@/components/brand/HelvionLogo";
+import HelvionMark from "@/components/brand/HelvionMark";
 
 export default function OrgLoginPage() {
   const router = useRouter();
@@ -46,7 +46,7 @@ export default function OrgLoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center">
-            <HelvionLogo variant="light" heightClassName="h-14 sm:h-16" className="hv-logo-float" />
+            <HelvionMark height={62} variant="dark" className="hv-logo-float" />
           </div>
         </div>
 
