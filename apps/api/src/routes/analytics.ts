@@ -91,12 +91,12 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
           // IMPORTANT:
           // "AI supported (M2)" in the portal usage UI must match the same source as enforcement.
           // Enforcement uses `usage.m2Count` with `m2LimitPerMonth` (plan metering).
-          used: usageNow?.m2Count ?? 0,
+          used: m2Limit > 0 ? Math.min(usageNow?.m2Count ?? 0, m2Limit) : (usageNow?.m2Count ?? 0),
           limit: m2Limit,
           lastMonthUsed: usagePrev?.m2Count ?? 0,
         },
         automationReached: {
-          used: usageNow?.m3Count ?? 0,
+          used: m3Limit > 0 ? Math.min(usageNow?.m3Count ?? 0, m3Limit) : (usageNow?.m3Count ?? 0),
           limit: m3Limit,
           lastMonthUsed: usagePrev?.m3Count ?? 0,
         },

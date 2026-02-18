@@ -396,8 +396,33 @@ export async function getUsageForMonth(orgId: string) {
 
   const org = await prisma.organization.findUnique({
     where: { id: orgId },
-    select: { currentPeriodEnd: true },
+    select: { currentPeriodEnd: true, planKey: true },
   });
+
+  // Normalize metering counters so they never exceed plan limits.
+  // This keeps portal displays stable and prevents "50 used / 20 limit" confusion.
+  try {
+    const metering = getMeteringLimitsForPlan(org?.planKey ?? "free");
+    const m2LimitRaw = metering.m2LimitPerMonth;
+    const m3LimitRaw = metering.m3LimitVisitorsPerMonth;
+    const m2Limit = m2LimitRaw == null || m2LimitRaw <= 0 ? -1 : m2LimitRaw;
+    const m3Limit = m3LimitRaw == null || m3LimitRaw <= 0 ? -1 : m3LimitRaw;
+
+    if (m2Limit > 0) {
+      await prisma.usage.updateMany({
+        where: { orgId, monthKey, m2Count: { gt: m2Limit } },
+        data: { m2Count: m2Limit },
+      });
+    }
+    if (m3Limit > 0) {
+      await prisma.usage.updateMany({
+        where: { orgId, monthKey, m3Count: { gt: m3Limit } },
+        data: { m3Count: m3Limit },
+      });
+    }
+  } catch {
+    // Never fail the usage endpoint for normalization issues.
+  }
 
   const periodStart = new Date();
   periodStart.setUTCDate(1);
@@ -431,11 +456,42 @@ export async function recordM1Usage(orgId: string) {
 /** M2: AI assisted response. Call when widget/API produces an AI reply. */
 export async function recordM2Usage(orgId: string) {
   const monthKey = getMonthKey();
-  await prisma.usage.upsert({
-    where: { orgId_monthKey: { orgId, monthKey } },
-    update: { m2Count: { increment: 1 } },
-    create: { orgId, monthKey, m2Count: 1 },
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { planKey: true },
   });
+  const metering = getMeteringLimitsForPlan(org?.planKey ?? "free");
+  const m2LimitRaw = metering.m2LimitPerMonth;
+  const m2Limit = m2LimitRaw == null || m2LimitRaw <= 0 ? -1 : m2LimitRaw;
+
+  // Unlimited: keep counting for analytics.
+  if (m2Limit < 0) {
+    await prisma.usage.upsert({
+      where: { orgId_monthKey: { orgId, monthKey } },
+      update: { m2Count: { increment: 1 } },
+      create: { orgId, monthKey, m2Count: 1 },
+    });
+    return;
+  }
+
+  // Ensure row exists.
+  await prisma.usage
+    .create({ data: { orgId, monthKey, m2Count: 0 } })
+    .catch(() => {});
+
+  // HARD CAP (concurrency-safe): only increment while below limit.
+  const res = await prisma.usage.updateMany({
+    where: { orgId, monthKey, m2Count: { lt: m2Limit } },
+    data: { m2Count: { increment: 1 } },
+  });
+
+  // If already at/over limit, clamp any overages.
+  if (res.count === 0) {
+    await prisma.usage.updateMany({
+      where: { orgId, monthKey, m2Count: { gt: m2Limit } },
+      data: { m2Count: m2Limit },
+    });
+  }
 }
 
 /** M3: Automations reached visitors (dedupe by orgId + periodKey + visitorKey). Call when automation touches a visitor. */

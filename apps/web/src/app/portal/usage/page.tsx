@@ -541,8 +541,11 @@ export default function PortalUsagePage() {
                   color: "#F59E0B",
                 },
               ].map((m, idx) => {
-                const pct = metricPercent(m.used, m.limit);
-                const warn = pct >= 80;
+                const isUnlimited = m.limit == null || m.limit < 0;
+                const usedDisplay = !isUnlimited && m.limit > 0 ? Math.min(m.used, m.limit) : m.used;
+                const pct = metricPercent(usedDisplay, isUnlimited ? null : m.limit);
+                const isReached = !isUnlimited && m.limit > 0 && usedDisplay >= m.limit;
+                const warn = !isReached && pct >= 80;
                 return (
                   <div
                     key={m.label}
@@ -573,7 +576,7 @@ export default function PortalUsagePage() {
                       </p>
                     </div>
                     <p style={{ fontSize: 36, lineHeight: 1, fontWeight: 900, color: colors.neutral[900], fontFamily: fonts.heading }} suppressHydrationWarning>
-                      {m.used.toLocaleString()}
+                      {usedDisplay.toLocaleString()}
                     </p>
                     <div className="mt-4 flex items-center gap-2">
                       <div style={{ flex: 1, height: 8, borderRadius: 999, background: colors.neutral[100], overflow: "hidden" }}>
@@ -593,9 +596,11 @@ export default function PortalUsagePage() {
                       style={{ marginTop: 8, fontSize: 12, color: warn ? colors.brand.secondary : colors.neutral[400], fontWeight: warn ? 700 : 500 }}
                       suppressHydrationWarning
                     >
-                      {warn
-                        ? `⚠️ ${t("usage.limit")} ${m.limit < 0 ? t("usage.unlimited") : m.limit.toLocaleString()} — ${t("usage.approachingLimit")}`
-                        : `${t("usage.limit")} ${m.limit < 0 ? t("usage.unlimited") : m.limit.toLocaleString()}`}
+                      {isReached
+                        ? `⚠️ ${t("usage.limit")} ${isUnlimited ? t("usage.unlimited") : m.limit.toLocaleString()} — ${t("usage.limitReached")}`
+                        : warn
+                          ? `⚠️ ${t("usage.limit")} ${isUnlimited ? t("usage.unlimited") : m.limit.toLocaleString()} — ${t("usage.approachingLimit")}`
+                          : `${t("usage.limit")} ${isUnlimited ? t("usage.unlimited") : m.limit.toLocaleString()}`}
                     </p>
                   </div>
                 );
