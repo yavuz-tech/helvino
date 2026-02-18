@@ -6,50 +6,36 @@ alwaysApply: true
 
 # Helvino — Pending Tasks & Current Status
 
-> **YENİ SOHBET İÇİN:** Önce `/HANDOFF.md` dosyasını oku — orada tam bağlam, son değişen dosyalar, test komutları ve bir sonraki adım var.
+## RECENTLY COMPLETED: Plan Gating Single Source of Truth
+
+### Tamamlandı
+- `packages/shared/src/plan.ts` — Tüm plan/feature tanımları merkezi dosyada
+- `requirePlanFeature` middleware tüm premium route'lara eklendi
+- `requireAiQuota` middleware AI route'lara eklendi (portal-ai-inbox, portal-ai-config)
+- `useFeatureAccess()` React hook oluşturuldu (workflows, macros, operating-hours, api-keys sayfalarında kullanılıyor)
+- AI limitleri: Free=200, Starter=500, Pro=2000, Business=sınırsız
+- Branding: Sadece Free'de zorunlu, Starter+ kaldırabilir
+- Dosya yükleme: Tüm planlarda açık
+- Sohbet limiti: Tüm planlarda sınırsız
+- Dil: Herkese ücretsiz
+- Stripe webhook: `getAiLimitForPlan()` shared'den alıyor (anında güncelleme)
+- `applyPlanGatingToConfigPayload` — showBranding tier bug düzeltildi (Pro→Starter)
+- Pricing sayfası + karşılaştırma tablosu güncellendi
+- i18n string'leri (3 dil) AI limitleriyle senkron
 
 ## IN PROGRESS: Widget Appearance v3-ultimate Redesign
-
-### Tamamlanan İşler
-- Part 1–7/9: Tüm UI bölümleri (tema, launcher, AI, starters, hours, PRO gating, embed, page rules)
-- Backend entegrasyonu: `configJson` kolonu, PUT/GET handler yeniden yazımı, legacy sync
-- Bootloader: v3 configJson'dan renk/pozisyon derive etme
-- Socket real-time: `widget:config-updated` event (mount'ta bağlanıyor)
-- Hydration fix: version-based guard (settingsVersion counter)
-- PRO toggle gating fix: disabled → gated (tıklanabilir ama upgrade modal gösterir)
-- Widget rebuild + embed.js kopyalama
-- Test sayfası: `apps/web/public/widget-test.html`
-
-### Kalan İşler
-1. **Debug log'ları temizle** — 6 adet geçici console.log var (detay HANDOFF.md'de)
-2. **Part 8/9:** Right panel live preview polish
-3. **Part 9/9:** Final regression testi (HANDOFF.md'deki test komutlarını çalıştır)
-4. **i18n audit:** v3-ultimate.jsx'te hardcoded Türkçe label varsa taşı
-5. **Git push:** workflow scope sorunu çöz
-
-### Kritik Dosyalar (Değişiklik Yapılacaksa Bunları Oku)
-- `apps/api/src/routes/portal-widget-settings.ts` — PUT/GET handler
-- `apps/api/src/routes/bootloader.ts` — müşteri widget'ın veri kaynağı
-- `apps/widget/src/App.tsx` — embed widget ana component
-- `apps/web/src/app/portal/widget-appearance/page.tsx` — portal wrapper (state, fetch, save)
-- `apps/web/src/app/portal/widget-appearance/widget-appearance-v3-ultimate.jsx` — portal UI (hydration, handleSave)
+- Part 1–7/9 tamamlandı
+- Kalan: debug log temizliği, right panel polish, final regression
 
 ## IN PROGRESS: Abandoned Checkout + Promotion Code System
-
-### Durum: Büyük oranda tamamlandı, validation bekliyor
-- CheckoutSession + PromotionCode modelleri schema'da ✅
-- Migration var ✅
-- Checkout tracking (start/complete) ✅
-- Abandoned job + email ✅
-- Admin promo API'ları ✅
-- **Bekleyen:** Stripe live/test key validation, integration test coverage
+- Büyük oranda tamamlandı, Stripe validation bekliyor
 
 ## COMPLETED (Referans)
 - Full portal UI overhaul (Tidio/Intercom level)
 - Stripe billing (checkout, webhooks, invoices, portal)
 - Team management, Security (MFA/WebAuthn), Audit logs
-- Settings suite (15+ sub-pages)
+- Settings suite (15+ sub-pages) with plan gating
 - i18n system (EN/TR/ES) with build-time parity
 - Dev server watchdog, Floating widget preview, Premium toast
 - Email templates, Multi-currency display
-- Strong password validation, CORS hardening, console.log cleanup
+- Strong password validation, CORS hardening

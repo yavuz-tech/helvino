@@ -11,7 +11,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import { InputField, TextareaField } from "@/components/ui/Field";
 import { p } from "@/styles/theme";
-import { fetchOrgFeatures } from "@/lib/org-features";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 type MacroItem = { id: string; title: string; content: string; enabled: boolean };
 
@@ -22,7 +22,8 @@ export default function PortalSettingsMacrosPage() {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [starterPlus, setStarterPlus] = useState(true);
+  const { can } = useFeatureAccess();
+  const starterPlus = can("macros");
 
   const load = async () => {
     setLoading(true);
@@ -41,21 +42,6 @@ export default function PortalSettingsMacrosPage() {
   };
 
   useEffect(() => { load(); }, []);
-  useEffect(() => {
-    let cancelled = false;
-    fetchOrgFeatures()
-      .then((f) => {
-        if (cancelled) return;
-        setStarterPlus(Boolean(f.features.macros));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setStarterPlus(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const create = async () => {
     if (!title.trim() || !content.trim()) return;

@@ -9,11 +9,11 @@ import { prisma } from "../prisma";
 import { requirePortalUser, requirePortalRole } from "../middleware/require-portal-user";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { validateJsonContentType } from "../middleware/validation";
+import { requireAiQuota } from "../utils/plan-gating";
 import {
   generateAiResponse,
   isAiAvailable,
   parseAiConfig,
-  checkAiQuota,
   incrementAiUsage,
   type AiProvider,
 } from "../utils/ai-service";
@@ -43,6 +43,7 @@ export async function portalAiInboxRoutes(fastify: FastifyInstance) {
         requirePortalRole(["owner", "admin", "agent"]),
         createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
         validateJsonContentType,
+        requireAiQuota,
       ],
     },
     async (request, reply) => {
@@ -51,12 +52,6 @@ export async function portalAiInboxRoutes(fastify: FastifyInstance) {
 
       if (!isAiAvailable()) {
         return reply.code(503).send({ error: "AI service not available" });
-      }
-
-      // Check AI quota before proceeding
-      const quota = await checkAiQuota(user.orgId);
-      if (quota.exceeded) {
-        return reply.code(402).send({ error: "AI quota exceeded", code: "QUOTA_EXCEEDED", used: quota.used, limit: quota.limit });
       }
 
       const { id } = request.params;
@@ -148,6 +143,7 @@ Rules:
         requirePortalRole(["owner", "admin", "agent"]),
         createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
         validateJsonContentType,
+        requireAiQuota,
       ],
     },
     async (request, reply) => {
@@ -156,12 +152,6 @@ Rules:
 
       if (!isAiAvailable()) {
         return reply.code(503).send({ error: "AI service not available" });
-      }
-
-      // Check AI quota before proceeding
-      const quota = await checkAiQuota(user.orgId);
-      if (quota.exceeded) {
-        return reply.code(402).send({ error: "AI quota exceeded", code: "QUOTA_EXCEEDED", used: quota.used, limit: quota.limit });
       }
 
       const { id } = request.params;
@@ -235,6 +225,7 @@ Rules:
         requirePortalRole(["owner", "admin", "agent"]),
         createRateLimitMiddleware({ limit: 30, windowMs: 60000 }),
         validateJsonContentType,
+        requireAiQuota,
       ],
     },
     async (request, reply) => {
@@ -243,12 +234,6 @@ Rules:
 
       if (!isAiAvailable()) {
         return reply.code(503).send({ error: "AI service not available" });
-      }
-
-      // Check AI quota before proceeding
-      const quota = await checkAiQuota(user.orgId);
-      if (quota.exceeded) {
-        return reply.code(402).send({ error: "AI quota exceeded", code: "QUOTA_EXCEEDED", used: quota.used, limit: quota.limit });
       }
 
       const { id } = request.params;
@@ -328,18 +313,13 @@ Rules:
         requirePortalRole(["owner", "admin", "agent"]),
         createRateLimitMiddleware({ limit: 30, windowMs: 60000 }),
         validateJsonContentType,
+        requireAiQuota,
       ],
     },
     async (request, reply) => {
       const user = (request as any).portalUser;
       if (!user) return reply.code(401).send({ error: "Unauthorized" });
       if (!isAiAvailable()) return reply.code(503).send({ error: "AI service not available" });
-
-      // Check AI quota before proceeding
-      const quotaSentiment = await checkAiQuota(user.orgId);
-      if (quotaSentiment.exceeded) {
-        return reply.code(402).send({ error: "AI quota exceeded", code: "QUOTA_EXCEEDED", used: quotaSentiment.used, limit: quotaSentiment.limit });
-      }
 
       const { id } = request.params;
       try {
@@ -422,18 +402,13 @@ Rules:
         requirePortalRole(["owner", "admin", "agent"]),
         createRateLimitMiddleware({ limit: 30, windowMs: 60000 }),
         validateJsonContentType,
+        requireAiQuota,
       ],
     },
     async (request, reply) => {
       const user = (request as any).portalUser;
       if (!user) return reply.code(401).send({ error: "Unauthorized" });
       if (!isAiAvailable()) return reply.code(503).send({ error: "AI service not available" });
-
-      // Check AI quota before proceeding
-      const quotaQuickReply = await checkAiQuota(user.orgId);
-      if (quotaQuickReply.exceeded) {
-        return reply.code(402).send({ error: "AI quota exceeded", code: "QUOTA_EXCEEDED", used: quotaQuickReply.used, limit: quotaQuickReply.limit });
-      }
 
       const { id } = request.params;
       try {

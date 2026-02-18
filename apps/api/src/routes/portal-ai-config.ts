@@ -12,6 +12,8 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../prisma";
 import { requirePortalUser, requirePortalRole } from "../middleware/require-portal-user";
 import { validateJsonContentType } from "../middleware/validation";
+import { requireAiQuota } from "../utils/plan-gating";
+import { planTier } from "@helvino/shared";
 import {
   parseAiConfig,
   isAiAvailable,
@@ -71,16 +73,20 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
 
       const currentConfig = parseAiConfig(org.aiConfigJson, org.language);
 
-      // Plan-based provider restriction: free/starter locked to gemini
-      const orgPlanKey = (org.planKey || "free").toLowerCase();
-      const orgTier = orgPlanKey === "business" || orgPlanKey === "enterprise" ? 3
-        : orgPlanKey === "pro" ? 2
-        : orgPlanKey === "starter" ? 1 : 0;
-      if (orgTier < 2 && body.aiProvider && body.aiProvider !== "gemini") {
+      // Plan-based restriction: Free/Starter locked to gemini, Pro+ can choose provider
+      const tier = planTier(org.planKey);
+      if (tier < 2 && body.aiProvider && body.aiProvider !== "gemini") {
         body.aiProvider = "gemini" as AiProvider;
       }
-      if (orgTier < 2 && body.provider && body.provider !== "gemini") {
+      if (tier < 2 && body.provider && body.provider !== "gemini") {
         body.provider = "gemini" as AiProvider;
+      }
+      // Strip Pro+ persona fields for non-Pro users
+      if (tier < 2) {
+        delete body.tone;
+        delete body.temperature;
+        delete body.maxTokens;
+        delete body.model;
       }
 
       // SECURITY: Input validation — max lengths for AI config string fields
@@ -179,6 +185,7 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
         requirePortalRole(["owner", "admin"]),
         createRateLimitMiddleware({ limit: 10, windowMs: 60_000, routeName: "ai.test" }),
         validateJsonContentType,
+        requireAiQuota,
       ],
     },
     async (request, reply) => {
@@ -191,13 +198,6 @@ export async function portalAiConfigRoutes(fastify: FastifyInstance) {
       if (!isAiAvailable()) {
         reply.code(503);
         return { error: "AI service not available. No API keys configured." };
-      }
-
-      // SECURITY: Enforce AI quota even for test endpoint to prevent unlimited usage
-      const quota = await checkAiQuota(user.orgId);
-      if (quota.exceeded) {
-        reply.code(402);
-        return { error: "AI quota exceeded", code: "QUOTA_EXCEEDED", used: quota.used, limit: quota.limit };
       }
 
       const org = await prisma.organization.findUnique({

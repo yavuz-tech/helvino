@@ -16,6 +16,7 @@ import { requirePortalUser } from "../middleware/require-portal-user";
 import { requireAdmin } from "../middleware/require-admin";
 import { writeAuditLog } from "../utils/audit-log";
 import { validateJsonContentType } from "../middleware/validation";
+import { planTier as sharedPlanTier } from "@helvino/shared";
 
 // Legacy fields stored in dedicated columns (backward compat)
 const LEGACY_COLUMN_FIELDS = new Set([
@@ -107,21 +108,13 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
    * Plan hierarchy: free(0) < starter(1) < pro(2) < business(3)
    * Each feature has a minimum plan tier required.
    */
-  function planTier(planKey: string | null | undefined): number {
-    const key = String(planKey || "free").toLowerCase();
-    if (key === "business" || key === "enterprise") return 3;
-    if (key === "pro") return 2;
-    if (key === "starter") return 1;
-    return 0; // free
-  }
-
   function applyPlanGatingToConfigPayload(
     payload: Record<string, unknown>,
     planKey: string | null | undefined
   ): void {
-    const tier = planTier(planKey);
+    const tier = sharedPlanTier(planKey);
 
-    // === PRO+ features (tier >= 2): AI persona tuning, CSAT, white-label, custom CSS, etc. ===
+    // === PRO+ features (tier >= 2): AI persona, CSAT, white-label, custom CSS, pre-chat ===
     if (tier < 2) {
       payload.aiTone = "friendly";
       payload.aiLength = "standard";
@@ -132,13 +125,13 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
       payload.customCss = "";
       payload.consentEnabled = false;
       payload.consentText = "";
-      payload.showBranding = true;
       payload.preChatEnabled = false;
       payload.pageRules = [];
     }
 
-    // === STARTER+ features (tier >= 1): auto-reply, transcript email, working hours ===
+    // === STARTER+ features (tier >= 1): branding removal, auto-reply, transcript, hours ===
     if (tier < 1) {
+      payload.showBranding = true;
       payload.autoReply = false;
       payload.autoReplyMsg = "";
       payload.transcriptEmail = false;

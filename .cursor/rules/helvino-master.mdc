@@ -34,12 +34,12 @@ apps/
     src/
       index.ts           — Main server, all route registrations
       routes/            — All API routes (portal-*, internal-*, stripe-webhook, etc.)
-      utils/             — Business logic (stripe.ts, mailer.ts, email-templates.ts, entitlements.ts, etc.)
+      utils/             — Business logic (plan-gating.ts, stripe.ts, mailer.ts, entitlements.ts, ai-service.ts, etc.)
       middleware/         — Auth, rate-limit, billing-lock, validation
       jobs/              — Background jobs (reset-ai-quota.ts)
     prisma/
       schema.prisma      — DATABASE SCHEMA (source of truth for all models)
-      seed.ts            — Plan seeding (free/pro/business)
+      seed.ts            — Plan seeding (free/starter/pro/business)
       migrations/        — All Prisma migrations
   web/           — Next.js frontend (port 3000)
     src/
@@ -48,6 +48,7 @@ apps/
         portal/          — Customer portal pages (billing, inbox, team, settings, etc.)
         pricing/         — Public pricing page
       components/        — Shared UI components (PremiumToast, PortalLayout, etc.)
+      hooks/             — React hooks (useFeatureAccess, etc.)
       i18n/
         locales/en.json  — English translations
         locales/tr.json  — Turkish translations
@@ -56,7 +57,15 @@ apps/
         I18nContext.tsx   — React context provider
       styles/theme.ts    — Global design system tokens
       contexts/          — React contexts (PortalAuth, StepUp, Currency, etc.)
-      lib/               — Client utilities
+      lib/               — Client utilities (org-features.ts, portal-auth.ts, etc.)
+  widget-v2/     — Standalone widget (Vite + vanilla TS)
+packages/
+  shared/        — Shared utilities across monorepo
+    src/
+      plan.ts            — SINGLE SOURCE OF TRUTH: PlanKey, FeatureKey, FEATURE_MIN_PLAN, PLAN_AI_LIMITS, quotas
+      index.ts           — Package entry point (re-exports)
+      widgetBubble.ts    — Widget bubble theme utilities
+      emojis.ts          — Emoji list
 ```
 
 ## Critical Rules (NEVER violate)
@@ -133,12 +142,39 @@ apps/
 - Apply: `cd apps/api && npx prisma db push` (dev) or `npx prisma migrate dev`
 - Plans: free (3 agents, 200 conv/mo), pro ($29, 10 agents), business ($79, 25 agents)
 
-## Plans & Entitlements
+## Plans & Entitlements — Single Source of Truth
 
-- Plan data from `Plan` table (seeded via `prisma/seed.ts`)
-- Entitlements: `apps/api/src/utils/entitlements.ts`
-- Free plan: 3 agents, 200 conversations/mo, 2000 messages/mo, 100 AI messages
-- Channels: WhatsApp/Instagram/Facebook require premium plan
+### Architecture
+- **Canonical source:** `packages/shared/src/plan.ts` — ALL plan definitions, feature gates, and quotas live here
+- **Backend enforcement:** `apps/api/src/utils/plan-gating.ts` → `requirePlanFeature(feature)` middleware + `requireAiQuota` middleware
+- **Backend metering:** `apps/api/src/utils/entitlements.ts` — consumes shared `PLAN_AI_LIMITS` and `PLAN_M3_LIMITS`
+- **Frontend hook:** `apps/web/src/hooks/useFeatureAccess.ts` → `useFeatureAccess()` hook returns `can(feature)` 
+- **Frontend fetch:** `apps/web/src/lib/org-features.ts` → `fetchOrgFeatures()` with 30s cache
+- **API endpoint:** `GET /portal/org/features` — returns `{ planKey, features: Record<FeatureKey, boolean>, minPlan }`
+- **Stripe webhook:** `apps/api/src/routes/stripe-webhook.ts` — uses `getAiLimitForPlan()` from shared for instant limit sync
+
+### Plan Limits
+| | Free | Starter | Pro | Business |
+|---|---|---|---|---|
+| Agents | 3 | 5 | 15 | 50 |
+| Conversations/mo | Unlimited | Unlimited | Unlimited | Unlimited |
+| AI messages/mo | 200 | 500 | 2,000 | Unlimited |
+| Branding | Required | Removable | Removable | Removable |
+| File upload | Yes | Yes | Yes | Yes |
+| Languages | All free | All free | All free | All free |
+| API access | — | — | — | Business |
+
+### Feature Tiers (from FEATURE_MIN_PLAN)
+- **Free:** ai_inbox, ai_config, billing_checkout, billing_portal, file_sharing
+- **Starter:** auto_reply, working_hours, read_receipts, transcript_email, workflows, macros, remove_branding
+- **Pro:** ai_persona, ai_suggestions, custom_css, page_rules, pre_chat_form, csat, white_label, audit_log
+- **Business:** priority_support, sla, custom_domains, api_keys
+
+### Rules for Adding New Plan-Gated Features
+1. Add FeatureKey to `packages/shared/src/plan.ts` → `FEATURE_MIN_PLAN`
+2. Add `requirePlanFeature("feature_key")` to API route preHandler
+3. Frontend: use `useFeatureAccess()` → `can("feature_key")` for UI gating
+4. **NEVER** hardcode plan checks (e.g. `planKey === "pro"`) — always use shared functions
 
 ## Available Scripts
 

@@ -12,7 +12,7 @@ import StatCard from "@/components/ui/StatCard";
 import Toggle from "@/components/ui/Toggle";
 import { InputField, TextareaField, SelectField } from "@/components/ui/Field";
 import { p } from "@/styles/theme";
-import { fetchOrgFeatures } from "@/lib/org-features";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 type Workflow = {
   id: string;
@@ -31,7 +31,8 @@ export default function PortalSettingsWorkflowsPage() {
   const [closeConversation, setCloseConversation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [starterPlus, setStarterPlus] = useState(true);
+  const { can } = useFeatureAccess();
+  const starterPlus = can("workflows");
 
   const load = async () => {
     setLoading(true);
@@ -50,21 +51,6 @@ export default function PortalSettingsWorkflowsPage() {
   };
 
   useEffect(() => { load(); }, []);
-  useEffect(() => {
-    let cancelled = false;
-    fetchOrgFeatures()
-      .then((f) => {
-        if (cancelled) return;
-        setStarterPlus(Boolean(f.features.workflows));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setStarterPlus(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const create = async () => {
     if (!name.trim()) return;

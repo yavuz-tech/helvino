@@ -1,32 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useEffect } from "react";
 import PageHeader from "@/components/ui/PageHeader";
 import { useI18n } from "@/i18n/I18nContext";
-import { fetchOrgFeatures } from "@/lib/org-features";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 export default function PortalSettingsApiKeysPage() {
   const { t } = useI18n();
-  const [planKey, setPlanKey] = useState("free");
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchOrgFeatures()
-      .then((f) => {
-        if (cancelled) return;
-        setPlanKey(String(f.planKey ?? "free").toLowerCase());
-      })
-      .catch(() => setPlanKey("free"));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const businessPlus = useMemo(
-    () => ["business", "enterprise", "unlimited"].includes(planKey),
-    [planKey]
-  );
+  const { can } = useFeatureAccess();
+  const businessPlus = can("api_keys");
 
   return (
     <div className="space-y-5" style={{ background: "#FFFBF5", borderRadius: 16, padding: 16, position: "relative" }}>

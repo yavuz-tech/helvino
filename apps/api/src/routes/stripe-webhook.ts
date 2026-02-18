@@ -11,6 +11,7 @@ import {
 import { writeAuditLog } from "../utils/audit-log";
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { getRealIP } from "../utils/get-real-ip";
+import { getAiLimitForPlan } from "@helvino/shared";
 
 type BillingStatus =
   | "none"
@@ -241,8 +242,6 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
             );
           }
 
-          const planRow = await prisma.plan.findUnique({ where: { key: planKey } });
-
           // Founding member: ATOMIC cap enforcement via conditional UPDATE.
           // Only sets isFoundingMember=true if the global count is still < 200.
           // Uses a single SQL UPDATE ... WHERE to avoid TOCTOU race conditions.
@@ -266,25 +265,23 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
             }
           }
 
+          const sharedAiLimit = getAiLimitForPlan(planKey);
           await prisma.organization.update({
             where: { id: org.id },
             data: {
               stripeCustomerId: session.customer || org.stripeCustomerId,
               stripeSubscriptionId:
                 session.subscription || org.stripeSubscriptionId,
-              // Legacy field kept for compatibility only.
               stripePriceId: null,
               billingStatus: "active",
               planKey,
               planStatus: "active",
-              // Keep org-level AI limit in sync with plan (defense-in-depth).
-              ...(planRow?.maxAiMessagesPerMonth != null ? { aiMessagesLimit: planRow.maxAiMessagesPerMonth } : {}),
-              // Note: founding member status is set atomically above via raw SQL to avoid race conditions.
+              aiMessagesLimit: sharedAiLimit,
               lastStripeEventAt: now,
               lastStripeEventId: eventId,
             },
           });
-          console.log(`[Webhook] Plan activated: ${org.id} -> ${planKey}`);
+          console.log(`[Webhook] Plan activated: ${org.id} -> ${planKey} (AI limit: ${sharedAiLimit})`);
           if (checkoutSessionId) {
             await prisma.checkoutSession.updateMany({
               where: {
@@ -354,9 +351,8 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
             planKey = "free";
           }
 
-          const planRow = await prisma.plan.findUnique({ where: { key: planKey } });
+          const sharedAiLimit = getAiLimitForPlan(planKey);
 
-          // Derive planStatus from billingStatus
           const planStatus =
             event.type === "customer.subscription.deleted"
               ? "canceled"
@@ -380,7 +376,7 @@ export async function stripeWebhookRoutes(fastify: FastifyInstance) {
               billingStatus: newStatus,
               planKey,
               planStatus,
-              ...(planRow?.maxAiMessagesPerMonth != null ? { aiMessagesLimit: planRow.maxAiMessagesPerMonth } : {}),
+              aiMessagesLimit: sharedAiLimit,
               currentPeriodEnd: sub.current_period_end
                 ? new Date(sub.current_period_end * 1000)
                 : org.currentPeriodEnd,

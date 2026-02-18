@@ -13,7 +13,7 @@ import StatCard from "@/components/ui/StatCard";
 import Toggle from "@/components/ui/Toggle";
 import { InputField, TextareaField } from "@/components/ui/Field";
 import { p } from "@/styles/theme";
-import { fetchOrgFeatures } from "@/lib/org-features";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 type Day = { weekday: number; isOpen: boolean; startTime: string | null; endTime: string | null };
 type Data = { timezone: string; enabled: boolean; offHoursAutoReply: boolean; offHoursReplyText: string | null; days: Day[] };
@@ -29,43 +29,24 @@ export default function PortalOperatingHoursPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [starterPlus, setStarterPlus] = useState(true);
+  const { can } = useFeatureAccess();
+  const starterPlus = can("working_hours");
 
   useEffect(() => {
     let cancelled = false;
     setError(null);
     setLoading(true);
-    Promise.allSettled([
-      portalApiFetch("/portal/settings/operating-hours").then(async (r) => {
+    portalApiFetch("/portal/settings/operating-hours")
+      .then(async (r) => {
         const res = await r.json().catch(() => null);
         if (!r.ok || !res) throw new Error("LOAD_FAILED");
-        return res as Data;
-      }),
-      fetchOrgFeatures(),
-    ])
-      .then((results) => {
-        if (cancelled) return;
-        const [hoursRes, featuresRes] = results;
-
-        if (featuresRes.status === "fulfilled") {
-          setStarterPlus(Boolean(featuresRes.value.features.working_hours));
-        } else {
-          // Fail closed to avoid false unlocks if entitlements fetch fails.
-          setStarterPlus(false);
-        }
-
-        if (hoursRes.status === "fulfilled") {
-          setData(hoursRes.value);
-        } else {
+        if (!cancelled) setData(res as Data);
+      })
+      .catch(() => {
+        if (!cancelled) {
           setError(t("common.networkError"));
           setData(null);
         }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setStarterPlus(false);
-        setError(t("common.networkError"));
-        setData(null);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
