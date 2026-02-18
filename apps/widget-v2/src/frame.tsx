@@ -248,29 +248,39 @@ function resolveWidgetLangExplicit(raw: unknown): { lang: WidgetLang; explicit: 
 function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
   const suffixMode = lang === "tr";
 
-  // Tight viewBox width to avoid large trailing whitespace after the wordmark.
-  // (The original 280-wide box includes a lot of empty space to the right.)
-  const VIEWBOX_W = 210;
-  const VIEWBOX_H = 48;
-
-  const HelvionFullLogo = ({ height = 22 }: { height?: number }) => (
-    <svg
-      width={(VIEWBOX_W / VIEWBOX_H) * height}
-      height={height}
-      viewBox={`0 0 ${VIEWBOX_W} ${VIEWBOX_H}`}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-      focusable="false"
-      style={{ display: "block" }}
-    >
-      <path d="M3.6 19.2C3.6 12.572 8.972 7.2 15.6 7.2H20.4C27.028 7.2 32.4 12.572 32.4 19.2V21.6C32.4 28.228 27.028 33.6 20.4 33.6H16.8L9.6 39V33.6C6.3 31.5 3.6 27.6 3.6 24V19.2Z" fill="#FBBF24"/>
-      <path d="M20.4 19.2C20.4 13.898 24.698 9.6 30 9.6H32.4C37.702 9.6 42 13.898 42 19.2V21.6C42 26.902 37.702 31.2 32.4 31.2H30L25.2 34.8V31.32C22.56 29.76 20.4 26.7 20.4 24V19.2Z" fill="#D97706"/>
-      <text x="50" y="33" font-family="Manrope, -apple-system, sans-serif" font-size="28" font-weight="800" letter-spacing="-0.5" fill="#0C0A09">
-        Helvion<tspan fill="#F59E0B">.</tspan>
-      </text>
-    </svg>
-  );
+  const HelvionMark = ({ height = 20 }: { height?: number }) => {
+    const iconW = (42 / 48) * height;
+    const wordSize = Math.round(height * 0.62); // visually matches the previous SVG scale
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+        <svg
+          width={iconW}
+          height={height}
+          viewBox="0 0 42 48"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+          focusable="false"
+          style={{ display: "block" }}
+        >
+          <path d="M3.6 19.2C3.6 12.572 8.972 7.2 15.6 7.2H20.4C27.028 7.2 32.4 12.572 32.4 19.2V21.6C32.4 28.228 27.028 33.6 20.4 33.6H16.8L9.6 39V33.6C6.3 31.5 3.6 27.6 3.6 24V19.2Z" fill="#FBBF24"/>
+          <path d="M20.4 19.2C20.4 13.898 24.698 9.6 30 9.6H32.4C37.702 9.6 42 13.898 42 19.2V21.6C42 26.902 37.702 31.2 32.4 31.2H30L25.2 34.8V31.32C22.56 29.76 20.4 26.7 20.4 24V19.2Z" fill="#D97706"/>
+        </svg>
+        <span
+          style={{
+            fontFamily: "Manrope, system-ui, -apple-system, sans-serif",
+            fontSize: wordSize,
+            fontWeight: 800,
+            letterSpacing: "-0.02em",
+            color: "#0C0A09",
+            lineHeight: 1,
+          }}
+        >
+          Helvion<span style={{ color: "#F59E0B" }}>.</span>
+        </span>
+      </span>
+    );
+  };
 
   return (
     <div
@@ -314,13 +324,13 @@ function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
           >
             {suffixMode ? (
               <>
-                <HelvionFullLogo />
+                <HelvionMark />
                 <span>{tWidget(lang, "poweredByLine")}</span>
               </>
             ) : (
               <>
                 <span>{tWidget(lang, "poweredByLine")}</span>
-                <HelvionFullLogo />
+                <HelvionMark />
               </>
             )}
           </span>
@@ -349,7 +359,7 @@ function App() {
       return resolveWidgetLangExplicit("");
     }
   }, []);
-  const hostLangPinnedRef = useRef<boolean>(hostLangPref.explicit);
+  const hostLangRef = useRef<WidgetLang | null>(hostLangPref.explicit ? hostLangPref.lang : null);
 
   const [view, setView] = useState<ViewMode>("home");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -357,8 +367,30 @@ function App() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [bootOk, setBootOk] = useState(false);
   const [isAgentTyping, setIsAgentTyping] = useState(false);
-  const [lang, setLang] = useState<WidgetLang>(hostLangPref.explicit ? hostLangPref.lang : "tr");
-  const langRef = useRef<WidgetLang>(hostLangPref.explicit ? hostLangPref.lang : "tr");
+  const initialLang = hostLangRef.current || "tr";
+  const [lang, setLang] = useState<WidgetLang>(initialLang);
+  const langRef = useRef<WidgetLang>(initialLang);
+
+  const wsRef = useRef<Record<string, unknown>>({});
+  const cpcRef = useRef<Record<string, unknown>>({});
+
+  useEffect(() => {
+    function onParentMessage(e: MessageEvent) {
+      if (e.source !== window.parent) return;
+      if (e?.data?.type !== "helvion:host-lang") return;
+      if (typeof e?.data?.language !== "string") return;
+      const { lang: next, explicit } = resolveWidgetLangExplicit(e.data.language);
+      if (!explicit) return;
+      hostLangRef.current = next;
+      if (next === langRef.current) return;
+      setLang(next);
+      langRef.current = next;
+      try { document.documentElement.lang = next; } catch { /* ignore */ }
+      try { setUi(parseWidgetSettings(wsRef.current, cpcRef.current, next)); } catch { /* ignore */ }
+    }
+    window.addEventListener("message", onParentMessage);
+    return () => window.removeEventListener("message", onParentMessage);
+  }, []);
 
   // Avoid theme/text flash: render a loading state until bootloader resolves.
   const [ui, setUi] = useState<UiCopy | null>(null);
@@ -389,8 +421,8 @@ function App() {
       return;
     }
 
-    // If the host page pinned a locale, apply it immediately so footer copy doesn't flash.
-    if (hostLangPinnedRef.current) {
+    // If the host page provided a locale, apply it immediately so footer copy doesn't flash.
+    if (hostLangRef.current) {
       try {
         document.documentElement.lang = langRef.current;
       } catch {
@@ -407,12 +439,14 @@ function App() {
         const cfg = (boot?.config || {}) as Record<string, unknown>;
         const ws = (cfg.widgetSettings || {}) as Record<string, unknown>;
         const cpc = (cfg.chatPageConfig || {}) as Record<string, unknown>;
+        wsRef.current = ws;
+        cpcRef.current = cpc;
         // Language: respect explicit language selection (do NOT override via inference).
         // Allow legacy inference only when language is missing/invalid/"auto".
         const rawLang = (cfg as any).language ?? (ws as any).language;
         const { lang: resolvedLang, explicit } = resolveWidgetLangExplicit(rawLang);
-        const detectedLang = hostLangPinnedRef.current
-          ? langRef.current
+        const detectedLang = hostLangRef.current
+          ? hostLangRef.current
           : (explicit ? resolvedLang : inferLangFromContent(resolvedLang, ws, cpc));
         setLang(detectedLang);
         langRef.current = detectedLang;
@@ -634,7 +668,7 @@ function App() {
         console.log("[Widget v2] Live config update received", data.language || "no-lang");
 
         // Update language from event payload (explicit only).
-        if (!hostLangPinnedRef.current && typeof data?.language === "string") {
+        if (!hostLangRef.current && typeof data?.language === "string") {
           const { lang: newLang, explicit } = resolveWidgetLangExplicit(data.language);
           if (explicit) {
             setLang(newLang);
@@ -650,6 +684,7 @@ function App() {
 
         const ws = data?.settings;
         if (ws && typeof ws === "object") {
+          wsRef.current = ws as Record<string, unknown>;
           const langNow = langRef.current;
           const parsed = parseWidgetSettings(ws, {}, langNow);
           setUi(parsed);

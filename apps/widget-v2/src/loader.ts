@@ -43,6 +43,10 @@ function getHostLang(): WidgetLang | null {
   const cookie = resolveWidgetLangOrNull(getCookie("helvino_lang"));
   if (cookie) return cookie;
 
+  // Next: follow the host page <html lang=".."> if present (changes when user switches language)
+  const htmlLang = resolveWidgetLangOrNull(document.documentElement?.lang || "");
+  if (htmlLang) return htmlLang;
+
   // Don't force documentElement.lang by default (can conflict with an explicitly
   // configured widget language on customer sites).
   return null;
@@ -122,6 +126,7 @@ function parseConfig(ws: Record<string, unknown>): LauncherConfig {
 // ── State ──
 let isOpen = false;
 let container: HTMLDivElement | null = null;
+let frameEl: HTMLIFrameElement | null = null;
 let launcher: HTMLDivElement | null = null;
 let attGrabberEl: HTMLDivElement | null = null;
 let pulseRing: HTMLDivElement | null = null;
@@ -130,11 +135,26 @@ let currentConfig: LauncherConfig | null = null;
 let attGrabberTimer: number | null = null;
 let attGrabberDismissed = false;
 let currentLang: WidgetLang = "tr";
-const hostLang = getHostLang();
+let hostLang: WidgetLang | null = null;
 const embedVersion = getEmbedVersionParam();
 // Always bust iframe HTML caching (CDNs can be sticky). If the embed script
 // already has a version param, reuse it; otherwise use a per-page-load value.
 const frameVersion = embedVersion || String(Date.now());
+
+function postHostLangToFrame(newLang: WidgetLang): void {
+  try {
+    frameEl?.contentWindow?.postMessage({ type: "helvion:host-lang", language: newLang }, "*");
+  } catch {
+    // cross-origin safety
+  }
+}
+
+function setResolvedLang(newLang: WidgetLang): void {
+  if (newLang === currentLang) return;
+  currentLang = newLang;
+  syncLauncherAria();
+  postHostLangToFrame(newLang);
+}
 
 function syncLauncherVisibility(): void {
   if (!launcher) return;
@@ -432,6 +452,7 @@ function createContainer(siteId: string): HTMLDivElement {
 
   const iframe = document.createElement("iframe");
   iframe.id = "helvion-frame";
+  frameEl = iframe;
   let parentHost = "";
   try { parentHost = window.location.host || ""; } catch { /* */ }
   const qs = new URLSearchParams();
@@ -472,8 +493,8 @@ async function fetchAndApply(siteId: string): Promise<void> {
       return;
     }
     // If host page provided a locale, keep launcher aria consistent with it.
-    currentLang = hostLang || resolveWidgetLang(data?.config?.language);
-    syncLauncherAria();
+    const langNow = hostLang || resolveWidgetLang(data?.config?.language);
+    setResolvedLang(langNow);
     const ws = (data?.config?.widgetSettings || {}) as Record<string, unknown>;
     applyConfig(parseConfig(ws));
   } catch {
@@ -518,6 +539,11 @@ function init(): void {
   if (document.getElementById("helvion-launcher")) return;
   ensureEmbedCssLoaded();
 
+  hostLang = getHostLang();
+  if (hostLang) {
+    currentLang = hostLang;
+  }
+
   const siteId = getSiteId();
   if (!siteId) {
     console.warn("[Helvion] No siteId found. Add data-site to the script tag or set window.HELVION_SITE_ID.");
@@ -533,6 +559,22 @@ function init(): void {
   window.addEventListener("message", onFrameMessage);
   window.addEventListener("resize", onResize);
   window.addEventListener("orientationchange", onResize);
+
+  // Follow runtime language changes on the host page (e.g. app language switcher).
+  try {
+    let last = hostLang || currentLang;
+    const obs = new MutationObserver(() => {
+      const next = getHostLang();
+      if (!next) return;
+      if (next === last) return;
+      last = next;
+      hostLang = next;
+      setResolvedLang(next);
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+  } catch {
+    // non-fatal
+  }
 
   void fetchAndApply(siteId);
 }
