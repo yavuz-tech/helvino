@@ -5,6 +5,7 @@ import { AlertTriangle, Clock, Save, ShieldCheck, Target } from "lucide-react";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { useI18n } from "@/i18n/I18nContext";
 import { premiumToast } from "@/components/PremiumToast";
+import ErrorBanner from "@/components/ErrorBanner";
 import Card from "@/components/ui/Card";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
@@ -25,12 +26,32 @@ export default function PortalSettingsSlaPage() {
   const { t } = useI18n();
   const [policy, setPolicy] = useState<SlaPolicy | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+    setError(null);
+    setLoading(true);
     portalApiFetch("/portal/settings/sla")
-      .then((r) => r.json())
-      .then((data) => setPolicy(data.policy))
-      .catch(() => {});
+      .then(async (r) => {
+        const data = await r.json().catch(() => null);
+        if (!r.ok || !data?.policy) throw new Error("LOAD_FAILED");
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setPolicy(data.policy);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError(t("common.networkError"));
+        setPolicy(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   const save = async () => {
@@ -49,12 +70,21 @@ export default function PortalSettingsSlaPage() {
     setSaving(false);
   };
 
-  if (!policy)
+  if (loading)
     return (
       <div className="flex items-center justify-center py-20">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
       </div>
     );
+
+  if (!policy) {
+    return (
+      <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
+        <PageHeader title={t("settingsPortal.sla")} subtitle={t("settingsPortal.slaSubtitle")} />
+        <ErrorBanner message={error || t("common.error")} onDismiss={() => setError(null)} />
+      </div>
+    );
+  }
 
   return (
     <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
@@ -73,6 +103,8 @@ export default function PortalSettingsSlaPage() {
           </button>
         }
       />
+
+      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard label={t("common.status")} value={policy.enabled ? t("common.enabled") : t("common.disabled")} icon={ShieldCheck} color={policy.enabled ? "emerald" : "slate"} />

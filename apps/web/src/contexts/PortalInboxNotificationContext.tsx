@@ -189,7 +189,6 @@ function _stopAllRinging() {
 export function PortalInboxNotificationProvider({ children }: { children: ReactNode }) {
   const { user } = usePortalAuth();
   const router = useRouter();
-  console.warn("[Portal Notification Context] mounted, user:", user?.email, "orgKey:", user?.orgKey);
   const socketRef = useRef<unknown>(null);
   const [soundEnabled, setSoundEnabledState] = useState(true);
   const soundEnabledRef = useRef(true);
@@ -200,6 +199,12 @@ export function PortalInboxNotificationProvider({ children }: { children: ReactN
   // sessionStorage is read/written in a SINGLE useEffect (client-only, after hydration).
   const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const unreadMapLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[Portal Notification Context] mounted, user:", user?.email, "orgKey:", user?.orgKey);
+    }
+  }, [user?.email, user?.orgKey]);
 
   // Combined read-on-mount + write-on-change effect
   useEffect(() => {

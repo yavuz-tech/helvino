@@ -5,12 +5,14 @@ import { Plus, Trash2, Workflow as WorkflowIcon } from "lucide-react";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { useI18n } from "@/i18n/I18nContext";
 import { premiumToast } from "@/components/PremiumToast";
+import ErrorBanner from "@/components/ErrorBanner";
 import Card from "@/components/ui/Card";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import Toggle from "@/components/ui/Toggle";
 import { InputField, TextareaField, SelectField } from "@/components/ui/Field";
 import { p } from "@/styles/theme";
+import { fetchOrgFeatures } from "@/lib/org-features";
 
 type Workflow = {
   id: string;
@@ -27,28 +29,49 @@ export default function PortalSettingsWorkflowsPage() {
   const [trigger, setTrigger] = useState("message_created");
   const [autoReplyText, setAutoReplyText] = useState("");
   const [closeConversation, setCloseConversation] = useState(false);
-  const [planKey, setPlanKey] = useState("free");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [starterPlus, setStarterPlus] = useState(true);
 
   const load = async () => {
-    const res = await portalApiFetch("/portal/settings/workflows");
-    if (!res.ok) return;
-    const data = await res.json();
-    setItems(data.items || []);
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const res = await portalApiFetch("/portal/settings/workflows");
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error("LOAD_FAILED");
+      setItems(data?.items || []);
+    } catch {
+      setItems([]);
+      setLoadError(t("common.networkError"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, []);
   useEffect(() => {
-    portalApiFetch("/portal/org/me")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        setPlanKey(String(data?.org?.planKey ?? "free").toLowerCase());
+    let cancelled = false;
+    fetchOrgFeatures()
+      .then((f) => {
+        if (cancelled) return;
+        setStarterPlus(Boolean(f.features.workflows));
       })
-      .catch(() => {});
+      .catch(() => {
+        if (cancelled) return;
+        setStarterPlus(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
-  const isPro = ["pro", "business", "enterprise", "unlimited"].includes(planKey);
 
   const create = async () => {
     if (!name.trim()) return;
+    if (!starterPlus) {
+      premiumToast.info({ title: t("settings.starterRequired"), description: t("billing.viewPlans") });
+      return;
+    }
     try {
       const res = await portalApiFetch("/portal/settings/workflows", {
         method: "POST",
@@ -69,6 +92,10 @@ export default function PortalSettingsWorkflowsPage() {
   };
 
   const remove = async (id: string) => {
+    if (!starterPlus) {
+      premiumToast.info({ title: t("settings.starterRequired"), description: t("billing.viewPlans") });
+      return;
+    }
     try {
       const res = await portalApiFetch(`/portal/settings/workflows/${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -84,9 +111,18 @@ export default function PortalSettingsWorkflowsPage() {
 
   const enabledCount = items.filter((w) => w.enabled).length;
 
+  if (loading)
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
+      </div>
+    );
+
   return (
     <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
       <PageHeader title={t("settingsPortal.workflows")} subtitle={t("settingsPortal.workflowsSubtitle")} />
+
+      {loadError && <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />}
 
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard label={t("settingsPortal.workflows")} value={String(items.length)} icon={WorkflowIcon} color="violet" />
@@ -95,7 +131,7 @@ export default function PortalSettingsWorkflowsPage() {
       </div>
 
       <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">
-        {!isPro && (
+        {!starterPlus && (
           <div
             style={{
               marginBottom: 10,
@@ -108,7 +144,7 @@ export default function PortalSettingsWorkflowsPage() {
               color: "#B45309",
             }}
           >
-            🔒 {t("settings.proRequired")}
+            🔒 {t("settings.starterRequired")}
           </div>
         )}
         <div className="mb-4 flex items-center gap-2.5">
@@ -127,11 +163,12 @@ export default function PortalSettingsWorkflowsPage() {
           <TextareaField label={t("settingsPortal.workflowAutoReply")} value={autoReplyText} onChange={setAutoReplyText} placeholder={t("settingsPortal.workflowAutoReply")} />
         </div>
         <div className="mt-3">
-          <Toggle label={t("settingsPortal.workflowCloseConversation")} checked={closeConversation} onChange={setCloseConversation} />
+          <Toggle label={t("settingsPortal.workflowCloseConversation")} checked={closeConversation} disabled={!starterPlus} onChange={setCloseConversation} />
         </div>
         <button
           onClick={create}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] px-4 py-2.5 text-[12px] font-semibold text-white transition-all hover:scale-[1.02]"
+          disabled={!starterPlus}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] px-4 py-2.5 text-[12px] font-semibold text-white transition-all hover:scale-[1.02] disabled:opacity-60"
           style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
         >
           <Plus size={13} />

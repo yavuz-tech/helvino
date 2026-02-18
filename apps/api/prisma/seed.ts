@@ -94,7 +94,7 @@ async function main() {
       // Product rule: Free plan manual chat is unlimited
       maxConversationsPerMonth: -1,
       maxMessagesPerMonth: -1,
-      maxAiMessagesPerMonth: 20,
+      maxAiMessagesPerMonth: 200,
       sortOrder: 0,
     },
     {
@@ -112,7 +112,7 @@ async function main() {
       // Product rule: manual chat is unlimited on ALL plans
       maxConversationsPerMonth: -1,
       maxMessagesPerMonth: -1,
-      maxAiMessagesPerMonth: 100,
+      maxAiMessagesPerMonth: 500,
       sortOrder: 1,
     },
     {
@@ -130,7 +130,7 @@ async function main() {
       // Product rule: manual chat is unlimited on ALL plans
       maxConversationsPerMonth: -1,
       maxMessagesPerMonth: -1,
-      maxAiMessagesPerMonth: 500,
+      maxAiMessagesPerMonth: 2000,
       sortOrder: 2,
     },
     {
@@ -147,7 +147,7 @@ async function main() {
       maxAgents: 50,
       maxConversationsPerMonth: -1,
       maxMessagesPerMonth: -1,
-      maxAiMessagesPerMonth: 2000,
+      maxAiMessagesPerMonth: -1,
       sortOrder: 3,
     },
   ] as const;

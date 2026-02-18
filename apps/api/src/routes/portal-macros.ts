@@ -4,6 +4,7 @@ import { requirePortalRole, requirePortalUser } from "../middleware/require-port
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { validateJsonContentType } from "../middleware/validation";
 import { writeAuditLog } from "../utils/audit-log";
+import { requirePlanFeature } from "../utils/plan-gating";
 
 export async function portalMacroRoutes(fastify: FastifyInstance) {
   fastify.get(
@@ -31,6 +32,7 @@ export async function portalMacroRoutes(fastify: FastifyInstance) {
       preHandler: [
         requirePortalUser,
         requirePortalRole(["owner", "admin"]),
+        requirePlanFeature("macros"),
         createRateLimitMiddleware({ limit: 30, windowMs: 60000 }),
         validateJsonContentType,
       ],
@@ -66,6 +68,7 @@ export async function portalMacroRoutes(fastify: FastifyInstance) {
       preHandler: [
         requirePortalUser,
         requirePortalRole(["owner", "admin"]),
+        requirePlanFeature("macros"),
         createRateLimitMiddleware({ limit: 30, windowMs: 60000 }),
         validateJsonContentType,
       ],
@@ -113,6 +116,7 @@ export async function portalMacroRoutes(fastify: FastifyInstance) {
       preHandler: [
         requirePortalUser,
         requirePortalRole(["owner", "admin"]),
+        requirePlanFeature("macros"),
         createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
       ],
     },

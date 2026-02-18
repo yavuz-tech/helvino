@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, Code2, Copy, Globe } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 import { portalApiFetch } from "@/lib/portal-auth";
+import ErrorBanner from "@/components/ErrorBanner";
 import Card from "@/components/ui/Card";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
@@ -21,12 +22,25 @@ export default function PortalSettingsInstallationPage() {
   const { t } = useI18n();
   const [config, setConfig] = useState<WidgetConfig | null>(null);
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     portalApiFetch("/portal/widget/config")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setConfig(data))
-      .catch(() => {});
+      .then(async (res) => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data) throw new Error("LOAD_FAILED");
+        return data;
+      })
+      .then((data) => {
+        setError(null);
+        setConfig(data);
+      })
+      .catch(() => {
+        setError(t("common.networkError"));
+        setConfig(null);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const copySnippet = async () => {
@@ -35,6 +49,13 @@ export default function PortalSettingsInstallationPage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  if (loading)
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
+      </div>
+    );
 
   return (
     <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
@@ -53,6 +74,8 @@ export default function PortalSettingsInstallationPage() {
         }
       />
 
+      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
           label={t("common.status")}
@@ -67,7 +90,7 @@ export default function PortalSettingsInstallationPage() {
           color={config?.health?.domainMismatchTotal ? "rose" : "blue"}
         />
         <StatCard
-          label={t("settingsPortal.channels")}
+          label={t("domainAllowlist.title")}
           value={String(config?.allowedDomains?.length ?? 0)}
           icon={Globe}
           color="indigo"
@@ -81,7 +104,7 @@ export default function PortalSettingsInstallationPage() {
             <div className={`${p.iconSm} ${p.iconIndigo}`}>
               <Code2 size={14} />
             </div>
-            <h3 className={p.h3}>{t("widgetAppearance.preview")}</h3>
+            <h3 className={p.h3}>{t("embed.snippetTitle")}</h3>
           </div>
           <button
             type="button"
@@ -104,7 +127,7 @@ export default function PortalSettingsInstallationPage() {
           <div className={`${p.iconSm} ${p.iconEmerald}`}>
             <Globe size={14} />
           </div>
-          <h3 className={p.h3}>{t("settingsPortal.installation")}</h3>
+          <h3 className={p.h3}>{t("domainAllowlist.title")}</h3>
         </div>
         <div className="flex flex-wrap gap-2">
           {(config?.allowedDomains ?? []).map((domain) => (

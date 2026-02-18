@@ -7,6 +7,7 @@ import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { usePortalInboxNotification } from "@/contexts/PortalInboxNotificationContext";
 import { useI18n } from "@/i18n/I18nContext";
 import { premiumToast } from "@/components/PremiumToast";
+import ErrorBanner from "@/components/ErrorBanner";
 import Card from "@/components/ui/Card";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
@@ -37,26 +38,37 @@ export default function PortalGeneralSettingsPage() {
   const [original, setOriginal] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const canEdit = user?.role === "owner" || user?.role === "admin";
 
   useEffect(() => {
     if (authLoading) return;
     const load = async () => {
-      const res = await portalApiFetch("/portal/org/me");
-      if (!res.ok) { setLoading(false); return; }
-      const data = await res.json();
-      const next: Settings = {
-        widgetEnabled: data.org.widgetEnabled,
-        writeEnabled: data.org.writeEnabled,
-        aiEnabled: data.org.aiEnabled,
-        messageRetentionDays: data.org.messageRetentionDays,
-        hardDeleteOnRetention: data.org.hardDeleteOnRetention,
-        lastRetentionRunAt: data.org.lastRetentionRunAt,
-      };
-      setSettings(next);
-      setOriginal(next);
-      setLoading(false);
+      try {
+        setError(null);
+        const res = await portalApiFetch("/portal/org/me");
+        if (!res.ok) {
+          setError(t("common.error"));
+          setLoading(false);
+          return;
+        }
+        const data = await res.json();
+        const next: Settings = {
+          widgetEnabled: data.org.widgetEnabled,
+          writeEnabled: data.org.writeEnabled,
+          aiEnabled: data.org.aiEnabled,
+          messageRetentionDays: data.org.messageRetentionDays,
+          hardDeleteOnRetention: data.org.hardDeleteOnRetention,
+          lastRetentionRunAt: data.org.lastRetentionRunAt,
+        };
+        setSettings(next);
+        setOriginal(next);
+      } catch {
+        setError(t("common.networkError"));
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, [authLoading]);
@@ -99,12 +111,21 @@ export default function PortalGeneralSettingsPage() {
 
   const hasChanges = settings && original && JSON.stringify(settings) !== JSON.stringify(original);
 
-  if (authLoading || loading || !settings)
+  if (authLoading || loading)
     return (
       <div className="flex items-center justify-center py-20">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
       </div>
     );
+
+  if (!settings) {
+    return (
+      <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
+        <PageHeader title={t("settingsPortal.general")} subtitle={t("portal.settingsSubtitle")} />
+        <ErrorBanner message={error || t("common.error")} onDismiss={() => setError(null)} />
+      </div>
+    );
+  }
 
   return (
     <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
@@ -125,6 +146,8 @@ export default function PortalGeneralSettingsPage() {
           ) : undefined
         }
       />
+
+      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard label={t("portal.widgetEnabled")} value={settings.widgetEnabled ? t("common.enabled") : t("common.disabled")} icon={MessageCircleMore} color="blue" />

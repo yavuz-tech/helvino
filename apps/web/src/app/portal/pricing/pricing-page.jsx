@@ -72,7 +72,7 @@ const PLANS = [
       { labelKey: "pricingV2.capacity.agent", value: "3", bold: true },
       { labelKey: "pricingV2.capacity.chatPerMonth", valueKey: "pricing.unlimited", bold: true },
       { labelKey: "pricingV2.capacity.messagePerMonth", valueKey: "pricing.unlimited", bold: true },
-      { labelKey: "pricingV2.capacity.aiReplyPerMonth", value: "20", bold: true },
+      { labelKey: "pricingV2.capacity.aiReplyPerMonth", value: "200", bold: true },
     ],
     features: [
       { textKey: "pricingV2.feature.liveChatWidget", has: true },
@@ -109,7 +109,7 @@ const PLANS = [
       { labelKey: "pricingV2.capacity.agent", value: "5", bold: true },
       { labelKey: "pricingV2.capacity.chatPerMonth", valueKey: "pricing.unlimited", bold: true },
       { labelKey: "pricingV2.capacity.messagePerMonth", valueKey: "pricing.unlimited", bold: true },
-      { labelKey: "pricingV2.capacity.aiReplyPerMonth", value: "100", bold: true },
+      { labelKey: "pricingV2.capacity.aiReplyPerMonth", value: "500", bold: true },
     ],
     features: [
       { textKey: "pricingV2.feature.advancedWidgetCustomization", has: true },
@@ -120,7 +120,7 @@ const PLANS = [
       { textKey: "pricingV2.feature.readReceipt", has: true },
       { textKey: "pricingV2.feature.fileSharing", has: true },
       { textKey: "pricingV2.feature.emailSupport", has: true },
-      { textKey: "pricingV2.feature.removeBranding", has: false },
+      { textKey: "pricingV2.feature.removeBranding", has: true },
     ],
     featureHeaderKey: "pricingV2.featureHeader.plusFree",
     popular: false,
@@ -147,7 +147,7 @@ const PLANS = [
       { labelKey: "pricingV2.capacity.agent", value: "15", bold: true },
       { labelKey: "pricingV2.capacity.chatPerMonth", valueKey: "pricing.unlimited", bold: true },
       { labelKey: "pricingV2.capacity.messagePerMonth", valueKey: "pricing.unlimited", bold: true },
-      { labelKey: "pricingV2.capacity.aiReplyPerMonth", value: "500", bold: true },
+      { labelKey: "pricingV2.capacity.aiReplyPerMonth", value: "2.000", bold: true },
     ],
     features: [
       { textKey: "pricingV2.feature.removeBranding", has: true, star: true },
@@ -160,7 +160,6 @@ const PLANS = [
       { textKey: "pricingV2.feature.customCss", has: true },
       { textKey: "pricingV2.feature.pageRules", has: true },
       { textKey: "pricingV2.feature.auditLogs", has: true },
-      { textKey: "pricingV2.feature.apiAccess", has: true, soon: true },
       { textKey: "pricingV2.feature.advancedAnalytics", has: true, soon: true },
       { textKey: "pricingV2.feature.liveAndEmailSupport", has: true },
     ],
@@ -189,7 +188,7 @@ const PLANS = [
       { labelKey: "pricingV2.capacity.agent", value: "50", bold: true },
       { labelKey: "pricingV2.capacity.chat", valueKey: "pricing.unlimited", bold: true },
       { labelKey: "pricingV2.capacity.message", valueKey: "pricing.unlimited", bold: true },
-      { labelKey: "pricingV2.capacity.aiReplyPerMonth", value: "2.000", bold: true },
+      { labelKey: "pricingV2.capacity.aiReplyPerMonth", valueKey: "pricing.unlimited", bold: true },
     ],
     features: [
       { textKey: "pricingV2.feature.customAiModelSupport", has: true, star: true },
@@ -203,6 +202,7 @@ const PLANS = [
       { textKey: "pricingV2.feature.webhook", has: true, soon: true },
       { textKey: "pricingV2.feature.knowledgeBase", has: true, soon: true },
       { textKey: "pricingV2.feature.analyticsExport", has: true, soon: true },
+      { textKey: "pricingV2.feature.apiAccess", has: true, soon: true },
     ],
     featureHeaderKey: "pricingV2.featureHeader.plusPro",
     popular: false,
@@ -244,7 +244,7 @@ const TABLE_SECTIONS = [
       { labelKey: "pricingV2.table.row.agentCount", values: ["3", "5", { v: "15", hl: "amber" }, "50"] },
       { labelKey: "pricingV2.table.row.monthlyChat", values: [{ key: "pricing.unlimited" }, { key: "pricing.unlimited" }, { key: "pricing.unlimited", hl: "amber" }, { key: "pricing.unlimited", hl: "amber" }] },
       { labelKey: "pricingV2.table.row.monthlyMessage", values: [{ key: "pricing.unlimited" }, { key: "pricing.unlimited" }, { key: "pricing.unlimited", hl: "amber" }, { key: "pricing.unlimited", hl: "amber" }] },
-      { labelKey: "pricingV2.table.row.monthlyAi", values: ["20", "100", { v: "500", hl: "amber" }, { v: "2.000", hl: "amber" }] },
+      { labelKey: "pricingV2.table.row.monthlyAi", values: ["200", "500", { v: "2.000", hl: "amber" }, { key: "pricing.unlimited", hl: "amber" }] },
     ],
   },
   {
@@ -258,7 +258,7 @@ const TABLE_SECTIONS = [
     titleKey: "pricingV2.table.widgetBrand.title",
     rows: [
       { labelKey: "pricingV2.table.row.widgetCustomization", values: [{ key: "pricingV2.table.value.basic" }, { key: "pricingV2.table.value.advanced" }, { key: "pricingV2.table.value.fullCss", hl: "green" }, { key: "pricingV2.table.value.fullCss", hl: "green" }] },
-      { labelKey: "pricingV2.table.row.removeBranding", values: ["—", "—", { v: "✓", hl: "green" }, { v: "✓", hl: "green" }] },
+      { labelKey: "pricingV2.table.row.removeBranding", values: ["—", { v: "✓", hl: "green" }, { v: "✓", hl: "green" }, { v: "✓", hl: "green" }] },
       { labelKey: "pricingV2.table.row.conversationStarters", values: ["2", "5", { key: "pricing.unlimited", hl: "amber" }, { key: "pricing.unlimited", hl: "amber" }] },
       { labelKey: "pricingV2.table.row.attentionGrabber", values: [{ key: "pricingV2.table.value.basic" }, { key: "pricingV2.table.value.all", hl: "green" }, { key: "pricingV2.table.value.all", hl: "green" }, { key: "pricingV2.table.value.all", hl: "green" }] },
     ],

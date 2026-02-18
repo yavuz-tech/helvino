@@ -11,6 +11,7 @@ import StatCard from "@/components/ui/StatCard";
 import Toggle from "@/components/ui/Toggle";
 import { InputField, TextareaField } from "@/components/ui/Field";
 import { p } from "@/styles/theme";
+import ErrorBanner from "@/components/ErrorBanner";
 
 type ChatPageConfig = {
   id: string;
@@ -32,6 +33,7 @@ export default function PortalSettingsChatPage() {
   const { t, locale } = useI18n();
   const [config, setConfig] = useState<ChatPageConfig | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const normalizeEnglishDefaults = (cfg: ChatPageConfig): ChatPageConfig => {
     if (locale === "en") return cfg;
@@ -50,11 +52,25 @@ export default function PortalSettingsChatPage() {
   };
 
   useEffect(() => {
+    let cancelled = false;
+    setError(null);
     portalApiFetch("/portal/settings/chat-page")
-      .then((r) => r.json())
-      .then((data) => setConfig(normalizeEnglishDefaults(data.config)))
-      .catch(() => {});
-  }, [locale, t]);
+      .then(async (r) => {
+        const data = await r.json().catch(() => null);
+        if (!r.ok || !data?.config) throw new Error("LOAD_FAILED");
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setConfig(normalizeEnglishDefaults(data.config));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError(t("common.networkError"));
+        setConfig(null);
+      });
+    return () => { cancelled = true; };
+  }, [locale]);
 
   const save = async () => {
     if (!config) return;
@@ -94,12 +110,21 @@ export default function PortalSettingsChatPage() {
       config.subtitle === EN_DEFAULTS.subtitle ||
       config.placeholder === EN_DEFAULTS.placeholder);
 
-  if (!config)
+  if (!config) {
+    if (!error)
+      return (
+        <div className="flex items-center justify-center py-20">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
+        </div>
+      );
+
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
+      <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
+        <PageHeader title={t("settingsPortal.chatPage")} subtitle={t("settingsPortal.chatPageSubtitle")} />
+        <ErrorBanner message={error} onDismiss={() => setError(null)} />
       </div>
     );
+  }
 
   return (
     <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
@@ -124,6 +149,8 @@ export default function PortalSettingsChatPage() {
           </div>
         }
       />
+
+      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {/* Language hint banner — shown when English defaults are detected */}
       {hasEnglishDefaults && (

@@ -34,6 +34,19 @@ export {
   bubbleBorderRadius,
   resolveWidgetBubbleTheme,
 } from "./widgetBubble";
+export {
+  ALL_FEATURE_KEYS,
+  FEATURE_MIN_PLAN,
+  PLAN_AI_LIMITS,
+  PLAN_MAX_AGENTS,
+  PLAN_M3_LIMITS,
+  getAiLimitForPlan,
+  isBrandingRequired,
+  isPlanAllowedForFeature,
+  normalizePlanKey,
+  planTier,
+} from "./plan";
+export type { FeatureKey, PlanKey } from "./plan";
 export type {
   WidgetBubbleTheme,
   WidgetBubbleShape,

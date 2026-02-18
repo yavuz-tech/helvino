@@ -4,6 +4,7 @@ import { requirePortalRole, requirePortalUser } from "../middleware/require-port
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { validateJsonContentType } from "../middleware/validation";
 import { writeAuditLog } from "../utils/audit-log";
+import { requirePlanFeature } from "../utils/plan-gating";
 
 export async function portalSlaRoutes(fastify: FastifyInstance) {
   fastify.get(
@@ -44,6 +45,7 @@ export async function portalSlaRoutes(fastify: FastifyInstance) {
       preHandler: [
         requirePortalUser,
         requirePortalRole(["owner", "admin"]),
+        requirePlanFeature("sla"),
         createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
         validateJsonContentType,
       ],

@@ -24,6 +24,7 @@ import { useI18n } from "@/i18n/I18nContext";
 import { portalApiFetch } from "@/lib/portal-auth";
 import type { TranslationKey } from "@/i18n/translations";
 import PageHeader from "@/components/ui/PageHeader";
+import ErrorBanner from "@/components/ErrorBanner";
 import { p } from "@/styles/theme";
 
 const MODULES: Array<{
@@ -54,12 +55,22 @@ export default function PortalSettingsPage() {
   const [issues, setIssues] = useState<
     Array<{ code: string; severity: "warning" | "error"; message: string }>
   >([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     portalApiFetch("/portal/settings/consistency")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setIssues(data?.issues || []))
-      .catch(() => {});
+      .then(async (r) => {
+        if (!r.ok) throw new Error("failed");
+        return r.json();
+      })
+      .then((data) => {
+        setLoadError(null);
+        setIssues(data?.issues || []);
+      })
+      .catch(() => {
+        setLoadError(t("common.networkError"));
+        setIssues([]);
+      });
   }, []);
 
   const errorCount = issues.filter((i) => i.severity === "error").length;
@@ -68,6 +79,14 @@ export default function PortalSettingsPage() {
   return (
     <div className={p.sectionGap} style={{ background: "#FFFBF5", borderRadius: 16, padding: 16 }}>
       <PageHeader title={t("settingsPortal.title")} subtitle={t("settingsPortal.subtitle")} />
+
+      {loadError && (
+        <ErrorBanner
+          className="mb-4"
+          message={loadError}
+          onDismiss={() => setLoadError(null)}
+        />
+      )}
 
       {/* ── Health Status ── */}
       <div
@@ -230,7 +249,7 @@ export default function PortalSettingsPage() {
                         verticalAlign: "middle",
                       }}
                     >
-                      PRO
+                      BUSINESS
                     </span>
                   )}
                 </h3>

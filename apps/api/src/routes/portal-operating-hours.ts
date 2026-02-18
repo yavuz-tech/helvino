@@ -4,6 +4,7 @@ import { requirePortalRole, requirePortalUser } from "../middleware/require-port
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { validateJsonContentType } from "../middleware/validation";
 import { writeAuditLog } from "../utils/audit-log";
+import { requirePlanFeature } from "../utils/plan-gating";
 
 type DayInput = {
   weekday: number;
@@ -77,6 +78,7 @@ export async function portalOperatingHoursRoutes(fastify: FastifyInstance) {
       preHandler: [
         requirePortalUser,
         requirePortalRole(["owner", "admin"]),
+        requirePlanFeature("working_hours"),
         createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
         validateJsonContentType,
       ],

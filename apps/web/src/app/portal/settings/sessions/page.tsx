@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n/I18nContext";
 import { portalApiFetch } from "@/lib/portal-auth";
+import ErrorBanner from "@/components/ErrorBanner";
+import { premiumToast } from "@/components/PremiumToast";
 
 interface SessionRow {
   id: string;
@@ -17,12 +19,21 @@ export default function PortalSessionsPage() {
   const { t } = useI18n();
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
-    const res = await portalApiFetch("/portal/sessions/active");
-    const data = await res.json().catch(() => ({}));
-    setSessions(data.sessions || []);
+    setError(null);
+    try {
+      const res = await portalApiFetch("/portal/sessions/active");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error("LOAD_FAILED");
+      setSessions(data.sessions || []);
+    } catch {
+      setError(t("common.networkError"));
+      setSessions([]);
+    }
     setLoading(false);
   };
 
@@ -31,7 +42,16 @@ export default function PortalSessionsPage() {
   }, []);
 
   const revoke = async (id: string) => {
-    await portalApiFetch(`/portal/sessions/${id}`, { method: "DELETE" });
+    setRevokingId(id);
+    try {
+      const res = await portalApiFetch(`/portal/sessions/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("DELETE_FAILED");
+      premiumToast.success({ title: t("toast.deleted"), description: t("toast.deletedDesc") });
+    } catch {
+      premiumToast.error({ title: t("toast.settingsFailed"), description: t("toast.settingsFailedDesc") });
+    } finally {
+      setRevokingId(null);
+    }
     await load();
   };
 
@@ -49,6 +69,7 @@ export default function PortalSessionsPage() {
         <h1 style={{ fontSize: 20, fontWeight: 700, color: "#1A1D23" }}>{t("security.activeSessions")}</h1>
         <p style={{ fontSize: 13, color: "#64748B", marginTop: 4 }}>{t("security.activeSessionsDesc")}</p>
       </div>
+      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
       <div className="space-y-3">
         {loading ? (
           <div style={{ color: "#64748B", fontSize: 13 }}>{t("common.loading")}</div>
@@ -81,6 +102,7 @@ export default function PortalSessionsPage() {
                     <button
                       type="button"
                       onClick={() => revoke(s.id)}
+                      disabled={revokingId === s.id}
                       style={{
                         borderRadius: 10,
                         border: "1px solid #FECDD3",
@@ -89,6 +111,7 @@ export default function PortalSessionsPage() {
                         padding: "8px 12px",
                         fontSize: 12,
                         fontWeight: 700,
+                        opacity: revokingId === s.id ? 0.6 : 1,
                       }}
                     >
                       {t("security.revokeSession")}

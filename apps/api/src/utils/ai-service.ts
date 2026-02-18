@@ -179,18 +179,10 @@ function calculateCost(model: string, inputTokens: number, outputTokens: number)
   return (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
 }
 
-/* ── Plan Limits ── */
+/* ── Plan Limits (consumed from @helvino/shared single source of truth) ── */
 
-const PLAN_AI_LIMITS: Record<string, number> = {
-  free: 20,
-  starter: 100,
-  pro: 500,
-  business: 2000,
-};
-
-export function getAiLimitForPlan(planKey: string): number {
-  return PLAN_AI_LIMITS[planKey] ?? PLAN_AI_LIMITS.free;
-}
+import { getAiLimitForPlan } from "@helvino/shared";
+export { getAiLimitForPlan };
 
 /* ── Per-provider call timeout ── */
 const PROVIDER_TIMEOUT_MS = 30_000; // 30 seconds per provider

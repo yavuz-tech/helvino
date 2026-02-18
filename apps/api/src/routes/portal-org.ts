@@ -18,8 +18,39 @@ import {
   getUsageForMonth,
   getMeteringLimitsForPlan,
 } from "../utils/entitlements";
+import { ALL_FEATURE_KEYS, FEATURE_MIN_PLAN, isPlanAllowedForFeature, type FeatureKey } from "@helvino/shared";
 
 export async function portalOrgRoutes(fastify: FastifyInstance) {
+  /**
+   * GET /portal/org/features
+   *
+   * Single source of truth for plan gating on the frontend.
+   * Frontend pages should use this instead of duplicating planKey checks.
+   */
+  fastify.get(
+    "/portal/org/features",
+    { preHandler: [requirePortalUser] },
+    async (request) => {
+      const user = request.portalUser!;
+      const org = await prisma.organization.findUnique({
+        where: { id: user.orgId },
+        select: { planKey: true },
+      });
+
+      const planKey = org?.planKey || "free";
+      const features: Record<FeatureKey, boolean> = {} as Record<FeatureKey, boolean>;
+      for (const key of ALL_FEATURE_KEYS) {
+        features[key] = isPlanAllowedForFeature(planKey, key);
+      }
+
+      return {
+        planKey,
+        features,
+        minPlan: FEATURE_MIN_PLAN,
+      };
+    }
+  );
+
   /**
    * GET /portal/org/me
    */

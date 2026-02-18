@@ -43,10 +43,10 @@ const ADVANCED_NAV: Array<{
   href: string;
   key: TranslationKey;
   icon: React.ComponentType<{ size?: number; className?: string }>;
-  pro?: boolean;
+  badge?: "PRO" | "BUSINESS";
 }> = [
   { href: "/portal/settings/integrations", key: "settings.integrations", icon: Plug },
-  { href: "/portal/settings/api-keys", key: "settings.apiKeys", icon: Key, pro: true },
+  { href: "/portal/settings/api-keys", key: "settings.apiKeys", icon: Key, badge: "BUSINESS" },
   { href: "/portal/settings/data", key: "settings.dataManagement", icon: Database },
 ];
 
@@ -158,7 +158,7 @@ export default function PortalSettingsLayout({
                   >
                     {t(item.key)}
                   </span>
-                  {item.pro && (
+                  {item.badge && (
                     <span
                       style={{
                         background: "#FFFFFF",
@@ -170,7 +170,7 @@ export default function PortalSettingsLayout({
                         lineHeight: 1.2,
                       }}
                     >
-                      PRO
+                      {item.badge}
                     </span>
                   )}
                 </Link>

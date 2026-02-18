@@ -2,6 +2,12 @@ import { prisma } from "../prisma";
 import { isBillingWriteBlocked } from "./billing-enforcement";
 import { t, type Locale } from "./api-i18n";
 import { normalizeRequestLocale } from "./email-templates";
+import {
+  PLAN_AI_LIMITS,
+  PLAN_M3_LIMITS,
+  normalizePlanKey,
+  type PlanKey,
+} from "@helvino/shared";
 
 export type PlanStatus = "active" | "inactive" | "past_due" | "canceled";
 
@@ -34,17 +40,13 @@ export interface MeteringLimits {
   m3LimitVisitorsPerMonth: MeteringLimit;
 }
 
-const PLAN_METERING_LIMITS: Record<string, MeteringLimits> = {
-  // Product rule: Manual chat (M1) is unlimited on ALL plans — never block human conversations.
-  // M2 (AI replies) MUST match PLAN_AI_LIMITS in ai-service.ts and Plan table maxAiMessagesPerMonth.
-  free:     { m1LimitPerMonth: null, m2LimitPerMonth: 20,    m3LimitVisitorsPerMonth: 100 },
-  starter:  { m1LimitPerMonth: null, m2LimitPerMonth: 100,   m3LimitVisitorsPerMonth: 500 },
-  pro:      { m1LimitPerMonth: null, m2LimitPerMonth: 500,   m3LimitVisitorsPerMonth: 2000 },
-  business: { m1LimitPerMonth: null, m2LimitPerMonth: 2000,  m3LimitVisitorsPerMonth: 10000 },
-};
-
 export function getMeteringLimitsForPlan(planKey: string): MeteringLimits {
-  return PLAN_METERING_LIMITS[planKey] || PLAN_METERING_LIMITS.free;
+  const k = normalizePlanKey(planKey);
+  return {
+    m1LimitPerMonth: null,
+    m2LimitPerMonth: PLAN_AI_LIMITS[k],
+    m3LimitVisitorsPerMonth: PLAN_M3_LIMITS[k],
+  };
 }
 
 
@@ -219,7 +221,7 @@ const FREE_PLAN_FALLBACK = {
   // Product rule: Free plan manual chat is unlimited.
   maxConversationsPerMonth: -1,
   maxMessagesPerMonth: -1,
-  maxAiMessagesPerMonth: 20,
+  maxAiMessagesPerMonth: 200,
   sortOrder: 0,
 } as const;
 

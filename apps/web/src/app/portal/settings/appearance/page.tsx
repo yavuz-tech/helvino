@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, Eye, Layout, MessageCircle, Palette } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 import { portalApiFetch } from "@/lib/portal-auth";
+import ErrorBanner from "@/components/ErrorBanner";
 import Card from "@/components/ui/Card";
 import PageHeader from "@/components/ui/PageHeader";
 import { p } from "@/styles/theme";
@@ -23,13 +24,33 @@ export default function PortalSettingsAppearancePage() {
   void fonts;
   const { t } = useI18n();
   const [s, setS] = useState<WidgetAppearance | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     portalApiFetch("/portal/widget/settings")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setS(data?.settings ?? null))
-      .catch(() => {});
+      .then(async (res) => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error("LOAD_FAILED");
+        return data;
+      })
+      .then((data) => {
+        setError(null);
+        setS(data?.settings ?? null);
+      })
+      .catch(() => {
+        setError(t("common.networkError"));
+        setS(null);
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+  if (loading)
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
+      </div>
+    );
 
   return (
     <div className={p.sectionGap} style={{ background: colors.brand.ultraLight, borderRadius: 16, padding: 16 }}>
@@ -47,6 +68,8 @@ export default function PortalSettingsAppearancePage() {
           </Link>
         }
       />
+
+      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {/* ── Compact Summary Row ── */}
       <Card className="border-[#F3E8D8] hover:border-[#E8D5BC]">

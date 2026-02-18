@@ -5,6 +5,7 @@ import { requirePortalRole, requirePortalUser } from "../middleware/require-port
 import { createRateLimitMiddleware } from "../middleware/rate-limit";
 import { validateJsonContentType } from "../middleware/validation";
 import { writeAuditLog } from "../utils/audit-log";
+import { requirePlanFeature } from "../utils/plan-gating";
 
 const SUPPORTED_TRIGGERS = ["message_created", "conversation_created", "conversation_closed"] as const;
 
@@ -42,6 +43,7 @@ export async function portalWorkflowRoutes(fastify: FastifyInstance) {
       preHandler: [
         requirePortalUser,
         requirePortalRole(["owner", "admin"]),
+        requirePlanFeature("workflows"),
         createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
         validateJsonContentType,
       ],
@@ -92,6 +94,7 @@ export async function portalWorkflowRoutes(fastify: FastifyInstance) {
       preHandler: [
         requirePortalUser,
         requirePortalRole(["owner", "admin"]),
+        requirePlanFeature("workflows"),
         createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
         validateJsonContentType,
       ],
@@ -139,6 +142,7 @@ export async function portalWorkflowRoutes(fastify: FastifyInstance) {
       preHandler: [
         requirePortalUser,
         requirePortalRole(["owner", "admin"]),
+        requirePlanFeature("workflows"),
         createRateLimitMiddleware({ limit: 20, windowMs: 60000 }),
       ],
     },

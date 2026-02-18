@@ -8,6 +8,7 @@ import { portalApiFetch } from "@/lib/portal-auth";
 import { useI18n } from "@/i18n/I18nContext";
 import { premiumToast } from "@/components/PremiumToast";
 import type { TranslationKey } from "@/i18n/translations";
+import ErrorBanner from "@/components/ErrorBanner";
 import Card from "@/components/ui/Card";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
@@ -52,20 +53,51 @@ export default function PortalSettingsChannelsPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [saving, setSaving] = useState<string | null>(null);
   const [planKey, setPlanKey] = useState<string>("free");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   /* Fetch channels + plan */
   useEffect(() => {
-    portalApiFetch("/portal/settings/channels")
-      .then((r) => r.json())
-      .then((data) => setChannels(data.channels || []))
-      .catch(() => {});
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
 
-    portalApiFetch("/portal/org/me")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.org?.planKey) setPlanKey(data.org.planKey.toLowerCase());
+    Promise.allSettled([
+      portalApiFetch("/portal/settings/channels").then(async (r) => {
+        const data = await r.json().catch(() => null);
+        if (!r.ok) throw new Error("CHANNELS_FAILED");
+        return data;
+      }),
+      portalApiFetch("/portal/org/me").then(async (r) => (r.ok ? r.json() : null)),
+    ])
+      .then((results) => {
+        if (cancelled) return;
+        const [channelsRes, orgRes] = results;
+
+        if (channelsRes.status === "fulfilled") {
+          setChannels(channelsRes.value?.channels || []);
+        } else {
+          setChannels([]);
+          setLoadError(t("common.networkError"));
+        }
+
+        if (orgRes.status === "fulfilled") {
+          const pk = orgRes.value?.org?.planKey;
+          if (pk) setPlanKey(String(pk).toLowerCase());
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (cancelled) return;
+        setChannels([]);
+        setLoadError(t("common.networkError"));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const isPro =
@@ -97,6 +129,13 @@ export default function PortalSettingsChannelsPage() {
     setSaving(null);
   };
 
+  if (loading)
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
+      </div>
+    );
+
   const enabledCount = channels.filter((c) => c.enabled).length;
 
   return (
@@ -105,6 +144,8 @@ export default function PortalSettingsChannelsPage() {
         title={t("settingsPortal.channels")}
         subtitle={t("settingsPortal.channelsSubtitle")}
       />
+
+      {loadError && <ErrorBanner message={loadError} onDismiss={() => setLoadError(null)} />}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
