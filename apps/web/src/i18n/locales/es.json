@@ -2576,6 +2576,7 @@
   "dashboard.feature.smartRoutingDesc": "La AI clasifica las conversaciones y escala problemas complejos a agentes humanos.",
   "aiQuota.title": "Uso de AI",
   "aiQuota.messagesUsed": "{used} / {limit} mensajes AI usados este mes",
+  "aiQuota.messagesUsedExceeded": "{used} respuestas AI usadas este mes (Limite: {limit})",
   "aiQuota.unlimited": "Mensajes AI ilimitados",
   "aiQuota.resetsIn": "Se reinicia en {days} dias",
   "aiQuota.exceeded": "Limite de respuestas AI alcanzado",

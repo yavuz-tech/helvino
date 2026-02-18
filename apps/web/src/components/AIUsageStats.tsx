@@ -81,6 +81,14 @@ export default function AIUsageStats({ prominent = false, compact = false, onUpg
   const m2Exceeded = quota.m2?.allowed === false;
   const isExceeded = quota.exceeded || m2Exceeded;
   const showProminent = prominent || isNearLimit;
+  const isOverLimit = quota.limit > 0 && quota.used > quota.limit;
+  const messagesUsedText = isOverLimit
+    ? t("aiQuota.messagesUsedExceeded")
+        .replace("{used}", String(quota.used))
+        .replace("{limit}", String(quota.limit))
+    : t("aiQuota.messagesUsed")
+        .replace("{used}", String(quota.used))
+        .replace("{limit}", String(quota.limit));
   const colors = isExceeded
     ? { bg: "from-red-50 to-rose-50", border: "border-red-200/60", bar: "from-red-500 to-rose-500", text: "text-red-900", sub: "text-red-700" }
     : isNearLimit
@@ -146,7 +154,7 @@ export default function AIUsageStats({ prominent = false, compact = false, onUpg
 
         <div className="flex items-center justify-between">
           <span className="font-[var(--font-body)] text-[11px] text-[#94A3B8]">
-            {t("aiQuota.messagesUsed").replace("{used}", String(quota.used)).replace("{limit}", String(quota.limit))}
+            {messagesUsedText}
           </span>
           <span className="rounded-md bg-[rgba(245,158,11,0.08)] px-[10px] py-[2px] font-[var(--font-heading)] text-[11px] font-bold text-[#B45309]">
             {String(quota.plan).toUpperCase()} · {quota.limit} {t("aiQuota.messagesMonth")}

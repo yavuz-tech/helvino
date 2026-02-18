@@ -2051,6 +2051,7 @@ export const TRANSLATION_KEYS = {
   "dashboard.feature.smartRoutingDesc": "AI triages conversations and escalates complex issues to human agents.",
   "aiQuota.title": "AI Usage",
   "aiQuota.messagesUsed": "{used} / {limit} AI messages used this month",
+  "aiQuota.messagesUsedExceeded": "{used} AI replies used this month (Limit: {limit})",
   "aiQuota.unlimited": "Unlimited AI messages",
   "aiQuota.resetsIn": "Resets in {days} days",
   "aiQuota.exceeded": "AI reply limit reached",

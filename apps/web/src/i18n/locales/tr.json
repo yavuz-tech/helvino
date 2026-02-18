@@ -2576,6 +2576,7 @@
   "dashboard.feature.smartRoutingDesc": "AI gorrsmeleri siniflandi rir ve karmasik sorunlari insan temsilcilere yonlendirir.",
   "aiQuota.title": "AI Kullanimi",
   "aiQuota.messagesUsed": "Bu ay {used} / {limit} AI mesaji kullanildi",
+  "aiQuota.messagesUsedExceeded": "Bu ay {used} AI yaniti kullanildi (Limit: {limit})",
   "aiQuota.unlimited": "Sinirsiz AI mesaji",
   "aiQuota.resetsIn": "{days} gun sonra sifirlanir",
   "aiQuota.exceeded": "AI yanit limitiniz doldu",
