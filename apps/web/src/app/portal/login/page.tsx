@@ -531,7 +531,6 @@ export default function PortalLoginPage() {
     <>
       <div className="mb-5">
         <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("auth.signIn")}</h2>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">{t("portalLogin.formSubtitle")}</p>
       </div>
 
       {error ? (
@@ -751,11 +750,8 @@ export default function PortalLoginPage() {
 
             <div className="rounded-3xl bg-gradient-to-br from-amber-300/55 via-rose-200/45 to-amber-100/65 p-[1px] shadow-[0_30px_80px_rgba(149,115,22,0.25)]">
               <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl">
-                <div className="mb-5 flex items-center gap-3">
-                  <div>
-                    <HelvionLogo variant="light" heightClassName="h-8" />
-                    <p className="text-xs text-[var(--text-secondary)]">{t("portalLogin.formSubtitle")}</p>
-                  </div>
+                <div className="mb-6 flex flex-col items-center justify-center text-center">
+                  <HelvionLogo variant="light" heightClassName="h-12" />
                 </div>
                 {cardContent}
               </div>

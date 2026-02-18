@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useI18n } from "@/i18n/I18nContext";
 import { portalApiFetch } from "@/lib/portal-auth";
+import { PLAN_AI_LIMITS, PLAN_MAX_AGENTS } from "@helvino/shared";
 
 /* ═══════════════════════════════════════════════════════════════
    HELVION.IO — Fiyatlandırma Sayfası v1
@@ -69,10 +70,10 @@ const PLANS = [
     ctaLabelKey: "pricingV2.plan.free.cta",
     ctaHref: "/register",
     capacity: [
-      { labelKey: "pricingV2.capacity.agent", value: "3", bold: true },
+      { labelKey: "pricingV2.capacity.agent", valueNum: PLAN_MAX_AGENTS.free, bold: true },
       { labelKey: "pricingV2.capacity.chatPerMonth", valueKey: "pricing.unlimited", bold: true },
       { labelKey: "pricingV2.capacity.messagePerMonth", valueKey: "pricing.unlimited", bold: true },
-      { labelKey: "pricingV2.capacity.aiReplyPerMonth", value: "200", bold: true },
+      { labelKey: "pricingV2.capacity.aiReplyPerMonth", valueNum: PLAN_AI_LIMITS.free, bold: true },
     ],
     features: [
       { textKey: "pricingV2.feature.liveChatWidget", has: true },
@@ -106,10 +107,10 @@ const PLANS = [
     ctaLabelKey: "pricingV2.plan.starter.cta",
     ctaHref: "/register?plan=starter",
     capacity: [
-      { labelKey: "pricingV2.capacity.agent", value: "5", bold: true },
+      { labelKey: "pricingV2.capacity.agent", valueNum: PLAN_MAX_AGENTS.starter, bold: true },
       { labelKey: "pricingV2.capacity.chatPerMonth", valueKey: "pricing.unlimited", bold: true },
       { labelKey: "pricingV2.capacity.messagePerMonth", valueKey: "pricing.unlimited", bold: true },
-      { labelKey: "pricingV2.capacity.aiReplyPerMonth", value: "500", bold: true },
+      { labelKey: "pricingV2.capacity.aiReplyPerMonth", valueNum: PLAN_AI_LIMITS.starter, bold: true },
     ],
     features: [
       { textKey: "pricingV2.feature.advancedWidgetCustomization", has: true },
@@ -144,10 +145,10 @@ const PLANS = [
     ctaLabelKey: "pricingV2.plan.pro.cta",
     ctaHref: "/register?plan=pro",
     capacity: [
-      { labelKey: "pricingV2.capacity.agent", value: "15", bold: true },
+      { labelKey: "pricingV2.capacity.agent", valueNum: PLAN_MAX_AGENTS.pro, bold: true },
       { labelKey: "pricingV2.capacity.chatPerMonth", valueKey: "pricing.unlimited", bold: true },
       { labelKey: "pricingV2.capacity.messagePerMonth", valueKey: "pricing.unlimited", bold: true },
-      { labelKey: "pricingV2.capacity.aiReplyPerMonth", value: "2.000", bold: true },
+      { labelKey: "pricingV2.capacity.aiReplyPerMonth", valueNum: PLAN_AI_LIMITS.pro, bold: true },
     ],
     features: [
       { textKey: "pricingV2.feature.removeBranding", has: true, star: true },
@@ -241,10 +242,10 @@ const TABLE_SECTIONS = [
   {
     titleKey: "pricingV2.table.capacity.title",
     rows: [
-      { labelKey: "pricingV2.table.row.agentCount", values: ["3", "5", { v: "15", hl: "amber" }, "50"] },
+      { labelKey: "pricingV2.table.row.agentCount", values: [PLAN_MAX_AGENTS.free, PLAN_MAX_AGENTS.starter, { vNum: PLAN_MAX_AGENTS.pro, hl: "amber" }, PLAN_MAX_AGENTS.business] },
       { labelKey: "pricingV2.table.row.monthlyChat", values: [{ key: "pricing.unlimited" }, { key: "pricing.unlimited" }, { key: "pricing.unlimited", hl: "amber" }, { key: "pricing.unlimited", hl: "amber" }] },
       { labelKey: "pricingV2.table.row.monthlyMessage", values: [{ key: "pricing.unlimited" }, { key: "pricing.unlimited" }, { key: "pricing.unlimited", hl: "amber" }, { key: "pricing.unlimited", hl: "amber" }] },
-      { labelKey: "pricingV2.table.row.monthlyAi", values: ["200", "500", { v: "2.000", hl: "amber" }, { key: "pricing.unlimited", hl: "amber" }] },
+      { labelKey: "pricingV2.table.row.monthlyAi", values: [PLAN_AI_LIMITS.free, PLAN_AI_LIMITS.starter, { vNum: PLAN_AI_LIMITS.pro, hl: "amber" }, { key: "pricing.unlimited", hl: "amber" }] },
     ],
   },
   {
@@ -402,7 +403,7 @@ function detectBrowserCurrencyFallback() {
 // MAIN COMPONENT
 // ═══════════════════════════════════
 export default function PricingPage({ planKey = "free", orgKey = "" }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [period, setPeriod] = useState("m"); // m = monthly, y = yearly
   const [openFaq, setOpenFaq] = useState(-1);
   const [hoveredCard, setHoveredCard] = useState(null);
@@ -418,6 +419,9 @@ export default function PricingPage({ planKey = "free", orgKey = "" }) {
   const sym = currency === "usd" ? "$" : currency === "eur" ? "€" : "₺";
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
   const activeOrgKey = orgKey || "demo";
+  const nf = new Intl.NumberFormat(
+    locale === "tr" ? "tr-TR" : locale === "es" ? "es-ES" : "en-US"
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -848,7 +852,12 @@ export default function PricingPage({ planKey = "free", orgKey = "" }) {
                   {plan.capacity.map((c, i) => (
                     <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 7, fontSize: 14, lineHeight: 1.4, color: s.txt2 }}>
                       <span style={{ width: 18, height: 18, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, flexShrink: 0, marginTop: 1, background: plan.id === "business" ? "#EDE9FE" : s.amberBg, color: plan.id === "business" ? "#8B5CF6" : s.amberD }}>★</span>
-                      <span><strong style={{ color: s.txt, fontWeight: 600 }}>{c.valueKey ? t(c.valueKey) : c.value}</strong> {t(c.labelKey)}</span>
+                      <span>
+                        <strong style={{ color: s.txt, fontWeight: 600 }}>
+                          {c.valueKey ? t(c.valueKey) : typeof c.valueNum === "number" ? nf.format(c.valueNum) : c.value}
+                        </strong>{" "}
+                        {t(c.labelKey)}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -955,7 +964,9 @@ export default function PricingPage({ planKey = "free", orgKey = "" }) {
                         <td style={{ padding: "12px 16px", borderBottom: `1px solid ${s.borderLight}`, textAlign: "left", color: s.txt3, fontWeight: 500 }}>{t(row.labelKey)}</td>
                         {row.values.map((v, vi) => {
                           const isObj = typeof v === "object";
-                          const text = isObj ? (v.key ? t(v.key) : v.v) : v;
+                          const text = isObj
+                            ? (v.key ? t(v.key) : typeof v.vNum === "number" ? nf.format(v.vNum) : v.v)
+                            : (typeof v === "number" ? nf.format(v) : v);
                           const hl = isObj ? v.hl : null;
                           let color = s.txt2;
                           let fw = 500;
@@ -981,6 +992,13 @@ export default function PricingPage({ planKey = "free", orgKey = "" }) {
         <h2 style={{ fontFamily: s.fontH, fontSize: 28, fontWeight: 800, textAlign: "center", marginBottom: 32, letterSpacing: -0.5 }}>{t("pricing.faqTitle")}</h2>
         {FAQ_DATA.map((faq, i) => {
           const isOpen = openFaq === i;
+          const restText =
+            faq.restKey === "pricingV2.faq.q1Rest"
+              ? t(faq.restKey, {
+                  agents: nf.format(PLAN_MAX_AGENTS.free),
+                  ai: nf.format(PLAN_AI_LIMITS.free),
+                })
+              : t(faq.restKey);
           return (
             <div key={i} style={{ borderBottom: `1px solid ${s.borderLight}` }}>
               <div
@@ -998,7 +1016,8 @@ export default function PricingPage({ planKey = "free", orgKey = "" }) {
               </div>
               <div style={{ maxHeight: isOpen ? 400 : 0, overflow: "hidden", transition: "max-height 0.35s cubic-bezier(0.4,0,0.2,1)" }}>
                 <div style={{ fontSize: 14.5, color: s.txt3, lineHeight: 1.8, paddingBottom: 18 }}>
-                  <strong style={{ color: s.txt, fontWeight: 600 }}>{t(faq.boldKey)}</strong>{t(faq.restKey)}
+                  <strong style={{ color: s.txt, fontWeight: 600 }}>{t(faq.boldKey)}</strong>
+                  {restText}
                 </div>
               </div>
             </div>
