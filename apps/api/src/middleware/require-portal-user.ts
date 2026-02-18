@@ -43,31 +43,55 @@ export async function requirePortalUser(
       ? authHeader.slice("bearer ".length).trim()
       : null;
 
-  const token = bearer || request.cookies[PORTAL_SESSION_COOKIE];
-  if (!token) {
+  const cookieToken = request.cookies[PORTAL_SESSION_COOKIE] || null;
+  if (!bearer && !cookieToken) {
     return reply.status(401).send({ error: "Authentication required" });
   }
 
-  const payload = verifyPortalSessionToken(token, secret, { ignoreExpiration: true });
-  if (!payload) {
-    reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
-    return reply.status(401).send({ error: "Invalid session" });
-  }
+  // Prefer bearer when present, but fall back to cookie if bearer is stale/invalid.
+  // This prevents transient "works after refresh" bugs when a stale in-memory token
+  // overrides a still-valid cookie session.
   const now = Math.floor(Date.now() / 1000);
-  if (payload.exp && now > payload.exp) {
-    return reply.status(401).send({ error: { code: "TOKEN_EXPIRED", message: "token_expired" } });
+  const candidates = [bearer, cookieToken].filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+  let selectedToken: string | null = null;
+  let selectedPayload: any | null = null;
+  let anyTokenExpired = false;
+  for (const candidate of candidates) {
+    const payload = verifyPortalSessionToken(candidate, secret, { ignoreExpiration: true });
+    if (!payload) continue;
+    if (payload.exp && now > payload.exp) {
+      anyTokenExpired = true;
+      continue;
+    }
+    selectedToken = candidate;
+    selectedPayload = payload;
+    break;
+  }
+  if (!selectedToken || !selectedPayload) {
+    // Only clear cookie when the cookie-backed session is actually invalid/expired.
+    // If the bearer was invalid but the cookie is still valid, we should not log the user out.
+    if (cookieToken) {
+      reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
+    }
+    if (anyTokenExpired) {
+      return reply.status(401).send({ error: { code: "TOKEN_EXPIRED", message: "token_expired" } });
+    }
+    return reply.status(401).send({ error: "Invalid session" });
   }
 
   // Check session revocation in DB
-  const tokenHash = hashToken(token);
+  const tokenHash = hashToken(selectedToken);
   const sessionRecord = await prisma.portalSession.findUnique({
     where: { tokenHash },
     select: { id: true, orgUserId: true, revokedAt: true, accessExpiresAt: true },
   });
 
   // Reject tokens that are not backed by a live DB session record.
-  if (!sessionRecord || sessionRecord.revokedAt || sessionRecord.orgUserId !== payload.userId) {
-    reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
+  if (!sessionRecord || sessionRecord.revokedAt || sessionRecord.orgUserId !== selectedPayload.userId) {
+    // Only clear cookie if we're actually using the cookie-backed token.
+    if (selectedToken === cookieToken) {
+      reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
+    }
     return reply.status(401).send({ error: "Invalid session" });
   }
   if (sessionRecord.accessExpiresAt <= new Date()) {
@@ -81,21 +105,27 @@ export async function requirePortalUser(
   }).catch(() => {/* ignore */});
 
   const orgUser = await prisma.orgUser.findUnique({
-    where: { id: payload.userId },
+    where: { id: selectedPayload.userId },
   });
 
   if (!orgUser) {
-    reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
+    if (selectedToken === cookieToken) {
+      reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
+    }
     return reply.status(401).send({ error: "User not found" });
   }
 
   if (orgUser.isActive === false) {
-    reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
+    if (selectedToken === cookieToken) {
+      reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
+    }
     return reply.status(403).send({ error: "Account is deactivated" });
   }
 
-  if (orgUser.orgId !== payload.orgId) {
-    reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
+  if (orgUser.orgId !== selectedPayload.orgId) {
+    if (selectedToken === cookieToken) {
+      reply.clearCookie(PORTAL_SESSION_COOKIE, { path: "/" });
+    }
     return reply.status(401).send({ error: "Invalid session" });
   }
 

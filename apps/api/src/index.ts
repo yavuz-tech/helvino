@@ -1264,15 +1264,12 @@ fastify.ready().then(() => {
 
       const orgKey = handshakeAuth.orgKey as unknown;
       const siteId = handshakeAuth.siteId as unknown;
-      let token = handshakeAuth.token as unknown;
+      const authTokenRaw = handshakeAuth.token as unknown;
       const visitorKey = handshakeAuth.visitorId as unknown; // widget visitorKey (x-visitor-id)
 
-      // Fallback: read portal session from cookie when auth.token is empty (e.g. page refresh)
-      if (typeof token !== "string" || !token.trim()) {
-        const cookieHeader = (socket.handshake.headers.cookie as string) || "";
-        const match = cookieHeader.match(new RegExp(`${PORTAL_SESSION_COOKIE}=([^;]+)`));
-        if (match?.[1]) token = match[1].trim();
-      }
+      const cookieHeader = (socket.handshake.headers.cookie as string) || "";
+      const cookieMatch = cookieHeader.match(new RegExp(`${PORTAL_SESSION_COOKIE}=([^;]+)`));
+      const cookieToken = cookieMatch?.[1]?.trim() || "";
 
       const ip = getSocketIp(socket);
       const currentCount = socketCountsByIp.get(ip) || 0;
@@ -1286,8 +1283,9 @@ fastify.ready().then(() => {
         return next(new Error("Authentication error: siteId/orgKey required"));
       }
 
-      const tokenStr = typeof token === "string" ? token.trim() : "";
-      if (isProduction && !tokenStr) {
+      const authToken = typeof authTokenRaw === "string" ? authTokenRaw.trim() : "";
+      const tokenCandidates = [authToken, cookieToken].filter(Boolean);
+      if (isProduction && tokenCandidates.length === 0) {
         return next(new Error("Authentication error: token required"));
       }
 
@@ -1313,20 +1311,25 @@ fastify.ready().then(() => {
       let role: SocketRole | null = null;
       let portalPayload: unknown | null = null;
 
-      if (tokenStr && secret) {
-        const payload = verifyPortalSessionToken(tokenStr, secret);
-        if (payload) {
+      if (secret) {
+        // Prefer explicit auth token, but fall back to cookie session if the explicit
+        // token is missing OR stale/invalid. This prevents intermittent "invalid token"
+        // loops after client-side navigation.
+        for (const tok of tokenCandidates) {
+          const payload = verifyPortalSessionToken(tok, secret);
+          if (!payload) continue;
           // SECURITY: agent token must match the org in handshake to prevent cross-org join.
           if ((payload as any).orgId !== org.id) {
             return next(new Error("Authentication error: org mismatch"));
           }
           role = "agent";
           portalPayload = payload;
+          break;
         }
       }
 
-      if (!role && tokenStr) {
-        const payload = verifyOrgToken(tokenStr);
+      if (!role && authToken) {
+        const payload = verifyOrgToken(authToken);
         if (payload && payload.orgId === org.id && payload.orgKey === org.key) {
           role = "widget";
         }
