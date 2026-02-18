@@ -10,6 +10,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { mapPasswordPolicyError } from "@/lib/password-errors";
 import { sanitizePlainText } from "@/utils/sanitize";
 import TurnstileWidget from "@/components/TurnstileWidget";
+import HelvionLogo from "@/components/brand/HelvionLogo";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
@@ -367,11 +368,8 @@ export default function SignupPage() {
             >
               <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl">
                 <div className="mb-5 flex items-center gap-3">
-                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-rose-400 shadow-[0_10px_24px_rgba(245,158,11,0.35)]">
-                    <span className="font-bold text-[var(--primary)]">H</span>
-                  </div>
                   <div>
-                    <p className="text-sm font-semibold text-[var(--text-primary)]">Helvion</p>
+                    <HelvionLogo variant="light" heightClassName="h-6" />
                     <p className="text-xs text-[var(--text-secondary)]">{t("signup.subtitle")}</p>
                   </div>
                 </div>

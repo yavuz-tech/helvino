@@ -4,9 +4,33 @@ import { createConversation, sendMessage, requestAiHelp, API_URL, getOrgKey, get
 import { EMOJI_LIST, bubbleBorderRadius, resolveWidgetBubbleTheme } from "@helvino/shared";
 import { sanitizeHTML, sanitizePlainText } from "./sanitize";
 import { getVisitorId } from "./utils/visitor";
+import HelvionLogo from "./components/HelvionLogo";
 
 const APP_NAME = "Helvion";
 const HELVINO_SITE_URL = "https://helvion.io";
+
+const POWERED_BY_PREFIX: Record<string, string> = {
+  en: "Powered by ",
+  tr: "",
+  es: "Desarrollado por ",
+};
+
+const POWERED_BY_SUFFIX: Record<string, string> = {
+  en: "",
+  tr: " tarafından desteklenmektedir",
+  es: "",
+};
+
+function getWidgetLang(): string {
+  try {
+    const raw =
+      document.documentElement.getAttribute("lang") ||
+      (navigator.language ? navigator.language.split("-")[0] : "");
+    const lang = (raw || "").trim().toLowerCase();
+    if (lang === "tr" || lang === "en" || lang === "es") return lang;
+  } catch {}
+  return "en";
+}
 
 const STORAGE_KEY = "helvino_conversation_id";
 const RECENT_EMOJI_KEY = "helvino_recent_emojis";
@@ -111,6 +135,14 @@ function App({ externalIsOpen, onOpenChange, mode = "embed", onRequestClose }: A
 
   /** Whether branding must be shown (server-enforced, defaults true) */
   const brandingRequired = bootloaderConfig?.config?.brandingRequired !== false;
+  const [widgetLang, setWidgetLang] = useState<string>(() => getWidgetLang());
+  useEffect(() => {
+    const el = document.documentElement;
+    if (!el || typeof MutationObserver === "undefined") return;
+    const obs = new MutationObserver(() => setWidgetLang(getWidgetLang()));
+    obs.observe(el, { attributes: true, attributeFilter: ["lang"] });
+    return () => obs.disconnect();
+  }, []);
 
   // Keep ref in sync so socket listener always sees current conversationId
   useEffect(() => {
@@ -1019,15 +1051,25 @@ function App({ externalIsOpen, onOpenChange, mode = "embed", onRequestClose }: A
           {(brandingRequired || showBrandingFlag) && (
             <div className="widget-powered-by-v3">
               <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 14, height: 14, borderRadius: 4, background: `linear-gradient(135deg, ${ac}, ${ad})`, boxShadow: `0 1px 4px rgba(${acRgb}, 0.3)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontWeight: 900, fontSize: 7, color: "#FFF" }}>H</span>
-                </div>
-                <span style={{ fontSize: 11, fontWeight: 600, color: "#92400E" }}>
-                  Powered by{" "}
-                  <a href={HELVINO_SITE_URL} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 800, color: "#92400E", textDecoration: "none" }}>
-                    {APP_NAME}
-                  </a>
-                </span>
+                {(() => {
+                  const prefix = POWERED_BY_PREFIX[widgetLang] ?? POWERED_BY_PREFIX.en;
+                  const suffix = POWERED_BY_SUFFIX[widgetLang] ?? POWERED_BY_SUFFIX.en;
+                  return (
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#92400E", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {prefix}
+                      <a
+                        href={HELVINO_SITE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={APP_NAME}
+                        style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}
+                      >
+                        <HelvionLogo variant="light" height={14} title={APP_NAME} />
+                      </a>
+                      {suffix}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
           )}

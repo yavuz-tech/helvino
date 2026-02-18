@@ -23,6 +23,7 @@ import CampaignTopBanner from "@/components/CampaignTopBanner";
 import { bubbleBorderRadius, resolveWidgetBubbleTheme } from "@helvino/shared";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { getDeployEnv } from "@/lib/runtime-env";
+import HelvionLogo from "@/components/brand/HelvionLogo";
 
 interface WidgetBubbleSettings {
   primaryColor: string;
@@ -453,18 +454,10 @@ export default function PortalLayout({
           {sidebarOpen ? (
             <div className="flex w-full items-start justify-between gap-3">
               <div className="min-w-0 flex items-center gap-3">
-                <div
-                  className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px] border"
-                  style={{
-                    background: "rgba(255,255,255,0.2)",
-                    borderColor: "rgba(255,255,255,0.15)",
-                    backdropFilter: "blur(8px)",
-                  }}
-                >
-                  <span className="font-[var(--font-heading)] text-[17px] font-extrabold text-white">H</span>
-                </div>
                 <div className="min-w-0">
-                  <p className="truncate font-[var(--font-heading)] text-[15px] font-bold text-white">{t("nav.customerPortal")}</p>
+                  <div className="flex items-center">
+                    <HelvionLogo variant="dark" heightClassName="h-6" className="opacity-95" />
+                  </div>
                   <p className="truncate font-[var(--font-body)] text-[11.5px] text-white/70">{user?.orgName || t("portal.organization")}</p>
                 </div>
               </div>

@@ -16,6 +16,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useI18n } from "@/i18n/I18nContext";
 import type { TranslationKey } from "@/i18n/translations";
 import CampaignTopBanner from "@/components/CampaignTopBanner";
+import HelvionLogo from "@/components/brand/HelvionLogo";
 
 interface NavItemDef {
   labelKey: TranslationKey;
@@ -67,12 +68,9 @@ export default function OrgPortalLayout({
       >
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-6 border-b border-[#F3E8D8]">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">H</span>
-            </div>
-            <span className="font-bold text-lg text-amber-900">Helvion</span>
-          </div>
+          <Link href="/" className="flex items-center" aria-label="Helvion">
+            <HelvionLogo variant="light" heightClassName="h-6" />
+          </Link>
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden hover:bg-amber-50 rounded-lg p-1.5 transition-colors"

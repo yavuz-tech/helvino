@@ -25,6 +25,7 @@ import CampaignTopBanner from "@/components/CampaignTopBanner";
 import { useI18n } from "@/i18n/I18nContext";
 import type { TranslationKey } from "@/i18n/translations";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import HelvionLogo from "@/components/brand/HelvionLogo";
 
 interface NavItemDef {
   labelKey: TranslationKey;
@@ -83,12 +84,9 @@ export default function DashboardLayout({
       >
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-5 border-b border-[#F3E8D8]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-xs">H</span>
-            </div>
-            <span className="font-semibold text-sm text-[#1A1D23] tracking-tight">Helvion</span>
-          </div>
+          <Link href="/" className="flex items-center" aria-label="Helvion">
+            <HelvionLogo variant="light" heightClassName="h-6" />
+          </Link>
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden hover:bg-amber-50 rounded-lg p-1.5 transition-colors"

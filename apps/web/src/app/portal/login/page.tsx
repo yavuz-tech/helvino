@@ -17,6 +17,7 @@ import PasskeyLoginButton from "@/components/PasskeyLoginButton";
 import ErrorBanner from "@/components/ErrorBanner";
 import { premiumToast } from "@/components/PremiumToast";
 import TurnstileWidget from "@/components/TurnstileWidget";
+import HelvionLogo from "@/components/brand/HelvionLogo";
 import {
   mountPublicWidgetScript,
   resolvePublicWidgetIdentity,
@@ -741,8 +742,8 @@ export default function PortalLoginPage() {
 
           <section className="mx-auto w-full max-w-[560px] md:w-1/2">
             <div className="mb-6 text-center md:hidden">
-              <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-rose-400 shadow-[0_10px_26px_rgba(245,158,11,0.35)]">
-                <span className="text-xl font-bold text-[var(--primary)]">H</span>
+              <div className="mx-auto mb-4 inline-flex items-center justify-center">
+                <HelvionLogo variant="light" heightClassName="h-8" />
               </div>
               <h1 className="mb-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t("nav.customerPortal")}</h1>
               <p className="text-sm text-[var(--text-secondary)]">{t("auth.tenantAccess")}</p>
@@ -751,11 +752,8 @@ export default function PortalLoginPage() {
             <div className="rounded-3xl bg-gradient-to-br from-amber-300/55 via-rose-200/45 to-amber-100/65 p-[1px] shadow-[0_30px_80px_rgba(149,115,22,0.25)]">
               <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl">
                 <div className="mb-5 flex items-center gap-3">
-                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-rose-400 shadow-[0_10px_24px_rgba(245,158,11,0.35)]">
-                    <span className="font-bold text-[var(--primary)]">H</span>
-                  </div>
                   <div>
-                    <p className="text-sm font-semibold text-[var(--text-primary)]">Helvion</p>
+                    <HelvionLogo variant="light" heightClassName="h-6" />
                     <p className="text-xs text-[var(--text-secondary)]">{t("portalLogin.formSubtitle")}</p>
                   </div>
                 </div>

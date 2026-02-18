@@ -3,6 +3,7 @@
 import { type MouseEvent as ReactMouseEvent, useEffect, useRef, useState } from "react";
 import { ChevronDown, Home, Send, X } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
+import HelvionPoweredBy from "@/components/brand/HelvionPoweredBy";
 import { EMOJI_LIST, bubbleBorderRadius, resolveWidgetBubbleTheme } from "@helvino/shared";
 
 interface WidgetSettings {
@@ -332,22 +333,14 @@ export default function WidgetPreviewRenderer({
           }}
         />
         <span className="inline-flex items-center justify-center gap-[7px]" style={{ position: "relative", zIndex: 1 }}>
-          <span
-            style={{
-              fontFamily: "'Satoshi', sans-serif",
-              fontWeight: 900,
-              fontSize: 13,
-              letterSpacing: "-0.01em",
-              background: "linear-gradient(135deg, #F59E0B, #D97706)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            Helvion
-          </span>
-          <span style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 600, fontSize: 11, color: hovered ? "#78716C" : "#A1A1AA" }}>
-            {t("widgetPreview.poweredBy")}
-          </span>
+          <HelvionPoweredBy
+            href="https://helvion.io"
+            prefixKey="widgetPreview.poweredByPrefix"
+            suffixKey="widgetPreview.poweredBySuffix"
+            logoVariant="light"
+            logoHeightClassName="h-3.5"
+            textClassName={`font-[var(--font-body)] font-semibold text-[11px] ${hovered ? "text-stone-600" : "text-zinc-400"}`}
+          />
         </span>
       </div>
     );

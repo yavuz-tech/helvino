@@ -10,6 +10,7 @@ import CurrencySwitcher from "@/components/CurrencySwitcher";
 import CampaignTopBanner from "@/components/CampaignTopBanner";
 import { designTokens } from "@/lib/designTokens";
 import { colors, fonts } from "@/lib/design-tokens";
+import HelvionLogo from "@/components/brand/HelvionLogo";
 import {
   mountPublicWidgetScript,
   resolvePublicWidgetIdentity,
@@ -365,15 +366,18 @@ export default function PublicLayout({
       {/* ── Header ── */}
       <header className="border-b border-[#F3E8D8] bg-white/95 backdrop-blur-xl sticky top-0 z-40 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-[72px]">
-          {/* Logo — premium wordmark with amber H */}
+          {/* Logo (SVG, no quality loss) */}
           <Link
             href="/"
-            className="flex items-center gap-1.5 flex-shrink-0 group"
+            className="flex items-center flex-shrink-0 group"
+            aria-label={APP_NAME}
           >
-            <span className="text-xl font-extrabold tracking-tight text-[#1A1D23] group-hover:text-amber-700 transition-colors duration-200">
-              <span className="text-amber-500 group-hover:text-amber-600">H</span>
-              elvion
-            </span>
+            <HelvionLogo
+              variant="light"
+              alt={APP_NAME}
+              heightClassName="h-7"
+              className="transition-opacity duration-200 group-hover:opacity-90"
+            />
           </Link>
 
           {/* ── Desktop nav ── */}
@@ -505,10 +509,13 @@ export default function PublicLayout({
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-10 mb-14">
             {/* Brand column */}
             <div className="col-span-2 sm:col-span-3 lg:col-span-1">
-              <Link href="/" className="inline-flex items-center gap-1.5 group">
-                <span className="text-xl font-extrabold tracking-tight text-white group-hover:text-amber-400 transition-colors">
-                  <span className="text-amber-500">H</span>elvion
-                </span>
+              <Link href="/" className="inline-flex items-center group" aria-label={APP_NAME}>
+                <HelvionLogo
+                  variant="dark"
+                  alt={APP_NAME}
+                  heightClassName="h-7"
+                  className="opacity-95 transition-opacity duration-200 group-hover:opacity-100"
+                />
               </Link>
               <p className="text-sm text-slate-400 mt-3 leading-relaxed max-w-[220px]">
                 {t("footer.tagline")}
