@@ -2,319 +2,226 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import {
-  ArrowRight,
-  BarChart3,
-  CheckCircle2,
-  Code2,
-  DatabaseZap,
-  Globe,
-  Layers,
-  MessageSquare,
-  ShieldCheck,
-  Sparkles,
-  Timer,
-  Users,
-  Zap,
-} from "lucide-react";
+import { ArrowRight, Code2, MessageSquare, ShieldCheck, Sparkles, Users, Zap } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
 import PublicLayout from "@/components/PublicLayout";
-import FeatureCard from "@/components/ui/FeatureCard";
 import { designTokens } from "@/lib/designTokens";
-import { colors, fonts } from "@/lib/design-tokens";
 
 export default function Home() {
-  void colors;
-  void fonts;
   const { t } = useI18n();
-
-  const features = [
-    { title: t("home.feature1Title"), desc: t("home.feature1Desc"), icon: MessageSquare },
-    { title: t("home.feature2Title"), desc: t("home.feature2Desc"), icon: Users },
-    { title: t("home.feature3Title"), desc: t("home.feature3Desc"), icon: ShieldCheck },
-    { title: t("home.feature4Title"), desc: t("home.feature4Desc"), icon: BarChart3 },
-  ];
-
-  const compare = [
-    { href: "/compare/tidio", title: "Helvion vs Tidio", desc: t("home.compareTidioDesc") },
-    { href: "/compare/crisp", title: "Helvion vs Crisp", desc: t("home.compareCrispDesc") },
-  ];
 
   return (
     <PublicLayout>
-      {/* ── Hero Section ── */}
+      {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-b from-[#FFFBF5] via-[#FFF6EA] to-white">
-        <div className="absolute inset-0 opacity-[0.10]">
-          <Image src="/marketing/blob-mesh-1.svg" alt="" aria-hidden="true" fill className="object-cover" />
+        <div className="absolute inset-0 opacity-[0.12]">
+          <Image
+            src="/marketing/gradient-hero-1.svg"
+            alt=""
+            aria-hidden="true"
+            fill
+            className="object-cover"
+            priority
+          />
         </div>
-        <div className="pointer-events-none absolute -left-56 top-10 h-[640px] w-[640px] rounded-full bg-amber-300/25 blur-3xl" />
-        <div className="pointer-events-none absolute -right-56 -top-12 h-[640px] w-[640px] rounded-full bg-rose-300/18 blur-3xl" />
+        <div className="pointer-events-none absolute -left-44 top-10 h-[560px] w-[560px] rounded-full bg-amber-300/22 blur-3xl" />
+        <div className="pointer-events-none absolute -right-48 -top-24 h-[620px] w-[620px] rounded-full bg-rose-300/16 blur-3xl" />
 
-        <div className={`${designTokens.layout.maxWidth} relative pt-16 sm:pt-24 pb-16 sm:pb-24`}>
-          <div className="grid lg:grid-cols-12 gap-10 lg:gap-12 items-start">
-            <div className="lg:col-span-6">
-              <div className="inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-white/70 px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur">
-                <Sparkles size={14} className="text-amber-600" />
-                <span>{t("home.heroPill")}</span>
-              </div>
-
-              <h1 className="mt-6 text-[40px] sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.04]">
-                {t("home.heroTitle")}
-                <span className="block mt-2 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 bg-clip-text text-transparent">
-                  {t("home.heroSubline")}
-                </span>
-              </h1>
-
-              <p className="mt-5 text-lg sm:text-xl text-slate-600 leading-relaxed max-w-xl">
-                {t("home.heroSubtitle")}
-              </p>
-
-              <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                <Link
-                  href="/signup"
-                  className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-[15px] font-semibold text-white rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-[0_12px_34px_rgba(245,158,11,0.34)] hover:shadow-[0_16px_44px_rgba(245,158,11,0.42)] transition-all duration-200 hover:-translate-y-0.5"
-                >
-                  {t("home.ctaStartFree")}
-                  <ArrowRight size={16} className="opacity-90 transition-transform duration-200 group-hover:translate-x-0.5" />
-                </Link>
-                <Link
-                  href="/product"
-                  className="inline-flex items-center justify-center px-8 py-4 text-[15px] font-semibold text-slate-800 bg-white/85 border border-slate-200 rounded-xl hover:bg-white hover:border-slate-300 transition-all duration-150"
-                >
-                  {t("home.ctaExploreProduct")}
-                </Link>
-              </div>
-
-              <div className="mt-8 grid gap-2.5">
-                {[t("home.heroBullet1"), t("home.heroBullet2"), t("home.heroBullet3")].map((txt) => (
-                  <div key={txt} className="flex items-start gap-3">
-                    <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 border border-slate-200 shadow-sm">
-                      <CheckCircle2 size={16} className="text-emerald-600" />
-                    </span>
-                    <span className="text-sm sm:text-[15px] leading-relaxed text-slate-700">{txt}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-10 flex flex-wrap items-center gap-2.5">
-                {[
-                  { icon: <Timer size={14} className="text-amber-700" />, label: t("home.metricSetup") },
-                  { icon: <DatabaseZap size={14} className="text-amber-700" />, label: t("home.metricInbox") },
-                  { icon: <ShieldCheck size={14} className="text-amber-700" />, label: t("home.metricSecurity") },
-                ].map((m) => (
-                  <div key={m.label} className="inline-flex items-center gap-2 rounded-full border border-amber-200/65 bg-white/70 px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm">
-                    {m.icon}
-                    <span>{m.label}</span>
-                  </div>
-                ))}
-              </div>
+        <div className={`${designTokens.layout.maxWidth} relative pt-16 sm:pt-24 pb-14 sm:pb-20`}>
+          <div className="mx-auto max-w-[920px] text-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-white/70 px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100">
+                <Sparkles size={12} className="text-amber-700" />
+              </span>
+              <span>{t("home.heroPill")}</span>
             </div>
 
-            <div className="lg:col-span-6">
-              <div className="grid gap-4">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="rounded-2xl border border-slate-200/80 bg-white/75 p-5 shadow-[0_14px_34px_rgba(15,23,42,0.08)] backdrop-blur">
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm">
-                        <Zap size={18} className="text-white" />
-                      </span>
-                      <div>
-                        <p className="text-sm font-extrabold text-slate-900">{t("home.bento1Title")}</p>
-                        <p className="mt-1 text-sm text-slate-600 leading-relaxed">{t("home.bento1Desc")}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200/80 bg-white/75 p-5 shadow-[0_14px_34px_rgba(15,23,42,0.08)] backdrop-blur">
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-slate-900 to-slate-700 shadow-sm">
-                        <Code2 size={18} className="text-white" />
-                      </span>
-                      <div>
-                        <p className="text-sm font-extrabold text-slate-900">{t("home.bentoDevTitle")}</p>
-                        <p className="mt-1 text-sm text-slate-600 leading-relaxed">{t("home.bentoDevDesc")}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            <h1 className="mt-7 text-[40px] font-extrabold tracking-tight text-slate-900 leading-[1.03] sm:text-6xl">
+              {t("home.heroTitle")}
+              <span className="block mt-2 bg-gradient-to-r from-amber-600 via-orange-500 to-rose-500 bg-clip-text text-transparent">
+                {t("home.heroSubline")}
+              </span>
+            </h1>
 
-                <div className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_28px_70px_-24px_rgba(0,0,0,0.36)] ring-1 ring-slate-900/5 overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-white to-amber-50">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                      <Globe size={14} className="text-amber-600" />
-                      <span>{t("home.previewLabel")}</span>
-                    </div>
-                    <span className="text-[11px] font-black tracking-[0.14em] text-amber-800 bg-amber-100 border border-amber-200/70 px-2 py-1 rounded-full">
-                      {t("home.previewBadge")}
-                    </span>
-                  </div>
-                  <div className="p-4">
-                    <Image
-                      src="/marketing/mock-inbox.svg"
-                      alt=""
-                      aria-hidden="true"
-                      width={1200}
-                      height={820}
-                      className="w-full h-auto rounded-xl"
-                      priority
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Feature Showcase ── */}
-      <section className="bg-white border-t border-slate-100">
-        <div className={`${designTokens.layout.maxWidth} py-20 sm:py-24`}>
-          <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-[#1A1D23] tracking-tight">
-              {t("home.featureTitle")}
-            </h2>
-            <p className="mt-3 text-slate-600 max-w-2xl mx-auto">
-              {t("home.featureSubtitle")}
+            <p className="mt-5 text-lg text-slate-600 leading-relaxed sm:text-xl">
+              {t("home.heroSubtitle")}
             </p>
-          </div>
-          <div className="grid sm:grid-cols-2 gap-6">
-            {features.map((f) => (
-              <FeatureCard key={f.title} icon={f.icon} title={f.title} description={f.desc} />
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* ── Developer-ready ── */}
-      <section className="border-t border-slate-100 bg-gradient-to-b from-white to-[#FFFBF5]">
-        <div className={`${designTokens.layout.maxWidth} py-20 sm:py-24`}>
-          <div className="grid lg:grid-cols-12 gap-10 items-start">
-            <div className="lg:col-span-5">
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm">
-                <Code2 size={14} className="text-slate-900" />
-                <span>{t("home.devPill")}</span>
-              </div>
-              <h2 className="mt-5 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
-                {t("home.devTitle")}
-              </h2>
-              <p className="mt-3 text-slate-600 leading-relaxed">
-                {t("home.devSubtitle")}
-              </p>
-              <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                <Link
-                  href="/developers"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
-                >
-                  {t("home.devCtaDocs")}
-                  <ArrowRight size={16} />
-                </Link>
-                <Link
-                  href="/product#live-chat"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-                >
-                  {t("home.devCtaWidget")}
-                </Link>
-              </div>
-            </div>
-
-            <div className="lg:col-span-7">
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.10)] overflow-hidden">
-                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 bg-gradient-to-r from-white to-slate-50">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                    <Code2 size={14} className="text-slate-900" />
-                    <span>{t("home.devSnippetTitle")}</span>
-                  </div>
-                  <span className="text-[11px] font-semibold text-slate-500">{t("home.devSnippetHint")}</span>
-                </div>
-                <pre className="m-0 overflow-x-auto p-4 text-[12.5px] leading-relaxed bg-[#0B1220]">
-                  <code className="text-slate-100">{`<!-- Helvion widget -->\n<script>\n  (function(){\n    var s=document.createElement('script');\n    s.src='https://app.helvion.io/widget-v2/loader.js';\n    s.async=true;\n    s.dataset.org='YOUR_ORG_KEY';\n    document.head.appendChild(s);\n  })();\n</script>`}</code>
-                </pre>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Compare ── */}
-      <section className="bg-white border-t border-slate-100">
-        <div className={`${designTokens.layout.maxWidth} py-20 sm:py-24`}>
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
-              {t("home.compareTitle")}
-            </h2>
-            <p className="mt-3 text-slate-600">
-              {t("home.compareSubtitle")}
-            </p>
-          </div>
-
-          <div className="mt-10 grid gap-6 md:grid-cols-2">
-            {compare.map((c) => (
+            <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
               <Link
-                key={c.href}
-                href={c.href}
-                className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-7 shadow-[0_10px_28px_rgba(15,23,42,0.06)] hover:shadow-[0_20px_50px_rgba(15,23,42,0.10)] transition-all"
+                href="/signup"
+                className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-8 py-4 text-[15px] font-semibold text-white shadow-[0_14px_40px_rgba(245,158,11,0.36)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_54px_rgba(245,158,11,0.44)]"
               >
-                <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-amber-200/35 blur-3xl transition-opacity group-hover:opacity-90" />
-                <div className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm">
-                    <Layers size={18} className="text-white" />
-                  </span>
-                  <div className="min-w-0">
-                    <div className="text-lg font-extrabold tracking-tight text-slate-900">{c.title}</div>
-                    <div className="mt-1 text-sm leading-relaxed text-slate-600">{c.desc}</div>
-                    <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-amber-700">
-                      {t("home.compareCta")}
-                      <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
-                    </div>
-                  </div>
-                </div>
+                {t("home.ctaStartFree")}
+                <ArrowRight
+                  size={16}
+                  className="opacity-90 transition-transform duration-200 group-hover:translate-x-0.5"
+                />
               </Link>
-            ))}
+              <Link
+                href="/product"
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white/85 px-8 py-4 text-[15px] font-semibold text-slate-800 shadow-sm hover:bg-white"
+              >
+                {t("home.ctaExploreProduct")}
+              </Link>
+            </div>
+
+            <div className="mt-6 text-xs font-semibold text-slate-500">
+              {t("home.heroNote")}
+            </div>
+          </div>
+
+          <div className="mt-12 sm:mt-14">
+            <div className="mx-auto max-w-[1120px] rounded-3xl bg-gradient-to-br from-amber-200/60 via-white to-rose-200/50 p-[1px] shadow-[0_34px_110px_rgba(149,115,22,0.18)]">
+              <div className="rounded-3xl border border-white/70 bg-white/75 p-4 backdrop-blur-2xl sm:p-5">
+                <Image
+                  src="/marketing/mock-dashboard.svg"
+                  alt=""
+                  aria-hidden="true"
+                  width={1400}
+                  height={900}
+                  className="h-auto w-full rounded-2xl border border-slate-200/70 shadow-[0_18px_55px_rgba(15,23,42,0.10)]"
+                  priority
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── How it works ── */}
-      <section className="border-t border-slate-100 bg-gradient-to-b from-white to-[#FFFBF5]">
-        <div className={`${designTokens.layout.maxWidth} py-20 sm:py-24`}>
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl sm:text-4xl font-bold text-[#1A1D23] tracking-tight">
-              {t("home.howTitle")}
+      {/* Trust / Logos */}
+      <section className="border-t border-slate-100 bg-white">
+        <div className={`${designTokens.layout.maxWidth} py-14 sm:py-16`}>
+          <div className="mx-auto max-w-[920px] text-center">
+            <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+              {t("home.logosTitle")}
             </h2>
-            <p className="mt-3 text-slate-600">
-              {t("home.howSubtitle")}
-            </p>
+            <p className="mt-2 text-slate-600">{t("home.logosSubtitle")}</p>
           </div>
-
-          <div className="mt-12 grid gap-6 lg:grid-cols-3">
-            {[
-              { n: "01", title: t("home.how1Title"), desc: t("home.how1Desc") },
-              { n: "02", title: t("home.how2Title"), desc: t("home.how2Desc") },
-              { n: "03", title: t("home.how3Title"), desc: t("home.how3Desc") },
-            ].map((s) => (
+          <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {["Studio", "Craft", "North", "Atlas", "Weld", "Nova"].map((name) => (
               <div
-                key={s.n}
-                className="relative overflow-hidden rounded-2xl border border-amber-200/55 bg-white/75 p-7 shadow-[0_12px_32px_rgba(15,23,42,0.06)] backdrop-blur-sm"
+                key={name}
+                className="flex items-center justify-center rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-4 text-sm font-extrabold tracking-tight text-slate-700"
               >
-                <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-amber-200/35 blur-2xl" />
-                <div className="text-xs font-black tracking-[0.22em] text-amber-700">{s.n}</div>
-                <div className="mt-3 text-lg font-extrabold tracking-tight text-slate-900">{s.title}</div>
-                <div className="mt-2 text-sm leading-relaxed text-slate-600">{s.desc}</div>
+                {name}
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Testimonials ── */}
+      {/* Feature Bento */}
+      <section className="border-t border-slate-100 bg-gradient-to-b from-white to-[#FFFBF5]">
+        <div className={`${designTokens.layout.maxWidth} py-20 sm:py-24`}>
+          <div className="mx-auto max-w-[920px] text-center">
+            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+              {t("home.bentoTitle")}
+            </h2>
+            <p className="mt-3 text-slate-600">{t("home.bentoSubtitle")}</p>
+          </div>
+
+          <div className="mt-12 grid gap-6 lg:grid-cols-12">
+            <div className="rounded-3xl border border-amber-200/55 bg-white/75 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur lg:col-span-7">
+              <div className="flex items-start gap-4">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm">
+                  <MessageSquare size={20} className="text-white" />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-lg font-extrabold tracking-tight text-slate-900">
+                    {t("home.bentoA1Title")}
+                  </div>
+                  <div className="mt-2 text-sm leading-relaxed text-slate-600">
+                    {t("home.bentoA1Desc")}
+                  </div>
+                  <div className="mt-5 grid gap-2 text-sm text-slate-700">
+                    {[t("home.bentoA1Bullet1"), t("home.bentoA1Bullet2"), t("home.bentoA1Bullet3")].map(
+                      (x) => (
+                        <div key={x} className="flex items-start gap-2">
+                          <span className="mt-0.5 h-2 w-2 rounded-full bg-amber-500" />
+                          <span className="leading-relaxed">{x}</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-8 shadow-[0_18px_50px_rgba(15,23,42,0.08)] lg:col-span-5">
+              <div className="flex items-start gap-4">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 shadow-sm">
+                  <Code2 size={20} className="text-white" />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-lg font-extrabold tracking-tight text-slate-900">
+                    {t("home.bentoA2Title")}
+                  </div>
+                  <div className="mt-2 text-sm leading-relaxed text-slate-600">
+                    {t("home.bentoA2Desc")}
+                  </div>
+                </div>
+              </div>
+              <pre className="mt-6 overflow-x-auto rounded-2xl bg-[#0B1220] p-4 text-[12.5px] leading-relaxed">
+                <code className="text-slate-100">{`<!-- Helvion widget -->\n<script>\n  (function(){\n    var s=document.createElement('script');\n    s.src='https://app.helvion.io/widget-v2/loader.js';\n    s.async=true;\n    s.dataset.org='YOUR_ORG_KEY';\n    document.head.appendChild(s);\n  })();\n</script>`}</code>
+              </pre>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-7 shadow-[0_14px_40px_rgba(15,23,42,0.06)] lg:col-span-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                  <Zap size={18} />
+                </span>
+                <div>
+                  <div className="text-sm font-extrabold text-slate-900">{t("home.bentoMini1Title")}</div>
+                  <div className="mt-1 text-sm leading-relaxed text-slate-600">{t("home.bentoMini1Desc")}</div>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-7 shadow-[0_14px_40px_rgba(15,23,42,0.06)] lg:col-span-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                  <ShieldCheck size={18} />
+                </span>
+                <div>
+                  <div className="text-sm font-extrabold text-slate-900">{t("home.bentoMini2Title")}</div>
+                  <div className="mt-1 text-sm leading-relaxed text-slate-600">{t("home.bentoMini2Desc")}</div>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-7 shadow-[0_14px_40px_rgba(15,23,42,0.06)] lg:col-span-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
+                  <Users size={18} />
+                </span>
+                <div>
+                  <div className="text-sm font-extrabold text-slate-900">{t("home.bentoMini3Title")}</div>
+                  <div className="mt-1 text-sm leading-relaxed text-slate-600">{t("home.bentoMini3Desc")}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-14 flex justify-center">
+            <Link
+              href="/product"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+            >
+              {t("home.bentoCta")}
+              <ArrowRight size={16} className="opacity-90" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials (keep existing copy keys) */}
       <section className="bg-white border-t border-slate-100">
         <div className={`${designTokens.layout.maxWidth} py-20 sm:py-24`}>
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl sm:text-4xl font-bold text-[#1A1D23] tracking-tight">
               {t("home.testimonialsTitle")}
             </h2>
-            <p className="mt-3 text-slate-600">
-              {t("home.testimonialsSubtitle")}
-            </p>
+            <p className="mt-3 text-slate-600">{t("home.testimonialsSubtitle")}</p>
           </div>
 
           <div className="mt-12 grid gap-6 lg:grid-cols-3">
@@ -328,9 +235,7 @@ export default function Home() {
                 className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-7 shadow-[0_10px_28px_rgba(15,23,42,0.06)]"
               >
                 <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-amber-100 blur-2xl" />
-                <blockquote className="text-[15px] leading-relaxed text-slate-700">
-                  “{x.quote}”
-                </blockquote>
+                <blockquote className="text-[15px] leading-relaxed text-slate-700">“{x.quote}”</blockquote>
                 <figcaption className="mt-5 flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
                     {String(x.name || "H").slice(0, 1).toUpperCase()}
@@ -346,7 +251,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Final CTA ── */}
+      {/* Final CTA */}
       <section className="border-t border-slate-100 bg-gradient-to-b from-white to-[#FFFBF5]">
         <div className={`${designTokens.layout.maxWidth} py-16 sm:py-20`}>
           <div className="relative overflow-hidden rounded-3xl border border-amber-200/60 bg-gradient-to-br from-amber-50 via-white to-rose-50 p-8 sm:p-12 shadow-[0_30px_80px_rgba(149,115,22,0.18)]">
@@ -357,9 +262,7 @@ export default function Home() {
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
                 {t("home.finalCtaTitle")}
               </h2>
-              <p className="mt-3 text-slate-600">
-                {t("home.finalCtaSubtitle")}
-              </p>
+              <p className="mt-3 text-slate-600">{t("home.finalCtaSubtitle")}</p>
               <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
                 <Link
                   href="/signup"
@@ -380,16 +283,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── System status strip ── */}
-      <section className={`${designTokens.layout.maxWidth} py-12 sm:py-16`}>
+      {/* Status */}
+      <section className={`${designTokens.layout.maxWidth} py-10 sm:py-14`}>
         <Link
           href="/status"
-          className="inline-flex items-center gap-3 px-5 py-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-100 hover:border-slate-300 transition-all duration-150"
+          className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
         >
-          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
           {t("home.systemOperational")}
         </Link>
       </section>
     </PublicLayout>
   );
 }
+
