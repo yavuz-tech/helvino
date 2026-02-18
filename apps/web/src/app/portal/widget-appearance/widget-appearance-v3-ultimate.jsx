@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useI18n } from "@/i18n/I18nContext";
-import HelvionPoweredBy from "@/components/brand/HelvionPoweredBy";
+import HelvionPoweredByPill from "@/components/brand/HelvionPoweredByPill";
 
 /* ═══════════════════════════════════════════════════════════════
    HELVION.IO — Widget Görünüm Ayarları v2 — ULTIMATE
@@ -1565,24 +1565,12 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
                   {/* Footer - Premium Branding */}
                   {showBranding && (
-                    <div style={{padding:"9px 14px",borderTop:`1px solid rgba(${acRgb},0.06)`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:6,padding:"4px 12px 4px 8px",borderRadius:20,background:`rgba(${acRgb},0.04)`,border:`1px solid rgba(${acRgb},0.06)`}}>
-                        <div style={{width:16,height:16,borderRadius:5,background:`linear-gradient(135deg,${ac},${ad})`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/></svg>
-                        </div>
-                        <span style={{fontFamily:s.fontH,fontSize:10.5,fontWeight:600,color:"#9CA3AF",letterSpacing:"0.01em"}}>
-                          <HelvionPoweredBy
-                            href="https://helvion.io"
-                            prefixKey="widgetPreview.poweredByPrefix"
-                            suffixKey="widgetPreview.poweredBySuffix"
-                            logoVariant="light"
-                            logoHeightClassName="h-[18px]"
-                            textClassName="text-[10.5px] font-semibold text-slate-400"
-                            containerClassName="inline-flex items-center gap-[6px]"
-                          />
-                        </span>
-                      </div>
-                    </div>
+                    <HelvionPoweredByPill
+                      href="https://helvion.io"
+                      prefixKey="widgetPreview.poweredByPrefix"
+                      suffixKey="widgetPreview.poweredBySuffix"
+                      markHeight={20}
+                    />
                   )}
                 </div>
               </div>

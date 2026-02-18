@@ -3,7 +3,7 @@
 import { type MouseEvent as ReactMouseEvent, useEffect, useRef, useState } from "react";
 import { ChevronDown, Home, Send, X } from "lucide-react";
 import { useI18n } from "@/i18n/I18nContext";
-import HelvionPoweredBy from "@/components/brand/HelvionPoweredBy";
+import HelvionPoweredByPill from "@/components/brand/HelvionPoweredByPill";
 import { EMOJI_LIST, bubbleBorderRadius, resolveWidgetBubbleTheme } from "@helvino/shared";
 
 interface WidgetSettings {
@@ -234,128 +234,14 @@ export default function WidgetPreviewRenderer({
     { key: "open", labelKey: "widgetPreview.stateChat", emoji: "💬" },
   ];
 
-  const PoweredByHelvionFooter = () => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const animRef = useRef<number>(0);
-    const starsRef = useRef<Array<{ x: number; y: number; r: number; phase: number; hue: string }>>([]);
-    const [hovered, setHovered] = useState(false);
-
-    useEffect(() => {
-      if (starsRef.current.length === 0) {
-        for (let i = 0; i < 18; i++) {
-          starsRef.current.push({
-            x: Math.random() * 340,
-            y: Math.random() * 40,
-            r: Math.random() * 1.4 + 0.5,
-            phase: Math.random() * Math.PI * 2,
-            hue: Math.random() > 0.4 ? "245,158,11" : "217,119,6",
-          });
-        }
-      }
-
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      const W = 340;
-      const H = 40;
-      canvas.width = W * 2;
-      canvas.height = H * 2;
-      ctx.setTransform(2, 0, 0, 2, 0, 0);
-
-      let t0 = 0;
-      const draw = () => {
-        ctx.clearRect(0, 0, W, H);
-        t0 += 0.01;
-        const intensity = hovered ? 1 : 0.45;
-        const stars = starsRef.current;
-
-        for (let i = 0; i < stars.length; i++) {
-          for (let j = i + 1; j < stars.length; j++) {
-            const dx = stars[i].x - stars[j].x;
-            const dy = stars[i].y - stars[j].y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 65) {
-              const alpha = (1 - dist / 65) * 0.18 * intensity;
-              ctx.beginPath();
-              ctx.moveTo(stars[i].x, stars[i].y);
-              ctx.lineTo(stars[j].x, stars[j].y);
-              ctx.strokeStyle = `rgba(217,119,6,${alpha})`;
-              ctx.lineWidth = 0.5;
-              ctx.stroke();
-            }
-          }
-        }
-
-        for (const s of stars) {
-          const twinkle = (Math.sin(t0 * 3 + s.phase) + 1) / 2;
-          const alpha = (0.3 + twinkle * 0.7) * intensity;
-          const radius = s.r * (hovered ? 1 + twinkle * 0.5 : 1);
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${s.hue},${alpha})`;
-          ctx.fill();
-        }
-
-        animRef.current = requestAnimationFrame(draw);
-      };
-
-      draw();
-      return () => cancelAnimationFrame(animRef.current);
-    }, [hovered]);
-
-    return (
-      <div
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onClick={() => window.open("https://helvion.io", "_blank")}
-        className="border-t px-[14px] py-[11px] text-center"
-        style={{
-          borderColor: "rgba(0,0,0,0.04)",
-          background: "linear-gradient(180deg, #FAFAFA, #F5F5F7)",
-          cursor: "pointer",
-          position: "relative",
-        }}
-        role="contentinfo"
-      >
-        <canvas
-          ref={canvasRef}
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: "50%",
-            transform: "translate(-50%, -50%)",
-            width: 340,
-            height: 40,
-            pointerEvents: "none",
-            opacity: hovered ? 1 : 0.75,
-          }}
-        />
-        <span className="inline-flex items-center justify-center" style={{ position: "relative", zIndex: 1 }}>
-          <span
-            className="inline-flex items-center rounded-full border px-3 py-1.5 shadow-sm"
-            style={{
-              borderColor: hovered ? "rgba(245,158,11,0.18)" : "rgba(0,0,0,0.06)",
-              background: hovered ? "rgba(245,158,11,0.06)" : "rgba(255,255,255,0.65)",
-              backdropFilter: "blur(6px)",
-              transition: "all 180ms ease",
-            }}
-          >
-            <HelvionPoweredBy
-              href="https://helvion.io"
-              prefixKey="widgetPreview.poweredByPrefix"
-              suffixKey="widgetPreview.poweredBySuffix"
-              logoVariant="light"
-              logoHeightClassName="h-[18px]"
-              containerClassName="inline-flex items-center gap-2"
-              textClassName={`font-[var(--font-body)] font-semibold text-[11.5px] ${hovered ? "text-stone-600" : "text-zinc-400"}`}
-            />
-          </span>
-        </span>
-      </div>
-    );
-  };
+  const PoweredByHelvionFooter = () => (
+    <HelvionPoweredByPill
+      href="https://helvion.io"
+      prefixKey="widgetPreview.poweredByPrefix"
+      suffixKey="widgetPreview.poweredBySuffix"
+      markHeight={20}
+    />
+  );
 
   return (
     <div className="overflow-hidden rounded-[20px] border border-black/[0.05] bg-white shadow-[0_8px_40px_rgba(0,0,0,0.06)]">
