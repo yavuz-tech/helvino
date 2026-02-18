@@ -105,7 +105,8 @@ body {
 .hv-messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 2px; }
 .hv-messages::-webkit-scrollbar-track { background: transparent; }
 
-.hv-msg { width: 100%; max-width: 100%; overflow: hidden; }
+/* Allow bubble shadow/top edge to render (no visual clipping). */
+.hv-msg { width: 100%; max-width: 100%; overflow: visible; }
 
 /* ── Bot/Agent message (LEFT) — PRIMARY color background ── */
 .hv-msg-agent {
@@ -124,7 +125,8 @@ body {
   background: linear-gradient(135deg, var(--hv-primary, #8B5CF6), var(--hv-primary-dark, #7C3AED));
   color: white;
   padding: 10px 14px;
-  border-radius: 2px 16px 16px 16px;
+  /* Mirror the user bubble shape without a "cut" looking corner. */
+  border-radius: 12px 16px 16px 16px;
   max-width: 100%; order: 1;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   min-width: 0;
@@ -146,7 +148,7 @@ body {
 .hv-msg-user .hv-msg-bubble {
   background: #f3f4f6; color: #1f2937;
   padding: 10px 14px;
-  border-radius: 16px 2px 16px 16px;
+  border-radius: 16px 12px 16px 16px;
   max-width: 88%;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   min-width: 0;
@@ -169,7 +171,7 @@ body {
   display: flex; gap: 4px;
   padding: 10px 14px;
   background: linear-gradient(135deg, var(--hv-primary, #8B5CF6), var(--hv-primary-dark, #7C3AED));
-  border-radius: 2px 16px 16px 16px;
+  border-radius: 12px 16px 16px 16px;
   width: fit-content;
 }
 .hv-typing-dot {
