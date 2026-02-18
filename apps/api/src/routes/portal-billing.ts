@@ -29,7 +29,7 @@ import { getRealIP } from "../utils/get-real-ip";
 import { ensureFoundingCoupon, ensureOrgDiscountCoupon } from "../utils/stripe-discount";
 
 type CheckoutCurrency = "usd" | "try";
-type DisplayCurrency = "usd" | "try" | "eur";
+type DisplayCurrency = "usd" | "try";
 type CheckoutPeriod = "monthly" | "yearly";
 
 function isReturnUrlValidationError(err: unknown): boolean {
@@ -67,32 +67,8 @@ function detectCurrencyFromRequest(request: FastifyRequest): {
   };
 }
 
-const EUR_COUNTRY_CODES = new Set([
-  "AT",
-  "BE",
-  "CY",
-  "DE",
-  "EE",
-  "ES",
-  "FI",
-  "FR",
-  "GR",
-  "HR",
-  "IE",
-  "IT",
-  "LT",
-  "LU",
-  "LV",
-  "MT",
-  "NL",
-  "PT",
-  "SI",
-  "SK",
-]);
-
 function detectDisplayCurrencyFromCountry(country: string | null): DisplayCurrency {
   if (country === "TR") return "try";
-  if (country && EUR_COUNTRY_CODES.has(country)) return "eur";
   return "usd";
 }
 

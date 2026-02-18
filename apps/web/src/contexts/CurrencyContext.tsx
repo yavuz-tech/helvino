@@ -8,13 +8,12 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import { useI18n } from "@/i18n/I18nContext";
 
 // ─────────────────────────────────────────────────────────
 // Supported Currencies
 // ─────────────────────────────────────────────────────────
 
-export type Currency = "USD" | "EUR" | "TRY" | "GBP";
+export type Currency = "USD" | "TRY";
 
 export interface CurrencyConfig {
   code: Currency;
@@ -25,9 +24,7 @@ export interface CurrencyConfig {
 
 export const CURRENCIES: Record<Currency, CurrencyConfig> = {
   USD: { code: "USD", symbol: "$", name: "US Dollar", locale: "en-US" },
-  EUR: { code: "EUR", symbol: "€", name: "Euro", locale: "de-DE" },
   TRY: { code: "TRY", symbol: "₺", name: "Turkish Lira", locale: "tr-TR" },
-  GBP: { code: "GBP", symbol: "£", name: "British Pound", locale: "en-GB" },
 };
 
 // ─────────────────────────────────────────────────────────
@@ -37,9 +34,7 @@ export const CURRENCIES: Record<Currency, CurrencyConfig> = {
 
 const CONVERSION_RATES: Record<Currency, number> = {
   USD: 1.0,
-  EUR: 0.92, // 1 USD = 0.92 EUR
   TRY: 34.5, // 1 USD = 34.5 TRY (approx, Feb 2026)
-  GBP: 0.79, // 1 USD = 0.79 GBP
 };
 
 // ─────────────────────────────────────────────────────────
@@ -47,7 +42,6 @@ const CONVERSION_RATES: Record<Currency, number> = {
 // ─────────────────────────────────────────────────────────
 
 const COOKIE_NAME = "helvino_currency";
-const COOKIE_LOCALE_NAME = "helvino_currency_locale";
 const COOKIE_MAX_AGE = 180 * 24 * 60 * 60; // 180 days
 
 // ─────────────────────────────────────────────────────────
@@ -62,98 +56,17 @@ function getCookieValue(name: string): string | null {
   return match ? match[1] : null;
 }
 
-/** Read locale-bound currency cookie */
-function getCookieCurrency(locale: string): Currency | null {
+function getCookieCurrency(): Currency | null {
   const rawCurrency = getCookieValue(COOKIE_NAME);
-  const rawLocale = getCookieValue(COOKIE_LOCALE_NAME);
-  if (!rawCurrency || !rawLocale) return null;
+  if (!rawCurrency) return null;
   const val = rawCurrency as Currency;
-  if (val in CURRENCIES && rawLocale === locale) return val;
+  if (val in CURRENCIES) return val;
   return null;
 }
 
-/** Detect currency from timezone */
-function detectTimezoneCurrency(): Currency | null {
-  if (typeof Intl === "undefined") return null;
-
-  try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (!tz) return null;
-
-    // Turkey → TRY
-    if (tz.startsWith("Europe/Istanbul") || tz.startsWith("Asia/Istanbul")) {
-      return "TRY";
-    }
-
-    // Eurozone countries
-    const eurozoneTimezones = [
-      "Europe/Paris",
-      "Europe/Berlin",
-      "Europe/Rome",
-      "Europe/Madrid",
-      "Europe/Brussels",
-      "Europe/Amsterdam",
-      "Europe/Vienna",
-      "Europe/Lisbon",
-      "Europe/Athens",
-      "Europe/Helsinki",
-      "Europe/Dublin",
-      "Europe/Luxembourg",
-      "Europe/Vilnius",
-      "Europe/Riga",
-      "Europe/Tallinn",
-      "Europe/Ljubljana",
-      "Europe/Bratislava",
-      "Europe/Zagreb",
-    ];
-
-    if (eurozoneTimezones.some((s) => tz.startsWith(s))) {
-      return "EUR";
-    }
-
-    // UK → GBP
-    if (tz.startsWith("Europe/London")) {
-      return "GBP";
-    }
-  } catch {
-    // Intl not available
-  }
-
-  return null;
-}
-
-/** Resolve currency using priority chain */
-function resolveCurrency(locale: string): Currency {
-  // 1. Cookie (only for the current locale)
-  const cookie = getCookieCurrency(locale);
-  if (cookie) return cookie;
-
-  // 2. Locale-based detection
-  if (locale === "tr") return "TRY";
-  if (locale === "es") {
-    // Spain → EUR, Latin America → USD
-    const timezoneCurrency = detectTimezoneCurrency();
-    return timezoneCurrency === "EUR" ? "EUR" : "USD";
-  }
-  if (locale === "en") {
-    // UK → GBP, US/others → USD
-    const timezoneCurrency = detectTimezoneCurrency();
-    return timezoneCurrency === "GBP" ? "GBP" : "USD";
-  }
-
-  // 3. Timezone-based fallback
-  const timezoneCurrency = detectTimezoneCurrency();
-  if (timezoneCurrency) return timezoneCurrency;
-
-  // 4. Default fallback
-  return "USD";
-}
-
-/** Write locale-bound cookie */
-function persistCurrency(currency: Currency, locale: string) {
+function persistCurrency(currency: Currency) {
   if (typeof document === "undefined") return;
   document.cookie = `${COOKIE_NAME}=${currency};path=/;max-age=${COOKIE_MAX_AGE};SameSite=Lax`;
-  document.cookie = `${COOKIE_LOCALE_NAME}=${locale};path=/;max-age=${COOKIE_MAX_AGE};SameSite=Lax`;
 }
 
 // ─────────────────────────────────────────────────────────
@@ -178,24 +91,43 @@ const CurrencyContext = createContext<CurrencyContextValue | null>(null);
  * - Syncs with i18n locale changes
  */
 export function CurrencyProvider({ children }: { children: ReactNode }) {
-  const { locale } = useI18n();
   const [currency, setCurrencyState] = useState<Currency>("USD");
 
-  // Resolve currency when locale changes
+  // Resolve currency once on mount:
+  // - cookie override wins
+  // - otherwise use backend IP-country hint (TR => TRY, else USD)
   useEffect(() => {
-    const resolved = resolveCurrency(locale);
-    setCurrencyState(resolved);
-
-    // Persist cookie if auto-detected for this locale
-    if (!getCookieCurrency(locale)) {
-      persistCurrency(resolved, locale);
+    const cookie = getCookieCurrency();
+    if (cookie) {
+      setCurrencyState(cookie);
+      return;
     }
-  }, [locale]);
+
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+    const controller = new AbortController();
+    fetch(`${API_URL}/api/currency`, { credentials: "include", signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) return null;
+        const data = await res.json().catch(() => null);
+        return data as { currency?: string } | null;
+      })
+      .then((data) => {
+        const raw = String(data?.currency || "").trim().toLowerCase();
+        const resolved: Currency = raw === "try" ? "TRY" : "USD";
+        setCurrencyState(resolved);
+        persistCurrency(resolved);
+      })
+      .catch(() => {
+        // Keep USD fallback.
+      });
+
+    return () => controller.abort();
+  }, []);
 
   const setCurrency = useCallback((newCurrency: Currency) => {
     setCurrencyState(newCurrency);
-    persistCurrency(newCurrency, locale);
-  }, [locale]);
+    persistCurrency(newCurrency);
+  }, []);
 
   const config = CURRENCIES[currency];
 

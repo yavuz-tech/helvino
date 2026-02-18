@@ -375,27 +375,8 @@ const PLAN_ORDER = {
 
 function detectBrowserCurrencyFallback() {
   if (typeof window === "undefined") return "usd";
-  try {
-    const language = String(navigator.language || "").toLowerCase();
-    const languages = Array.isArray(navigator.languages)
-      ? navigator.languages.map((l) => String(l).toLowerCase())
-      : [];
-    const timezone = String(Intl.DateTimeFormat().resolvedOptions().timeZone || "");
-
-    const allLocales = [language, ...languages].filter(Boolean).join(",");
-    const isTurkish = allLocales.includes("tr") || timezone.includes("Istanbul");
-    if (isTurkish) return "try";
-
-    const euroLocaleHints = ["de", "fr", "es", "it", "nl", "pt", "fi", "el", "sk", "sl", "et", "lv", "lt"];
-    const isEuroLike =
-      euroLocaleHints.some((prefix) => allLocales.includes(`${prefix}-`)) ||
-      /Europe\/(Berlin|Paris|Madrid|Rome|Amsterdam|Lisbon|Vienna|Brussels|Helsinki|Athens)/.test(
-        timezone
-      );
-    if (isEuroLike) return "eur";
-  } catch (_) {
-    // ignore and fallback
-  }
+  // Canonical behavior is IP-country based via GET /api/currency.
+  // Keep this as a conservative fallback only.
   return "usd";
 }
 
@@ -416,7 +397,7 @@ export default function PricingPage({ planKey = "free", orgKey = "" }) {
   const [fmData, setFmData] = useState({ remaining: 200, available: true, limit: 200 });
   const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState(null);
   const [checkoutError, setCheckoutError] = useState("");
-  const sym = currency === "usd" ? "$" : currency === "eur" ? "€" : "₺";
+  const sym = currency === "try" ? "₺" : "$";
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
   const activeOrgKey = orgKey || "demo";
   const nf = new Intl.NumberFormat(
@@ -437,7 +418,7 @@ export default function PricingPage({ planKey = "free", orgKey = "" }) {
           .trim()
           .toUpperCase();
         const browserFallback = detectBrowserCurrencyFallback();
-        if (normalized === "try" || normalized === "usd" || normalized === "eur") {
+        if (normalized === "try" || normalized === "usd") {
           if (country === "ZZ" && normalized === "usd" && browserFallback !== "usd") {
             setCurrency(browserFallback);
           } else {
@@ -509,7 +490,6 @@ export default function PricingPage({ planKey = "free", orgKey = "" }) {
   function formatPrice(v) {
     if (v === 0) return "0";
     if (currency === "try") return v.toLocaleString("tr-TR");
-    if (currency === "eur") return v.toLocaleString("de-DE");
     return v.toLocaleString("en-US");
   }
 
