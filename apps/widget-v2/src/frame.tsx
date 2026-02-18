@@ -246,17 +246,18 @@ function resolveWidgetLangExplicit(raw: unknown): { lang: WidgetLang; explicit: 
 }
 
 function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
-  const canvasRef = React.useRef<HTMLCanvasElement>(null);
-  const animRef = React.useRef<number>(0);
-  const starsRef = React.useRef<any[]>([]);
-  const [hovered, setHovered] = React.useState(false);
   const suffixMode = lang === "tr";
+
+  // Tight viewBox width to avoid large trailing whitespace after the wordmark.
+  // (The original 280-wide box includes a lot of empty space to the right.)
+  const VIEWBOX_W = 210;
+  const VIEWBOX_H = 48;
 
   const HelvionFullLogo = ({ height = 22 }: { height?: number }) => (
     <svg
-      width={(280 / 48) * height}
+      width={(VIEWBOX_W / VIEWBOX_H) * height}
       height={height}
-      viewBox="0 0 280 48"
+      viewBox={`0 0 ${VIEWBOX_W} ${VIEWBOX_H}`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
@@ -271,131 +272,43 @@ function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
     </svg>
   );
 
-  React.useEffect(() => {
-    if (starsRef.current.length === 0) {
-      for (let i = 0; i < 20; i++) {
-        starsRef.current.push({
-          x: Math.random() * 340,
-          y: Math.random() * 40,
-          r: Math.random() * 1.5 + 0.5,
-          phase: Math.random() * Math.PI * 2,
-          hue: Math.random() > 0.4 ? "245,158,11" : "217,119,6",
-        });
-      }
-    }
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const W = 340,
-      H = 40;
-    canvas.width = W * 2;
-    canvas.height = H * 2;
-    ctx.scale(2, 2);
-    let t = 0;
-
-    const draw = () => {
-      ctx.clearRect(0, 0, W, H);
-      t += 0.01;
-      const stars = starsRef.current;
-      const intensity = hovered ? 1 : 0.4;
-
-      for (let i = 0; i < stars.length; i++) {
-        for (let j = i + 1; j < stars.length; j++) {
-          const dx = stars[i].x - stars[j].x;
-          const dy = stars[i].y - stars[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 65) {
-            const alpha = (1 - dist / 65) * 0.18 * intensity;
-            ctx.beginPath();
-            ctx.moveTo(stars[i].x, stars[i].y);
-            ctx.lineTo(stars[j].x, stars[j].y);
-            ctx.strokeStyle = "rgba(217,119,6," + alpha + ")";
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          }
-        }
-      }
-
-      stars.forEach((s: any) => {
-        const twinkle = (Math.sin(t * 3 + s.phase) + 1) / 2;
-        const alpha = (0.3 + twinkle * 0.7) * intensity;
-        const radius = s.r * (hovered ? 1 + twinkle * 0.5 : 1);
-
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(" + s.hue + "," + alpha + ")";
-        ctx.fill();
-
-        if (hovered && twinkle > 0.8) {
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, radius * 3, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(" + s.hue + "," + alpha * 0.15 + ")";
-          ctx.fill();
-        }
-      });
-
-      animRef.current = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => cancelAnimationFrame(animRef.current);
-  }, [hovered]);
-
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       onClick={() => window.open("https://helvion.io", "_blank")}
       style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "11px 12px",
+        padding: "10px 12px",
         cursor: "pointer",
         position: "relative",
-        background: "linear-gradient(180deg, #FAFAFA, #F5F5F7)",
+        background: "#FAFAFA",
         borderTop: "1px solid #EBEBED",
       }}
     >
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          width: "340px",
-          height: "40px",
-          pointerEvents: "none",
-        }}
-      />
       <div style={{ position: "relative", zIndex: 1 }}>
         <div
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 8,
-            padding: "6px 12px",
+            gap: 4,
+            padding: "6px 10px",
             borderRadius: 999,
-            background: hovered ? "rgba(var(--hv-primary-rgb,245,158,11),0.08)" : "rgba(255,255,255,0.7)",
-            border: hovered ? "1px solid rgba(var(--hv-primary-rgb,245,158,11),0.20)" : "1px solid rgba(0,0,0,0.06)",
-            boxShadow: hovered ? "0 6px 16px rgba(245,158,11,0.12)" : "0 2px 10px rgba(0,0,0,0.06)",
-            backdropFilter: "blur(8px)",
-            transition: "all 180ms ease",
+            background: "rgba(255,255,255,0.85)",
+            border: "1px solid rgba(0,0,0,0.06)",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
           }}
         >
           <span
             style={{
               fontSize: 11.5,
-              color: hovered ? "#57534E" : "#A1A1AA",
+              color: "#78716C",
               fontFamily: "system-ui, -apple-system, sans-serif",
               fontWeight: 700,
               letterSpacing: "0.005em",
-              transition: "color 0.18s",
               display: "inline-flex",
               alignItems: "center",
-              gap: 8,
+              gap: 4,
               whiteSpace: "nowrap",
             }}
           >
