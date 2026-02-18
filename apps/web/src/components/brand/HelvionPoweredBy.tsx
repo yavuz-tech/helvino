@@ -22,10 +22,14 @@ export default function HelvionPoweredBy({
   containerClassName?: string;
 }) {
   const { t } = useI18n();
+  const prefix = String(t(prefixKey) || "");
+  const suffix = String(t(suffixKey) || "");
+  const hasPrefix = prefix.trim().length > 0;
+  const hasSuffix = suffix.trim().length > 0;
 
   return (
     <span className={containerClassName}>
-      <span className={textClassName}>{t(prefixKey)}</span>
+      {hasPrefix && <span className={textClassName}>{prefix}</span>}
       <a
         href={href}
         target="_blank"
@@ -35,7 +39,7 @@ export default function HelvionPoweredBy({
       >
         <HelvionLogo variant={logoVariant} heightClassName={logoHeightClassName} />
       </a>
-      <span className={textClassName}>{t(suffixKey)}</span>
+      {hasSuffix && <span className={textClassName}>{suffix}</span>}
     </span>
   );
 }

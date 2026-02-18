@@ -250,6 +250,26 @@ function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
   const animRef = React.useRef<number>(0);
   const starsRef = React.useRef<any[]>([]);
   const [hovered, setHovered] = React.useState(false);
+  const suffixMode = lang === "tr";
+
+  const HelvionFullLogo = ({ height = 16 }: { height?: number }) => (
+    <svg
+      width={(280 / 48) * height}
+      height={height}
+      viewBox="0 0 280 48"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
+      style={{ display: "block" }}
+    >
+      <path d="M3.6 19.2C3.6 12.572 8.972 7.2 15.6 7.2H20.4C27.028 7.2 32.4 12.572 32.4 19.2V21.6C32.4 28.228 27.028 33.6 20.4 33.6H16.8L9.6 39V33.6C6.3 31.5 3.6 27.6 3.6 24V19.2Z" fill="#FBBF24"/>
+      <path d="M20.4 19.2C20.4 13.898 24.698 9.6 30 9.6H32.4C37.702 9.6 42 13.898 42 19.2V21.6C42 26.902 37.702 31.2 32.4 31.2H30L25.2 34.8V31.32C22.56 29.76 20.4 26.7 20.4 24V19.2Z" fill="#D97706"/>
+      <text x="50" y="33" font-family="Manrope, -apple-system, sans-serif" font-size="28" font-weight="800" letter-spacing="-0.5" fill="#0C0A09">
+        Helvion<tspan fill="#F59E0B">.</tspan>
+      </text>
+    </svg>
+  );
 
   React.useEffect(() => {
     if (starsRef.current.length === 0) {
@@ -354,54 +374,35 @@ function PoweredByHelvion({ lang }: { lang: WidgetLang }) {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "8px",
+          gap: "6px",
           position: "relative",
           zIndex: 1,
         }}
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          style={{
-            transition: "transform 0.5s ease",
-            transform: hovered ? "rotate(72deg)" : "rotate(0deg)",
-            filter: hovered ? "drop-shadow(0 0 4px rgba(245,158,11,0.4))" : "none",
-          }}
-        >
-          <path
-            d="M8 0L9.8 5.2L15.6 5.2L10.9 8.8L12.7 14L8 10.4L3.3 14L5.1 8.8L0.4 5.2L6.2 5.2Z"
-            fill={hovered ? "#F59E0B" : "#D97706"}
-            style={{ transition: "fill 0.3s" }}
-          />
-        </svg>
         <span
           style={{
-            fontSize: "15.5px",
-            fontWeight: 800,
-            fontFamily: "system-ui, -apple-system, sans-serif",
-            letterSpacing: "-0.01em",
-            background: "linear-gradient(135deg, #F59E0B, #D97706)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            transition: "all 0.4s ease",
-            filter: hovered ? "brightness(1.15)" : "brightness(1)",
-          }}
-        >
-          Helvion
-        </span>
-        <span
-          style={{
-            fontSize: "12.5px",
+            fontSize: "12px",
             color: hovered ? "#78716C" : "#A1A1AA",
             fontFamily: "system-ui, -apple-system, sans-serif",
             fontWeight: 600,
             letterSpacing: "0.005em",
             transition: "color 0.3s",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
           }}
         >
-          {tWidget(lang, "poweredByLine")}
+          {suffixMode ? (
+            <>
+              <HelvionFullLogo height={16} />
+              <span>{tWidget(lang, "poweredByLine")}</span>
+            </>
+          ) : (
+            <>
+              <span style={{ textTransform: "capitalize" }}>{tWidget(lang, "poweredByLine")}</span>
+              <HelvionFullLogo height={16} />
+            </>
+          )}
         </span>
       </div>
     </div>

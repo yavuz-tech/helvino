@@ -338,7 +338,7 @@ export default function WidgetPreviewRenderer({
             prefixKey="widgetPreview.poweredByPrefix"
             suffixKey="widgetPreview.poweredBySuffix"
             logoVariant="light"
-            logoHeightClassName="h-3.5"
+            logoHeightClassName="h-4"
             textClassName={`font-[var(--font-body)] font-semibold text-[11px] ${hovered ? "text-stone-600" : "text-zinc-400"}`}
           />
         </span>

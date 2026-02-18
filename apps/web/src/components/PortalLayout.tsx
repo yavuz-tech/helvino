@@ -456,7 +456,7 @@ export default function PortalLayout({
               <div className="min-w-0 flex items-center gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center">
-                    <HelvionLogo variant="dark" heightClassName="h-6" className="opacity-95" />
+                    <HelvionLogo variant="dark" heightClassName="h-7" className="opacity-95" />
                   </div>
                   <p className="truncate font-[var(--font-body)] text-[11.5px] text-white/70">{user?.orgName || t("portal.organization")}</p>
                 </div>

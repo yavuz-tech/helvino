@@ -46,7 +46,7 @@ export default function OrgLoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center mb-3">
-            <HelvionLogo variant="light" heightClassName="h-9" />
+            <HelvionLogo variant="light" heightClassName="h-10" />
           </div>
           <p className="text-[#475569]">{t("auth.orgPortal")}</p>
         </div>

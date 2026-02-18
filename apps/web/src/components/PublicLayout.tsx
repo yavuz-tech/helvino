@@ -375,7 +375,7 @@ export default function PublicLayout({
             <HelvionLogo
               variant="light"
               alt={APP_NAME}
-              heightClassName="h-7"
+              heightClassName="h-8"
               className="transition-opacity duration-200 group-hover:opacity-90"
             />
           </Link>
@@ -513,7 +513,7 @@ export default function PublicLayout({
                 <HelvionLogo
                   variant="dark"
                   alt={APP_NAME}
-                  heightClassName="h-7"
+                  heightClassName="h-8"
                   className="opacity-95 transition-opacity duration-200 group-hover:opacity-100"
                 />
               </Link>

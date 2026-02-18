@@ -743,7 +743,7 @@ export default function PortalLoginPage() {
           <section className="mx-auto w-full max-w-[560px] md:w-1/2">
             <div className="mb-6 text-center md:hidden">
               <div className="mx-auto mb-4 inline-flex items-center justify-center">
-                <HelvionLogo variant="light" heightClassName="h-8" />
+                <HelvionLogo variant="light" heightClassName="h-10" />
               </div>
               <h1 className="mb-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t("nav.customerPortal")}</h1>
               <p className="text-sm text-[var(--text-secondary)]">{t("auth.tenantAccess")}</p>
@@ -753,7 +753,7 @@ export default function PortalLoginPage() {
               <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl">
                 <div className="mb-5 flex items-center gap-3">
                   <div>
-                    <HelvionLogo variant="light" heightClassName="h-6" />
+                    <HelvionLogo variant="light" heightClassName="h-8" />
                     <p className="text-xs text-[var(--text-secondary)]">{t("portalLogin.formSubtitle")}</p>
                   </div>
                 </div>

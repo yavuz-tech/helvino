@@ -221,7 +221,7 @@ export default function AdminLoginPage() {
               <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl">
                 <div className="mb-5 flex items-center gap-3">
                   <div>
-                    <HelvionLogo variant="light" heightClassName="h-6" />
+                    <HelvionLogo variant="light" heightClassName="h-8" />
                     <p className="text-xs text-[var(--text-secondary)]">{t("auth.adminDashboard")}</p>
                   </div>
                 </div>
