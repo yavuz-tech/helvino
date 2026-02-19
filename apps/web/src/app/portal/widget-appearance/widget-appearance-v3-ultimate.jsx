@@ -1309,6 +1309,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                 <div style={{ padding: 18, animation: "fadeUp 0.3s ease both" }}>
                   <p style={{ fontSize: 11, color: "#64748B", marginTop: 0, marginBottom: 12, lineHeight: 1.5 }}>
                     Ziyaretçiler bu butonlara tıklayarak hızlıca sohbet başlatabilir. Sürükleyerek sıralayabilirsiniz.
+                    Ayrıca önizlemedeki Yardım ve Haberler ekranındaki içerik de bu listeden beslenir.
                   </p>
                   {starters.map((st,i) => (
                     <div key={st.id} draggable onDragStart={()=>handleDragStart(i)} onDragOver={e=>handleDragOver(e,i)} onDragEnd={handleDragEnd} style={{
@@ -1839,7 +1840,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                 {attGrabber.id==="message" && (
                   <div style={{background:"#FFF",padding:"8px 12px",borderRadius:"12px 12px 12px 4px",boxShadow:"0 4px 16px rgba(0,0,0,0.1)",maxWidth:180}}>
                     <div style={{fontFamily:s.font,fontSize:11,color:"#1A1D23",lineHeight:1.4}}>{attGrabberText}</div>
-                    <div style={{fontSize:9,color:"#CBD5E1",marginTop:3}}>Şimdi</div>
+                    <div style={{fontSize:9,color:"#CBD5E1",marginTop:3}}>{_t("widgetPreview.justNow")}</div>
                   </div>
                 )}
                 {attGrabber.id==="wave" && <div style={{fontSize:28,animation:"shake 1s ease infinite"}}>👋</div>}
@@ -1948,7 +1949,9 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                   ) : previewState.id === "messages" ? (
                     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
                       <div style={{ background: `linear-gradient(135deg,${ac},${ad})`, padding: "20px 20px 18px" }}>
-                        <div style={{ fontFamily: C.fontH, fontSize: 18, fontWeight: 800, color: "#FFF", textAlign: "center" }}>Messages</div>
+                        <div style={{ fontFamily: C.fontH, fontSize: 18, fontWeight: 800, color: "#FFF", textAlign: "center" }}>
+                          {_t("widgetPreview.tabMessages")}
+                        </div>
                       </div>
                       <div style={{ flex: 1, background: "#FFF", overflowY: "auto" }}>
                         {[aiWelcome || _t("widgetPreview.botGreeting"), _t("widgetPreview.botReply"), _t("widgetPreview.needHelp")].map((msg, i) => (
@@ -1968,21 +1971,30 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                   ) : previewState.id === "help" ? (
                     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
                       <div style={{ background: `linear-gradient(135deg,${ac},${ad})`, padding: "18px 18px 14px" }}>
-                        <div style={{ fontFamily: C.fontH, fontSize: 18, fontWeight: 800, color: "#FFF", textAlign: "center" }}>Help</div>
+                        <div style={{ fontFamily: C.fontH, fontSize: 18, fontWeight: 800, color: "#FFF", textAlign: "center" }}>
+                          {_t("widgetPreview.tabHelp")}
+                        </div>
                       </div>
                       <div style={{ flex: 1, padding: "12px 14px", background: "#F7F7F8", overflowY: "auto" }}>
-                        {starters.filter((s2) => s2.active).slice(0, 4).map((st, i) => (
+                        {(starters.filter((s2) => s2.active).length > 0 ? starters.filter((s2) => s2.active) : starters).slice(0, 4).map((st, i) => (
                           <div key={i} style={{ background: "#FFF", border: "1px solid #EBEBEB", borderRadius: 14, padding: "14px 14px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                             <span style={{ fontFamily: C.font, fontSize: 13.5, color: "#333" }}>{st.text}</span>
                             <Chev clr="#D1D5DB" />
                           </div>
                         ))}
+                        {starters.length === 0 ? (
+                          <div style={{ fontFamily: C.font, fontSize: 12.5, color: "#94A3B8", padding: "10px 4px" }}>
+                            İçerik eklemek için `Konuşma Başlatıcılar` bölümünden başlatıcı ekleyin.
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   ) : previewState.id === "news" ? (
                     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
                       <div style={{ background: `linear-gradient(135deg,${ac},${ad})`, padding: "18px 18px 14px" }}>
-                        <div style={{ fontFamily: C.fontH, fontSize: 18, fontWeight: 800, color: "#FFF", textAlign: "center" }}>News</div>
+                        <div style={{ fontFamily: C.fontH, fontSize: 18, fontWeight: 800, color: "#FFF", textAlign: "center" }}>
+                          {_t("widgetPreview.tabNews")}
+                        </div>
                       </div>
                       <div style={{ flex: 1, padding: "12px 14px", background: "#F7F7F8", overflowY: "auto" }}>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
@@ -1990,7 +2002,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                           <Chip label={_t("widgetPreview.chipUpdates")} chipColor="#8B5CF6" />
                           <Chip label={_t("widgetPreview.chipSecurity")} chipColor="#10B981" />
                         </div>
-                        {starters.filter((s2) => s2.active).slice(0, 2).map((st, i) => (
+                        {(starters.filter((s2) => s2.active).length > 0 ? starters.filter((s2) => s2.active) : starters).slice(0, 2).map((st, i) => (
                           <div key={i} style={{ background: "#FFF", border: "1px solid #EBEBEB", borderRadius: 14, padding: "14px 14px", marginBottom: 8 }}>
                             <div style={{ fontFamily: C.fontH, fontSize: 13.5, fontWeight: 800, color: "#222" }}>{st.text}</div>
                             <div style={{ fontFamily: C.font, fontSize: 12.5, color: "#888", marginTop: 5, lineHeight: 1.45 }}>
@@ -1998,6 +2010,11 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                             </div>
                           </div>
                         ))}
+                        {starters.length === 0 ? (
+                          <div style={{ fontFamily: C.font, fontSize: 12.5, color: "#94A3B8", padding: "10px 4px" }}>
+                            Haber kartları için `Konuşma Başlatıcılar` listesini kullanıyoruz.
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   ) : (
@@ -2016,7 +2033,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                               </div>
                               <div style={{ marginTop: 2, fontFamily: C.font, fontSize: 11.5, color: "rgba(255,255,255,.78)", display: "flex", alignItems: "center", gap: 6 }}>
                                 <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80" }} />
-                                Online
+                                {_t("widgetPreview.online")}
                               </div>
                             </div>
                           </div>
@@ -2030,7 +2047,9 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                           </div>
                         </div>
                         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-                          <div style={{ maxWidth: "78%", padding: "9px 12px", borderRadius: "12px 12px 3px 12px", background: `linear-gradient(135deg,${ac},${ad})`, fontFamily: C.font, fontSize: 12.5, lineHeight: 1.45, color: "#FFF" }}>Fiyatlandırma hakkında bilgi alabilir miyim?</div>
+                          <div style={{ maxWidth: "78%", padding: "9px 12px", borderRadius: "12px 12px 3px 12px", background: `linear-gradient(135deg,${ac},${ad})`, fontFamily: C.font, fontSize: 12.5, lineHeight: 1.45, color: "#FFF" }}>
+                            {_t("widgetPreview.userMessage")}
+                          </div>
                         </div>
                         {typingIndicator ? (
                           <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, background: "#FFF", border: "1px solid #EBEBEB", width: "fit-content" }}>
