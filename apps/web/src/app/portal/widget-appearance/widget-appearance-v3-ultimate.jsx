@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useI18n } from "@/i18n/I18nContext";
-import HelvionPoweredByPill from "@/components/brand/HelvionPoweredByPill";
 
 /* ═══════════════════════════════════════════════════════════════
    HELVION.IO — Widget Görünüm Ayarları v2 — ULTIMATE
@@ -37,11 +36,13 @@ const POSITIONS = [
 ];
 
 const PREVIEW_STATES = [
+  // "Launcher" is the closed state (trigger-only).
   { id: "launcher", label: "Başlatıcı", icon: "💬" },
   { id: "home", label: "Ana Ekran", icon: "🏠" },
-  { id: "chat", label: "Sohbet", icon: "✉️" },
-  { id: "prechat", label: "Ön Form", icon: "📋" },
-  { id: "offline", label: "Çevrimdışı", icon: "🌙" },
+  { id: "messages", label: "Mesajlar", icon: "✉️" },
+  { id: "help", label: "Yardım", icon: "❓" },
+  { id: "news", label: "Haberler", icon: "🔔" },
+  { id: "chat", label: "Sohbet", icon: "💭" },
 ];
 
 const SIZES = [
@@ -701,6 +702,325 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
       background: "#FFFCF8", transition: "border 0.2s",
     },
   };
+
+  // ────────────────────────────────────────────────
+  // Widget preview components (light mode, Intercom-like)
+  // - Only used inside the preview canvas.
+  // - Uses existing theme state (ac/ad) and existing showBranding.
+  // ────────────────────────────────────────────────
+
+  const C = { fontH: s.fontH, font: s.font };
+  const color = ac;
+  const colorD = ad;
+  const colorL = `${color}15`; // 8-digit hex alpha (e.g. #F59E0B15)
+
+  const setPreviewId = (id) => {
+    const next = PREVIEW_STATES.find((x) => x.id === id);
+    if (next) setPreviewState(next);
+  };
+
+  const Avatar = ({ bg, ini, sz = 34, ml = 0, online, border = "#FFF" }) => (
+    <div style={{ position: "relative", marginLeft: ml, zIndex: ml < 0 ? 1 : 2, flexShrink: 0 }}>
+      <div
+        style={{
+          width: sz,
+          height: sz,
+          borderRadius: "50%",
+          background: bg,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: C.fontH,
+          fontSize: sz <= 28 ? 9 : sz <= 34 ? 11 : 13,
+          fontWeight: 700,
+          color: "#FFF",
+          border: `2.5px solid ${border}`,
+          boxShadow: "0 1px 3px rgba(0,0,0,.08)",
+        }}
+      >
+        {ini}
+      </div>
+      {online ? (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            right: 0,
+            width: sz * 0.3,
+            height: sz * 0.3,
+            borderRadius: "50%",
+            background: "#22C55E",
+            border: `2px solid ${border}`,
+          }}
+        />
+      ) : null}
+    </div>
+  );
+
+  const AvatarStack = ({ items, sz = 38, border = "#FFF" }) => (
+    <div style={{ display: "flex" }}>
+      {items.map((a, i) => (
+        <Avatar key={i} bg={a.bg} ini={a.i} sz={sz} ml={i > 0 ? -10 : 0} online={a.online} border={border} />
+      ))}
+    </div>
+  );
+
+  const BotIcon = ({ sz = 32 }) => (
+    <div
+      style={{
+        width: sz,
+        height: sz,
+        borderRadius: Math.round(sz * 0.28),
+        background: `linear-gradient(135deg,${color},${colorD})`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        boxShadow: `0 2px 8px ${color}25`,
+      }}
+    >
+      <span style={{ fontFamily: C.fontH, fontSize: Math.round(sz * 0.4), fontWeight: 900, color: "#FFF" }}>H</span>
+    </div>
+  );
+
+  const LightningIcon = ({ sz = 28 }) => (
+    <div
+      style={{
+        width: sz,
+        height: sz,
+        borderRadius: "50%",
+        background: "#FEF3C7",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      <svg width={sz * 0.5} height={sz * 0.5} viewBox="0 0 24 24" fill="#F59E0B" stroke="none" aria-hidden="true">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+      </svg>
+    </div>
+  );
+
+  const AiBadge = () => (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "3px 8px",
+        borderRadius: 6,
+        background: colorL,
+        fontFamily: C.fontH,
+        fontSize: 9,
+        fontWeight: 800,
+        color,
+        letterSpacing: 0.5,
+      }}
+    >
+      AI
+    </span>
+  );
+
+  const Chip = ({ label, chipColor }) => (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "4px 12px",
+        borderRadius: 20,
+        background: (chipColor || color) + "12",
+        fontFamily: C.fontH,
+        fontSize: 11,
+        fontWeight: 600,
+        color: chipColor || color,
+      }}
+    >
+      {label}
+    </span>
+  );
+
+  const Chev = ({ clr }) => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={clr || color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 18l6-6-6-6" />
+    </svg>
+  );
+
+  const ReplyBar = ({ gray }) => (
+    <div
+      style={{
+        padding: "10px 14px",
+        background: gray ? "#F5F5F7" : "#FFF",
+        borderTop: "1px solid #EBEBEB",
+        display: "flex",
+        alignItems: "center",
+        gap: 2,
+      }}
+    >
+      <div style={{ flex: 1, fontFamily: C.font, fontSize: 13.5, color: "#B0B0B0", padding: "2px 0" }}>
+        Type a reply...
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ border: "1.5px solid #D0D0D0", borderRadius: 4, padding: "1px 4px", display: "flex", alignItems: "center" }}>
+          <span style={{ fontFamily: C.fontH, fontSize: 9, fontWeight: 700, color: "#B0B0B0", letterSpacing: 0.3 }}>
+            GIF
+          </span>
+        </div>
+        {emojiPicker ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C0C0C0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+            <line x1="9" y1="9" x2="9.01" y2="9" />
+            <line x1="15" y1="9" x2="15.01" y2="9" />
+          </svg>
+        ) : null}
+        {fileUpload ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C0C0C0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+          </svg>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const navItems = [
+    {
+      id: "home",
+      l: "Home",
+      ic: (a) =>
+        a ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1.5" aria-hidden="true">
+            <path d="M3 9.5L12 3l9 6.5V20a2 2 0 01-2 2H5a2 2 0 01-2-2V9.5z" />
+            <rect x="9" y="13" width="6" height="9" rx="1" fill="#FFF" stroke="none" />
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+        ),
+    },
+    {
+      id: "messages",
+      l: "Messages",
+      badge: showUnread ? 1 : 0,
+      ic: (a) =>
+        a ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1.5" aria-hidden="true">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+            <line x1="8" y1="9" x2="16" y2="9" stroke="#FFF" strokeWidth="2" strokeLinecap="round" />
+            <line x1="8" y1="13" x2="13" y2="13" stroke="#FFF" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+          </svg>
+        ),
+    },
+    {
+      id: "help",
+      l: "Help",
+      ic: (a) =>
+        a ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" fill={color} />
+            <text x="12" y="16" textAnchor="middle" fill="#FFF" fontFamily={C.fontH} fontSize="13" fontWeight="800">
+              ?
+            </text>
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        ),
+    },
+    {
+      id: "news",
+      l: "News",
+      ic: (a) =>
+        a ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1.5" aria-hidden="true">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" fill="none" stroke={color} strokeWidth="2" />
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" />
+          </svg>
+        ),
+    },
+  ];
+
+  const WNav = ({ activeId }) => (
+    <div style={{ display: "flex", borderTop: "1px solid #EBEBEB", background: "#FFF", padding: "2px 0" }}>
+      {navItems.map((n) => {
+        const a = activeId === n.id;
+        const badge = n.badge ? n.badge : 0;
+        return (
+          <div
+            key={n.id}
+            onClick={() => setPreviewId(n.id)}
+            style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "9px 0 7px", cursor: "pointer" }}
+          >
+            <div style={{ position: "relative" }}>
+              {n.ic(a)}
+              {badge ? (
+                <div style={{ position: "absolute", top: -4, right: -7, minWidth: 15, height: 15, borderRadius: 8, background: "#EF4444", border: "2px solid #FFF", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
+                  <span style={{ fontFamily: C.fontH, fontSize: 8, fontWeight: 800, color: "#FFF" }}>{badge}</span>
+                </div>
+              ) : null}
+            </div>
+            <span style={{ fontFamily: C.fontH, fontSize: 10, fontWeight: a ? 700 : 500, color: a ? color : "#999" }}>{n.l}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const Branding = () => (
+    <div style={{ padding: "9px 16px", background: "#FAFAFA", borderTop: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+      <span style={{ fontFamily: C.fontH, fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#C0C0C0", textTransform: "uppercase" }}>
+        Powered by
+      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <BotIcon sz={15} />
+        <span style={{ fontFamily: C.fontH, fontSize: 10.5, fontWeight: 800, color: "#999", letterSpacing: 0.5 }}>
+          HELVION
+        </span>
+      </div>
+    </div>
+  );
+
+  const TriggerButton = ({ isOpen }) => (
+    <div
+      onClick={() => setPreviewId(isOpen ? "launcher" : "home")}
+      style={{
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        background: `linear-gradient(135deg,${color},${colorD})`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: `0 10px 30px rgba(0,0,0,0.18)`,
+        cursor: "pointer",
+        userSelect: "none",
+      }}
+      aria-label={isOpen ? "Close" : "Open"}
+      role="button"
+    >
+      {isOpen ? (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      ) : (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      )}
+    </div>
+  );
 
   if (externalLoading) {
     return (
@@ -1380,7 +1700,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
           {/* Preview State Tabs — BÜYÜTÜLDÜ */}
           <div style={{ display: "flex", gap: 4, marginBottom: 14, background: "#FFF", borderRadius: 12, padding: 4, border: "1px solid #E8E0D4" }}>
-            {PREVIEW_STATES.map(ps=>{const sel=previewState.id===ps.id;return(
+            {PREVIEW_STATES.filter(ps=>ps.id!=="launcher").map(ps=>{const sel=previewState.id===ps.id;return(
               <div key={ps.id} onClick={()=>setPreviewState(ps)} style={{
                 flex:1, padding: "10px 5px", borderRadius: 9, cursor: "pointer", textAlign: "center",
                 background: sel?`linear-gradient(135deg,${ac},${ad})`:"transparent", transition: "all 0.3s",
@@ -1400,11 +1720,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
             transition: "width 0.4s ease",
           }}>
             {/* Fake site bg - Premium animated */}
-            <div style={{ position: "absolute", inset: 0, background: `linear-gradient(160deg, #FAFAF8 0%, rgba(${acRgb},0.016) 30%, rgba(${acRgb},0.03) 60%, rgba(${acRgb},0.012) 100%)`, zIndex: 0, overflow: "hidden" }}>
-              {/* Animated mesh blobs */}
-              <div style={{ position: "absolute", width: 200, height: 200, borderRadius: "50%", background: `radial-gradient(circle, rgba(${acRgb},0.06), transparent 70%)`, top: -40, right: -60, animation: "meshFloat1 8s ease-in-out infinite" }} />
-              <div style={{ position: "absolute", width: 150, height: 150, borderRadius: "50%", background: `radial-gradient(circle, rgba(${adRgb},0.03), transparent 70%)`, bottom: 20, left: -30, animation: "meshFloat2 10s ease-in-out infinite" }} />
-              <div style={{ position: "absolute", width: 100, height: 100, borderRadius: "50%", background: `radial-gradient(circle, rgba(${acRgb},0.024), transparent 70%)`, top: "40%", right: "20%", animation: "meshFloat3 12s ease-in-out infinite" }} />
+            <div style={{ position: "absolute", inset: 0, background: "#FFF", zIndex: 0, overflow: "hidden" }}>
               <div style={{ height: 32, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)", borderBottom: `1px solid rgba(${acRgb},0.06)`, display: "flex", alignItems: "center", padding: "0 12px", gap: 6, position: "relative", zIndex: 1 }}>
                 <div style={{width:7,height:7,borderRadius:"50%",background:"#FEE2E2"}} />
                 <div style={{width:7,height:7,borderRadius:"50%",background:"#FEF3C7"}} />
@@ -1415,11 +1731,6 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                 {[65,85,55,75,45,70].map((w,i)=><div key={i} style={{height:7,width:`${w}%`,borderRadius:3,background:"#F1F5F9",marginBottom:8}} />)}
                 <div style={{height:60,borderRadius:10,background:"#F8F4EF",marginTop:12}} />
               </div>
-              {/* Wave overlay */}
-              <svg viewBox="0 0 400 600" style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}} preserveAspectRatio="none">
-                <defs><linearGradient id="wG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={ac} stopOpacity="0.035"/><stop offset="100%" stopColor={ac} stopOpacity="0"/></linearGradient></defs>
-                <path d="M0,80 C100,120 200,40 300,90 C350,115 380,70 400,85 L400,0 L0,0 Z" fill="url(#wG)"/>
-              </svg>
             </div>
 
             {/* Attention Grabber preview */}
@@ -1443,137 +1754,192 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
 
             {/* Widget */}
             {previewState.id==="launcher" ? (
-              <div style={{
-                position:"absolute", bottom:16, zIndex:2,
-                ...(devicePreview==="mobile" ? {left:"50%",transform:"translateX(-50%)"} : {[position.x]:16}),
-                perspective:"600px",
-              }}>
-              <div style={{
-                animation:"widgetFloat 3s ease-in-out infinite",
-                transformStyle:"preserve-3d",
-              }}>
-                <div style={{
-                  width:launcher.w, height:launcher.h, borderRadius:launcher.radius,
-                  background:ag,
-                  display:"flex",alignItems:"center",justifyContent:"center",gap:6,
-                  boxShadow:`0 8px 28px rgba(${acRgb},0.25)`, cursor:"pointer", transition:"all 0.5s",
-                }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  {launcher.hasText && <span style={{fontFamily:s.fontH,fontSize:11,fontWeight:700,color:"#FFF"}}>{launcherLabel}</span>}
-                </div>
-                {showUnread && <div style={{position:"absolute",top:-3,right:-3,width:18,height:18,borderRadius:9,background:"#EF4444",color:"#FFF",fontFamily:s.fontH,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid #FFF"}}>3</div>}
-              </div>
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 16,
+                  zIndex: 2,
+                  ...(devicePreview === "mobile"
+                    ? { left: "50%", transform: "translateX(-50%)" }
+                    : { [position.x]: 16 }),
+                }}
+              >
+                <TriggerButton isOpen={false} />
               </div>
             ) : (
-              <div style={{ position:"absolute", bottom:14, left: devicePreview==="mobile" ? "50%" : "auto", right: devicePreview==="mobile" ? "auto" : (position.x==="right" ? 14 : "auto"), [devicePreview==="mobile" ? "" : position.x]: devicePreview==="mobile" ? undefined : 14, transform: devicePreview==="mobile" ? "translateX(-50%)" : "none", width:Math.min(widgetSize.w*0.88,devicePreview==="mobile"?260:370), zIndex:2, perspective:"800px" }}>
-              <div style={{ animation:"widgetFloat 4.5s ease-in-out infinite", transformStyle:"preserve-3d" }}>
-                <div style={{ background:"#FFF", borderRadius:16, boxShadow:`0 10px 40px rgba(0,0,0,0.1), 0 4px 20px rgba(${acRgb},0.06)`, overflow:"hidden", transition:"box-shadow 0.5s" }}>
-                  {/* Header */}
-                  <div style={{ background:ag, padding:"18px 16px 14px", position:"relative", overflow:"hidden", transition:"background 0.5s" }}>
-                    <div style={{position:"absolute",inset:0,background:"radial-gradient(circle at 85% 15%,rgba(255,255,255,0.12),transparent 60%)"}} />
-                    <div style={{position:"relative",zIndex:1,display:"flex",alignItems:"center",gap:9}}>
-                      <div style={{width:38,height:38,borderRadius:11,background:"rgba(255,255,255,0.2)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,border:"1px solid rgba(255,255,255,0.15)"}}>{botAvatar}</div>
-                      <div style={{flex:1}}>
-                        <div style={{fontFamily:s.fontH,fontWeight:700,fontSize:15,color:"#FFF",display:"flex",alignItems:"center",gap:5}}>
-                          {headerText.length>22?headerText.slice(0,22)+"...":headerText}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 14,
+                  zIndex: 2,
+                  ...(devicePreview === "mobile"
+                    ? { left: "50%", transform: "translateX(-50%)" }
+                    : { [position.x]: 14 }),
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: position.x === "left" ? "flex-start" : "flex-end",
+                  gap: 12,
+                }}
+              >
+                <div
+                  className="widget-shell"
+                  style={{
+                    width: 330,
+                    height: 510,
+                    background: "#FFF",
+                    borderRadius: 16,
+                    boxShadow: "0 16px 48px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,.05)",
+                    overflow: "hidden",
+                    transform: devicePreview === "mobile" ? "scale(0.84)" : "none",
+                    transformOrigin: position.x === "left" ? "bottom left" : "bottom right",
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                >
+                  {/* Screens: Home / Messages / Help / News / Chat */}
+                  {previewState.id === "home" ? (
+                    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                      <div style={{ background: `linear-gradient(160deg,${ac},${ad})`, padding: "24px 22px 32px", position: "relative", overflow: "hidden" }}>
+                        <div style={{ position: "absolute", top: -30, right: -30, width: 140, height: 140, borderRadius: "50%", background: "radial-gradient(circle,rgba(255,255,255,.10),transparent 65%)", pointerEvents: "none" }} />
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, position: "relative", zIndex: 2 }}>
+                          <LightningIcon sz={30} />
+                          <AvatarStack
+                            items={[
+                              { bg: `linear-gradient(135deg,${ac},${ad})`, i: "AY", online: true },
+                              { bg: "linear-gradient(135deg,#8B5CF6,#6D28D9)", i: "EK" },
+                              { bg: "linear-gradient(135deg,#10B981,#059669)", i: "MO" },
+                            ]}
+                            sz={36}
+                            border="rgba(255,255,255,.3)"
+                          />
                         </div>
-                        <div style={{fontFamily:s.font,fontSize:11.5,color:"rgba(255,255,255,0.75)",display:"flex",alignItems:"center",gap:4}}>
-                          <div style={{width:7,height:7,borderRadius:"50%",background:"#4ADE80"}} />{subText.length>30?subText.slice(0,30)+"...":subText}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Body */}
-                  {previewState.id==="home" && (
-                    <div style={{padding:14,background:`linear-gradient(180deg, rgba(${acRgb},0.016) 0%, transparent 60%)`}}>
-                      {starters.filter(st=>st.active).slice(0,4).map((st,i)=>(
-                        <div key={st.id} style={{
-                          display:"flex",alignItems:"center",gap:8,padding:"11px 12px",borderRadius:10,marginBottom:6,
-                          background:i===0?`rgba(${acRgb},0.03)`:"#FAFAF8",border:i===0?`1px solid rgba(${acRgb},0.08)`:"1px solid #F1F5F9",cursor:"pointer",
-                        }}>
-                          <span style={{fontFamily:s.font,fontSize:12.5,fontWeight:500,color:"#1A1D23"}}>{st.text}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {previewState.id==="chat" && (
-                    <div style={{padding:14,minHeight:widgetSize.id==="compact"?140:widgetSize.id==="large"?240:190,position:"relative",background:`linear-gradient(180deg, rgba(${acRgb},0.02) 0%, rgba(${acRgb},0.008) 40%, transparent 100%)`,transition:"min-height 0.3s ease"}}>
-                      {bgPattern.pattern && <div style={{position:"absolute",inset:0,backgroundImage:bgPattern.pattern,backgroundSize:bgPattern.size||(bgPattern.id==="grid"?"16px 16px":"8px 8px"),color:`rgba(${acRgb},0.13)`,pointerEvents:"none"}} />}
-                      <div style={{position:"relative",zIndex:1}}>
-                        {/* AI Agent Label */}
-                        {aiLabel && <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:5}}>
-                          <div style={{width:20,height:20,borderRadius:6,background:`linear-gradient(135deg,${ac},${ad})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9}}>🤖</div>
-                          <span style={{fontFamily:s.fontH,fontSize:10,fontWeight:700,color:ac}}>{aiName}</span>
-                          <span style={{fontSize:8,fontWeight:700,padding:"2px 6px",borderRadius:4,background:`rgba(${acRgb},0.07)`,color:ac}}>AI Agent</span>
-                        </div>}
-                        <ChatBubble isAgent text={aiWelcome.length>40?aiWelcome.slice(0,40)+"...":aiWelcome} color={ac} dark={ad} avatar={botAvatar} />
-                        <ChatBubble text="Fiyatlandırma hakkında bilgi alabilir miyim?" color={ac} dark={ad} />
-                        <ChatBubble isAgent text={aiTone==="professional"?"Elbette, hemen yardımcı olayım.":aiTone==="humorous"?"Tabii ki! Hemen bakıyorum 🚀😄":aiTone==="neutral"?"Tabii, size yardımcı olayım.":`Tabii! Size hemen yardımcı olayım ${aiEmoji?"😊":""}`} color={ac} dark={ad} avatar={agentAvatar} />
-                        {aiSuggestions && (
-                          <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:6}}>
-                            {["💰 Planları gör","📞 İletişim","📦 Kargo bilgisi"].map((s2,i)=>(
-                              <div key={i} style={{fontSize:10.5,fontWeight:700,padding:"6px 10px",borderRadius:9,background:`linear-gradient(135deg, rgba(${acRgb},0.07), rgba(${acRgb},0.024))`,border:`1.5px solid rgba(${acRgb},0.12)`,color:ac,fontFamily:s.fontH,cursor:"pointer",letterSpacing:"-0.01em",boxShadow:`0 1px 3px rgba(${acRgb},0.06)`}}>{s2}</div>
-                            ))}
+                        <div style={{ position: "relative", zIndex: 2 }}>
+                          <div style={{ fontFamily: C.fontH, fontSize: 22, fontWeight: 400, color: "rgba(255,255,255,.82)", lineHeight: 1.25 }}>Hi there 👋</div>
+                          <div style={{ fontFamily: C.fontH, fontSize: 22, fontWeight: 800, color: "#FFF", lineHeight: 1.25 }}>{headerText || "How can we help?"}</div>
+                          <div style={{ marginTop: 8, fontFamily: C.font, fontSize: 12, color: "rgba(255,255,255,.78)", display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80" }} />
+                            {subText || "We typically reply in a few minutes"}
                           </div>
-                        )}
-                        {typingIndicator && (
-                          <div style={{display:"flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:10,background:"#F3F4F6",width:"fit-content",marginTop:6}}>
-                            <div style={{display:"flex",gap:3}}>{[0,1,2].map(d=><div key={d} style={{width:5,height:5,borderRadius:"50%",background:"#94A3B8",animation:`pulse 1s ${d*0.2}s infinite`}} />)}</div>
-                            <span style={{fontSize:9,color:"#94A3B8"}}>yazıyor...</span>
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, padding: "12px 14px", background: "#F7F7F8", display: "flex", flexDirection: "column", gap: 9, overflowY: "auto" }}>
+                        <div onClick={() => setPreviewId("chat")} style={{ background: "#FFF", border: "1px solid #EBEBEB", borderRadius: 14, padding: "14px 16px", cursor: "pointer" }}>
+                          <div style={{ fontFamily: C.fontH, fontSize: 12, fontWeight: 700, color: "#999", marginBottom: 10 }}>Recent message</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <AvatarStack items={[{ bg: `linear-gradient(135deg,${ac},${ad})`, i: "AY", online: true }, { bg: "linear-gradient(135deg,#8B5CF6,#6D28D9)", i: "EK" }]} sz={30} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontFamily: C.font, fontSize: 13.5, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{aiWelcome || "Hi there. I'm Helvion Assistant. How can I help..."}</div>
+                              <div style={{ fontFamily: C.font, fontSize: 11, color: "#B0B0B0", marginTop: 3 }}>Customer Service · 9m ago</div>
+                            </div>
+                            <Chev />
                           </div>
-                        )}
-                      </div>
-                      <div style={{marginTop:12,display:"flex",gap:7,alignItems:"center",padding:"9px 12px",borderRadius:11,border:"1.5px solid #E8E0D4",background:"#FFFCF8",position:"relative",zIndex:1}}>
-                        {emojiPicker && <span style={{fontSize:14,cursor:"pointer"}}>😊</span>}
-                        <div style={{flex:1,fontFamily:s.font,fontSize:12,color:"#94A3B8"}}>Mesajınızı yazın...</div>
-                        {fileUpload && <span style={{fontSize:12,cursor:"pointer",color:"#CBD5E1"}}>📎</span>}
-                        <div style={{width:28,height:28,borderRadius:8,background:`linear-gradient(135deg,${ac},${ad})`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        </div>
+                        <div onClick={() => setPreviewId("chat")} style={{ background: "#FFF", border: "1px solid #EBEBEB", borderRadius: 14, padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div>
+                            <div style={{ fontFamily: C.fontH, fontSize: 14, fontWeight: 700, color: "#222" }}>Send us a message</div>
+                            <div style={{ fontFamily: C.font, fontSize: 12, color: "#B0B0B0", marginTop: 3 }}>We typically reply in a few minutes</div>
+                          </div>
+                          <div style={{ width: 34, height: 34, borderRadius: 10, background: `linear-gradient(135deg,${ac},${ad})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  )}
-
-                  {previewState.id==="prechat" && (
-                    <div style={{padding:12}}>
-                      <div style={{fontFamily:s.fontH,fontSize:14,fontWeight:700,color:"#1A1D23",marginBottom:12}}>Bilgilerinizi girin</div>
-                      {["Ad Soyad","Email"].map((f,i)=>(
-                        <div key={f} style={{marginBottom:8}}>
-                          <label style={{fontFamily:s.font,fontSize:11.5,fontWeight:600,color:"#64748B",display:"block",marginBottom:4}}>{f} *</label>
-                          <div style={{height:36,borderRadius:8,border:"1.5px solid #E8E0D4",background:"#FFFCF8"}} />
+                  ) : previewState.id === "messages" ? (
+                    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                      <div style={{ background: `linear-gradient(135deg,${ac},${ad})`, padding: "20px 20px 18px" }}>
+                        <div style={{ fontFamily: C.fontH, fontSize: 18, fontWeight: 800, color: "#FFF", textAlign: "center" }}>Messages</div>
+                      </div>
+                      <div style={{ flex: 1, background: "#FFF", overflowY: "auto" }}>
+                        {["Hi there. I'm Helvion Assistant. How can I...","Is there anything specific you're looking f...","👋 Anything I can help with?"].map((msg, i) => (
+                          <div key={i} onClick={() => setPreviewId("chat")} style={{ display: "flex", alignItems: "center", gap: 11, padding: "14px 18px", borderBottom: "1px solid #F3F3F3", cursor: "pointer" }}>
+                            <AvatarStack items={[{ bg: `linear-gradient(135deg,${ac},${ad})`, i: "AY", online: true }, { bg: "linear-gradient(135deg,#8B5CF6,#6D28D9)", i: "EK" }]} sz={30} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontFamily: C.font, fontSize: 13.5, color: "#555", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{msg}</div>
+                              <div style={{ fontFamily: C.font, fontSize: 11, color: "#BBB", marginTop: 2 }}>Customer Service · {i === 0 ? "1d ago" : i === 1 ? "2d ago" : "4d ago"}</div>
+                            </div>
+                            <Chev clr="#D1D5DB" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : previewState.id === "help" ? (
+                    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                      <div style={{ background: `linear-gradient(135deg,${ac},${ad})`, padding: "18px 18px 14px" }}>
+                        <div style={{ fontFamily: C.fontH, fontSize: 18, fontWeight: 800, color: "#FFF", textAlign: "center" }}>Help</div>
+                      </div>
+                      <div style={{ flex: 1, padding: "12px 14px", background: "#F7F7F8", overflowY: "auto" }}>
+                        {["Getting started", "Install the widget", "Security & privacy", "Billing & plans"].map((txt, i) => (
+                          <div key={i} style={{ background: "#FFF", border: "1px solid #EBEBEB", borderRadius: 14, padding: "14px 14px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <span style={{ fontFamily: C.font, fontSize: 13.5, color: "#333" }}>{txt}</span>
+                            <Chev clr="#D1D5DB" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : previewState.id === "news" ? (
+                    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                      <div style={{ background: `linear-gradient(135deg,${ac},${ad})`, padding: "18px 18px 14px" }}>
+                        <div style={{ fontFamily: C.fontH, fontSize: 18, fontWeight: 800, color: "#FFF", textAlign: "center" }}>News</div>
+                      </div>
+                      <div style={{ flex: 1, padding: "12px 14px", background: "#F7F7F8", overflowY: "auto" }}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                          <Chip label="Product" />
+                          <Chip label="Updates" chipColor="#8B5CF6" />
+                          <Chip label="Security" chipColor="#10B981" />
                         </div>
-                      ))}
-                      <div style={{marginTop:4,padding:"10px",borderRadius:9,textAlign:"center",background:`linear-gradient(135deg,${ac},${ad})`,fontFamily:s.fontH,fontSize:12.5,fontWeight:700,color:"#FFF"}}>Sohbete Başla</div>
+                        {["New inbox rules","Widget polish"].map((t2, i) => (
+                          <div key={i} style={{ background: "#FFF", border: "1px solid #EBEBEB", borderRadius: 14, padding: "14px 14px", marginBottom: 8 }}>
+                            <div style={{ fontFamily: C.fontH, fontSize: 13.5, fontWeight: 800, color: "#222" }}>{t2}</div>
+                            <div style={{ fontFamily: C.font, fontSize: 12.5, color: "#888", marginTop: 5, lineHeight: 1.45 }}>{i === 0 ? "Routing, tags, and better visibility." : "Light mode preview and Intercom-like UI."}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                      <div style={{ background: `linear-gradient(160deg,${ac},${ad})`, padding: "16px 16px 14px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div onClick={() => setPreviewId("messages")} style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,.18)", border: "1px solid rgba(255,255,255,.18)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+                            <BotIcon sz={34} />
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <div style={{ fontFamily: C.fontH, fontSize: 14.5, fontWeight: 900, color: "#FFF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{aiName || "Helvion AI"}</div>
+                                {aiLabel ? <AiBadge /> : null}
+                              </div>
+                              <div style={{ marginTop: 2, fontFamily: C.font, fontSize: 11.5, color: "rgba(255,255,255,.78)", display: "flex", alignItems: "center", gap: 6 }}>
+                                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80" }} />
+                                Online
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, padding: "12px 14px", background: "#F7F7F8", overflowY: "auto" }}>
+                        <div style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "flex-start" }}>
+                          <BotIcon sz={28} />
+                          <div style={{ maxWidth: "78%", padding: "9px 12px", borderRadius: "12px 12px 12px 3px", background: "#FFF", border: "1px solid #EBEBEB", fontFamily: C.font, fontSize: 12.5, lineHeight: 1.45, color: "#1A1D23" }}>{aiWelcome || "Hi there 👋 How can I help?"}</div>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+                          <div style={{ maxWidth: "78%", padding: "9px 12px", borderRadius: "12px 12px 3px 12px", background: `linear-gradient(135deg,${ac},${ad})`, fontFamily: C.font, fontSize: 12.5, lineHeight: 1.45, color: "#FFF" }}>Fiyatlandırma hakkında bilgi alabilir miyim?</div>
+                        </div>
+                        {typingIndicator ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, background: "#FFF", border: "1px solid #EBEBEB", width: "fit-content" }}>
+                            <div style={{ display: "flex", gap: 3 }}>{[0, 1, 2].map((d) => (<div key={d} style={{ width: 5, height: 5, borderRadius: "50%", background: "#94A3B8", animation: `pulse 1s ${d * 0.2}s infinite` }} />))}</div>
+                            <span style={{ fontSize: 9, color: "#94A3B8" }}>typing…</span>
+                          </div>
+                        ) : null}
+                      </div>
+                      <ReplyBar gray />
                     </div>
                   )}
-
-                  {previewState.id==="offline" && (
-                    <div style={{padding:16,textAlign:"center"}}>
-                      <div style={{fontSize:34,marginBottom:8}}>🌙</div>
-                      <div style={{fontFamily:s.fontH,fontSize:15,fontWeight:700,color:"#1A1D23",marginBottom:6}}>Çevrimdışıyız</div>
-                      <div style={{fontFamily:s.font,fontSize:12,color:"#64748B",lineHeight:1.5,marginBottom:14}}>{offlineMsg.length>60?offlineMsg.slice(0,60)+"...":offlineMsg}</div>
-                      <div style={{padding:"10px",borderRadius:9,border:`1.5px solid rgba(${acRgb},0.19)`,background:`rgba(${acRgb},0.02)`,fontFamily:s.fontH,fontSize:12.5,fontWeight:700,color:ac}}>✉️ Mesaj Bırak</div>
-                      {hoursEnabled && (
-                        <div style={{marginTop:10,fontFamily:s.font,fontSize:9,color:"#94A3B8"}}>
-                          ⏰ {hours.find(h=>h.on)? `Çalışma saatleri: ${hours.find(h=>h.on).start} - ${hours.find(h=>h.on).end}` : "Yarın tekrar deneyin"}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Footer - Premium Branding */}
-                  {showBranding && (
-                    <HelvionPoweredByPill
-                      href="https://helvion.io"
-                      prefixKey="widgetPreview.poweredByPrefix"
-                      suffixKey="widgetPreview.poweredBySuffix"
-                      markHeight={20}
-                    />
-                  )}
+                  <WNav activeId={previewState.id === "chat" ? "messages" : previewState.id} />
+                  {showBranding ? <Branding /> : null}
                 </div>
-              </div>
+                <TriggerButton isOpen />
               </div>
             )}
           </div>
