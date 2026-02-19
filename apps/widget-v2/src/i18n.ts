@@ -23,7 +23,8 @@ type Key =
   | "defaultWelcome"
   | "starterPricing"
   | "starterSupport"
-  | "starterOrder";
+  | "starterOrder"
+  | "talkToAgent";
 
 const DICT: Record<WidgetLang, Record<Key, string>> = {
   tr: {
@@ -44,6 +45,7 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     starterPricing: "💰 Fiyatlandırma hakkında bilgi",
     starterSupport: "🔧 Teknik destek istiyorum",
     starterOrder: "📦 Siparişimi takip etmek istiyorum",
+    talkToAgent: "🧑‍💼 Temsilciye bağlan",
   },
   en: {
     loading: "Loading...",
@@ -63,6 +65,7 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     starterPricing: "💰 Pricing information",
     starterSupport: "🔧 I need technical support",
     starterOrder: "📦 Track my order",
+    talkToAgent: "🧑‍💼 Talk to an agent",
   },
   es: {
     loading: "Cargando...",
@@ -82,6 +85,7 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     starterPricing: "💰 Información de precios",
     starterSupport: "🔧 Necesito soporte técnico",
     starterOrder: "📦 Rastrear mi pedido",
+    talkToAgent: "🧑‍💼 Hablar con un agente",
   },
 };
 

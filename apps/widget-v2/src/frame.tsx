@@ -967,6 +967,14 @@ function App() {
                     {label}
                   </button>
                 ))}
+                {/* Handoff CTA (safe UX improvement): always available */}
+                <button
+                  className="hv-starter hv-starter-agent"
+                  type="button"
+                  onClick={() => void pushUserMessage(tWidget(lang, "talkToAgent"))}
+                >
+                  {tWidget(lang, "talkToAgent")}
+                </button>
               </div>
             </div>
           ) : (

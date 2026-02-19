@@ -95,6 +95,12 @@ body {
   cursor: pointer; text-align: left;
   transition: all 150ms;
 }
+.hv-starter-agent {
+  border-color: rgba(var(--hv-primary-rgb, 139,92,246), 0.22);
+  background: linear-gradient(135deg, rgba(var(--hv-primary-rgb, 139,92,246), 0.08), rgba(var(--hv-primary-rgb, 139,92,246), 0.03));
+  color: var(--hv-primary, #8B5CF6);
+  font-weight: 700;
+}
 .hv-starter:hover {
   background: var(--hv-primary, #8B5CF6); color: white;
   border-color: var(--hv-primary, #8B5CF6);

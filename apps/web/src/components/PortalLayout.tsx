@@ -755,7 +755,8 @@ export default function PortalLayout({
       </div>
 
       {/* ── Floating Widget Bubble (customer's own customization) ── */}
-      {widgetSettings && bubbleTheme && (
+      {/* Hide on the widget appearance page to avoid overlapping the Live Preview trigger button. */}
+      {widgetSettings && bubbleTheme && pathname !== "/portal/widget-appearance" && (
         <div
           className={`fixed bottom-6 z-[60] ${bubbleTheme.bubblePosition === "bottom-left" ? "left-6 lg:left-[276px]" : "right-6"}`}
           onMouseEnter={() => setBubbleHover(true)}
