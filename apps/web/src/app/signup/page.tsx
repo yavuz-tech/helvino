@@ -10,7 +10,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { mapPasswordPolicyError } from "@/lib/password-errors";
 import { sanitizePlainText } from "@/utils/sanitize";
 import TurnstileWidget from "@/components/TurnstileWidget";
-import HelvionLogo from "@/components/brand/HelvionLogo";
+import HelvionMark from "@/components/brand/HelvionMark";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
@@ -367,11 +367,8 @@ export default function SignupPage() {
               transition={{ duration: 0.4, ease: "easeOut" }}
             >
               <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl">
-                <div className="mb-5 flex items-center gap-3">
-                  <div>
-                    <HelvionLogo variant="light" heightClassName="h-8" />
-                    <p className="text-xs text-[var(--text-secondary)]">{t("signup.subtitle")}</p>
-                  </div>
+                <div className="mb-6 flex flex-col items-center justify-center text-center">
+                  <HelvionMark height={62} variant="dark" className="hv-logo-float" />
                 </div>
 
                 {success ? (
@@ -470,9 +467,6 @@ export default function SignupPage() {
                     <h1 className="text-xl font-bold text-[var(--text-primary)] mb-1 tracking-tight">
                       {t("signup.title")}
                     </h1>
-                    <p className="text-sm text-[var(--text-secondary)] mb-6">
-                      {t("signup.subtitle")}
-                    </p>
 
                     {error && (
                       <ErrorBanner
