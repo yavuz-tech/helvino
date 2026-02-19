@@ -9,7 +9,10 @@ import crypto from "crypto";
 import { prisma } from "../prisma";
 
 export const PORTAL_SESSION_COOKIE = "helvino_portal_sid";
-const DEFAULT_PORTAL_ACCESS_TOKEN_TTL_MS = 60 * 60 * 1000; // 60 minutes
+// Default portal access cookie TTL.
+// Keep this reasonably long to avoid logging users out while idle in the portal UI.
+// (Refresh tokens are still 7 days, and the access cookie remains httpOnly/secure in prod.)
+const DEFAULT_PORTAL_ACCESS_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const DEFAULT_MAX_ACTIVE_PORTAL_SESSIONS = 10;
 
 function readPositiveIntEnv(name: string, fallback: number): number {

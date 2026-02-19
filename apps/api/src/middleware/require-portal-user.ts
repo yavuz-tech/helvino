@@ -10,7 +10,9 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../prisma";
 import {
   PORTAL_SESSION_COOKIE,
+  createPortalSessionToken,
   verifyPortalSessionToken,
+  PORTAL_SESSION_TTL_MS,
 } from "../utils/portal-session";
 
 declare module "fastify" {
@@ -96,6 +98,46 @@ export async function requirePortalUser(
   }
   if (sessionRecord.accessExpiresAt <= new Date()) {
     return reply.status(401).send({ error: { code: "TOKEN_EXPIRED", message: "token_expired" } });
+  }
+
+  // Rolling access cookie refresh:
+  // - prevents "Authentication required" while the user is actively using the portal
+  // - only rotates when the cookie-based token is used (do NOT invalidate bearer tokens)
+  try {
+    const isUsingCookieToken = selectedToken === cookieToken;
+    if (isUsingCookieToken) {
+      const msLeft = sessionRecord.accessExpiresAt.getTime() - Date.now();
+      const ROTATE_WHEN_LEFT_MS = 30 * 60 * 1000; // 30 minutes
+      if (msLeft > 0 && msLeft < ROTATE_WHEN_LEFT_MS) {
+        const newAccessToken = createPortalSessionToken(
+          { userId: selectedPayload.userId, orgId: selectedPayload.orgId, role: selectedPayload.role },
+          secret,
+          PORTAL_SESSION_TTL_MS
+        );
+        const newHash = hashToken(newAccessToken);
+        const newAccessExpiresAt = new Date(Date.now() + PORTAL_SESSION_TTL_MS);
+
+        // Best-effort rotate: if it fails, keep the old session valid.
+        await prisma.portalSession.update({
+          where: { id: sessionRecord.id },
+          data: {
+            tokenHash: newHash,
+            accessExpiresAt: newAccessExpiresAt,
+            lastSeenAt: new Date(),
+          },
+        });
+
+        reply.setCookie(PORTAL_SESSION_COOKIE, newAccessToken, {
+          path: "/",
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          maxAge: Math.floor(PORTAL_SESSION_TTL_MS / 1000),
+        });
+      }
+    }
+  } catch {
+    // non-fatal — never block API requests because rotation failed
   }
 
   // Update lastSeenAt (best-effort, don't block)
