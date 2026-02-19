@@ -110,7 +110,12 @@ function sanitizeWidgetSettingsForPlan<T extends Record<string, unknown>>(
     overrides.aiSuggestions = false;
   }
 
-  if (Object.keys(overrides).length === 0) return input;
+  // fileUpload & emojiPicker are free-tier features — always enabled.
+  // A previous portal bug force-saved fileUpload=false for Free plans;
+  // override here so existing DB rows don't keep the widget crippled.
+  overrides.fileUpload = true;
+  overrides.emojiPicker = true;
+
   return { ...input, ...overrides } as T;
 }
 

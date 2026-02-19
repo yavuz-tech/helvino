@@ -218,8 +218,10 @@ function parseWidgetSettings(
   const botAvatar = normalize(ws.botAvatar) || "🤖";
   const agentAvatar = normalize(ws.agentAvatar) || "👩‍💼";
   const brandLogoDataUrl = normalize(ws.brandLogoDataUrl);
-  const emojiPickerEnabled = ws.emojiPicker !== false && ws.emojiPickerEnabled !== false; // default ON
-  const fileUploadEnabled = ws.fileUpload !== false && ws.fileUploadEnabled !== false; // default ON
+  // Default ON: only disable when explicitly set to false.
+  // Important: portal may not have saved fileUpload yet; treat undefined/missing as ON.
+  const emojiPickerEnabled = ws.emojiPicker !== false;
+  const fileUploadEnabled = ws.fileUpload !== false;
   const aiName = normalize(ws.aiName) || "Helvion";
   // Avoid "Helvion AI AI" duplication when the name already includes AI.
   const aiLabelEnabled = ws.aiLabel !== false && !/\bai\b/i.test(aiName); // default ON

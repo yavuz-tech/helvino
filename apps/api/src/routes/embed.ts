@@ -18,7 +18,7 @@ import fs from "fs/promises";
 /** Cached buffer so we don't hit the filesystem on every request. */
 let cachedJs: Buffer | null = null;
 let cacheLoadedAt = 0;
-const CACHE_TTL_MS = 5 * 60 * 1000; // re-read from disk every 5 minutes
+const CACHE_TTL_MS = 30 * 1000; // re-read from disk every 30 seconds
 
 let cachedFrameJs: Buffer | null = null;
 let frameCacheLoadedAt = 0;
