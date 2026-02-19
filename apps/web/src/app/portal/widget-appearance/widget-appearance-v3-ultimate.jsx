@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useI18n } from "@/i18n/I18nContext";
+import HelvionPoweredByPill from "@/components/brand/HelvionPoweredByPill";
 
 /* ═══════════════════════════════════════════════════════════════
    HELVION.IO — Widget Görünüm Ayarları v2 — ULTIMATE
@@ -719,6 +720,15 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
     if (next) setPreviewState(next);
   };
 
+  const widgetTabLabel = (id) => {
+    if (id === "home") return _t("widgetPreview.tabHome");
+    if (id === "messages") return _t("widgetPreview.tabMessages");
+    if (id === "help") return _t("widgetPreview.tabHelp");
+    if (id === "news") return _t("widgetPreview.tabNews");
+    if (id === "chat") return _t("widgetPreview.tabMessages");
+    return id;
+  };
+
   const Avatar = ({ bg, ini, sz = 34, ml = 0, online, border = "#FFF" }) => (
     <div style={{ position: "relative", marginLeft: ml, zIndex: ml < 0 ? 1 : 2, flexShrink: 0 }}>
       <div
@@ -856,7 +866,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
       }}
     >
       <div style={{ flex: 1, fontFamily: C.font, fontSize: 13.5, color: "#B0B0B0", padding: "2px 0" }}>
-        Type a reply...
+        {_t("widgetPreview.typePlaceholder")}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ border: "1.5px solid #D0D0D0", borderRadius: 4, padding: "1px 4px", display: "flex", alignItems: "center" }}>
@@ -971,7 +981,9 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                 </div>
               ) : null}
             </div>
-            <span style={{ fontFamily: C.fontH, fontSize: 10, fontWeight: a ? 700 : 500, color: a ? color : "#999" }}>{n.l}</span>
+            <span style={{ fontFamily: C.fontH, fontSize: 10, fontWeight: a ? 700 : 500, color: a ? color : "#999" }}>
+              {widgetTabLabel(n.id)}
+            </span>
           </div>
         );
       })}
@@ -979,17 +991,15 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
   );
 
   const Branding = () => (
-    <div style={{ padding: "9px 16px", background: "#FAFAFA", borderTop: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-      <span style={{ fontFamily: C.fontH, fontSize: 9, fontWeight: 700, letterSpacing: 1.5, color: "#C0C0C0", textTransform: "uppercase" }}>
-        Powered by
-      </span>
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <BotIcon sz={15} />
-        <span style={{ fontFamily: C.fontH, fontSize: 10.5, fontWeight: 800, color: "#999", letterSpacing: 0.5 }}>
-          HELVION
-        </span>
-      </div>
-    </div>
+    <HelvionPoweredByPill
+      href="https://helvion.io"
+      prefixKey="widgetPreview.poweredByPrefix"
+      suffixKey="widgetPreview.poweredBySuffix"
+      markHeight={20}
+      barClassName=""
+      pillClassName=""
+      textClassName=""
+    />
   );
 
   const TriggerButton = ({ isOpen }) => {
@@ -1827,7 +1837,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                   bottom: 16,
                   zIndex: 2,
                   ...(devicePreview === "mobile"
-                    ? { left: "50%", transform: "translateX(-50%) scale(0.86)", transformOrigin: "bottom center" }
+                    ? { left: "50%", transform: "translateX(-50%) scale(0.84)", transformOrigin: "bottom center" }
                     : { [position.x]: 16 }),
                 }}
               >
@@ -1840,12 +1850,12 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                   bottom: 14,
                   zIndex: 2,
                   ...(devicePreview === "mobile"
-                    ? { left: "50%", transform: "translateX(-50%) scale(0.86)", transformOrigin: "bottom center" }
+                    ? { left: "50%", transform: "translateX(-50%) scale(0.84)", transformOrigin: "bottom center" }
                     : { [position.x]: 14 }),
                   display: "flex",
                   flexDirection: "column",
-                  alignItems: position.x === "left" ? "flex-start" : "flex-end",
-                  gap: 12,
+                  alignItems: devicePreview === "mobile" ? "center" : position.x === "left" ? "flex-start" : "flex-end",
+                  gap: devicePreview === "mobile" ? 10 : 12,
                 }}
               >
                 <div
@@ -1879,30 +1889,37 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                           />
                         </div>
                         <div style={{ position: "relative", zIndex: 2 }}>
-                          <div style={{ fontFamily: C.fontH, fontSize: 22, fontWeight: 400, color: "rgba(255,255,255,.82)", lineHeight: 1.25 }}>Hi there 👋</div>
-                          <div style={{ fontFamily: C.fontH, fontSize: 22, fontWeight: 800, color: "#FFF", lineHeight: 1.25 }}>{headerText || "How can we help?"}</div>
+                          <div style={{ fontFamily: C.fontH, fontSize: 22, fontWeight: 800, color: "#FFF", lineHeight: 1.25 }}>
+                            {headerText || _t("widgetPreview.botGreeting")}
+                          </div>
                           <div style={{ marginTop: 8, fontFamily: C.font, fontSize: 12, color: "rgba(255,255,255,.78)", display: "flex", alignItems: "center", gap: 6 }}>
                             <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80" }} />
-                            {subText || "We typically reply in a few minutes"}
+                            {subText || _t("widgetPreview.replyTime")}
                           </div>
                         </div>
                       </div>
                       <div style={{ flex: 1, padding: "12px 14px", background: "#F7F7F8", display: "flex", flexDirection: "column", gap: 9, overflowY: "auto" }}>
                         <div onClick={() => setPreviewId("chat")} style={{ background: "#FFF", border: "1px solid #EBEBEB", borderRadius: 14, padding: "14px 16px", cursor: "pointer" }}>
-                          <div style={{ fontFamily: C.fontH, fontSize: 12, fontWeight: 700, color: "#999", marginBottom: 10 }}>Recent message</div>
+                          <div style={{ fontFamily: C.fontH, fontSize: 12, fontWeight: 700, color: "#999", marginBottom: 10 }}>
+                            {_t("widgetPreview.recentMessage")}
+                          </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <AvatarStack items={[{ bg: `linear-gradient(135deg,${ac},${ad})`, i: "AY", online: true }, { bg: "linear-gradient(135deg,#8B5CF6,#6D28D9)", i: "EK" }]} sz={30} />
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontFamily: C.font, fontSize: 13.5, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{aiWelcome || "Hi there. I'm Helvion Assistant. How can I help..."}</div>
-                              <div style={{ fontFamily: C.font, fontSize: 11, color: "#B0B0B0", marginTop: 3 }}>Customer Service · 9m ago</div>
+                              <div style={{ fontFamily: C.font, fontSize: 13.5, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {aiWelcome || _t("widgetPreview.botGreeting")}
+                              </div>
+                              <div style={{ fontFamily: C.font, fontSize: 11, color: "#B0B0B0", marginTop: 3 }}>
+                                {_t("widgetPreview.defaultTeam")} · {_t("widgetPreview.timeAgo")}
+                              </div>
                             </div>
                             <Chev />
                           </div>
                         </div>
                         <div onClick={() => setPreviewId("chat")} style={{ background: "#FFF", border: "1px solid #EBEBEB", borderRadius: 14, padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                           <div>
-                            <div style={{ fontFamily: C.fontH, fontSize: 14, fontWeight: 700, color: "#222" }}>Send us a message</div>
-                            <div style={{ fontFamily: C.font, fontSize: 12, color: "#B0B0B0", marginTop: 3 }}>We typically reply in a few minutes</div>
+                            <div style={{ fontFamily: C.fontH, fontSize: 14, fontWeight: 700, color: "#222" }}>{_t("widgetPreview.sendMessage")}</div>
+                            <div style={{ fontFamily: C.font, fontSize: 12, color: "#B0B0B0", marginTop: 3 }}>{_t("widgetPreview.replyTime")}</div>
                           </div>
                           <div style={{ width: 34, height: 34, borderRadius: 10, background: `linear-gradient(135deg,${ac},${ad})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
@@ -1916,12 +1933,14 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                         <div style={{ fontFamily: C.fontH, fontSize: 18, fontWeight: 800, color: "#FFF", textAlign: "center" }}>Messages</div>
                       </div>
                       <div style={{ flex: 1, background: "#FFF", overflowY: "auto" }}>
-                        {["Hi there. I'm Helvion Assistant. How can I...","Is there anything specific you're looking f...","👋 Anything I can help with?"].map((msg, i) => (
+                        {[aiWelcome || _t("widgetPreview.botGreeting"), _t("widgetPreview.botReply"), _t("widgetPreview.needHelp")].map((msg, i) => (
                           <div key={i} onClick={() => setPreviewId("chat")} style={{ display: "flex", alignItems: "center", gap: 11, padding: "14px 18px", borderBottom: "1px solid #F3F3F3", cursor: "pointer" }}>
                             <AvatarStack items={[{ bg: `linear-gradient(135deg,${ac},${ad})`, i: "AY", online: true }, { bg: "linear-gradient(135deg,#8B5CF6,#6D28D9)", i: "EK" }]} sz={30} />
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontFamily: C.font, fontSize: 13.5, color: "#555", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{msg}</div>
-                              <div style={{ fontFamily: C.font, fontSize: 11, color: "#BBB", marginTop: 2 }}>Customer Service · {i === 0 ? "1d ago" : i === 1 ? "2d ago" : "4d ago"}</div>
+                              <div style={{ fontFamily: C.font, fontSize: 11, color: "#BBB", marginTop: 2 }}>
+                                {_t("widgetPreview.defaultTeam")} · {_t("widgetPreview.timeAgo")}
+                              </div>
                             </div>
                             <Chev clr="#D1D5DB" />
                           </div>
@@ -1934,9 +1953,9 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                         <div style={{ fontFamily: C.fontH, fontSize: 18, fontWeight: 800, color: "#FFF", textAlign: "center" }}>Help</div>
                       </div>
                       <div style={{ flex: 1, padding: "12px 14px", background: "#F7F7F8", overflowY: "auto" }}>
-                        {["Getting started", "Install the widget", "Security & privacy", "Billing & plans"].map((txt, i) => (
+                        {starters.filter((s2) => s2.active).slice(0, 4).map((st, i) => (
                           <div key={i} style={{ background: "#FFF", border: "1px solid #EBEBEB", borderRadius: 14, padding: "14px 14px", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <span style={{ fontFamily: C.font, fontSize: 13.5, color: "#333" }}>{txt}</span>
+                            <span style={{ fontFamily: C.font, fontSize: 13.5, color: "#333" }}>{st.text}</span>
                             <Chev clr="#D1D5DB" />
                           </div>
                         ))}
@@ -1949,14 +1968,16 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                       </div>
                       <div style={{ flex: 1, padding: "12px 14px", background: "#F7F7F8", overflowY: "auto" }}>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-                          <Chip label="Product" />
-                          <Chip label="Updates" chipColor="#8B5CF6" />
-                          <Chip label="Security" chipColor="#10B981" />
+                          <Chip label={_t("widgetPreview.chipProduct")} />
+                          <Chip label={_t("widgetPreview.chipUpdates")} chipColor="#8B5CF6" />
+                          <Chip label={_t("widgetPreview.chipSecurity")} chipColor="#10B981" />
                         </div>
-                        {["New inbox rules","Widget polish"].map((t2, i) => (
+                        {starters.filter((s2) => s2.active).slice(0, 2).map((st, i) => (
                           <div key={i} style={{ background: "#FFF", border: "1px solid #EBEBEB", borderRadius: 14, padding: "14px 14px", marginBottom: 8 }}>
-                            <div style={{ fontFamily: C.fontH, fontSize: 13.5, fontWeight: 800, color: "#222" }}>{t2}</div>
-                            <div style={{ fontFamily: C.font, fontSize: 12.5, color: "#888", marginTop: 5, lineHeight: 1.45 }}>{i === 0 ? "Routing, tags, and better visibility." : "Light mode preview and Intercom-like UI."}</div>
+                            <div style={{ fontFamily: C.fontH, fontSize: 13.5, fontWeight: 800, color: "#222" }}>{st.text}</div>
+                            <div style={{ fontFamily: C.font, fontSize: 12.5, color: "#888", marginTop: 5, lineHeight: 1.45 }}>
+                              {i === 0 ? _t("widgetPreview.newsDescOne") : _t("widgetPreview.newsDescTwo")}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1986,7 +2007,9 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                       <div style={{ flex: 1, padding: "12px 14px", background: "#F7F7F8", overflowY: "auto" }}>
                         <div style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "flex-start" }}>
                           <BotIcon sz={28} />
-                          <div style={{ maxWidth: "78%", padding: "9px 12px", borderRadius: "12px 12px 12px 3px", background: "#FFF", border: "1px solid #EBEBEB", fontFamily: C.font, fontSize: 12.5, lineHeight: 1.45, color: "#1A1D23" }}>{aiWelcome || "Hi there 👋 How can I help?"}</div>
+                          <div style={{ maxWidth: "78%", padding: "9px 12px", borderRadius: "12px 12px 12px 3px", background: "#FFF", border: "1px solid #EBEBEB", fontFamily: C.font, fontSize: 12.5, lineHeight: 1.45, color: "#1A1D23" }}>
+                            {aiWelcome || _t("widgetPreview.botGreeting")}
+                          </div>
                         </div>
                         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
                           <div style={{ maxWidth: "78%", padding: "9px 12px", borderRadius: "12px 12px 3px 12px", background: `linear-gradient(135deg,${ac},${ad})`, fontFamily: C.font, fontSize: 12.5, lineHeight: 1.45, color: "#FFF" }}>Fiyatlandırma hakkında bilgi alabilir miyim?</div>
@@ -1994,7 +2017,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                         {typingIndicator ? (
                           <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 10, background: "#FFF", border: "1px solid #EBEBEB", width: "fit-content" }}>
                             <div style={{ display: "flex", gap: 3 }}>{[0, 1, 2].map((d) => (<div key={d} style={{ width: 5, height: 5, borderRadius: "50%", background: "#94A3B8", animation: `pulse 1s ${d * 0.2}s infinite` }} />))}</div>
-                            <span style={{ fontSize: 9, color: "#94A3B8" }}>typing…</span>
+                            <span style={{ fontSize: 9, color: "#94A3B8" }}>{_t("widgetPreview.typing")}</span>
                           </div>
                         ) : null}
                       </div>
