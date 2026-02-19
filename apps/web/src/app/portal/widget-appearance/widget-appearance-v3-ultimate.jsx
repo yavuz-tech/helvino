@@ -992,35 +992,102 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
     </div>
   );
 
-  const TriggerButton = ({ isOpen }) => (
-    <div
-      onClick={() => setPreviewId(isOpen ? "launcher" : "home")}
-      style={{
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        background: `linear-gradient(135deg,${color},${colorD})`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: `0 10px 30px rgba(0,0,0,0.18)`,
-        cursor: "pointer",
-        userSelect: "none",
-      }}
-      aria-label={isOpen ? "Close" : "Open"}
-      role="button"
-    >
-      {isOpen ? (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      ) : (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-      )}
-    </div>
-  );
+  const TriggerButton = ({ isOpen }) => {
+    const w = launcher?.w || 56;
+    const h = launcher?.h || 56;
+    const radius = launcher?.radius || "50%";
+    const hasText = Boolean(launcher?.hasText);
+    const label = String(launcherLabel || "").trim();
+
+    return (
+      <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+        <div
+          onClick={() => setPreviewId(isOpen ? "launcher" : "home")}
+          style={{
+            width: w,
+            height: h,
+            borderRadius: radius,
+            background: `linear-gradient(135deg,${color},${colorD})`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: hasText ? 8 : 0,
+            padding: hasText ? "0 14px" : 0,
+            boxShadow: `0 10px 30px rgba(0,0,0,0.18)`,
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+          aria-label={isOpen ? "Close" : "Open"}
+          role="button"
+        >
+          {isOpen ? (
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#FFF"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          ) : (
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#FFF"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          )}
+
+          {hasText ? (
+            <span
+              style={{
+                fontFamily: C.fontH,
+                fontSize: 11,
+                fontWeight: 800,
+                color: "#FFF",
+                letterSpacing: "-0.01em",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {label || "Bize yazın"}
+            </span>
+          ) : null}
+        </div>
+
+        {showUnread ? (
+          <div
+            style={{
+              position: "absolute",
+              top: -3,
+              right: -3,
+              width: 18,
+              height: 18,
+              borderRadius: 9,
+              background: "#EF4444",
+              border: "2px solid #FFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <span style={{ fontFamily: C.fontH, fontSize: 9, fontWeight: 900, color: "#FFF" }}>3</span>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
 
   if (externalLoading) {
     return (
@@ -1760,7 +1827,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                   bottom: 16,
                   zIndex: 2,
                   ...(devicePreview === "mobile"
-                    ? { left: "50%", transform: "translateX(-50%)" }
+                    ? { left: "50%", transform: "translateX(-50%) scale(0.86)", transformOrigin: "bottom center" }
                     : { [position.x]: 16 }),
                 }}
               >
@@ -1773,7 +1840,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                   bottom: 14,
                   zIndex: 2,
                   ...(devicePreview === "mobile"
-                    ? { left: "50%", transform: "translateX(-50%)" }
+                    ? { left: "50%", transform: "translateX(-50%) scale(0.86)", transformOrigin: "bottom center" }
                     : { [position.x]: 14 }),
                   display: "flex",
                   flexDirection: "column",
@@ -1790,8 +1857,6 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                     borderRadius: 16,
                     boxShadow: "0 16px 48px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,.05)",
                     overflow: "hidden",
-                    transform: devicePreview === "mobile" ? "scale(0.84)" : "none",
-                    transformOrigin: position.x === "left" ? "bottom left" : "bottom right",
                     display: "flex",
                     flexDirection: "column",
                   }}

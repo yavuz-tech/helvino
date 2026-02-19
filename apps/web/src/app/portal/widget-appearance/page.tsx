@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import ErrorBanner from "@/components/ErrorBanner";
 import Card from "@/components/ui/Card";
 import { portalApiFetch } from "@/lib/portal-auth";
@@ -21,6 +22,8 @@ interface WidgetSettings {
 export default function PortalWidgetAppearancePage() {
   const { user, loading: authLoading } = usePortalAuth();
   const { t } = useI18n();
+  const router = useRouter();
+  const pathname = usePathname();
 
   // Settings state — null means "not yet loaded from API"
   const [settings, setSettings] = useState<WidgetSettings | null>(null);
@@ -33,6 +36,18 @@ export default function PortalWidgetAppearancePage() {
   // Version counter: increments each time settings are freshly loaded from API
   const [settingsVersion, setSettingsVersion] = useState(0);
   const fetchIdRef = useRef(0);
+
+  // If portal auth is missing, don't keep the UI in an infinite "loading" state.
+  // Redirect to login (session may have expired or cookies may have been blocked).
+  useEffect(() => {
+    if (authLoading) return;
+    if (user) return;
+    const next = encodeURIComponent(pathname || "/portal/widget-appearance");
+    const timer = window.setTimeout(() => {
+      router.replace(`/portal/login?reauth=1&next=${next}`);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [authLoading, user, router, pathname]);
 
   const tier = (() => {
     const k = planKey.toLowerCase();
@@ -149,6 +164,9 @@ export default function PortalWidgetAppearancePage() {
 
   // Only pass initialSettings when we have actual API data
   const readySettings = loading || !settings ? undefined : settings;
+
+  // While redirecting to login, avoid rendering the "settings loading" spinner forever.
+  if (!authLoading && !user) return null;
 
   return (
     <>
