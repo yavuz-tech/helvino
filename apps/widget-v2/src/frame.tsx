@@ -67,6 +67,8 @@ function getSiteIdFromRuntime(): string {
 
   const w = window as unknown as Record<string, unknown>;
   if (typeof w.HELVION_SITE_ID === "string" && w.HELVION_SITE_ID) return w.HELVION_SITE_ID;
+  // Legacy alias used by older embeds/docs
+  if (typeof (w as any).HELVINO_SITE_ID === "string" && (w as any).HELVINO_SITE_ID) return String((w as any).HELVINO_SITE_ID);
   return "";
 }
 
@@ -470,7 +472,6 @@ function App() {
   const [ui, setUi] = useState<UiCopy | null>(null);
   const [widgetEnabled, setWidgetEnabled] = useState(true);
   const [writeEnabled, setWriteEnabled] = useState(true);
-  const [conversationClosed, setConversationClosed] = useState(false);
   const spinnerRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const typingStopTimerRef = useRef<number | null>(null);
@@ -684,7 +685,7 @@ function App() {
   const pushUserMessage = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    if (!writeEnabled || conversationClosed) {
+    if (!writeEnabled) {
       setView("chat");
       const msg: ChatMessage = {
         id: `sys_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -751,9 +752,6 @@ function App() {
                   if (seenIds.has(m.id)) continue;
                   if (m.role === "user") continue;
                   const sys = parseSystemEvent(m.content);
-                  if (sys?.type === "conversation_closed") {
-                    setConversationClosed(true);
-                  }
                   newMsgs.push({
                     id: `s_${m.id}`,
                     serverId: m.id,
@@ -842,7 +840,7 @@ function App() {
   const onSend = () => {
     const trimmed = inputValue.trim();
     if (!trimmed) return;
-    if (!writeEnabled || conversationClosed) return;
+    if (!writeEnabled) return;
     void pushUserMessage(trimmed);
     setInputValue("");
     // Stop typing immediately after sending
@@ -952,9 +950,6 @@ function App() {
         const msg = data.message;
         if (!msg || msg.role === "user") return;
         const sys = parseSystemEvent(msg.content);
-        if (sys?.type === "conversation_closed") {
-          setConversationClosed(true);
-        }
 
         setMessages((prev) => {
           const seen = new Set<string>();
@@ -1093,7 +1088,7 @@ function App() {
               <p className="hv-home-subtitle">{writeEnabled ? ui.welcome : ui.offlineMsg}</p>
               <div className="hv-starters">
                 {ui.starters.map((label) => (
-                  <button key={label} className="hv-starter" type="button" onClick={() => void pushUserMessage(label)} disabled={!writeEnabled || conversationClosed}>
+                  <button key={label} className="hv-starter" type="button" onClick={() => void pushUserMessage(label)} disabled={!writeEnabled}>
                     {label}
                   </button>
                 ))}
@@ -1102,7 +1097,7 @@ function App() {
                   className="hv-starter hv-starter-agent"
                   type="button"
                   onClick={() => void pushUserMessage(tWidget(lang, "talkToAgent"))}
-                  disabled={!writeEnabled || conversationClosed}
+                  disabled={!writeEnabled}
                 >
                   {tWidget(lang, "talkToAgent")}
                 </button>
@@ -1198,29 +1193,13 @@ function App() {
           {/* FOOTER */}
           <div className="hv-footer">
             <div className="hv-input-bar">
-              <input
-                className="hv-input-field"
-                placeholder={writeEnabled && !conversationClosed ? ui.placeholder : ui.offlineMsg}
-                value={inputValue}
-                disabled={!writeEnabled || conversationClosed}
-                ref={(el) => {
-                  inputRef.current = el;
-                }}
-                onChange={(e) => {
-                  setInputValue(e.target.value);
-                  emitTypingStartDebounced();
-                }}
-                onKeyDown={onInputKeyDown}
-                onFocus={(e) => { e.currentTarget.style.borderColor = ui.primaryColor; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = ""; }}
-              />
               {ui.emojiPickerEnabled ? (
                 <div className="hv-emoji-wrap">
                   <button
                     className="hv-input-emoji"
                     type="button"
                     aria-label={tWidget(lang, "emoji")}
-                    disabled={!writeEnabled || conversationClosed}
+                    disabled={!writeEnabled}
                     onClick={() => setEmojiOpen((v) => !v)}
                   >
                     😊
@@ -1232,7 +1211,7 @@ function App() {
                           key={e}
                           className="hv-emoji-item"
                           type="button"
-                          disabled={!writeEnabled || conversationClosed}
+                          disabled={!writeEnabled}
                           onClick={() => {
                             setInputValue((p) => `${p}${e}`);
                             setEmojiOpen(false);
@@ -1266,7 +1245,7 @@ function App() {
                   className="hv-input-gif"
                   type="button"
                   aria-label={tWidget(lang, "gif")}
-                  disabled={!ui.fileUploadEnabled || !writeEnabled || conversationClosed}
+                  disabled={!ui.fileUploadEnabled || !writeEnabled}
                   onClick={() => fileInputRef.current?.click()}
                 >
                   GIF
@@ -1275,7 +1254,7 @@ function App() {
                   className="hv-input-attach"
                   type="button"
                   aria-label={tWidget(lang, "attach")}
-                  disabled={!ui.fileUploadEnabled || !writeEnabled || conversationClosed}
+                  disabled={!ui.fileUploadEnabled || !writeEnabled}
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1283,12 +1262,28 @@ function App() {
                   </svg>
                 </button>
               </>
+              <input
+                className="hv-input-field"
+                placeholder={writeEnabled ? ui.placeholder : ui.offlineMsg}
+                value={inputValue}
+                disabled={!writeEnabled}
+                ref={(el) => {
+                  inputRef.current = el;
+                }}
+                onChange={(e) => {
+                  setInputValue(e.target.value);
+                  emitTypingStartDebounced();
+                }}
+                onKeyDown={onInputKeyDown}
+                onFocus={(e) => { e.currentTarget.style.borderColor = ui.primaryColor; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = ""; }}
+              />
               <button
                 className="hv-input-send"
                 type="button"
                 onClick={onSend}
                 aria-label={tWidget(lang, "send")}
-                disabled={!writeEnabled || conversationClosed}
+                disabled={!writeEnabled}
                 style={{ background: ui.primaryColor }}
               >
                 <svg

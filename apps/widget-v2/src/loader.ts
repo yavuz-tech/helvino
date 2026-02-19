@@ -75,6 +75,8 @@ function ensureEmbedCssLoaded(): void {
 function getSiteId(): string {
   const w = window as unknown as Record<string, unknown>;
   if (typeof w.HELVION_SITE_ID === "string" && w.HELVION_SITE_ID) return w.HELVION_SITE_ID;
+  // Legacy alias used by older embeds/docs
+  if (typeof (w as any).HELVINO_SITE_ID === "string" && (w as any).HELVINO_SITE_ID) return String((w as any).HELVINO_SITE_ID);
   const script = document.querySelector<HTMLScriptElement>("script[data-site]");
   if (script) return script.dataset.site || "";
   return "";
