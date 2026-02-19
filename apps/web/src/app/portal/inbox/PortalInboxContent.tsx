@@ -890,18 +890,22 @@ export default function PortalInboxContent() {
         return;
       }
 
-      setConversations(prev => sortConversations(prev.map(c => c.id === conversationId
-        ? {
-            ...c,
-            hasUnreadMessages: isVisitorMessage ? true : c.hasUnreadMessages,
-            messageCount: c.messageCount + 1,
-            updatedAt: nowIso,
-            preview: c.preview
-              ? { ...c.preview, text: previewText }
-              : { text: previewText, from: role },
-          }
-        : c
-      )));
+      setConversations((prev) => {
+        const idx = prev.findIndex((c) => c.id === conversationId);
+        if (idx === -1) return prev;
+        const c = prev[idx]!;
+        const bumped: ConversationListItem = {
+          ...c,
+          // IMPORTANT: keep this field for ordering logic; unreadMap drives the badge UI.
+          hasUnreadMessages: isVisitorMessage ? true : c.hasUnreadMessages,
+          messageCount: c.messageCount + 1,
+          updatedAt: nowIso,
+          preview: c.preview ? { ...c.preview, text: previewText } : { text: previewText, from: role },
+        };
+        // Deterministic: always move latest activity to top.
+        const rest = [...prev.slice(0, idx), ...prev.slice(idx + 1)];
+        return [bumped, ...rest];
+      });
 
       if (isVisitorMessage) {
         // Increment local unread per conversation

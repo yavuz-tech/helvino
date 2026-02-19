@@ -1114,6 +1114,14 @@ function App() {
                     }}
                   />
                   <button
+                    className="hv-input-gif"
+                    type="button"
+                    aria-label={tWidget(lang, "gif")}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    GIF
+                  </button>
+                  <button
                     className="hv-input-attach"
                     type="button"
                     aria-label={tWidget(lang, "attach")}

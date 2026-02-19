@@ -12,6 +12,7 @@ type Key =
   | "closeChat"
   | "emoji"
   | "attach"
+  | "gif"
   | "send"
   | "typing"
   | "failedSend"
@@ -33,6 +34,7 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     closeChat: "Sohbeti kapat",
     emoji: "Emoji",
     attach: "Dosya ekle",
+    gif: "GIF",
     send: "Gönder",
     typing: "yazıyor...",
     failedSend: "⚠︎ gönderilemedi",
@@ -53,6 +55,7 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     closeChat: "Close chat",
     emoji: "Emoji",
     attach: "Attach file",
+    gif: "GIF",
     send: "Send",
     typing: "typing...",
     failedSend: "⚠︎ failed to send",
@@ -73,6 +76,7 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     closeChat: "Cerrar chat",
     emoji: "Emoji",
     attach: "Adjuntar archivo",
+    gif: "GIF",
     send: "Enviar",
     typing: "escribiendo...",
     failedSend: "⚠︎ no se pudo enviar",
