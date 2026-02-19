@@ -371,7 +371,6 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
     if (transcriptEmail) setTranscriptEmail(false);
     if (hoursEnabled) setHoursEnabled(false);
     if (readReceipts) setReadReceipts(false);
-    if (fileUpload) setFileUpload(false);
   }, [isStarter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ac = useCustom ? customColor : theme.color;
@@ -455,7 +454,13 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
     if (typeof s2.showBranding === "boolean") setShowBranding(isPro ? s2.showBranding : true);
     if (typeof s2.transcriptEmail === "boolean") setTranscriptEmail(isStarter ? s2.transcriptEmail : false);
     if (typeof s2.readReceipts === "boolean") setReadReceipts(isStarter ? s2.readReceipts : false);
-    if (typeof s2.fileUpload === "boolean") setFileUpload(isStarter ? s2.fileUpload : false);
+    if (typeof s2.fileUpload === "boolean") setFileUpload(s2.fileUpload);
+    if (typeof s2.brandLogoDataUrl === "string") {
+      // Persisted logo data (preview only; stored in configJson)
+      setLogoPreview(s2.brandLogoDataUrl);
+      setLogoFile(null);
+      if (logoRef.current) logoRef.current.value = "";
+    }
   }, [initialSettings, settingsVersion]);
 
   const markChanged = useCallback(() => { setHasChanges(true); setSaved(false); }, []);
@@ -530,6 +535,9 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
       responseTime,
       transcriptEmail,
       visitorNotes,
+      // Brand logo (stored in configJson). This does NOT remove Helvion branding on Free;
+      // it only lets customers show their own logo in the widget header.
+      brandLogoDataUrl: logoPreview || null,
       aiName,
       aiTone,
       aiLength,
@@ -569,7 +577,6 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
       payloadSettings.transcriptEmail = false;
       payloadSettings.hoursEnabled = false;
       payloadSettings.readReceipts = false;
-      payloadSettings.fileUpload = false;
     }
     // FREE-only restrictions
     if (isFree) {
@@ -623,7 +630,18 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
     if (!['image/png','image/jpeg','image/svg+xml','image/webp'].includes(file.type)) { showToast(_t("wA.error.invalidFormat")); return; }
     setLogoFile(file);
     const reader = new FileReader();
-    reader.onload = (ev) => setLogoPreview(ev.target.result);
+    reader.onload = (ev) => {
+      const v = ev?.target?.result;
+      // This is stored in configJson. Keep a sane cap to avoid failed saves.
+      if (typeof v === "string" && v.length > 50_000) {
+        showToast("Logo çok büyük. Lütfen daha küçük bir görsel yükleyin (50KB altı).");
+        if (logoRef.current) logoRef.current.value = "";
+        setLogoFile(null);
+        setLogoPreview(null);
+        return;
+      }
+      setLogoPreview(v);
+    };
     reader.readAsDataURL(file);
     markChanged();
   };
@@ -1530,7 +1548,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                     </div>
                   )}
                   <div style={{ marginTop: 16 }}>
-                    <label style={s.label}>🏢 Marka Logosu {!isPro && <span style={{fontSize:9,color:"#7C3AED",fontWeight:700}}>PRO</span>}</label>
+                    <label style={s.label}>🏢 Marka Logosu</label>
                     <input ref={logoRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" onChange={handleLogoUpload} style={{display:"none"}} />
                     {logoPreview ? (
                       <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", borderRadius:10, border:`1.5px solid rgba(${acRgb},0.19)`, background:`rgba(${acRgb},0.02)` }}>
@@ -1542,7 +1560,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                         <button onClick={removeLogo} style={{ padding:"5px 10px", borderRadius:7, border:"1px solid #FEE2E2", background:"#FFF5F5", fontFamily:s.font, fontSize:10.5, fontWeight:600, color:"#EF4444", cursor:"pointer" }}>🗑 Kaldır</button>
                       </div>
                     ) : (
-                      <div onClick={()=>{ if(isFree){ showUpgrade("Marka Logosu"); return; } logoRef.current?.click(); }} style={{ padding:"16px", borderRadius:10, border:"2px dashed #E8E0D4", textAlign:"center", background:"#FFFCF8", cursor:"pointer", opacity:isFree?0.7:1 }}>
+                      <div onClick={()=>{ logoRef.current?.click(); }} style={{ padding:"16px", borderRadius:10, border:"2px dashed #E8E0D4", textAlign:"center", background:"#FFFCF8", cursor:"pointer" }}>
                         <div style={{ fontSize:24, marginBottom:4 }}>📁</div>
                         <div style={{ fontFamily:s.font, fontSize:11, fontWeight:600, color:"#64748B" }}>Tıklayarak logo yükleyin</div>
                         <div style={{ fontFamily:s.font, fontSize:9, color:"#94A3B8", marginTop:2 }}>PNG, JPG, SVG, WebP — Maks 2MB</div>

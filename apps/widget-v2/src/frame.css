@@ -39,6 +39,14 @@ body {
   background: rgba(255,255,255,0.2);
   display: flex; align-items: center; justify-content: center;
   font-size: 22px; flex-shrink: 0;
+  overflow: hidden;
+}
+
+.hv-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .hv-header-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .hv-header-title {
@@ -120,6 +128,7 @@ body {
   display: flex; align-items: center; justify-content: center;
   font-size: 14px; flex-shrink: 0;
   order: 2;
+  overflow: hidden;
 }
 .hv-msg-agent .hv-msg-bubble {
   background: linear-gradient(135deg, var(--hv-primary, #8B5CF6), var(--hv-primary-dark, #7C3AED));
@@ -158,6 +167,14 @@ body {
   font-size: 14px; line-height: 1.55;
   word-break: break-word; overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.hv-msg-img {
+  display: block;
+  max-width: 240px;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
 }
 .hv-msg-time { font-size: 11px; opacity: 0.6; margin-top: 4px; }
 .hv-msg-failed { font-size: 11px; margin-top: 4px; opacity: 0.85; }
@@ -235,6 +252,37 @@ body {
   transition: background 150ms;
 }
 .hv-input-emoji:hover { background: #f3f4f6; }
+
+.hv-emoji-wrap { position: relative; display: flex; align-items: center; flex-shrink: 0; }
+.hv-emoji-pop {
+  position: absolute;
+  bottom: 44px;
+  left: -6px;
+  width: 232px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.97);
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 12px 34px rgba(0,0,0,0.14);
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  z-index: 20;
+  backdrop-filter: blur(8px);
+}
+.hv-emoji-item {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+.hv-emoji-item:hover { background: rgba(0,0,0,0.06); }
 .hv-input-field {
   flex: 1; min-width: 0;
   border: 1.5px solid #e5e7eb;

@@ -335,6 +335,8 @@ export async function portalWidgetSettingsRoutes(fastify: FastifyInstance) {
         "launcherLabel",
         "attGrabberText",
         "consentText",
+        // Stored as a data URL (small logo) for widget header/avatar.
+        "brandLogoDataUrl",
       ]);
       for (const [key, value] of Object.entries(body)) {
         if (typeof value === "string") {

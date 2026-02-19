@@ -77,6 +77,9 @@ type UiCopy = {
   placeholder: string;
   starters: string[];
   botAvatar: string;
+  brandLogoDataUrl?: string;
+  emojiPickerEnabled: boolean;
+  fileUploadEnabled: boolean;
   primaryColor: string;
   primaryColorDark: string;
 };
@@ -181,6 +184,9 @@ function parseWidgetSettings(
     normalize(ws.welcomeMessage) ||
     tWidget(lang, "defaultWelcome");
   const botAvatar = normalize(ws.botAvatar) || "🤖";
+  const brandLogoDataUrl = normalize(ws.brandLogoDataUrl);
+  const emojiPickerEnabled = ws.emojiPicker !== false; // default ON
+  const fileUploadEnabled = ws.fileUpload !== false; // default ON
 
   let starters: string[] = [];
   const startersRaw = ws.starters;
@@ -213,7 +219,19 @@ function parseWidgetSettings(
   const resolvedColor = primaryColor || "#8B5CF6";
   const resolvedDark = primaryColor ? darkenColor(primaryColor, 15) : "#7C3AED";
 
-  return { title, subtitle, welcome, placeholder, starters, botAvatar, primaryColor: resolvedColor, primaryColorDark: resolvedDark };
+  return {
+    title,
+    subtitle,
+    welcome,
+    placeholder,
+    starters,
+    botAvatar,
+    brandLogoDataUrl: brandLogoDataUrl || undefined,
+    emojiPickerEnabled,
+    fileUploadEnabled,
+    primaryColor: resolvedColor,
+    primaryColorDark: resolvedDark,
+  };
 }
 
 const TURKISH_CHARS_RE = /[çğıöşüİ]/i;
@@ -364,6 +382,9 @@ function App() {
   const [view, setView] = useState<ViewMode>("home");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [bootOk, setBootOk] = useState(false);
   const [isAgentTyping, setIsAgentTyping] = useState(false);
@@ -373,6 +394,25 @@ function App() {
 
   const wsRef = useRef<Record<string, unknown>>({});
   const cpcRef = useRef<Record<string, unknown>>({});
+
+  const EMOJIS = ["😀","😁","😂","😊","😍","😎","🤝","🙏","👍","🔥","✨","🎉","💯","💬","✅","⚡","🤖","🧡","📦","🛠️","💡","📍","⭐","🚀"];
+
+  function parseFilePayload(raw: string): { name: string; mime: string; dataUrl: string } | null {
+    const s = typeof raw === "string" ? raw.trim() : "";
+    if (!s || s[0] !== "{") return null;
+    try {
+      const j = JSON.parse(s);
+      if (!j || typeof j !== "object") return null;
+      if ((j as any).type !== "file") return null;
+      const name = typeof (j as any).name === "string" ? (j as any).name : "file";
+      const mime = typeof (j as any).mime === "string" ? (j as any).mime : "application/octet-stream";
+      const dataUrl = typeof (j as any).dataUrl === "string" ? (j as any).dataUrl : "";
+      if (!dataUrl.startsWith("data:")) return null;
+      return { name, mime, dataUrl };
+    } catch {
+      return null;
+    }
+  }
 
   useEffect(() => {
     function onParentMessage(e: MessageEvent) {
@@ -515,6 +555,26 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, messages.length]);
 
+  // Close emoji popover on outside click / escape
+  useEffect(() => {
+    if (!emojiOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t) return;
+      if (t.closest?.(".hv-emoji-wrap")) return;
+      setEmojiOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setEmojiOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [emojiOpen]);
+
   const pushUserMessage = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -595,6 +655,65 @@ function App() {
       }
     } catch (err: any) {
       console.warn("[Widget v2] send FAILED:", err?.message || err);
+      setMessages((prev) => prev.map((m) => (m.id === clientId ? { ...m, status: "failed" } : m)));
+    }
+  };
+
+  const pushUserFile = async (file: File) => {
+    if (!file) return;
+    if (!ui?.fileUploadEnabled) return;
+
+    // Server enforces a 32KB message content limit. Keep payloads tiny.
+    const MAX_FILE_BYTES = 18 * 1024;
+    if (file.size > MAX_FILE_BYTES) {
+      console.warn("[Widget v2] file too large for inline send:", file.size);
+      return;
+    }
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("file_read_failed"));
+      reader.readAsDataURL(file);
+    });
+
+    const payload = JSON.stringify({
+      type: "file",
+      name: file.name || "file",
+      mime: file.type || "application/octet-stream",
+      dataUrl,
+    });
+    const bytes = new TextEncoder().encode(payload).length;
+    if (bytes > 30 * 1024) {
+      console.warn("[Widget v2] inline file payload too large:", bytes);
+      return;
+    }
+
+    setView("chat");
+    const clientId = `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    setMessages((prev) => [...prev, { id: clientId, role: "user", text: payload, time: nowTime(), status: "sending" }]);
+
+    try {
+      if (!siteId) throw new Error("missing_site_id");
+      if (!bootOk) console.warn("[Widget v2] bootOk=false; send may fail until bootloader succeeds");
+
+      let cid = conversationId;
+      if (!cid) {
+        const conv = await createConversation(siteId, visitorId);
+        cid = conv.id;
+        setConversationId(cid);
+      }
+
+      const sent = await sendMessage(cid, payload);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === clientId
+            ? { ...m, status: undefined, serverId: sent.id, time: formatTimeFromIso(sent.timestamp) || m.time }
+            : m
+        )
+      );
+    } catch (err: any) {
+      console.warn("[Widget v2] file send FAILED:", err?.message || err);
       setMessages((prev) => prev.map((m) => (m.id === clientId ? { ...m, status: "failed" } : m)));
     }
   };
@@ -817,7 +936,13 @@ function App() {
         <>
           {/* HEADER — inline style guarantees color even if CSS var fails */}
           <div className="hv-header" style={{ background: `linear-gradient(135deg, ${ui.primaryColor}, ${ui.primaryColorDark})` }}>
-            <div className="hv-header-avatar">{ui.botAvatar}</div>
+            <div className="hv-header-avatar">
+              {ui.brandLogoDataUrl ? (
+                <img className="hv-avatar-img" src={ui.brandLogoDataUrl} alt="Logo" />
+              ) : (
+                ui.botAvatar
+              )}
+            </div>
             <div className="hv-header-info">
               <div className="hv-header-title">{ui.title}</div>
               <div className="hv-header-subtitle">
@@ -847,15 +972,24 @@ function App() {
           ) : (
             <div className="hv-messages" role="log" aria-label="Messages">
               {messages.map((m) => {
+                const filePayload = parseFilePayload(m.text);
                 if (m.role === "agent") {
                   return (
                     <div key={m.id} className="hv-msg hv-msg-agent">
-                      <div className="hv-msg-avatar">{ui.botAvatar}</div>
+                      <div className="hv-msg-avatar">
+                        {ui.brandLogoDataUrl ? (
+                          <img className="hv-avatar-img" src={ui.brandLogoDataUrl} alt="Logo" />
+                        ) : (
+                          ui.botAvatar
+                        )}
+                      </div>
                       <div className="hv-msg-bubble" style={{ background: `linear-gradient(135deg, ${ui.primaryColor}, ${ui.primaryColorDark})` }}>
                         <div className="hv-msg-sender">
                           Helvion AI <span className="hv-badge-ai">{tWidget(lang, "aiAgentBadge")}</span>
                         </div>
-                        <div className="hv-msg-text">{m.text}</div>
+                        <div className="hv-msg-text">
+                          {filePayload ? <img className="hv-msg-img" src={filePayload.dataUrl} alt={filePayload.name} /> : m.text}
+                        </div>
                         <div className="hv-msg-time">{m.time}</div>
                       </div>
                     </div>
@@ -865,7 +999,9 @@ function App() {
                 return (
                   <div key={m.id} className="hv-msg hv-msg-user">
                     <div className="hv-msg-bubble">
-                      <div className="hv-msg-text">{m.text}</div>
+                      <div className="hv-msg-text">
+                        {filePayload ? <img className="hv-msg-img" src={filePayload.dataUrl} alt={filePayload.name} /> : m.text}
+                      </div>
                       <div className="hv-msg-time">{m.time}</div>
                       {m.status === "failed" ? <div className="hv-msg-failed">{tWidget(lang, "failedSend")}</div> : null}
                     </div>
@@ -907,13 +1043,13 @@ function App() {
           {/* FOOTER */}
           <div className="hv-footer">
             <div className="hv-input-bar">
-              <button className="hv-input-emoji" type="button" aria-label={tWidget(lang, "emoji")}>
-                😊
-              </button>
               <input
                 className="hv-input-field"
                 placeholder={ui.placeholder}
                 value={inputValue}
+                ref={(el) => {
+                  inputRef.current = el;
+                }}
                 onChange={(e) => {
                   setInputValue(e.target.value);
                   emitTypingStartDebounced();
@@ -922,11 +1058,65 @@ function App() {
                 onFocus={(e) => { e.currentTarget.style.borderColor = ui.primaryColor; }}
                 onBlur={(e) => { e.currentTarget.style.borderColor = ""; }}
               />
-              <button className="hv-input-attach" type="button" aria-label={tWidget(lang, "attach")}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-                </svg>
-              </button>
+              {ui.emojiPickerEnabled ? (
+                <div className="hv-emoji-wrap">
+                  <button
+                    className="hv-input-emoji"
+                    type="button"
+                    aria-label={tWidget(lang, "emoji")}
+                    onClick={() => setEmojiOpen((v) => !v)}
+                  >
+                    😊
+                  </button>
+                  {emojiOpen ? (
+                    <div className="hv-emoji-pop" role="dialog" aria-label={tWidget(lang, "emoji")}>
+                      {EMOJIS.map((e) => (
+                        <button
+                          key={e}
+                          className="hv-emoji-item"
+                          type="button"
+                          onClick={() => {
+                            setInputValue((p) => `${p}${e}`);
+                            setEmojiOpen(false);
+                            try { inputRef.current?.focus(); } catch { /* */ }
+                          }}
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {ui.fileUploadEnabled ? (
+                <>
+                  <input
+                    ref={(el) => {
+                      fileInputRef.current = el;
+                    }}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      const f = e.currentTarget.files?.[0];
+                      e.currentTarget.value = "";
+                      if (!f) return;
+                      void pushUserFile(f);
+                    }}
+                  />
+                  <button
+                    className="hv-input-attach"
+                    type="button"
+                    aria-label={tWidget(lang, "attach")}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                    </svg>
+                  </button>
+                </>
+              ) : null}
               <button className="hv-input-send" type="button" onClick={onSend} aria-label={tWidget(lang, "send")} style={{ background: ui.primaryColor }}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
