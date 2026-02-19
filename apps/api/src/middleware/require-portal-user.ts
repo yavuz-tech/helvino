@@ -11,6 +11,7 @@ import { prisma } from "../prisma";
 import {
   PORTAL_SESSION_COOKIE,
   createPortalSessionToken,
+  getPortalCookiePolicy,
   verifyPortalSessionToken,
   PORTAL_SESSION_TTL_MS,
 } from "../utils/portal-session";
@@ -127,11 +128,15 @@ export async function requirePortalUser(
           },
         });
 
+        const { sameSite, secure } = getPortalCookiePolicy({
+          requestOrigin: (request.headers.origin as string | undefined) || null,
+          requestHost: (request.headers.host as string | undefined) || null,
+        });
         reply.setCookie(PORTAL_SESSION_COOKIE, newAccessToken, {
           path: "/",
           httpOnly: true,
-          sameSite: "lax",
-          secure: process.env.NODE_ENV === "production",
+          sameSite,
+          secure,
           maxAge: Math.floor(PORTAL_SESSION_TTL_MS / 1000),
         });
       }
