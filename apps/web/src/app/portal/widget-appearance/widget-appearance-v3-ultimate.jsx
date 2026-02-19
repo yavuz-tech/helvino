@@ -1685,7 +1685,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                   <Toggle checked={typingIndicator} onChange={v=>{setTypingIndicator(v);markChanged();}} label="Yazıyor Göstergesi" desc="Karşı taraf yazarken göster" />
                   <Toggle checked={readReceipts} onChange={v=>{if(!isStarter){showUpgrade("Okundu Bilgisi");return;}setReadReceipts(v);markChanged();}} label="Okundu Bilgisi" desc="Mesaj okunduğunda ✓✓ göster" pro={!isStarter} />
                   <Toggle checked={responseTime} onChange={v=>{setResponseTime(v);markChanged();}} label="Yanıt Süresi Rozeti" desc="'Genellikle X dk içinde yanıt' göster" />
-                  <Toggle checked={fileUpload} onChange={v=>{if(!isStarter){showUpgrade("Dosya Yükleme");return;}setFileUpload(v);markChanged();}} label="Dosya Yükleme" desc="Ziyaretçilerin dosya göndermesine izin ver" pro={!isStarter} />
+                  <Toggle checked={fileUpload} onChange={v=>{setFileUpload(v);markChanged();}} label="Dosya Yükleme" desc="Ziyaretçilerin dosya göndermesine izin ver" />
                   <Toggle checked={emojiPicker} onChange={v=>{setEmojiPicker(v);markChanged();}} label="Emoji Seçici" desc="Sohbette emoji menüsü" />
                   <Toggle checked={visitorNotes} onChange={v=>{setVisitorNotes(v);markChanged();}} label="Ziyaretçi Notları" desc="Temsilcilerin ziyaretçi hakkında not eklemesi" />
                   <Toggle checked={transcriptEmail} onChange={v=>{if(!isStarter){showUpgrade("Sohbet Dökümü Email");return;}setTranscriptEmail(v);markChanged();}} label="Sohbet Dökümü Email" desc="Sohbet bitince ziyaretçiye döküm gönder" pro={!isStarter} />

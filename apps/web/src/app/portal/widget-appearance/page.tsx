@@ -118,7 +118,7 @@ export default function PortalWidgetAppearancePage() {
       payloadSettings.transcriptEmail = false;
       payloadSettings.hoursEnabled = false;
       payloadSettings.readReceipts = false;
-      payloadSettings.fileUpload = false;
+      // fileUpload is available on all plans (do NOT force-disable on Free).
     }
     // FREE-only restrictions
     if (isFree) {

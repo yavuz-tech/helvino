@@ -1241,6 +1241,24 @@ function App() {
                 </div>
               ) : null}
 
+              <input
+                className="hv-input-field"
+                placeholder={writeEnabled ? ui.placeholder : ui.offlineMsg}
+                value={inputValue}
+                disabled={!writeEnabled}
+                ref={(el) => {
+                  inputRef.current = el;
+                }}
+                onChange={(e) => {
+                  setInputValue(e.target.value);
+                  emitTypingStartDebounced();
+                }}
+                onKeyDown={onInputKeyDown}
+                onFocus={(e) => { e.currentTarget.style.borderColor = ui.primaryColor; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = ""; }}
+              />
+
+              {/* File upload controls stay on the right side (as requested). */}
               <>
                 <input
                   ref={(el) => {
@@ -1277,22 +1295,6 @@ function App() {
                   </svg>
                 </button>
               </>
-              <input
-                className="hv-input-field"
-                placeholder={writeEnabled ? ui.placeholder : ui.offlineMsg}
-                value={inputValue}
-                disabled={!writeEnabled}
-                ref={(el) => {
-                  inputRef.current = el;
-                }}
-                onChange={(e) => {
-                  setInputValue(e.target.value);
-                  emitTypingStartDebounced();
-                }}
-                onKeyDown={onInputKeyDown}
-                onFocus={(e) => { e.currentTarget.style.borderColor = ui.primaryColor; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = ""; }}
-              />
               <button
                 className="hv-input-send"
                 type="button"
