@@ -884,6 +884,21 @@ fastify.post<{
             : "Got it — a human agent will follow up as soon as possible. If you'd like, leave your email or phone number so we can reach you faster.";
         };
 
+        // If a human agent has already taken over this conversation, do not auto-reply.
+        // The portal assigns a conversation when an agent replies; after that, the widget
+        // should behave like a normal helpdesk (human-first).
+        try {
+          const conv = await prisma.conversation.findFirst({
+            where: { id, orgId: org.id },
+            select: { assignedToOrgUserId: true },
+          });
+          if (conv?.assignedToOrgUserId) {
+            return;
+          }
+        } catch {
+          // best-effort — continue without the check
+        }
+
         // High-signal intents: when the visitor explicitly requests a human agent,
         // don't waste tokens on a generic LLM reply and don't say misleading things.
         if (looksLikeAgentRequest(sanitizedContent)) {

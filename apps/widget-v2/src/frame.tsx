@@ -16,6 +16,7 @@ type ChatMessage = {
   time: string;
   status?: "sending" | "failed";
   serverId?: string; // backend message id for dedupe
+  isAI?: boolean;
 };
 
 function nowTime(): string {
@@ -80,6 +81,7 @@ type UiCopy = {
   placeholder: string;
   starters: string[];
   botAvatar: string;
+  agentAvatar: string;
   brandLogoDataUrl?: string;
   emojiPickerEnabled: boolean;
   fileUploadEnabled: boolean;
@@ -214,6 +216,7 @@ function parseWidgetSettings(
     normalize(ws.offlineMessage) ||
     tWidget(lang, "chatDisabled");
   const botAvatar = normalize(ws.botAvatar) || "🤖";
+  const agentAvatar = normalize(ws.agentAvatar) || "👩‍💼";
   const brandLogoDataUrl = normalize(ws.brandLogoDataUrl);
   const emojiPickerEnabled = ws.emojiPicker !== false && ws.emojiPickerEnabled !== false; // default ON
   const fileUploadEnabled = ws.fileUpload !== false && ws.fileUploadEnabled !== false; // default ON
@@ -260,6 +263,7 @@ function parseWidgetSettings(
     placeholder,
     starters,
     botAvatar,
+    agentAvatar,
     brandLogoDataUrl: brandLogoDataUrl || undefined,
     emojiPickerEnabled,
     fileUploadEnabled,
@@ -752,12 +756,17 @@ function App() {
                   if (seenIds.has(m.id)) continue;
                   if (m.role === "user") continue;
                   const sys = parseSystemEvent(m.content);
+                  const isAI =
+                    typeof (m as any)?.isAIGenerated === "boolean"
+                      ? Boolean((m as any).isAIGenerated)
+                      : true;
                   newMsgs.push({
                     id: `s_${m.id}`,
                     serverId: m.id,
                     role: sys ? "system" : "agent",
                     text: m.content,
                     time: formatTimeFromIso(m.timestamp),
+                    isAI: sys ? undefined : isAI,
                   });
                 }
                 if (newMsgs.length === 0) return prev;
@@ -950,6 +959,10 @@ function App() {
         const msg = data.message;
         if (!msg || msg.role === "user") return;
         const sys = parseSystemEvent(msg.content);
+        const isAI =
+          typeof (msg as any)?.isAIGenerated === "boolean"
+            ? Boolean((msg as any).isAIGenerated)
+            : true;
 
         setMessages((prev) => {
           const seen = new Set<string>();
@@ -965,6 +978,7 @@ function App() {
               role: sys ? "system" : "agent",
               text: msg.content,
               time: formatTimeFromIso(msg.timestamp),
+              isAI: sys ? undefined : isAI,
             },
           ];
         });
@@ -1123,19 +1137,20 @@ function App() {
                 }
 
                 if (m.role === "agent") {
+                  const isAI = m.isAI !== false; // default to AI when unknown (backward compatible)
                   return (
                     <div key={m.id} className="hv-msg hv-msg-agent">
                       <div className="hv-msg-avatar">
                         {ui.brandLogoDataUrl ? (
                           <img className="hv-avatar-img" src={ui.brandLogoDataUrl} alt="Logo" />
                         ) : (
-                          ui.botAvatar
+                          isAI ? ui.botAvatar : ui.agentAvatar
                         )}
                       </div>
                       <div className="hv-msg-bubble" style={{ background: `linear-gradient(135deg, ${ui.primaryColor}, ${ui.primaryColorDark})` }}>
                         <div className="hv-msg-sender">
-                          {ui.aiName}
-                          {ui.aiLabelEnabled ? <span className="hv-badge-ai">{tWidget(lang, "aiBadge")}</span> : null}
+                          {isAI ? ui.aiName : tWidget(lang, "humanAgent")}
+                          {isAI && ui.aiLabelEnabled ? <span className="hv-badge-ai">{tWidget(lang, "aiBadge")}</span> : null}
                         </div>
                         <div className="hv-msg-text">
                           {filePayload ? <img className="hv-msg-img" src={filePayload.dataUrl} alt={filePayload.name} /> : m.text}

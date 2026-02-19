@@ -22,6 +22,7 @@ type Key =
   | "systemAgentJoined"
   | "systemAiHandoff"
   | "chatDisabled"
+  | "humanAgent"
   | "defaultTitle"
   | "defaultSubtitle"
   | "defaultPlaceholder"
@@ -48,6 +49,7 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     systemAgentJoined: "Bir temsilci sohbete katıldı",
     systemAiHandoff: "AI sohbeti devraldı",
     chatDisabled: "Sohbet şu an kapalı",
+    humanAgent: "Temsilci",
     defaultTitle: "Nasıl yardımcı olabiliriz?",
     defaultSubtitle: "Genellikle birkaç dakika içinde yanıt veriyoruz",
     defaultPlaceholder: "Mesajınızı yazın...",
@@ -73,6 +75,7 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     systemAgentJoined: "A human agent joined",
     systemAiHandoff: "AI took over the chat",
     chatDisabled: "Chat is currently disabled",
+    humanAgent: "Agent",
     defaultTitle: "How can we help?",
     defaultSubtitle: "We typically reply within minutes",
     defaultPlaceholder: "Write your message...",
@@ -98,6 +101,7 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     systemAgentJoined: "Un agente se unió al chat",
     systemAiHandoff: "La IA tomó el control del chat",
     chatDisabled: "El chat está desactivado",
+    humanAgent: "Agente",
     defaultTitle: "¿Cómo podemos ayudar?",
     defaultSubtitle: "Solemos responder en minutos",
     defaultPlaceholder: "Escribe tu mensaje...",

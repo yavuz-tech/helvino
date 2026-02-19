@@ -490,6 +490,9 @@ export async function portalOrgRoutes(fastify: FastifyInstance) {
           role: m.role,
           content: m.content,
           timestamp: m.timestamp.toISOString(),
+          isAIGenerated: m.isAIGenerated,
+          aiProvider: m.aiProvider,
+          aiModel: m.aiModel,
         })),
       };
     }

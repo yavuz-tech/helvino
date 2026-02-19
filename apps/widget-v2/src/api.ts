@@ -71,6 +71,9 @@ export type ApiMessage = {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  isAIGenerated?: boolean;
+  aiProvider?: string | null;
+  aiModel?: string | null;
 };
 
 function sleep(ms: number): Promise<void> {

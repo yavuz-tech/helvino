@@ -641,6 +641,25 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
         });
       }
 
+      // Auto-assign conversation to the replying agent if it was unassigned.
+      // This is the core "agent takes over from AI" handshake for the live widget + portal.
+      try {
+        const assignResult = await prisma.conversation.updateMany({
+          where: { id, orgId: actor.orgId, assignedToOrgUserId: null },
+          data: { assignedToOrgUserId: actor.id },
+        });
+        if (assignResult.count > 0) {
+          const actorName = actor.email.split("@")[0] || "Agent";
+          const systemMessage = await store.addMessage(id, actor.orgId, "assistant", `[system] agent_joined:${actorName}`);
+          if (systemMessage) {
+            (fastify as any).io?.to(`org:${actor.orgId}:agents`).emit("message:new", { conversationId: id, message: systemMessage });
+            (fastify as any).io?.to(`conv:${id}`).emit("message:new", { conversationId: id, message: systemMessage });
+          }
+        }
+      } catch {
+        // best-effort — don't block replying
+      }
+
       (fastify as any).io?.to(`org:${actor.orgId}:agents`).emit("message:new", { conversationId: id, message });
       (fastify as any).io?.to(`conv:${id}`).emit("message:new", { conversationId: id, message });
 

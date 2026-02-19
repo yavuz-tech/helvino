@@ -120,6 +120,12 @@ class PrismaStore {
         role: msg.role as "user" | "assistant",
         content: msg.content,
         timestamp: msg.timestamp.toISOString(),
+        isAIGenerated: msg.isAIGenerated,
+        aiProvider: msg.aiProvider,
+        aiModel: msg.aiModel,
+        aiTokensUsed: msg.aiTokensUsed,
+        aiCost: msg.aiCost ? Number(msg.aiCost) : null,
+        aiResponseTime: msg.aiResponseTime,
       })),
     };
   }
@@ -172,6 +178,11 @@ class PrismaStore {
       hasUnreadFromUser: role === "user",
     };
     if (role === "user" && conversation.status === "CLOSED") {
+      updateData.status = "OPEN";
+      updateData.closedAt = null;
+    }
+    // If an agent replies to a closed conversation, reopen it (helpdesk behavior).
+    if (role === "assistant" && conversation.status === "CLOSED") {
       updateData.status = "OPEN";
       updateData.closedAt = null;
     }
@@ -234,6 +245,12 @@ class PrismaStore {
       role: msg.role as "user" | "assistant",
       content: msg.content,
       timestamp: msg.timestamp.toISOString(),
+      isAIGenerated: msg.isAIGenerated,
+      aiProvider: msg.aiProvider,
+      aiModel: msg.aiModel,
+      aiTokensUsed: msg.aiTokensUsed,
+      aiCost: msg.aiCost ? Number(msg.aiCost) : null,
+      aiResponseTime: msg.aiResponseTime,
     }));
   }
 
