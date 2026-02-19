@@ -34,6 +34,7 @@ const lastMessagesCache = new Map<string, ApiMessage[]>();
 export type BootloaderResponse = {
   ok: boolean;
   org?: { id: string; key: string; name: string };
+  configVersion?: number;
   config?: {
     widgetEnabled?: boolean;
     writeEnabled?: boolean;

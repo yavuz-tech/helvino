@@ -16,8 +16,12 @@ type Key =
   | "send"
   | "typing"
   | "failedSend"
-  | "aiAgentBadge"
+  | "aiBadge"
   | "poweredByLine"
+  | "systemConversationClosed"
+  | "systemAgentJoined"
+  | "systemAiHandoff"
+  | "chatDisabled"
   | "defaultTitle"
   | "defaultSubtitle"
   | "defaultPlaceholder"
@@ -38,8 +42,12 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     send: "Gönder",
     typing: "yazıyor...",
     failedSend: "⚠︎ gönderilemedi",
-    aiAgentBadge: "AI Agent",
+    aiBadge: "AI",
     poweredByLine: "tarafından desteklenmektedir",
+    systemConversationClosed: "Sohbet kapatıldı",
+    systemAgentJoined: "Bir temsilci sohbete katıldı",
+    systemAiHandoff: "AI sohbeti devraldı",
+    chatDisabled: "Sohbet şu an kapalı",
     defaultTitle: "Nasıl yardımcı olabiliriz?",
     defaultSubtitle: "Genellikle birkaç dakika içinde yanıt veriyoruz",
     defaultPlaceholder: "Mesajınızı yazın...",
@@ -59,8 +67,12 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     send: "Send",
     typing: "typing...",
     failedSend: "⚠︎ failed to send",
-    aiAgentBadge: "AI Agent",
+    aiBadge: "AI",
     poweredByLine: "Powered by",
+    systemConversationClosed: "Chat closed",
+    systemAgentJoined: "A human agent joined",
+    systemAiHandoff: "AI took over the chat",
+    chatDisabled: "Chat is currently disabled",
     defaultTitle: "How can we help?",
     defaultSubtitle: "We typically reply within minutes",
     defaultPlaceholder: "Write your message...",
@@ -80,8 +92,12 @@ const DICT: Record<WidgetLang, Record<Key, string>> = {
     send: "Enviar",
     typing: "escribiendo...",
     failedSend: "⚠︎ no se pudo enviar",
-    aiAgentBadge: "AI Agent",
+    aiBadge: "AI",
     poweredByLine: "con la tecnología de",
+    systemConversationClosed: "Chat cerrado",
+    systemAgentJoined: "Un agente se unió al chat",
+    systemAiHandoff: "La IA tomó el control del chat",
+    chatDisabled: "El chat está desactivado",
     defaultTitle: "¿Cómo podemos ayudar?",
     defaultSubtitle: "Solemos responder en minutos",
     defaultPlaceholder: "Escribe tu mensaje...",

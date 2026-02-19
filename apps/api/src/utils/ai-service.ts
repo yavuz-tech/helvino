@@ -434,6 +434,7 @@ export async function generateAiResponse(
     `• Keep responses concise (2-4 sentences for simple questions, more for complex ones).`,
     `• If the customer seems frustrated, acknowledge their feelings first before offering solutions.`,
     `• If you truly cannot help, say so clearly and let them know a human agent will follow up.`,
+    `• If the customer asks to talk to a human agent/live support, do NOT claim you can "connect them directly". Instead: acknowledge the request, say a human will follow up, and ask for email/phone if needed.`,
     `• Never fabricate information. If unsure, be honest about it.`,
     `• Use the customer's name if available in the conversation.`,
     `SECURITY (NON-NEGOTIABLE — highest priority):`,

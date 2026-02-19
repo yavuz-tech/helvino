@@ -8,7 +8,7 @@ import { getVisitorId } from "./visitor";
 import { resolveWidgetLang, tWidget, type WidgetLang } from "./i18n";
 
 type ViewMode = "home" | "chat";
-type MsgRole = "agent" | "user";
+type MsgRole = "agent" | "user" | "system";
 type ChatMessage = {
   id: string; // stable client id for React keys
   role: MsgRole;
@@ -74,12 +74,15 @@ type UiCopy = {
   title: string;
   subtitle: string;
   welcome: string;
+  offlineMsg: string;
   placeholder: string;
   starters: string[];
   botAvatar: string;
   brandLogoDataUrl?: string;
   emojiPickerEnabled: boolean;
   fileUploadEnabled: boolean;
+  aiName: string;
+  aiLabelEnabled: boolean;
   primaryColor: string;
   primaryColorDark: string;
 };
@@ -131,6 +134,25 @@ function normalizeCpc(value: unknown): string {
   return s;
 }
 
+type SystemEvent =
+  | { type: "conversation_closed" }
+  | { type: "agent_joined"; name?: string }
+  | { type: "ai_handoff" }
+  | { type: "unknown"; raw: string };
+
+function parseSystemEvent(raw: string): SystemEvent | null {
+  const text = String(raw || "").trim();
+  const m = text.match(/^\[(system)\]\s*([a-z0-9_]+)(?::(.*))?$/i);
+  if (!m) return null;
+  const key = String(m[2] || "").trim().toLowerCase();
+  const param = (m[3] || "").trim();
+
+  if (key === "conversation_closed") return { type: "conversation_closed" };
+  if (key === "agent_joined") return { type: "agent_joined", name: param || undefined };
+  if (key === "ai_handoff") return { type: "ai_handoff" };
+  return { type: "unknown", raw: text };
+}
+
 /**
  * Parse widgetSettings (from bootloader or live config-update) into UiCopy.
  * Also applies CSS variables for primaryColor.
@@ -166,6 +188,8 @@ function parseWidgetSettings(
   const title =
     normalize(ws.headerText) ||
     normalize(ws.headerTitle) ||
+    // Legacy fallbacks (bootloader always includes them for backward compatibility)
+    normalize(ws.welcomeTitle) ||
     normalizeCpc(cpc.title) ||
     tWidget(lang, "defaultTitle");
   const subtitle =
@@ -183,10 +207,17 @@ function parseWidgetSettings(
     normalize(ws.aiWelcome) ||
     normalize(ws.welcomeMessage) ||
     tWidget(lang, "defaultWelcome");
+  const offlineMsg =
+    normalize(ws.offlineMsg) ||
+    normalize(ws.offlineMessage) ||
+    tWidget(lang, "chatDisabled");
   const botAvatar = normalize(ws.botAvatar) || "🤖";
   const brandLogoDataUrl = normalize(ws.brandLogoDataUrl);
-  const emojiPickerEnabled = ws.emojiPicker !== false; // default ON
-  const fileUploadEnabled = ws.fileUpload !== false; // default ON
+  const emojiPickerEnabled = ws.emojiPicker !== false && ws.emojiPickerEnabled !== false; // default ON
+  const fileUploadEnabled = ws.fileUpload !== false && ws.fileUploadEnabled !== false; // default ON
+  const aiName = normalize(ws.aiName) || "Helvion";
+  // Avoid "Helvion AI AI" duplication when the name already includes AI.
+  const aiLabelEnabled = ws.aiLabel !== false && !/\bai\b/i.test(aiName); // default ON
 
   let starters: string[] = [];
   const startersRaw = ws.starters;
@@ -223,12 +254,15 @@ function parseWidgetSettings(
     title,
     subtitle,
     welcome,
+    offlineMsg,
     placeholder,
     starters,
     botAvatar,
     brandLogoDataUrl: brandLogoDataUrl || undefined,
     emojiPickerEnabled,
     fileUploadEnabled,
+    aiName,
+    aiLabelEnabled,
     primaryColor: resolvedColor,
     primaryColorDark: resolvedDark,
   };
@@ -434,6 +468,9 @@ function App() {
 
   // Avoid theme/text flash: render a loading state until bootloader resolves.
   const [ui, setUi] = useState<UiCopy | null>(null);
+  const [widgetEnabled, setWidgetEnabled] = useState(true);
+  const [writeEnabled, setWriteEnabled] = useState(true);
+  const [conversationClosed, setConversationClosed] = useState(false);
   const spinnerRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const typingStopTimerRef = useRef<number | null>(null);
@@ -443,6 +480,7 @@ function App() {
 
   const visitorId = useMemo(() => getVisitorId(), []);
   const siteId = useMemo(() => getSiteIdFromRuntime(), []);
+  const configVersionRef = useRef<number>(0);
 
   const scrollToBottom = () => {
     try {
@@ -475,8 +513,15 @@ function App() {
       .then((boot) => {
         if (cancelled) return;
         setBootOk(Boolean(boot?.ok));
+        if (typeof (boot as any)?.configVersion === "number") {
+          configVersionRef.current = (boot as any).configVersion;
+        }
 
         const cfg = (boot?.config || {}) as Record<string, unknown>;
+        const we = (cfg as any).widgetEnabled;
+        const wre = (cfg as any).writeEnabled;
+        setWidgetEnabled(we !== false);
+        setWriteEnabled(wre !== false);
         const ws = (cfg.widgetSettings || {}) as Record<string, unknown>;
         const cpc = (cfg.chatPageConfig || {}) as Record<string, unknown>;
         wsRef.current = ws;
@@ -508,11 +553,13 @@ function App() {
         setUi(parsed);
 
         // Forward bootloader settings to parent loader so launcher also gets the correct color
+        // + and so the loader can hide the widget when disabled.
         try {
           window.parent.postMessage({
             type: "helvion:config-update",
             settings: ws,
             language: detectedLang,
+            config: { widgetEnabled: we !== false, writeEnabled: wre !== false },
           }, "*");
         } catch { /* cross-origin safety */ }
       })
@@ -526,6 +573,65 @@ function App() {
 
     return () => {
       cancelled = true;
+    };
+  }, [siteId]);
+
+  // Lightweight config polling:
+  // - widget settings already update via socket (`widget:config-updated`)
+  // - org-level toggles (widgetEnabled/writeEnabled/aiEnabled) may not emit socket events
+  //   so we refresh from bootloader when configVersion changes.
+  useEffect(() => {
+    if (!siteId) return;
+    let stopped = false;
+    const apiBase = getApiBase().replace(/\/+$/, "");
+    const poll = async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/bootloader/version?siteId=${encodeURIComponent(siteId)}`, {
+          method: "GET",
+          headers: { "x-site-id": siteId },
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data) return;
+        const v = typeof data.configVersion === "number" ? data.configVersion : 0;
+        if (v > 0 && v !== configVersionRef.current) {
+          const boot = await fetchBootloader(siteId);
+          if (stopped) return;
+          if (typeof (boot as any)?.configVersion === "number") {
+            configVersionRef.current = (boot as any).configVersion;
+          }
+          const cfg = (boot?.config || {}) as Record<string, unknown>;
+          const we = (cfg as any).widgetEnabled;
+          const wre = (cfg as any).writeEnabled;
+          setWidgetEnabled(we !== false);
+          setWriteEnabled(wre !== false);
+          const ws = (cfg.widgetSettings || {}) as Record<string, unknown>;
+          const cpc = (cfg.chatPageConfig || {}) as Record<string, unknown>;
+          wsRef.current = ws;
+          cpcRef.current = cpc;
+          try {
+            setUi(parseWidgetSettings(ws, cpc, langRef.current));
+          } catch {
+            // ignore
+          }
+          try {
+            window.parent.postMessage(
+              { type: "helvion:config-update", settings: ws, language: langRef.current, config: { widgetEnabled: we !== false, writeEnabled: wre !== false } },
+              "*"
+            );
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+    const timer = window.setInterval(() => {
+      if (!stopped) void poll();
+    }, 25_000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
     };
   }, [siteId]);
 
@@ -578,6 +684,17 @@ function App() {
   const pushUserMessage = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    if (!writeEnabled || conversationClosed) {
+      setView("chat");
+      const msg: ChatMessage = {
+        id: `sys_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        role: "system",
+        text: tWidget(langRef.current, "chatDisabled"),
+        time: nowTime(),
+      };
+      setMessages((prev) => [...prev, msg]);
+      return;
+    }
 
     setView("chat");
     const clientId = `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -633,10 +750,14 @@ function App() {
                 for (const m of msgs) {
                   if (seenIds.has(m.id)) continue;
                   if (m.role === "user") continue;
+                  const sys = parseSystemEvent(m.content);
+                  if (sys?.type === "conversation_closed") {
+                    setConversationClosed(true);
+                  }
                   newMsgs.push({
                     id: `s_${m.id}`,
                     serverId: m.id,
-                    role: "agent",
+                    role: sys ? "system" : "agent",
                     text: m.content,
                     time: formatTimeFromIso(m.timestamp),
                   });
@@ -721,6 +842,7 @@ function App() {
   const onSend = () => {
     const trimmed = inputValue.trim();
     if (!trimmed) return;
+    if (!writeEnabled || conversationClosed) return;
     void pushUserMessage(trimmed);
     setInputValue("");
     // Stop typing immediately after sending
@@ -829,6 +951,10 @@ function App() {
         if (!data || !cid || data.conversationId !== cid) return;
         const msg = data.message;
         if (!msg || msg.role === "user") return;
+        const sys = parseSystemEvent(msg.content);
+        if (sys?.type === "conversation_closed") {
+          setConversationClosed(true);
+        }
 
         setMessages((prev) => {
           const seen = new Set<string>();
@@ -841,7 +967,7 @@ function App() {
             {
               id: `s_${msg.id}`,
               serverId: msg.id,
-              role: "agent",
+              role: sys ? "system" : "agent",
               text: msg.content,
               time: formatTimeFromIso(msg.timestamp),
             },
@@ -906,7 +1032,11 @@ function App() {
 
   return (
     <div className="hv-app">
-      {!ui ? (
+      {!widgetEnabled ? (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", textAlign: "center", color: "#6b7280", fontSize: "13px" }}>
+          {/* Keep this minimal; the loader should hide the widget entirely. */}
+        </div>
+      ) : !ui ? (
         <div
           style={{
             flex: 1,
@@ -960,10 +1090,10 @@ function App() {
             <div className="hv-home">
               <div className="hv-home-icon">💬</div>
               <h2 className="hv-home-title">{ui.title}</h2>
-              <p className="hv-home-subtitle">{ui.welcome}</p>
+              <p className="hv-home-subtitle">{writeEnabled ? ui.welcome : ui.offlineMsg}</p>
               <div className="hv-starters">
                 {ui.starters.map((label) => (
-                  <button key={label} className="hv-starter" type="button" onClick={() => void pushUserMessage(label)}>
+                  <button key={label} className="hv-starter" type="button" onClick={() => void pushUserMessage(label)} disabled={!writeEnabled || conversationClosed}>
                     {label}
                   </button>
                 ))}
@@ -972,6 +1102,7 @@ function App() {
                   className="hv-starter hv-starter-agent"
                   type="button"
                   onClick={() => void pushUserMessage(tWidget(lang, "talkToAgent"))}
+                  disabled={!writeEnabled || conversationClosed}
                 >
                   {tWidget(lang, "talkToAgent")}
                 </button>
@@ -981,6 +1112,21 @@ function App() {
             <div className="hv-messages" role="log" aria-label="Messages">
               {messages.map((m) => {
                 const filePayload = parseFilePayload(m.text);
+                if (m.role === "system") {
+                  const ev = parseSystemEvent(m.text);
+                  let label = m.text;
+                  if (ev?.type === "conversation_closed") label = tWidget(lang, "systemConversationClosed");
+                  else if (ev?.type === "agent_joined") {
+                    label = ev.name ? `${tWidget(lang, "systemAgentJoined")}: ${ev.name}` : tWidget(lang, "systemAgentJoined");
+                  }
+                  else if (ev?.type === "ai_handoff") label = tWidget(lang, "systemAiHandoff");
+                  return (
+                    <div key={m.id} className="hv-system">
+                      <span className="hv-system-pill">{label}</span>
+                    </div>
+                  );
+                }
+
                 if (m.role === "agent") {
                   return (
                     <div key={m.id} className="hv-msg hv-msg-agent">
@@ -993,7 +1139,8 @@ function App() {
                       </div>
                       <div className="hv-msg-bubble" style={{ background: `linear-gradient(135deg, ${ui.primaryColor}, ${ui.primaryColorDark})` }}>
                         <div className="hv-msg-sender">
-                          Helvion AI <span className="hv-badge-ai">{tWidget(lang, "aiAgentBadge")}</span>
+                          {ui.aiName}
+                          {ui.aiLabelEnabled ? <span className="hv-badge-ai">{tWidget(lang, "aiBadge")}</span> : null}
                         </div>
                         <div className="hv-msg-text">
                           {filePayload ? <img className="hv-msg-img" src={filePayload.dataUrl} alt={filePayload.name} /> : m.text}
@@ -1053,8 +1200,9 @@ function App() {
             <div className="hv-input-bar">
               <input
                 className="hv-input-field"
-                placeholder={ui.placeholder}
+                placeholder={writeEnabled && !conversationClosed ? ui.placeholder : ui.offlineMsg}
                 value={inputValue}
+                disabled={!writeEnabled || conversationClosed}
                 ref={(el) => {
                   inputRef.current = el;
                 }}
@@ -1072,6 +1220,7 @@ function App() {
                     className="hv-input-emoji"
                     type="button"
                     aria-label={tWidget(lang, "emoji")}
+                    disabled={!writeEnabled || conversationClosed}
                     onClick={() => setEmojiOpen((v) => !v)}
                   >
                     😊
@@ -1083,6 +1232,7 @@ function App() {
                           key={e}
                           className="hv-emoji-item"
                           type="button"
+                          disabled={!writeEnabled || conversationClosed}
                           onClick={() => {
                             setInputValue((p) => `${p}${e}`);
                             setEmojiOpen(false);
@@ -1117,6 +1267,7 @@ function App() {
                     className="hv-input-gif"
                     type="button"
                     aria-label={tWidget(lang, "gif")}
+                    disabled={!writeEnabled || conversationClosed}
                     onClick={() => fileInputRef.current?.click()}
                   >
                     GIF
@@ -1125,6 +1276,7 @@ function App() {
                     className="hv-input-attach"
                     type="button"
                     aria-label={tWidget(lang, "attach")}
+                    disabled={!writeEnabled || conversationClosed}
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1133,7 +1285,14 @@ function App() {
                   </button>
                 </>
               ) : null}
-              <button className="hv-input-send" type="button" onClick={onSend} aria-label={tWidget(lang, "send")} style={{ background: ui.primaryColor }}>
+              <button
+                className="hv-input-send"
+                type="button"
+                onClick={onSend}
+                aria-label={tWidget(lang, "send")}
+                disabled={!writeEnabled || conversationClosed}
+                style={{ background: ui.primaryColor }}
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="18"

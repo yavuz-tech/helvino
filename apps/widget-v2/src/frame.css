@@ -122,6 +122,25 @@ body {
 /* Allow bubble shadow/top edge to render (no visual clipping). */
 .hv-msg { width: 100%; max-width: 100%; overflow: visible; }
 
+/* ── System events (center pill) ── */
+.hv-system {
+  display: flex;
+  justify-content: center;
+  padding: 2px 0;
+}
+.hv-system-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.06);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  color: rgba(17, 24, 39, 0.75);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 /* ── Bot/Agent message (LEFT) — PRIMARY color background ── */
 .hv-msg-agent {
   display: flex; gap: 8px; max-width: 88%;
@@ -261,6 +280,7 @@ body {
   transition: background 150ms;
 }
 .hv-input-emoji:hover { background: #f3f4f6; }
+.hv-input-emoji:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .hv-input-gif {
   height: 32px;
@@ -278,6 +298,7 @@ body {
   color: #111827;
 }
 .hv-input-gif:hover { background: #f3f4f6; }
+.hv-input-gif:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .hv-emoji-wrap { position: relative; display: flex; align-items: center; flex-shrink: 0; }
 .hv-emoji-pop {
@@ -309,6 +330,7 @@ body {
   font-size: 16px;
 }
 .hv-emoji-item:hover { background: rgba(0,0,0,0.06); }
+.hv-emoji-item:disabled { opacity: 0.45; cursor: not-allowed; }
 .hv-input-field {
   flex: 1; min-width: 0;
   border: 1.5px solid #e5e7eb;
@@ -326,6 +348,10 @@ body {
   background: #fff;
 }
 .hv-input-field::placeholder { color: #9ca3af; }
+.hv-input-field:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
 .hv-input-attach {
   width: 34px; height: 34px;
   border: none; background: transparent;
@@ -335,6 +361,7 @@ body {
   transition: background 150ms, color 150ms;
 }
 .hv-input-attach:hover { background: #f3f4f6; color: #6b7280; }
+.hv-input-attach:disabled { opacity: 0.45; cursor: not-allowed; }
 .hv-input-send {
   width: 36px; height: 36px; border: none; border-radius: 50%;
   background: var(--hv-primary, #8B5CF6); color: white;
@@ -344,6 +371,12 @@ body {
 }
 .hv-input-send:hover { filter: brightness(1.1); }
 .hv-input-send:active { transform: scale(0.92); }
+.hv-input-send:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
+}
 
 /* ══ POWERED BY ══ */
 .hv-powered {

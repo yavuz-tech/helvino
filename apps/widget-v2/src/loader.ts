@@ -101,6 +101,15 @@ interface LauncherConfig {
   attGrabberDelay: number;
 }
 
+function mapLegacyLauncherId(raw: string): string {
+  const v = raw.trim().toLowerCase();
+  if (v === "pill") return "pill";
+  if (v === "bar") return "bar";
+  if (v === "squircle") return "squircle";
+  // legacy "bubble" and unknowns default to "rounded"
+  return "rounded";
+}
+
 function parseConfig(ws: Record<string, unknown>): LauncherConfig {
   const themeId = typeof ws.themeId === "string" ? ws.themeId.trim().toLowerCase() : "";
   const useCustom = ws.useCustomColor === true;
@@ -114,8 +123,14 @@ function parseConfig(ws: Record<string, unknown>): LauncherConfig {
 
   return {
     primaryColor: primaryColor || "#8B5CF6",
-    launcherId: typeof ws.launcherId === "string" ? ws.launcherId : "rounded",
-    positionId: typeof ws.positionId === "string" ? ws.positionId : "br",
+    launcherId:
+      typeof ws.launcherId === "string"
+        ? ws.launcherId
+        : (typeof (ws as any).launcher === "string" ? mapLegacyLauncherId(String((ws as any).launcher)) : "rounded"),
+    positionId:
+      typeof ws.positionId === "string"
+        ? ws.positionId
+        : (String((ws as any).position || "").toLowerCase() === "left" ? "bl" : "br"),
     launcherLabel: typeof ws.launcherLabel === "string" ? ws.launcherLabel : "Bize yazın",
     attGrabberId: typeof ws.attGrabberId === "string" ? ws.attGrabberId : "none",
     attGrabberText: typeof ws.attGrabberText === "string" ? ws.attGrabberText : "",
@@ -136,6 +151,7 @@ let attGrabberTimer: number | null = null;
 let attGrabberDismissed = false;
 let currentLang: WidgetLang = "tr";
 let hostLang: WidgetLang | null = null;
+let destroyed = false;
 const embedVersion = getEmbedVersionParam();
 // Always bust iframe HTML caching (CDNs can be sticky). If the embed script
 // already has a version param, reuse it; otherwise use a per-page-load value.
@@ -242,6 +258,25 @@ function toggle(): void {
     if (isMobile()) unlockBody();
     setTimeout(() => { if (!isOpen && container) container.style.display = "none"; }, 300);
   }
+}
+
+function destroyWidget(): void {
+  if (destroyed) return;
+  destroyed = true;
+  try { window.removeEventListener("message", onFrameMessage); } catch { /* */ }
+  try { window.removeEventListener("resize", onResize); } catch { /* */ }
+  try { window.removeEventListener("orientationchange", onResize); } catch { /* */ }
+  try { if (isOpen) unlockBody(); } catch { /* */ }
+  try { launcher?.remove(); } catch { /* */ }
+  try { container?.remove(); } catch { /* */ }
+  try { attGrabberEl?.remove(); } catch { /* */ }
+  try { pulseRing?.remove(); } catch { /* */ }
+  launcher = null;
+  container = null;
+  frameEl = null;
+  attGrabberEl = null;
+  pulseRing = null;
+  currentConfig = null;
 }
 
 // ── Attention grabber ──
@@ -492,6 +527,10 @@ async function fetchAndApply(siteId: string): Promise<void> {
       if (!currentConfig) applyConfig(parseConfig({}));
       return;
     }
+    if (data?.config?.widgetEnabled === false) {
+      destroyWidget();
+      return;
+    }
     // If host page provided a locale, keep launcher aria consistent with it.
     const langNow = hostLang || resolveWidgetLang(data?.config?.language);
     setResolvedLang(langNow);
@@ -513,10 +552,15 @@ function onFrameMessage(e: MessageEvent): void {
     if (isOpen) toggle();
   }
 
-  if (e.data?.type === "helvion:config-update" && e.data.settings) {
-    const ws = e.data.settings as Record<string, unknown>;
-    applyConfig(parseConfig(ws));
-
+  if (e.data?.type === "helvion:config-update") {
+    if (e.data?.config?.widgetEnabled === false) {
+      destroyWidget();
+      return;
+    }
+    if (e.data.settings) {
+      const ws = e.data.settings as Record<string, unknown>;
+      applyConfig(parseConfig(ws));
+    }
     // Update language from live config (iframe forwards the resolved language)
     if (typeof e.data.language === "string") {
       currentLang = resolveWidgetLang(e.data.language);

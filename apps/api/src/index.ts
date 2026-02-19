@@ -864,6 +864,33 @@ fastify.post<{
             : "Thanks! We received your contact details. Our team will reach out shortly.";
         };
 
+        const looksLikeAgentRequest = (text: string): boolean => {
+          const s = String(text || "").toLowerCase();
+          if (!s.trim()) return false;
+          // Covers the widget CTA text + common variants.
+          return (
+            s.includes("🧑‍💼") ||
+            /\b(temsilci|canli|canlı|insan|musteri temsilcisi|müşteri temsilcisi|agent|human|live support|support agent|representative)\b/i.test(s) ||
+            /bagla(n)?|bağla(n)?/i.test(s) && /\b(temsilci|agent|human)\b/i.test(s)
+          );
+        };
+
+        const getAgentHandoffMessage = (): string => {
+          const byOrg = typeof orgLanguage === "string" && orgLanguage.trim().toLowerCase().startsWith("tr");
+          const byContent = looksTurkish(sanitizedContent);
+          const isTr = byOrg || isTrFromHistory || byContent;
+          return isTr
+            ? "Talebinizi aldik. Bir temsilci en kisa surede sizinle iletisime gececek. Hemen donmemiz icin e-posta veya telefon numaranizi yazabilirsiniz."
+            : "Got it — a human agent will follow up as soon as possible. If you'd like, leave your email or phone number so we can reach you faster.";
+        };
+
+        // High-signal intents: when the visitor explicitly requests a human agent,
+        // don't waste tokens on a generic LLM reply and don't say misleading things.
+        if (looksLikeAgentRequest(sanitizedContent)) {
+          await emitAssistantToConversation(getAgentHandoffMessage());
+          return;
+        }
+
         // Conversation-level spam guard:
         // - Show the "no automated reply" notice at most once per conversation.
         // - If the visitor provides contact info (email/phone), send a one-time thank-you instead.
@@ -928,10 +955,20 @@ fastify.post<{
 
         // Load recent conversation history (last 20 messages) for context
         const recentMessages = await store.getMessages(id);
-        const history: ConversationMessage[] = recentMessages.slice(-20).map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        }));
+        const history: ConversationMessage[] = recentMessages
+          .slice(-40) // pull a little more so we can filter and still keep enough context
+          .filter((m: any) => {
+            // System events are stored as assistant messages (e.g. "[system] conversation_closed:...").
+            // Excluding them prevents confusing the LLM and improves response relevance.
+            if ((m as any)?.role !== "assistant") return true;
+            const c = String((m as any)?.content || "").trim();
+            return !/^\[(system|note)\]/i.test(c);
+          })
+          .slice(-20)
+          .map((m: any) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+          }));
 
         // Generate AI response (multi-provider with fallback chain)
         const result = await generateAiResponse(history, {
