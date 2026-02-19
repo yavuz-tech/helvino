@@ -1436,7 +1436,7 @@ export default function WidgetAppearanceUltimateV2({ planKey = "free", onSave, l
                   {/* AI Model */}
                   <label style={{...s.label, marginBottom: 8, display: "flex", alignItems: "center", gap: 5}}>
                     ⚡ AI Model
-                    {!isPro && <span style={{ fontSize: 8, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "linear-gradient(135deg,#8B5CF6,#7C3AED)", color: "#FFF" }}>PRO</span>}
+                    {/* "auto" is available on all plans; show PRO badges only on locked options. */}
                   </label>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 5, marginBottom: 14 }}>
                     {AI_MODELS.map(m => { const sel = aiModel===m.id; const locked = !isPro && m.id !== "auto"; return (
