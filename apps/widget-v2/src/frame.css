@@ -262,6 +262,8 @@ body {
 .hv-footer {
   background: white; flex-shrink: 0;
   border-top: 1px solid #f0f0f0;
+  position: relative;
+  z-index: 30;
 }
 .hv-input-bar {
   display: flex; align-items: center; gap: 6px;
@@ -300,7 +302,14 @@ body {
 .hv-input-gif:hover { background: #f3f4f6; }
 .hv-input-gif:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.hv-emoji-wrap { position: relative; display: flex; align-items: center; flex-shrink: 0; }
+.hv-emoji-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  /* Ensure the popover stacks above sibling elements (input, send button). */
+  z-index: 60;
+}
 .hv-emoji-pop {
   position: absolute;
   bottom: 44px;
@@ -308,13 +317,13 @@ body {
   width: 232px;
   padding: 10px;
   border-radius: 14px;
-  background: rgba(255,255,255,0.97);
+  background: #ffffff;
   border: 1px solid rgba(0,0,0,0.08);
   box-shadow: 0 12px 34px rgba(0,0,0,0.14);
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 6px;
-  z-index: 20;
+  z-index: 9999;
   backdrop-filter: blur(8px);
 }
 .hv-emoji-item {

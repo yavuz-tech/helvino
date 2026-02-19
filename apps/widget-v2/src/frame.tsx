@@ -1247,44 +1247,42 @@ function App() {
                 </div>
               ) : null}
 
-              {ui.fileUploadEnabled ? (
-                <>
-                  <input
-                    ref={(el) => {
-                      fileInputRef.current = el;
-                    }}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    style={{ display: "none" }}
-                    onChange={(e) => {
-                      const f = e.currentTarget.files?.[0];
-                      e.currentTarget.value = "";
-                      if (!f) return;
-                      void pushUserFile(f);
-                    }}
-                  />
-                  <button
-                    className="hv-input-gif"
-                    type="button"
-                    aria-label={tWidget(lang, "gif")}
-                    disabled={!writeEnabled || conversationClosed}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    GIF
-                  </button>
-                  <button
-                    className="hv-input-attach"
-                    type="button"
-                    aria-label={tWidget(lang, "attach")}
-                    disabled={!writeEnabled || conversationClosed}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-                    </svg>
-                  </button>
-                </>
-              ) : null}
+              <>
+                <input
+                  ref={(el) => {
+                    fileInputRef.current = el;
+                  }}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.currentTarget.files?.[0];
+                    e.currentTarget.value = "";
+                    if (!f) return;
+                    void pushUserFile(f);
+                  }}
+                />
+                <button
+                  className="hv-input-gif"
+                  type="button"
+                  aria-label={tWidget(lang, "gif")}
+                  disabled={!ui.fileUploadEnabled || !writeEnabled || conversationClosed}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  GIF
+                </button>
+                <button
+                  className="hv-input-attach"
+                  type="button"
+                  aria-label={tWidget(lang, "attach")}
+                  disabled={!ui.fileUploadEnabled || !writeEnabled || conversationClosed}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                  </svg>
+                </button>
+              </>
               <button
                 className="hv-input-send"
                 type="button"
