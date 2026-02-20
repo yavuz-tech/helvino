@@ -275,6 +275,8 @@ export async function portalDashboardRoutes(fastify: FastifyInstance) {
       { country: "BR", city: "São Paulo", browser: "Chrome", os: "Android" },
       { country: "JP", city: "Tokyo", browser: "Edge", os: "Windows" },
       { country: "GB", city: "London", browser: "Safari", os: "iOS" },
+      { country: "FR", city: "Paris", browser: "Chrome", os: "macOS" },
+      { country: "IN", city: "Mumbai", browser: "Chrome", os: "Android" },
     ];
 
     const now = new Date();
