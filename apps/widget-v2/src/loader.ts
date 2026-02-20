@@ -101,6 +101,7 @@ interface LauncherConfig {
   attGrabberId: string; // "none" | "wave" | "message" | "bounce" | "pulse"
   attGrabberText: string;
   attGrabberDelay: number;
+  autoOpen: boolean;
 }
 
 function mapLegacyLauncherId(raw: string): string {
@@ -123,6 +124,14 @@ function parseConfig(ws: Record<string, unknown>): LauncherConfig {
   else if (wsPC && isHexColor(wsPC)) primaryColor = wsPC;
   else if (themeId && THEME_MAP[themeId]) primaryColor = THEME_MAP[themeId]!;
 
+  const rawDelay = (ws as any).attGrabberDelay;
+  const parsedDelay =
+    typeof rawDelay === "number"
+      ? rawDelay
+      : typeof rawDelay === "string"
+        ? Number(rawDelay)
+        : NaN;
+
   return {
     primaryColor: primaryColor || "#8B5CF6",
     launcherId:
@@ -134,9 +143,20 @@ function parseConfig(ws: Record<string, unknown>): LauncherConfig {
         ? ws.positionId
         : (String((ws as any).position || "").toLowerCase() === "left" ? "bl" : "br"),
     launcherLabel: typeof ws.launcherLabel === "string" ? ws.launcherLabel : "Bize yazın",
-    attGrabberId: typeof ws.attGrabberId === "string" ? ws.attGrabberId : "none",
-    attGrabberText: typeof ws.attGrabberText === "string" ? ws.attGrabberText : "",
-    attGrabberDelay: typeof ws.attGrabberDelay === "number" ? ws.attGrabberDelay : 5,
+    attGrabberId:
+      typeof ws.attGrabberId === "string"
+        ? ws.attGrabberId
+        : typeof (ws as any).attentionGrabberId === "string"
+          ? String((ws as any).attentionGrabberId)
+          : "none",
+    attGrabberText:
+      typeof ws.attGrabberText === "string"
+        ? ws.attGrabberText
+        : typeof (ws as any).attentionGrabberText === "string"
+          ? String((ws as any).attentionGrabberText)
+          : "",
+    attGrabberDelay: Number.isFinite(parsedDelay) ? parsedDelay : 5,
+    autoOpen: (ws as any).autoOpen === true,
   };
 }
 
@@ -151,6 +171,7 @@ let savedScrollY = 0;
 let currentConfig: LauncherConfig | null = null;
 let attGrabberTimer: number | null = null;
 let attGrabberDismissed = false;
+let autoOpenApplied = false;
 let currentLang: WidgetLang = "tr";
 let hostLang: WidgetLang | null = null;
 let destroyed = false;
@@ -279,6 +300,7 @@ function destroyWidget(): void {
   attGrabberEl = null;
   pulseRing = null;
   currentConfig = null;
+  autoOpenApplied = false;
 }
 
 // ── Attention grabber ──
@@ -295,7 +317,8 @@ function showAttGrabber(cfg: LauncherConfig): void {
 
   const isLeft = cfg.positionId === "bl";
 
-  if (cfg.attGrabberId === "message" && cfg.attGrabberText) {
+  if (cfg.attGrabberId === "message") {
+    const msg = String(cfg.attGrabberText || "").trim() || "Merhaba! Yardıma ihtiyacınız var mı? 👋";
     if (!attGrabberEl) {
       attGrabberEl = document.createElement("div");
       attGrabberEl.id = "helvion-att-grabber";
@@ -303,7 +326,7 @@ function showAttGrabber(cfg: LauncherConfig): void {
     }
     attGrabberEl.innerHTML = `
       <div class="helvion-att-bubble">
-        ${cfg.attGrabberText.replace(/</g, "&lt;")}
+        ${msg.replace(/</g, "&lt;")}
         <button class="helvion-att-close" aria-label="${tWidget(currentLang, "closeChat")}">&times;</button>
       </div>
     `;
@@ -456,6 +479,14 @@ function applyConfig(cfg: LauncherConfig): void {
   hideAttGrabber();
   attGrabberDismissed = false;
   scheduleAttGrabber(cfg);
+
+  // Respect "auto open" setting from widget appearance.
+  if (cfg.autoOpen && !isOpen && !autoOpenApplied) {
+    autoOpenApplied = true;
+    window.setTimeout(() => {
+      if (!isOpen) toggle();
+    }, 200);
+  }
 
   // Reveal
   // Respect mobile-open visibility rules (launcher should not block iframe UI).
