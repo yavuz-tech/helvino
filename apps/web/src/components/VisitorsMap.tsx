@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ComposableMap,
   Geographies,
@@ -40,10 +40,105 @@ const COUNTRY_CENTER: Record<string, LatLng> = {
   SA: { lat: 23.9, lng: 45.1 },
   AE: { lat: 24.4, lng: 54.4 },
   EG: { lat: 26.8, lng: 30.8 },
+  MX: { lat: 23.6, lng: -102.5 },
+  AR: { lat: -38.4, lng: -63.6 },
+  CL: { lat: -35.7, lng: -71.5 },
+  CO: { lat: 4.6, lng: -74.1 },
+  PE: { lat: -9.2, lng: -75.0 },
+  ZA: { lat: -30.6, lng: 22.9 },
+  NG: { lat: 9.1, lng: 8.7 },
+  KE: { lat: -0.02, lng: 37.9 },
+  MA: { lat: 31.8, lng: -7.1 },
+  DZ: { lat: 28.0, lng: 1.7 },
+  TN: { lat: 33.9, lng: 9.5 },
+  PK: { lat: 30.4, lng: 69.4 },
+  BD: { lat: 23.7, lng: 90.4 },
+  TH: { lat: 15.8, lng: 101.0 },
+  VN: { lat: 14.1, lng: 108.3 },
+  ID: { lat: -2.2, lng: 117.3 },
+  KR: { lat: 36.3, lng: 127.8 },
+  UA: { lat: 49.0, lng: 31.4 },
+  PL: { lat: 52.1, lng: 19.1 },
+  SE: { lat: 60.1, lng: 18.6 },
+  NO: { lat: 60.5, lng: 8.5 },
+  FI: { lat: 64.5, lng: 26.0 },
+  GR: { lat: 39.1, lng: 21.8 },
+  RO: { lat: 45.9, lng: 24.9 },
+  BG: { lat: 42.7, lng: 25.5 },
+  IL: { lat: 31.0, lng: 35.0 },
+  IQ: { lat: 33.2, lng: 43.7 },
+  IR: { lat: 32.4, lng: 53.7 },
 };
 
+const COUNTRY_ALIASES: Record<string, string> = {
+  TURKEY: "TR",
+  TURKIYE: "TR",
+  "TURKIYE CUMHURIYETI": "TR",
+  "UNITED STATES": "US",
+  USA: "US",
+  "UNITED KINGDOM": "GB",
+  UK: "GB",
+  GERMANY: "DE",
+  FRANCE: "FR",
+  SPAIN: "ES",
+  ITALY: "IT",
+  NETHERLANDS: "NL",
+  RUSSIA: "RU",
+  INDIA: "IN",
+  BRAZIL: "BR",
+  CANADA: "CA",
+  AUSTRALIA: "AU",
+  JAPAN: "JP",
+  CHINA: "CN",
+  "SAUDI ARABIA": "SA",
+  "UNITED ARAB EMIRATES": "AE",
+  EGYPT: "EG",
+  MEXICO: "MX",
+  ARGENTINA: "AR",
+  CHILE: "CL",
+  COLOMBIA: "CO",
+  PERU: "PE",
+  "SOUTH AFRICA": "ZA",
+  NIGERIA: "NG",
+  KENYA: "KE",
+  MOROCCO: "MA",
+  ALGERIA: "DZ",
+  TUNISIA: "TN",
+  PAKISTAN: "PK",
+  BANGLADESH: "BD",
+  THAILAND: "TH",
+  VIETNAM: "VN",
+  INDONESIA: "ID",
+  "SOUTH KOREA": "KR",
+  UKRAINE: "UA",
+  POLAND: "PL",
+  SWEDEN: "SE",
+  NORWAY: "NO",
+  FINLAND: "FI",
+  GREECE: "GR",
+  ROMANIA: "RO",
+  BULGARIA: "BG",
+  ISRAEL: "IL",
+  IRAQ: "IQ",
+  IRAN: "IR",
+};
+
+function normalizeCountryToIso2(raw: string | null): string {
+  const value = String(raw || "").trim();
+  if (!value) return "";
+  if (/^[A-Za-z]{2}$/.test(value)) return value.toUpperCase();
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+  return COUNTRY_ALIASES[normalized] || "";
+}
+
 function visitorToCoord(v: LiveVisitorPoint): [number, number] {
-  const code = String(v.country || "").toUpperCase();
+  const code = normalizeCountryToIso2(v.country);
   const c = COUNTRY_CENTER[code] || { lat: 20, lng: 0 };
   return [c.lng, c.lat];
 }
@@ -58,8 +153,8 @@ export default function VisitorsMap({
   activeCount: number;
 }) {
   // center: [longitude, latitude] — ZoomableGroup koordinat bekliyor
-  const [center, setCenter] = useState<[number, number]>([25, 40]);
-  const [zoom, setZoom] = useState(2.2);
+  const [center, setCenter] = useState<[number, number]>([20, 30]);
+  const [zoom, setZoom] = useState(2.6);
   const width = 1200;
   const height = 620;
 
@@ -80,32 +175,34 @@ export default function VisitorsMap({
     []
   );
 
-  const handleZoomIn = useCallback((e: React.MouseEvent) => {
+  const handleZoomIn = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    setZoom((z) => Math.min(4, z + 0.5));
+    setZoom((z) => Math.min(5.5, Number((z + 0.25).toFixed(2))));
   }, []);
 
-  const handleZoomOut = useCallback((e: React.MouseEvent) => {
+  const handleZoomOut = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    setZoom((z) => Math.max(1, z - 0.5));
+    setZoom((z) => Math.max(1.2, Number((z - 0.25).toFixed(2))));
   }, []);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => e.preventDefault();
-    el.addEventListener("wheel", handler, { passive: false });
-    return () => el.removeEventListener("wheel", handler);
+  const handleMapWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const delta = e.deltaY;
+    setZoom((z) =>
+      delta < 0
+        ? Math.min(5.5, Number((z + 0.18).toFixed(2)))
+        : Math.max(1.2, Number((z - 0.18).toFixed(2)))
+    );
   }, []);
 
   return (
     <div
-      ref={containerRef}
       className="relative h-full min-h-[540px] overflow-hidden rounded-r-2xl rounded-l-none bg-[#a8d4f0] touch-none"
       style={{ touchAction: "none" }}
+      onWheel={handleMapWheel}
     >
       <style>{`
         @keyframes visitorPulseWhite {
@@ -129,8 +226,8 @@ export default function VisitorsMap({
           zoom={zoom}
           center={center}
           onMoveEnd={handleMoveEnd}
-          minZoom={1}
-          maxZoom={5}
+          minZoom={1.2}
+          maxZoom={5.5}
         >
           <Geographies geography={GEO_URL}>
             {({ geographies }: { geographies: { rsmKey: string; [k: string]: unknown }[] }) =>
