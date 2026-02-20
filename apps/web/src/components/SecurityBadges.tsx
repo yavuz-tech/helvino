@@ -36,16 +36,16 @@ export default function SecurityBadges({
       )}
 
       {passkeysCount !== undefined && passkeysCount > 0 && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border bg-[#EDEDFF]/60 border-[#4B45FF]/20">
-          <Key size={18} className="text-[#4B45FF] flex-shrink-0" />
-          <span className="text-sm font-semibold text-[#4B45FF]">{t("trust.passkeysActive")}</span>
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border bg-amber-50/60 border-amber-200/60">
+          <Key size={18} className="text-amber-600 flex-shrink-0" />
+          <span className="text-sm font-semibold text-amber-700">{t("trust.passkeysActive")}</span>
         </div>
       )}
 
       {auditActive && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border bg-[#EDEDFF]/60 border-[#4B45FF]/20">
-          <FileText size={18} className="text-[#4B45FF] flex-shrink-0" />
-          <span className="text-sm font-semibold text-[#4B45FF]">{t("trust.auditActive")}</span>
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border bg-[#FFFBF5]/60 border-[#F3E8D8]">
+          <FileText size={18} className="text-amber-600 flex-shrink-0" />
+          <span className="text-sm font-semibold text-amber-700">{t("trust.auditActive")}</span>
         </div>
       )}
     </div>

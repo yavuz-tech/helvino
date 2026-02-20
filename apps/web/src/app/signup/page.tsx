@@ -316,14 +316,14 @@ export default function SignupPage() {
       className="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8"
       style={{
         background:
-          "radial-gradient(circle at 20% 50%, rgba(75, 69, 255, 0.10), transparent 50%), radial-gradient(circle at 80% 80%, rgba(108, 103, 255, 0.08), transparent 50%), linear-gradient(135deg, #0D0D12 0%, #13131A 100%)",
+          "radial-gradient(circle at 20% 50%, rgba(245, 158, 11, 0.15), transparent 50%), radial-gradient(circle at 80% 80%, rgba(251, 113, 133, 0.15), transparent 50%), linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)",
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
     >
-      <div className="pointer-events-none absolute -left-28 top-20 h-72 w-72 rounded-full bg-[#4B45FF]/15 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 bottom-24 h-72 w-72 rounded-full bg-[#6C67FF]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -left-28 top-20 h-72 w-72 rounded-full bg-amber-300/25 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-24 h-72 w-72 rounded-full bg-rose-300/25 blur-3xl" />
 
       <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
         <LanguageSwitcher />
@@ -332,41 +332,41 @@ export default function SignupPage() {
       <div className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-center py-6 lg:min-h-[calc(100vh-3rem)] lg:py-0">
         <div className="grid w-full items-center gap-8 lg:grid-cols-5 lg:gap-12">
           <section className="hidden lg:col-span-2 lg:block">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#4B45FF]/30 bg-[#4B45FF]/10 px-4 py-1.5 text-xs font-semibold text-[#6C67FF] backdrop-blur-sm">
-              <Sparkles size={14} className="text-[#6C67FF]" />
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-200/80 bg-white/60 px-4 py-1.5 text-xs font-semibold text-[var(--text-secondary)] backdrop-blur-sm">
+              <Sparkles size={14} className="text-[var(--accent)]" />
               <span>{t("signup.heroBadge")}</span>
             </div>
-            <h1 className="max-w-xl text-4xl font-bold leading-[1.1] tracking-tight text-white">
+            <h1 className="max-w-xl text-4xl font-bold leading-[1.1] tracking-tight text-[var(--text-primary)]">
               {t("signup.heroTitle")}
             </h1>
-            <p className="mt-4 max-w-lg text-base leading-relaxed text-slate-400">
+            <p className="mt-4 max-w-lg text-base leading-relaxed text-[var(--text-secondary)]">
               {t("signup.heroSubtitle")}
             </p>
             <div className="mt-8 space-y-3">
               {[t("signup.heroBulletOne"), t("signup.heroBulletTwo"), t("signup.heroBulletThree")].map((item) => (
                 <div
                   key={item}
-                  className="flex items-center gap-3 rounded-xl border border-slate-700/50 bg-white/5 px-4 py-3 backdrop-blur-sm"
+                  className="flex items-center gap-3 rounded-xl border border-amber-200/70 bg-white/65 px-4 py-3 backdrop-blur-sm"
                 >
-                  <ShieldCheck size={18} className="shrink-0 text-[#6C67FF]" />
-                  <span className="text-sm text-white">{item}</span>
+                  <ShieldCheck size={18} className="shrink-0 text-[var(--accent)]" />
+                  <span className="text-sm text-[var(--text-primary)]">{item}</span>
                 </div>
               ))}
             </div>
-            <div className="mt-6 inline-flex items-center gap-2 rounded-lg border border-slate-700/50 bg-white/5 px-3 py-2 text-xs text-slate-400 backdrop-blur-sm">
-              <Users size={14} className="text-[#6C67FF]" />
+            <div className="mt-6 inline-flex items-center gap-2 rounded-lg border border-amber-200/70 bg-white/70 px-3 py-2 text-xs text-[var(--text-secondary)] backdrop-blur-sm">
+              <Users size={14} className="text-[var(--accent)]" />
               <span>{t("signup.socialProof")}</span>
             </div>
           </section>
 
           <section className="mx-auto w-full max-w-[560px] lg:col-span-3">
             <motion.div
-              className="rounded-3xl bg-gradient-to-br from-[#4B45FF]/30 via-[#6C67FF]/20 to-[#4B45FF]/10 p-[1px] shadow-[0_30px_80px_rgba(75,69,255,0.20)]"
+              className="rounded-3xl bg-gradient-to-br from-amber-300/55 via-rose-200/45 to-amber-100/65 p-[1px] shadow-[0_30px_80px_rgba(149,115,22,0.25)]"
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
             >
-              <div className="rounded-3xl border border-white/10 bg-[#13131A]/90 p-7 backdrop-blur-2xl">
+              <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl">
                 <div className="mb-6 flex flex-col items-center justify-center text-center">
                   <HelvionMark height={62} variant="dark" className="hv-logo-float" />
                 </div>
@@ -381,51 +381,51 @@ export default function SignupPage() {
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                           </svg>
                         </div>
-                        <h2 className="text-lg font-bold text-white">
+                        <h2 className="text-lg font-bold text-[var(--text-primary)]">
                           {t("signup.verifiedRedirecting")}
                         </h2>
-                        <p className="text-sm text-slate-400">
+                        <p className="text-sm text-[var(--text-secondary)]">
                           {t("signup.pleaseWait")}
                         </p>
                       </>
                     ) : (
                     <>
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-900/30">
-                      <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50">
+                      <svg className="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                     </div>
-                    <h2 className="text-lg font-bold text-white">
+                    <h2 className="text-lg font-bold text-[var(--text-primary)]">
                       {t("signup.successTitle")}
                     </h2>
-                    <p className="text-sm text-slate-400 leading-relaxed">
+                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                       {t("signup.successMessage")}
                     </p>
 
                     {/* Auto-checking indicator */}
-                    <div className="flex items-center justify-center gap-2 rounded-xl border border-[#4B45FF]/30 bg-[#4B45FF]/10 px-4 py-3 text-sm text-[#6C67FF]">
-                      <svg className="h-4 w-4 animate-spin text-[#6C67FF]" viewBox="0 0 24 24" fill="none">
+                    <div className="flex items-center justify-center gap-2 rounded-xl border border-amber-200/70 bg-amber-50/80 px-4 py-3 text-sm text-amber-800">
+                      <svg className="h-4 w-4 animate-spin text-amber-600" viewBox="0 0 24 24" fill="none">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
                       <span>{t("signup.autoCheckingStatus")}</span>
                     </div>
 
-                    <div className="text-sm text-slate-400">
+                    <div className="text-sm text-[var(--text-secondary)]">
                       {t("signup.resendHint")}
                     </div>
                     {resendError && (
-                      <div className="text-sm text-rose-400">
+                      <div className="text-sm text-rose-700">
                         {resendError}
                       </div>
                     )}
                     {resendSuccess && (
-                      <div className="text-sm font-semibold text-emerald-400">
+                      <div className="text-sm font-semibold text-emerald-700">
                         {t("signup.resendSent")}
                       </div>
                     )}
                     {resendLocked ? (
-                      <div className="rounded-lg border border-[#4B45FF]/30 bg-[#4B45FF]/10 px-4 py-3 text-sm text-[#6C67FF]">
+                      <div className="rounded-lg border border-amber-300/60 bg-amber-50/80 px-4 py-3 text-sm text-amber-800">
                         {t("signup.resendLocked")}
                       </div>
                     ) : resendCount < MAX_RESEND ? (
@@ -434,12 +434,12 @@ export default function SignupPage() {
                           type="button"
                           onClick={handleResendVerification}
                           disabled={resendLoading}
-                          className="w-full rounded-xl border border-slate-600 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-60"
+                          className="w-full rounded-xl border border-amber-200/70 bg-white/80 px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-white disabled:opacity-60"
                         >
                           {resendLoading ? t("common.loading") : t("signup.resendVerification")}
                         </button>
                         {resendCount > 0 && (
-                          <p className="mt-2 text-xs text-slate-500 text-center">
+                          <p className="mt-2 text-xs text-[var(--text-muted)] text-center">
                             {t("signup.resendRemaining").replace("{remaining}", String(MAX_RESEND - resendCount))}
                           </p>
                         )}
@@ -449,13 +449,13 @@ export default function SignupPage() {
                       type="button"
                       onClick={handleVerifiedContinue}
                       disabled={verifyChecking}
-                      className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-400 transition hover:bg-emerald-500/20 disabled:opacity-60"
+                      className="w-full rounded-xl border border-emerald-300/80 bg-emerald-50/80 px-4 py-2.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-60"
                     >
                       {verifyChecking ? t("common.loading") : t("signup.iVerifiedCta")}
                     </button>
                     <Link
                       href="/portal/login"
-                      className="block w-full rounded-xl bg-gradient-to-r from-[#4B45FF] to-[#6C67FF] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_12px_28px_rgba(75,69,255,0.35)] transition-all hover:brightness-105"
+                      className="block w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 px-4 py-3 text-center text-sm font-semibold text-[var(--primary)] shadow-[0_12px_28px_rgba(245,158,11,0.35)] transition-all hover:brightness-105"
                     >
                       {t("signup.loginLink")}
                     </Link>
@@ -464,7 +464,7 @@ export default function SignupPage() {
                   </div>
                 ) : (
                   <>
-                    <h1 className="text-xl font-bold text-white mb-1 tracking-tight">
+                    <h1 className="text-xl font-bold text-[var(--text-primary)] mb-1 tracking-tight">
                       {t("signup.title")}
                     </h1>
 
@@ -479,7 +479,7 @@ export default function SignupPage() {
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <div>
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
                           {t("signup.workspaceName")}
                         </label>
                         <input
@@ -496,12 +496,12 @@ export default function SignupPage() {
                           inputMode="url"
                           autoCapitalize="none"
                           autoCorrect="off"
-                          className="w-full rounded-xl border border-slate-600 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-[#4B45FF] focus:ring-2 focus:ring-[#4B45FF]/20"
+                          className="w-full rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all focus:border-amber-300 focus:ring-2 focus:ring-amber-200"
                         />
                       </div>
 
                       <div>
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
                           {t("signup.fullName")}
                         </label>
                         <input
@@ -512,12 +512,12 @@ export default function SignupPage() {
                           required
                           minLength={2}
                           maxLength={120}
-                          className="w-full rounded-xl border border-slate-600 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-[#4B45FF] focus:ring-2 focus:ring-[#4B45FF]/20"
+                          className="w-full rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all focus:border-amber-300 focus:ring-2 focus:ring-amber-200"
                         />
                       </div>
 
                       <div>
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
                           {t("signup.email")}
                         </label>
                         <input
@@ -531,12 +531,12 @@ export default function SignupPage() {
                           onInput={(e) => e.currentTarget.setCustomValidity("")}
                           autoCapitalize="none"
                           autoCorrect="off"
-                          className="w-full rounded-xl border border-slate-600 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-[#4B45FF] focus:ring-2 focus:ring-[#4B45FF]/20"
+                          className="w-full rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all focus:border-amber-300 focus:ring-2 focus:ring-amber-200"
                         />
                       </div>
 
                       <div>
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
                           {t("signup.password")}
                         </label>
                         <div className="relative">
@@ -547,13 +547,13 @@ export default function SignupPage() {
                             placeholder={t("signup.passwordPlaceholder")}
                             required
                             minLength={8}
-                            className="w-full rounded-xl border border-slate-600 bg-white/5 px-3.5 py-2.5 pr-10 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-[#4B45FF] focus:ring-2 focus:ring-[#4B45FF]/20"
+                            className="w-full rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] px-3.5 py-2.5 pr-10 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all focus:border-amber-300 focus:ring-2 focus:ring-amber-200"
                           />
                           <button
                             type="button"
                             tabIndex={-1}
                             onClick={() => setShowPassword((v) => !v)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition-colors hover:text-slate-300"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
                             aria-label={showPassword ? "Hide password" : "Show password"}
                           >
                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -561,9 +561,9 @@ export default function SignupPage() {
                         </div>
 
                         {password ? (
-                          <div className="mt-3 rounded-xl border border-slate-700/50 bg-white/5 p-3">
+                          <div className="mt-3 rounded-xl border border-amber-100/80 bg-white/80 p-3">
                             <div className="mb-2 flex items-center justify-between gap-2">
-                              <span className="text-xs font-semibold text-slate-400">
+                              <span className="text-xs font-semibold text-[var(--text-secondary)]">
                                 {t("passwordStrength.title")}
                               </span>
                               <span
@@ -571,8 +571,8 @@ export default function SignupPage() {
                                   passwordEvaluation.level === "weak"
                                     ? "text-rose-500"
                                     : passwordEvaluation.level === "medium"
-                                      ? "text-[#6C67FF]"
-                                      : "text-emerald-500"
+                                      ? "text-amber-600"
+                                      : "text-emerald-600"
                                 }`}
                               >
                                 {passwordEvaluation.level === "weak"
@@ -582,7 +582,7 @@ export default function SignupPage() {
                                     : t("passwordStrength.strong")}
                               </span>
                             </div>
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-700">
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                               <div
                                 className="h-full rounded-full transition-all duration-300"
                                 style={{
@@ -591,8 +591,8 @@ export default function SignupPage() {
                                     passwordEvaluation.level === "weak"
                                       ? "#FB7185"
                                       : passwordEvaluation.level === "medium"
-                                        ? "#6C67FF"
-                                        : "linear-gradient(90deg, #10B981 0%, #4B45FF 100%)",
+                                        ? "#F59E0B"
+                                        : "linear-gradient(90deg, #10B981 0%, #F59E0B 100%)",
                                 }}
                               />
                             </div>
@@ -608,12 +608,12 @@ export default function SignupPage() {
                                 <li key={item.key} className="flex items-center gap-2 text-xs">
                                   <span
                                     className={`inline-flex h-4 w-4 items-center justify-center rounded-full ${
-                                      item.met ? "bg-emerald-900/40 text-emerald-400" : "bg-slate-700 text-slate-500"
+                                      item.met ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-400"
                                     }`}
                                   >
                                     <Check size={11} />
                                   </span>
-                                  <span className={item.met ? "text-white" : "text-slate-500"}>
+                                  <span className={item.met ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}>
                                     {t(item.key as Parameters<typeof t>[0])}
                                   </span>
                                 </li>
@@ -623,22 +623,22 @@ export default function SignupPage() {
                         ) : null}
                       </div>
 
-                      <label className="flex items-start gap-3 rounded-xl border border-slate-600 bg-white/5 p-3 text-xs text-slate-400">
+                      <label className="flex items-start gap-3 rounded-xl border border-amber-200/70 bg-white/75 p-3 text-xs text-[var(--text-secondary)]">
                         <input
                           type="checkbox"
                           checked={acceptedTerms}
                           onChange={(e) => setAcceptedTerms(e.target.checked)}
-                          className="mt-0.5 h-4 w-4 rounded border-slate-600 text-[#4B45FF] focus:ring-[#4B45FF]/30"
+                          className="mt-0.5 h-4 w-4 rounded border-amber-300 text-amber-500 focus:ring-amber-300"
                         />
                         <span>{t("signup.termsText")}</span>
                       </label>
 
                       {TURNSTILE_SITE_KEY && (
                         <div>
-                          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
                             {t("portalLogin.captchaLabel")}
                           </label>
-                          <div className="rounded-xl border border-slate-600 bg-white/5 p-2.5">
+                          <div className="rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] p-2.5">
                             <TurnstileWidget
                               key={captchaRenderNonce}
                               siteKey={TURNSTILE_SITE_KEY}
@@ -653,17 +653,17 @@ export default function SignupPage() {
                       <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full rounded-xl bg-gradient-to-r from-[#4B45FF] to-[#6C67FF] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(75,69,255,0.35)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 px-4 py-3 text-sm font-semibold text-[var(--primary)] shadow-[0_12px_28px_rgba(245,158,11,0.35)] transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isLoading ? t("signup.submitting") : t("signup.startFree")}
                       </button>
                     </form>
 
-                    <p className="mt-6 text-center text-sm text-slate-400">
+                    <p className="mt-6 text-center text-sm text-[var(--text-secondary)]">
                       {t("signup.haveAccount")}{" "}
                       <Link
                         href="/portal/login"
-                        className="font-semibold text-[#6C67FF] hover:opacity-80"
+                        className="font-semibold text-[var(--highlight)] hover:opacity-80"
                       >
                         {t("signup.loginLink")}
                       </Link>

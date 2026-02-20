@@ -60,13 +60,13 @@ export default function PortalLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const premiumInput =
-    "w-full rounded-xl border border-slate-600 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-[#4B45FF] focus:ring-2 focus:ring-[#4B45FF]/20 disabled:cursor-not-allowed disabled:opacity-60";
+    "w-full rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-all focus:border-amber-300 focus:ring-2 focus:ring-amber-200 disabled:cursor-not-allowed disabled:opacity-60";
   const premiumLabel =
-    "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400";
+    "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]";
   const premiumPrimaryBtn =
-    "w-full rounded-xl bg-gradient-to-r from-[#4B45FF] to-[#6C67FF] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(75,69,255,0.35)] transition-all hover:brightness-105 hover:shadow-[0_14px_32px_rgba(75,69,255,0.42)] disabled:cursor-not-allowed disabled:opacity-60";
+    "w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-400 px-4 py-3 text-sm font-semibold text-[var(--primary)] shadow-[0_12px_28px_rgba(245,158,11,0.35)] transition-all hover:brightness-105 hover:shadow-[0_14px_32px_rgba(245,158,11,0.42)] disabled:cursor-not-allowed disabled:opacity-60";
   const premiumSecondaryText =
-    "text-sm text-slate-400 transition-colors hover:text-[#6C67FF]";
+    "text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--highlight)]";
 
   useEffect(() => {
     const verify = async () => {
@@ -424,21 +424,21 @@ export default function PortalLoginPage() {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
           </div>
-          <h2 className="mb-2 text-lg font-semibold text-white">{t("signup.verifiedRedirecting")}</h2>
-          <p className="text-sm text-slate-400">{t("signup.pleaseWait")}</p>
+          <h2 className="mb-2 text-lg font-semibold text-[var(--text-primary)]">{t("signup.verifiedRedirecting")}</h2>
+          <p className="text-sm text-[var(--text-secondary)]">{t("signup.pleaseWait")}</p>
         </>
       ) : (
         <>
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50">
-            <svg className="h-7 w-7 text-[#6C67FF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-7 w-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
-          <h2 className="mb-2 text-lg font-semibold text-white">{t("verifyEmail.title")}</h2>
+          <h2 className="mb-2 text-lg font-semibold text-[var(--text-primary)]">{t("verifyEmail.title")}</h2>
 
           {/* Auto-checking indicator */}
-          <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-[#4B45FF]/30 bg-[#4B45FF]/10 px-4 py-3 text-sm text-[#6C67FF]">
-            <svg className="h-4 w-4 animate-spin text-[#6C67FF]" viewBox="0 0 24 24" fill="none">
+          <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-amber-200/70 bg-amber-50/80 px-4 py-3 text-sm text-amber-800">
+            <svg className="h-4 w-4 animate-spin text-amber-600" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
@@ -476,7 +476,7 @@ export default function PortalLoginPage() {
               setError(null);
               setVerificationResent(false);
             }}
-            className="mt-3 w-full text-center text-sm text-slate-400 transition-colors hover:text-[#6C67FF]"
+            className="mt-3 w-full text-center text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--highlight)]"
           >
             {t("security.backToLogin")}
           </button>
@@ -486,12 +486,12 @@ export default function PortalLoginPage() {
   ) : mfaRequired ? (
     <>
       <div className="mb-5 flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#4B45FF]/10 text-[#6C67FF]">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
           <KeyRound size={16} />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-white">{t("mfa.loginRequired")}</h2>
-          <p className="text-sm text-slate-400">{t("mfa.loginDesc")}</p>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("mfa.loginRequired")}</h2>
+          <p className="text-sm text-[var(--text-secondary)]">{t("mfa.loginDesc")}</p>
         </div>
       </div>
 
@@ -522,7 +522,7 @@ export default function PortalLoginPage() {
           setMfaCode("");
           setError(null);
         }}
-        className="mt-3 w-full text-center text-sm text-slate-400 transition-colors hover:text-[#6C67FF]"
+        className="mt-3 w-full text-center text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--highlight)]"
       >
         {t("security.backToLogin")}
       </button>
@@ -530,7 +530,7 @@ export default function PortalLoginPage() {
   ) : (
     <>
       <div className="mb-5 text-center">
-        <h2 className="text-lg font-semibold text-white">{t("auth.signIn")}</h2>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("auth.signIn")}</h2>
       </div>
 
       {error ? (
@@ -544,7 +544,7 @@ export default function PortalLoginPage() {
             className="mb-4"
           />
           {showNetworkHint ? (
-            <p className="mb-4 rounded-lg border border-slate-600 bg-white/5 px-2.5 py-2 text-xs font-mono text-slate-400">
+            <p className="mb-4 rounded-lg border border-amber-200/70 bg-[var(--bg-glass)] px-2.5 py-2 text-xs font-mono text-[var(--text-secondary)]">
               {t("auth.networkErrorHint")}
             </p>
           ) : null}
@@ -590,7 +590,7 @@ export default function PortalLoginPage() {
               type="button"
               tabIndex={-1}
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition-colors hover:text-slate-300"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -601,7 +601,7 @@ export default function PortalLoginPage() {
         {showCaptcha ? (
           <div>
             <label className={premiumLabel}>{t("portalLogin.captchaLabel")}</label>
-            <div className="rounded-xl border border-slate-600 bg-white/5 p-2.5">
+            <div className="rounded-xl border border-amber-200/70 bg-[var(--bg-glass)] p-2.5">
               {TURNSTILE_SITE_KEY ? (
                 <TurnstileWidget
                   key={captchaRenderNonce}
@@ -611,7 +611,7 @@ export default function PortalLoginPage() {
                   onError={() => setCaptchaToken(null)}
                 />
               ) : (
-                <p className="text-xs text-slate-400">{t("portalLogin.captchaMissingKey")}</p>
+                <p className="text-xs text-amber-700">{t("portalLogin.captchaMissingKey")}</p>
               )}
             </div>
           </div>
@@ -627,12 +627,12 @@ export default function PortalLoginPage() {
       </form>
 
       {lockedAccount ? (
-        <div className="mt-4 rounded-xl border border-[#4B45FF]/30 bg-[#4B45FF]/10 px-3 py-3">
-          <p className="text-sm font-medium text-[#6C67FF]">{t("portalLogin.accountLocked")}</p>
+        <div className="mt-4 rounded-xl border border-amber-300/60 bg-amber-50/80 px-3 py-3">
+          <p className="text-sm font-medium text-amber-800">{t("portalLogin.accountLocked")}</p>
           <button
             type="button"
             onClick={() => setUnlockFormOpen((v) => !v)}
-            className="mt-1 text-xs font-semibold text-[#6C67FF] underline decoration-dotted underline-offset-2 hover:text-white"
+            className="mt-1 text-xs font-semibold text-amber-700 underline decoration-dotted underline-offset-2 hover:text-amber-900"
           >
             {t("portalLogin.unlockLink")}
           </button>
@@ -661,10 +661,10 @@ export default function PortalLoginPage() {
 
       <div className="relative my-5">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-700" />
+          <div className="w-full border-t border-amber-200/80" />
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="relative z-10 inline-flex items-center rounded-full border border-slate-600 bg-[#13131A] px-3.5 py-1 font-medium uppercase tracking-wide text-slate-400 backdrop-blur-sm">
+          <span className="relative z-10 inline-flex items-center rounded-full border border-amber-200/70 bg-[var(--bg-glass)] px-3.5 py-1 font-medium uppercase tracking-wide text-[var(--text-secondary)] backdrop-blur-sm">
             {t("passkeys.orDivider")}
           </span>
         </div>
@@ -673,7 +673,7 @@ export default function PortalLoginPage() {
       <PasskeyLoginButton
         area="portal"
         email={email}
-        className="border-slate-600 bg-white/5 text-white hover:border-[#4B45FF]/50 hover:bg-white/10"
+        className="border-amber-200/70 bg-[var(--bg-glass)] text-[var(--text-primary)] hover:border-amber-300 hover:bg-white/90"
         onSuccess={(result) => {
           if (result?.showSecurityOnboarding) {
             window.location.href = "/portal/security-onboarding";
@@ -703,11 +703,11 @@ export default function PortalLoginPage() {
       className="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8"
       style={{
         background:
-          "radial-gradient(circle at 20% 50%, rgba(75, 69, 255, 0.10), transparent 50%), radial-gradient(circle at 80% 80%, rgba(108, 103, 255, 0.08), transparent 50%), linear-gradient(135deg, #0D0D12 0%, #13131A 100%)",
+          "linear-gradient(135deg, #FFFBF5 0%, #FFF7ED 50%, #FEF3E2 100%)",
       }}
     >
-      <div className="pointer-events-none absolute -left-28 top-20 h-72 w-72 rounded-full bg-[#4B45FF]/15 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 bottom-24 h-72 w-72 rounded-full bg-[#6C67FF]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -left-28 top-20 h-72 w-72 rounded-full bg-amber-200/30 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-24 h-72 w-72 rounded-full bg-orange-200/30 blur-3xl" />
 
       <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
         <LanguageSwitcher />
@@ -716,24 +716,24 @@ export default function PortalLoginPage() {
       <div className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-center py-6 md:min-h-[calc(100vh-3rem)] md:py-0">
         <div className="flex w-full items-center gap-8 md:flex-row md:justify-between md:gap-12">
           <section className="hidden w-1/2 md:block">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#4B45FF]/30 bg-[#4B45FF]/10 px-4 py-1.5 text-xs font-semibold text-[#6C67FF] backdrop-blur-sm">
-              <Sparkles size={14} className="text-[#6C67FF]" />
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-200/80 bg-white/60 px-4 py-1.5 text-xs font-semibold text-[var(--text-secondary)] backdrop-blur-sm">
+              <Sparkles size={14} className="text-[var(--accent)]" />
               <span>{t("portalLogin.heroBadge")}</span>
             </div>
-            <h1 className="max-w-xl text-4xl font-bold leading-[1.1] tracking-tight text-white">
+            <h1 className="max-w-xl text-4xl font-bold leading-[1.1] tracking-tight text-[var(--text-primary)]">
               {t("portalLogin.welcomeTitle")}
             </h1>
-            <p className="mt-4 max-w-lg text-base leading-relaxed text-slate-400">
+            <p className="mt-4 max-w-lg text-base leading-relaxed text-[var(--text-secondary)]">
               {t("portalLogin.welcomeSubtitle")}
             </p>
             <div className="mt-8 space-y-3">
               {[t("portalLogin.benefitOne"), t("portalLogin.benefitTwo"), t("portalLogin.benefitThree"), t("portalLogin.trustLine")].map((item) => (
                 <div
                   key={item}
-                  className="flex items-center gap-3 rounded-xl border border-slate-700/50 bg-white/5 px-4 py-3 backdrop-blur-sm"
+                  className="flex items-center gap-3 rounded-xl border border-amber-200/70 bg-white/65 px-4 py-3 backdrop-blur-sm"
                 >
-                  <ShieldCheck size={18} className="shrink-0 text-[#6C67FF]" />
-                  <span className="text-sm text-white">{item}</span>
+                  <ShieldCheck size={18} className="shrink-0 text-[var(--accent)]" />
+                  <span className="text-sm text-[var(--text-primary)]">{item}</span>
                 </div>
               ))}
             </div>
@@ -744,12 +744,12 @@ export default function PortalLoginPage() {
               <div className="mx-auto mb-4 inline-flex items-center justify-center">
                 <HelvionMark height={58} variant="dark" className="hv-logo-float" />
               </div>
-              <h1 className="mb-1 text-2xl font-bold tracking-tight text-white">{t("nav.customerPortal")}</h1>
-              <p className="text-sm text-slate-400">{t("auth.tenantAccess")}</p>
+              <h1 className="mb-1 text-2xl font-bold tracking-tight text-[var(--text-primary)]">{t("nav.customerPortal")}</h1>
+              <p className="text-sm text-[var(--text-secondary)]">{t("auth.tenantAccess")}</p>
             </div>
 
-            <div className="rounded-3xl bg-gradient-to-br from-[#4B45FF]/30 via-[#6C67FF]/20 to-[#4B45FF]/10 p-[1px] shadow-[0_30px_80px_rgba(75,69,255,0.20)]">
-              <div className="rounded-3xl border border-white/10 bg-[#13131A]/90 p-7 backdrop-blur-2xl">
+            <div className="rounded-3xl bg-gradient-to-br from-amber-300/55 via-rose-200/45 to-amber-100/65 p-[1px] shadow-[0_30px_80px_rgba(149,115,22,0.25)]">
+              <div className="rounded-3xl border border-amber-100/80 bg-[var(--bg-glass)] p-7 backdrop-blur-2xl">
                 <div className="mb-6 flex flex-col items-center justify-center text-center">
                   <HelvionMark height={62} variant="dark" className="hv-logo-float" />
                 </div>
