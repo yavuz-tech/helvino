@@ -27,12 +27,12 @@ export default function FaqAccordion({ items, className = "" }: FaqAccordionProp
               aria-expanded={isOpen}
               className="w-full flex items-center justify-between py-6 text-left group"
             >
-              <span className="text-base font-semibold text-[#0D0D12] group-hover:text-[#4B45FF] transition-colors pr-4">
+              <span className="text-base font-semibold text-[#0D0D12] group-hover:text-[#0F5C5C] transition-colors pr-4">
                 {item.question}
               </span>
               <ChevronDown
                 className={`w-5 h-5 text-[#8E8EA0] flex-shrink-0 transition-transform duration-200 ${
-                  isOpen ? "rotate-180 text-[#4B45FF]" : ""
+                  isOpen ? "rotate-180 text-[#0F5C5C]" : ""
                 }`}
               />
             </button>

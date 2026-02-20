@@ -23,7 +23,7 @@ export default function StepCards({ steps, className = "" }: StepCardsProps) {
           className="relative bg-white rounded-2xl border border-slate-200/80 p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(75,69,255,0.08)] transition-all duration-300 hover:-translate-y-0.5 group"
         >
           {/* Step number */}
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#4B45FF] to-[#6C67FF] flex items-center justify-center text-white text-sm font-bold mb-5 shadow-[0_2px_8px_rgba(75,69,255,0.25)]">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0F5C5C] to-[#1E88A8] flex items-center justify-center text-white text-sm font-bold mb-5 shadow-[0_2px_8px_rgba(75,69,255,0.25)]">
             {step.icon || step.number}
           </div>
 
@@ -36,7 +36,7 @@ export default function StepCards({ steps, className = "" }: StepCardsProps) {
 
           {/* Connector line (not on last) */}
           {step.number < steps.length && (
-            <div className="hidden lg:block absolute top-14 -right-3 w-6 border-t-2 border-dashed border-[#4B45FF]/20" />
+            <div className="hidden lg:block absolute top-14 -right-3 w-6 border-t-2 border-dashed border-[#0F5C5C]/20" />
           )}
         </div>
       ))}

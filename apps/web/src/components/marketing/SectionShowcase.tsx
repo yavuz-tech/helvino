@@ -41,8 +41,8 @@ export default function SectionShowcase({
             <span
               className={`inline-block text-[11px] font-bold uppercase tracking-[0.12em] mb-4 px-3 py-1 rounded-full ${
                 dark
-                  ? "bg-[#4B45FF]/15 text-[#6C67FF]"
-                  : "bg-[#EDEDFF] text-[#4B45FF]"
+                  ? "bg-[#0F5C5C]/15 text-[#1E88A8]"
+                  : "bg-[#E6F4F4] text-[#0F5C5C]"
               }`}
             >
               {overline}

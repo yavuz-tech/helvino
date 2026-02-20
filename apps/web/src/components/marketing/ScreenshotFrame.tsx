@@ -23,14 +23,14 @@ export default function ScreenshotFrame({
       <div
         className={`w-full max-w-5xl rounded-2xl overflow-hidden border shadow-[0_8px_40px_rgba(0,0,0,0.12)] ${
           dark
-            ? "border-slate-700/60 bg-[#13131A]"
+            ? "border-slate-700/60 bg-[#1F2937]"
             : "border-slate-200/80 bg-white"
         }`}
       >
         {/* Title bar */}
         <div
           className={`flex items-center gap-2 px-4 py-3 border-b ${
-            dark ? "border-slate-700/60 bg-[#0D0D12]" : "border-slate-100 bg-[#F7F8FA]"
+            dark ? "border-slate-700/60 bg-[#1A1D23]" : "border-slate-100 bg-[#F8FAFC]"
           }`}
         >
           <div className="flex gap-1.5">

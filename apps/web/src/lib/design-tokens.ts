@@ -1,5 +1,5 @@
 /**
- * Helvion Design System — Crisp Dark-Indigo Theme
+ * Helvion Design System — Warm Premium Theme
  * Tek kaynak: Tum renkler, fontlar, spacing burada tanimli.
  * Sayfalar bu dosyadan import ederek kullanmali.
  */
@@ -8,20 +8,19 @@
 export const colors = {
   // Ana Marka
   brand: {
-    primary: "#4B45FF", // Indigo — ana marka rengi
-    secondary: "#3B35EF", // Koyu indigo
-    tertiary: "#2E29D6", // En koyu indigo
-    soft: "#6C67FF", // Soft indigo
-    light: "#EDEDFF", // Acik indigo arka plan
-    ultraLight: "#F7F8FA", // Cok acik notr arka plan
+    primary: "#F59E0B", // Amber — ana marka rengi
+    secondary: "#D97706", // Koyu amber
+    tertiary: "#B45309", // En koyu amber
+    light: "#FEF3C7", // Acik amber arka plan
+    ultraLight: "#FFFBF5", // Cok acik warm arka plan
   },
 
   // Gradient
   gradient: {
-    sidebar: "linear-gradient(180deg, #4B45FF, #3B35EF)",
-    header: "linear-gradient(135deg, #4B45FF, #6C67FF)",
-    card: "linear-gradient(135deg, #F7F8FA, #EDEDFF)",
-    hero: "linear-gradient(135deg, #0D0D12 0%, #13131A 50%, #1A1A2E 100%)",
+    sidebar: "linear-gradient(180deg, #F59E0B, #D97706)",
+    header: "linear-gradient(135deg, #F59E0B, #D97706)",
+    card: "linear-gradient(135deg, #FFFBF5, #FEF3C7)",
+    hero: "linear-gradient(135deg, #1A1D23 0%, #2D2D44 100%)",
   },
 
   // Notr (Metin ve arka planlar)
@@ -65,25 +64,25 @@ export const colors = {
 
   // Sidebar Ozel
   sidebar: {
-    bg: "linear-gradient(180deg, #4B45FF, #3B35EF)",
+    bg: "linear-gradient(180deg, #F59E0B, #D97706)",
     activeItem: "#FFFFFF",
-    activeText: "#4B45FF",
+    activeText: "#D97706",
     hoverBg: "rgba(255,255,255,0.15)",
     text: "rgba(255,255,255,0.85)",
     textMuted: "rgba(255,255,255,0.5)",
     iconBox: "#F8FAFC",
-    divider: "#E2E4F0",
+    divider: "#F3E8D8",
   },
 
   // Widget
   widget: {
-    defaultPrimary: "#4B45FF",
-    bubble: "#4B45FF",
+    defaultPrimary: "#0F5C5C",
+    bubble: "#F59E0B",
   },
 
   // Border
   border: {
-    warm: "#E2E4F0",
+    warm: "#F3E8D8",
     default: "#E2E8F0",
     light: "#F1F5F9",
   },
@@ -149,8 +148,8 @@ export const shadow = {
   xl: "0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.05)",
   card: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)",
   cardHover: "0 10px 25px rgba(0,0,0,0.08)",
-  brand: "0 4px 14px rgba(75,69,255,0.15)",
-  brandStrong: "0 4px 20px rgba(75,69,255,0.25)",
+  amber: "0 4px 14px rgba(245,158,11,0.15)",
+  amberStrong: "0 4px 20px rgba(245,158,11,0.25)",
 } as const;
 
 // === TRANSITION ===
@@ -204,7 +203,7 @@ export const presets = {
     borderRadius: radius.full,
     padding: "2px 10px",
   },
-  brandButton: {
+  amberButton: {
     background: colors.gradient.header,
     color: colors.neutral.white,
     fontFamily: fonts.heading,
@@ -250,7 +249,7 @@ export const ui = {
       borderRadius: radius.md,
       padding: "10px 20px",
       border: "none",
-      boxShadow: shadow.brand,
+      boxShadow: shadow.amber,
       cursor: "pointer",
       transition: transition.normal,
     },
@@ -308,7 +307,7 @@ export const ui = {
     },
     focus: {
       borderColor: colors.brand.primary,
-      boxShadow: `0 0 0 3px rgba(75, 69, 255, 0.15)`,
+      boxShadow: `0 0 0 3px rgba(245, 158, 11, 0.15)`,
     },
     error: {
       borderColor: colors.status.error,
@@ -411,7 +410,6 @@ export const ui = {
     cellSize: fontSize.sm,
     cellColor: colors.neutral[700],
     hoverBg: colors.brand.ultraLight,
-    // Note: brand.ultraLight is now #F7F8FA (neutral) instead of warm amber
   },
 
   // Divider

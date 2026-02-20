@@ -42,7 +42,7 @@ export default function TrustLogos({
           >
             <span
               className={`text-sm font-bold tracking-wide ${
-                dark ? "text-white" : "text-[#0D0D12]"
+                dark ? "text-white" : "text-[#1A1D23]"
               }`}
             >
               {logo.name}

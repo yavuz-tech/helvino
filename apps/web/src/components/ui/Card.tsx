@@ -29,13 +29,13 @@ export default function Card({
 
   const variantClasses = {
     default:
-      "bg-white border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(75,69,255,0.06)]",
+      "bg-white border border-[#F3E8D8] shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(26,26,46,0.08)]",
     elevated:
-      "bg-white border border-[#EDEDFF] shadow-[0_4px_16px_rgba(0,0,0,0.06),0_12px_32px_rgba(75,69,255,0.08)]",
+      "bg-white border border-amber-100 shadow-[0_4px_16px_rgba(0,0,0,0.06),0_12px_32px_rgba(26,26,46,0.10)]",
     muted:
-      "bg-[#F7F8FA]/80 border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+      "bg-[#FFFBF5]/80 border border-[#F3E8D8] shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
     outlined:
-      "bg-white border-2 border-slate-200/80 shadow-none",
+      "bg-white border-2 border-[#F3E8D8] shadow-none",
   };
 
   const resolvedPadding = noPadding ? "none" : padding;
@@ -44,10 +44,10 @@ export default function Card({
     <div
       className={`rounded-2xl ${variantClasses[variant]} ${paddingClasses[resolvedPadding]} ${
         hover
-          ? "transition-all duration-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08),0_16px_40px_rgba(75,69,255,0.10)] hover:-translate-y-0.5 hover:border-[#4B45FF]/30"
+          ? "transition-all duration-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08),0_16px_40px_rgba(26,26,46,0.14)] hover:-translate-y-0.5 hover:border-amber-300"
           : ""
       } ${
-        focusable ? "focus-within:ring-2 focus-within:ring-[#4B45FF]/20 focus-within:border-[#4B45FF]" : ""
+        focusable ? "focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-400" : ""
       } ${className}`}
     >
       {children}

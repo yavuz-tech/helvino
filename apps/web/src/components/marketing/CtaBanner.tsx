@@ -52,7 +52,7 @@ export default function CtaBanner({
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href={primaryHref}
-            className="inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold text-white rounded-xl bg-gradient-to-r from-[#4B45FF] to-[#6C67FF] hover:from-[#3B35EF] hover:to-[#4B45FF] shadow-[0_2px_12px_rgba(75,69,255,0.35)] hover:shadow-[0_6px_20px_rgba(75,69,255,0.4)] transition-all duration-200 hover:-translate-y-0.5"
+            className="inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold text-white rounded-xl bg-gradient-to-r from-[#0F5C5C] to-[#1E88A8] hover:from-[#0D4F4F] hover:to-[#0F5C5C] shadow-[0_2px_12px_rgba(75,69,255,0.35)] hover:shadow-[0_6px_20px_rgba(75,69,255,0.4)] transition-all duration-200 hover:-translate-y-0.5"
           >
             {primaryLabel}
             <span className="text-white/80">→</span>

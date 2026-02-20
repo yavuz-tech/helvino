@@ -70,17 +70,20 @@ export default function PricingPage() {
   return (
     <PublicLayout>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#0D0D12] via-[#13131A] to-[#1A1A2E]">
-        <div className="pointer-events-none absolute -left-32 top-0 h-[400px] w-[400px] rounded-full bg-[#4B45FF]/10 blur-3xl" />
-        <div className="pointer-events-none absolute -right-32 -top-20 h-[450px] w-[450px] rounded-full bg-[#6C67FF]/8 blur-3xl" />
-        <div className={`${designTokens.layout.maxWidth} pt-20 sm:pt-28 pb-16 sm:pb-20 text-center relative`}>
-          <span className="inline-block text-[11px] font-bold uppercase tracking-[0.12em] mb-4 px-3 py-1 rounded-full bg-[#4B45FF]/15 text-[#6C67FF]">
-            Pricing
-          </span>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white font-heading mb-4 tracking-tight">
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#F0F9F9] via-white to-white">
+        <Image
+          src="/marketing/gradient-hero-2.svg"
+          alt=""
+          aria-hidden="true"
+          fill
+          priority
+          className="object-cover opacity-50"
+        />
+        <div className={`${designTokens.layout.maxWidth} pt-20 sm:pt-24 pb-16 sm:pb-20 text-center relative`}>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-[#1A1D23] font-heading mb-4 tracking-tight">
             {t("pricing.title")}
           </h1>
-          <p className="text-lg sm:text-xl text-slate-400 leading-relaxed max-w-2xl mx-auto">
+          <p className={`${designTokens.typography.heroSubtitle} max-w-2xl mx-auto`}>
             {t("pricing.subtitle")}
           </p>
         </div>
@@ -96,9 +99,9 @@ export default function PricingPage() {
       </section>
 
       {/* Trust badges */}
-      <section className="bg-[#F7F8FA] border-t border-slate-200/60">
+      <section className="bg-[#FFFBF5] border-t border-[#F3E8D8]">
         <div className="max-w-5xl mx-auto px-6 py-12">
-          <p className="text-center text-xs text-[#8E8EA0] mb-6">
+          <p className={`text-center ${designTokens.typography.caption} mb-6`}>
             {t("pricing.trustBadges")}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
@@ -107,7 +110,7 @@ export default function PricingPage() {
               { label: t("home.trustedUptime") },
               { label: t("home.trustedCompliance") },
             ].map((badge, i) => (
-              <div key={i} className="px-4 py-2 bg-white border border-slate-200/80 rounded-full text-sm font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-[#5A5B6A]">
+              <div key={i} className={designTokens.chips.pill}>
                 <Image src="/marketing/icon-spark.svg" alt="" aria-hidden="true" width={16} height={16} className="w-4 h-4 mr-1.5 inline-block" />
                 <span>{badge.label}</span>
               </div>
@@ -117,44 +120,39 @@ export default function PricingPage() {
       </section>
 
       {/* FAQ */}
-      <section className="bg-white">
-        <div className="max-w-3xl mx-auto px-6 py-16 sm:py-24">
-          <span className="block text-center text-[11px] font-bold uppercase tracking-[0.12em] mb-4 px-3 py-1 rounded-full bg-[#EDEDFF] text-[#4B45FF] w-fit mx-auto">
-            FAQ
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-bold text-[#0D0D12] font-heading text-center mb-10 tracking-tight">
-            {t("pricing.faqTitle")}
-          </h2>
-          <div className="space-y-3">
-            {FAQ_KEYS.map((faq, i) => (
-              <details
-                key={i}
-                className="bg-white rounded-2xl border border-slate-200/80 group shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(75,69,255,0.06)] transition-all duration-150"
-              >
-                <summary className="flex items-center justify-between px-6 py-5 cursor-pointer list-none">
-                  <span className="text-base font-semibold text-[#0D0D12] font-heading pr-4">
-                    {t(faq.q as TranslationKey)}
-                  </span>
-                  <svg
-                    className="w-4 h-4 text-[#8E8EA0] group-open:rotate-180 group-open:text-[#4B45FF] transition-all duration-150 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </summary>
-                <div className="px-6 pb-5 text-sm text-[#5A5B6A] leading-relaxed border-t border-slate-100 pt-4">
-                  {t(faq.a as TranslationKey)}
-                </div>
-              </details>
-            ))}
-          </div>
+      <section className="max-w-3xl mx-auto px-6 py-16 sm:py-20">
+        <h2 className="text-2xl sm:text-3xl font-bold text-[#1A1D23] font-heading text-center mb-10 tracking-tight">
+          {t("pricing.faqTitle")}
+        </h2>
+        <div className="space-y-3">
+          {FAQ_KEYS.map((faq, i) => (
+            <details
+              key={i}
+              className="bg-white rounded-2xl border border-[#F3E8D8] group shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition-all duration-150"
+            >
+              <summary className="flex items-center justify-between px-6 py-5 cursor-pointer list-none">
+                <span className="text-base font-semibold text-[#1A1D23] font-heading pr-4">
+                  {t(faq.q as TranslationKey)}
+                </span>
+                <svg
+                  className="w-4 h-4 text-[#94A3B8] group-open:rotate-180 transition-transform duration-150 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </summary>
+              <div className="px-6 pb-5 text-sm text-[#64748B] leading-relaxed border-t border-[#F1F5F9] pt-4">
+                {t(faq.a as TranslationKey)}
+              </div>
+            </details>
+          ))}
         </div>
       </section>
     </PublicLayout>

@@ -61,8 +61,8 @@ function BrowserFrame({ children, url = "app.helvion.com" }: { children: ReactNo
 /* ─── dark browser frame for hero ─── */
 function DarkBrowserFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#16171F] shadow-[0_40px_120px_rgba(0,0,0,0.50)] overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-white/5 bg-[#1A1B25] px-4 py-2.5">
+    <div className="rounded-2xl border border-white/10 bg-[#1A1D23] shadow-[0_40px_120px_rgba(0,0,0,0.50)] overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-white/5 bg-[#1F2937] px-4 py-2.5">
         <span className="flex gap-1.5">
           <span className="h-3 w-3 rounded-full bg-[#FF5F57]" />
           <span className="h-3 w-3 rounded-full bg-[#FEBC2E]" />
@@ -80,7 +80,7 @@ function DarkBrowserFrame({ children }: { children: ReactNode }) {
 /* ─── Inline coded UI: Inbox ─── */
 function InboxUI() {
   const conversations = [
-    { name: "Ayşe Demir", msg: "Ödeme sayfasında hata alıyorum", time: "2dk", unread: true, color: "bg-[#4B45FF]" },
+    { name: "Ayşe Demir", msg: "Ödeme sayfasında hata alıyorum", time: "2dk", unread: true, color: "bg-[#0F5C5C]" },
     { name: "Carlos M.", msg: "How do I reset my password?", time: "8dk", unread: false, color: "bg-emerald-500" },
     { name: "Lina S.", msg: "Widget kurulumu hakkında", time: "15dk", unread: false, color: "bg-amber-500" },
   ];
@@ -88,7 +88,7 @@ function InboxUI() {
     <div className="flex h-[340px] sm:h-[400px] text-[13px]">
       {/* Sidebar */}
       <div className="hidden sm:flex w-14 flex-col items-center gap-3 border-r border-slate-100 bg-slate-50/60 py-4">
-        <div className="h-8 w-8 rounded-lg bg-[#4B45FF] flex items-center justify-center">
+        <div className="h-8 w-8 rounded-lg bg-[#0F5C5C] flex items-center justify-center">
           <span className="text-white text-[10px] font-black">H</span>
         </div>
         <div className="h-8 w-8 rounded-lg bg-slate-200 flex items-center justify-center"><Inbox size={14} className="text-slate-500" /></div>
@@ -105,7 +105,7 @@ function InboxUI() {
         </div>
         <div className="flex-1 overflow-hidden">
           {conversations.map((c, i) => (
-            <div key={i} className={`flex items-start gap-2.5 px-3 py-3 cursor-pointer transition ${i === 0 ? "bg-[#4B45FF]/5 border-l-2 border-[#4B45FF]" : "hover:bg-slate-50 border-l-2 border-transparent"}`}>
+            <div key={i} className={`flex items-start gap-2.5 px-3 py-3 cursor-pointer transition ${i === 0 ? "bg-[#0F5C5C]/5 border-l-2 border-[#0F5C5C]" : "hover:bg-slate-50 border-l-2 border-transparent"}`}>
               <div className={`h-8 w-8 shrink-0 rounded-full ${c.color} flex items-center justify-center text-white text-[10px] font-bold`}>
                 {c.name[0]}
               </div>
@@ -116,7 +116,7 @@ function InboxUI() {
                 </div>
                 <p className="text-[11px] text-slate-500 truncate mt-0.5">{c.msg}</p>
               </div>
-              {c.unread && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#4B45FF]" />}
+              {c.unread && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#0F5C5C]" />}
             </div>
           ))}
         </div>
@@ -124,7 +124,7 @@ function InboxUI() {
       {/* Chat area */}
       <div className="flex-1 flex flex-col">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-          <div className="h-7 w-7 rounded-full bg-[#4B45FF] flex items-center justify-center text-white text-[10px] font-bold">A</div>
+          <div className="h-7 w-7 rounded-full bg-[#0F5C5C] flex items-center justify-center text-white text-[10px] font-bold">A</div>
           <div>
             <div className="text-[12px] font-semibold text-slate-900">Ayşe Demir</div>
             <div className="text-[10px] text-emerald-500 font-medium">Online</div>
@@ -132,16 +132,16 @@ function InboxUI() {
         </div>
         <div className="flex-1 px-4 py-3 space-y-3 overflow-hidden">
           <div className="flex justify-start"><div className="max-w-[80%] rounded-2xl rounded-tl-md bg-slate-100 px-3.5 py-2 text-[12px] text-slate-700">Ödeme sayfasında hata alıyorum, yardımcı olabilir misiniz?</div></div>
-          <div className="flex justify-end"><div className="max-w-[80%] rounded-2xl rounded-tr-md bg-[#4B45FF] px-3.5 py-2 text-[12px] text-white">Tabii, hangi tarayıcıyı kullanıyorsunuz?</div></div>
+          <div className="flex justify-end"><div className="max-w-[80%] rounded-2xl rounded-tr-md bg-[#0F5C5C] px-3.5 py-2 text-[12px] text-white">Tabii, hangi tarayıcıyı kullanıyorsunuz?</div></div>
           <div className="flex justify-start"><div className="max-w-[80%] rounded-2xl rounded-tl-md bg-slate-100 px-3.5 py-2 text-[12px] text-slate-700">Chrome, en son sürüm.</div></div>
           <div className="flex items-center gap-1.5 mt-1">
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#EDEDFF] px-2 py-0.5 text-[10px] font-semibold text-[#4B45FF]"><Sparkles size={10} /> AI</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#E6F4F4] px-2 py-0.5 text-[10px] font-semibold text-[#0F5C5C]"><Sparkles size={10} /> AI</span>
             <span className="text-[10px] text-slate-400 italic">Drafting reply…</span>
           </div>
         </div>
         <div className="border-t border-slate-100 px-4 py-2.5 flex items-center gap-2">
           <div className="flex-1 rounded-lg bg-slate-50 border border-slate-200 px-3 py-1.5 text-[11px] text-slate-400">Type a message…</div>
-          <div className="h-7 w-7 rounded-lg bg-[#4B45FF] flex items-center justify-center"><Send size={12} className="text-white" /></div>
+          <div className="h-7 w-7 rounded-lg bg-[#0F5C5C] flex items-center justify-center"><Send size={12} className="text-white" /></div>
         </div>
       </div>
     </div>
@@ -162,7 +162,7 @@ function AnalyticsUI() {
           <div key={i} className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
             <div className="text-[10px] text-slate-500 font-medium">{s.label}</div>
             <div className="mt-1 text-lg font-bold text-slate-900">{s.val}</div>
-            <div className={`mt-0.5 text-[10px] font-semibold ${s.up ? "text-emerald-600" : "text-[#4B45FF]"}`}>{s.change}</div>
+            <div className={`mt-0.5 text-[10px] font-semibold ${s.up ? "text-emerald-600" : "text-[#0F5C5C]"}`}>{s.change}</div>
           </div>
         ))}
       </div>
@@ -171,7 +171,7 @@ function AnalyticsUI() {
         <div className="flex items-end gap-2 h-28">
           {bars.map((h, i) => (
             <div key={i} className="flex-1 flex flex-col items-center gap-1">
-              <div className="w-full rounded-t-md bg-[#4B45FF]" style={{ height: `${h}%` }} />
+              <div className="w-full rounded-t-md bg-[#0F5C5C]" style={{ height: `${h}%` }} />
               <span className="text-[9px] text-slate-400">{["M", "T", "W", "T", "F", "S", "S", "M"][i]}</span>
             </div>
           ))}
@@ -181,7 +181,7 @@ function AnalyticsUI() {
         <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
           <div className="text-[10px] text-slate-500 font-medium">AI Resolved</div>
           <div className="mt-1 text-base font-bold text-slate-900">42%</div>
-          <div className="mt-1 h-1.5 rounded-full bg-slate-200"><div className="h-1.5 rounded-full bg-[#4B45FF]" style={{ width: "42%" }} /></div>
+          <div className="mt-1 h-1.5 rounded-full bg-slate-200"><div className="h-1.5 rounded-full bg-[#0F5C5C]" style={{ width: "42%" }} /></div>
         </div>
         <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
           <div className="text-[10px] text-slate-500 font-medium">First Reply</div>
@@ -202,12 +202,12 @@ function AIAgentUI() {
           <div className="text-[13px] font-bold text-slate-900">Support Agent</div>
           <div className="text-[10px] text-emerald-500 font-medium">Active</div>
         </div>
-        <div className="rounded-lg bg-[#4B45FF] px-3 py-1.5 text-[11px] font-semibold text-white">Deploy</div>
+        <div className="rounded-lg bg-[#0F5C5C] px-3 py-1.5 text-[11px] font-semibold text-white">Deploy</div>
       </div>
       <div className="flex-1 space-y-3 overflow-hidden">
         {/* Workflow nodes */}
-        <div className="rounded-xl border-2 border-[#4B45FF] bg-[#EDEDFF]/40 p-3 flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-[#4B45FF] flex items-center justify-center"><Zap size={14} className="text-white" /></div>
+        <div className="rounded-xl border-2 border-[#0F5C5C] bg-[#E6F4F4]/40 p-3 flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-[#0F5C5C] flex items-center justify-center"><Zap size={14} className="text-white" /></div>
           <div className="flex-1">
             <div className="text-[12px] font-semibold text-slate-900">Trigger: New message</div>
             <div className="text-[10px] text-slate-500">When visitor sends a message</div>
@@ -215,12 +215,12 @@ function AIAgentUI() {
         </div>
         <div className="flex justify-center"><ChevronRight size={16} className="text-slate-300 rotate-90" /></div>
         <div className="rounded-xl border border-slate-200 bg-white p-3 flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-[#6C67FF]/10 flex items-center justify-center"><Bot size={14} className="text-[#4B45FF]" /></div>
+          <div className="h-8 w-8 rounded-lg bg-[#1E88A8]/10 flex items-center justify-center"><Bot size={14} className="text-[#0F5C5C]" /></div>
           <div className="flex-1">
             <div className="text-[12px] font-semibold text-slate-900">AI: Check knowledge base</div>
             <div className="text-[10px] text-slate-500">Search docs for answer</div>
           </div>
-          <span className="rounded-full bg-[#EDEDFF] px-2 py-0.5 text-[9px] font-bold text-[#4B45FF]">AI</span>
+          <span className="rounded-full bg-[#E6F4F4] px-2 py-0.5 text-[9px] font-bold text-[#0F5C5C]">AI</span>
         </div>
         <div className="flex justify-center"><ChevronRight size={16} className="text-slate-300 rotate-90" /></div>
         <div className="flex gap-3">
@@ -249,7 +249,7 @@ function AIAgentUI() {
 /* ─── Inline coded UI: Knowledge Base ─── */
 function KnowledgeBaseUI() {
   const articles = [
-    { cat: "Getting Started", title: "How to install the widget", color: "bg-[#4B45FF]" },
+    { cat: "Getting Started", title: "How to install the widget", color: "bg-[#0F5C5C]" },
     { cat: "Billing", title: "Upgrade your plan", color: "bg-emerald-500" },
     { cat: "Integrations", title: "Connect Slack & Teams", color: "bg-amber-500" },
     { cat: "Security", title: "Enable MFA for your team", color: "bg-rose-500" },
@@ -262,12 +262,12 @@ function KnowledgeBaseUI() {
       </div>
       <div className="flex gap-2 mb-4 flex-wrap">
         {["All", "Getting Started", "Billing", "Security"].map((c, i) => (
-          <span key={i} className={`rounded-full px-3 py-1 text-[10px] font-semibold ${i === 0 ? "bg-[#4B45FF] text-white" : "bg-slate-100 text-slate-600"}`}>{c}</span>
+          <span key={i} className={`rounded-full px-3 py-1 text-[10px] font-semibold ${i === 0 ? "bg-[#0F5C5C] text-white" : "bg-slate-100 text-slate-600"}`}>{c}</span>
         ))}
       </div>
       <div className="flex-1 space-y-2.5 overflow-hidden">
         {articles.map((a, i) => (
-          <div key={i} className="rounded-xl border border-slate-100 bg-white p-3 flex items-center gap-3 hover:border-[#4B45FF]/30 transition cursor-pointer">
+          <div key={i} className="rounded-xl border border-slate-100 bg-white p-3 flex items-center gap-3 hover:border-[#0F5C5C]/30 transition cursor-pointer">
             <div className={`h-2 w-2 rounded-full ${a.color} shrink-0`} />
             <div className="flex-1 min-w-0">
               <div className="text-[10px] text-slate-400 font-medium">{a.cat}</div>
@@ -297,7 +297,7 @@ function WidgetPreviewUI() {
       </div>
       {/* Widget */}
       <div className="relative w-72 rounded-2xl border border-slate-200 bg-white shadow-[0_16px_48px_rgba(0,0,0,0.12)] overflow-hidden">
-        <div className="bg-[#4B45FF] px-4 py-3">
+        <div className="bg-[#0F5C5C] px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-white text-[10px] font-bold">H</div>
             <div>
@@ -308,12 +308,12 @@ function WidgetPreviewUI() {
         </div>
         <div className="px-4 py-3 space-y-2.5">
           <div className="flex justify-start"><div className="rounded-2xl rounded-tl-md bg-slate-100 px-3 py-2 text-[11px] text-slate-700 max-w-[85%]">Hi! How can we help you today?</div></div>
-          <div className="flex justify-end"><div className="rounded-2xl rounded-tr-md bg-[#4B45FF] px-3 py-2 text-[11px] text-white max-w-[85%]">I need help with billing</div></div>
+          <div className="flex justify-end"><div className="rounded-2xl rounded-tr-md bg-[#0F5C5C] px-3 py-2 text-[11px] text-white max-w-[85%]">I need help with billing</div></div>
           <div className="flex justify-start"><div className="rounded-2xl rounded-tl-md bg-slate-100 px-3 py-2 text-[11px] text-slate-700 max-w-[85%]">Sure! Let me pull up your account details.</div></div>
         </div>
         <div className="border-t border-slate-100 px-4 py-2 flex items-center gap-2">
           <div className="flex-1 text-[11px] text-slate-400">Type a message…</div>
-          <Send size={14} className="text-[#4B45FF]" />
+          <Send size={14} className="text-[#0F5C5C]" />
         </div>
       </div>
     </div>
@@ -364,22 +364,22 @@ export default function Home() {
       {/* ══════════════════════════════════════════════════════
           § 1  HERO
          ══════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#0D0D12] via-[#13131A] to-[#1A1A2E]">
-        <div className="pointer-events-none absolute -left-44 top-10 h-[560px] w-[560px] rounded-full bg-[#4B45FF]/10 blur-3xl" />
-        <div className="pointer-events-none absolute -right-48 -top-24 h-[620px] w-[620px] rounded-full bg-[#6C67FF]/8 blur-3xl" />
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#1A1D23] via-[#1F2937] to-[#0F3D3D]">
+        <div className="pointer-events-none absolute -left-44 top-10 h-[560px] w-[560px] rounded-full bg-[#0F5C5C]/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-48 -top-24 h-[620px] w-[620px] rounded-full bg-[#1E88A8]/8 blur-3xl" />
 
         <div className={`${designTokens.layout.maxWidth} relative pt-20 sm:pt-28 pb-16 sm:pb-24`}>
           <FadeIn className="mx-auto max-w-[920px] text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#4B45FF]/30 bg-[#4B45FF]/10 px-4 py-2 text-xs font-semibold text-[#6C67FF] backdrop-blur">
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#4B45FF]/20">
-                <Sparkles size={12} className="text-[#6C67FF]" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#0F5C5C]/30 bg-[#0F5C5C]/10 px-4 py-2 text-xs font-semibold text-[#1E88A8] backdrop-blur">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#0F5C5C]/20">
+                <Sparkles size={12} className="text-[#1E88A8]" />
               </span>
               <span>{t("home.heroPill")}</span>
             </div>
 
             <h1 className="mt-7 text-[40px] font-extrabold tracking-tight text-white leading-[1.03] sm:text-6xl">
               {t("home.heroTitle")}
-              <span className="block mt-2 bg-gradient-to-r from-[#4B45FF] via-[#6C67FF] to-[#9B8AFF] bg-clip-text text-transparent">
+              <span className="block mt-2 bg-gradient-to-r from-[#0F5C5C] via-[#1E88A8] to-[#34D399] bg-clip-text text-transparent">
                 {t("home.heroSubline")}
               </span>
             </h1>
@@ -391,7 +391,7 @@ export default function Home() {
             <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
               <Link
                 href="/signup"
-                className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#4B45FF] to-[#6C67FF] px-8 py-4 text-[15px] font-semibold text-white shadow-[0_14px_40px_rgba(75,69,255,0.36)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_54px_rgba(75,69,255,0.44)]"
+                className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0F5C5C] to-[#1E88A8] px-8 py-4 text-[15px] font-semibold text-white shadow-[0_14px_40px_rgba(15,92,92,0.36)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_54px_rgba(15,92,92,0.44)]"
               >
                 {t("home.ctaStartFree")}
                 <ArrowRight size={16} className="opacity-90 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -439,24 +439,24 @@ export default function Home() {
       {/* ══════════════════════════════════════════════════════
           § 3  PLATFORM GRID — 6 feature cards
          ══════════════════════════════════════════════════════ */}
-      <section className="border-t border-slate-200/60 bg-[#F7F8FA]">
+      <section className="border-t border-slate-200/60 bg-slate-50">
         <div className={`${designTokens.layout.maxWidth} py-20 sm:py-28`}>
           <FadeIn className="mx-auto max-w-[720px] text-center">
-            <h2 className="text-3xl font-extrabold tracking-tight text-[#0D0D12] sm:text-4xl">
+            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
               {t("home.platformTitle")}
             </h2>
-            <p className="mt-3 text-[#5A5B6A]">{t("home.platformSubtitle")}</p>
+            <p className="mt-3 text-slate-600">{t("home.platformSubtitle")}</p>
           </FadeIn>
 
           <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {platformFeatures.map((f, i) => (
               <FadeIn key={i} delay={i * 0.06}>
-                <div className="group h-full rounded-2xl border border-slate-200/80 bg-white p-7 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_14px_40px_rgba(75,69,255,0.08)] hover:-translate-y-0.5 transition-all duration-300">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#4B45FF] to-[#6C67FF] shadow-[0_2px_8px_rgba(75,69,255,0.25)] mb-5 group-hover:scale-105 transition-transform">
+                <div className="group h-full rounded-2xl border border-slate-200/80 bg-white p-7 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_14px_40px_rgba(15,92,92,0.08)] hover:-translate-y-0.5 transition-all duration-300">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0F5C5C] to-[#1E88A8] shadow-[0_2px_8px_rgba(15,92,92,0.25)] mb-5 group-hover:scale-105 transition-transform">
                     <f.icon size={22} className="text-white" />
                   </div>
-                  <h3 className="text-[15px] font-extrabold text-[#0D0D12] tracking-tight">{f.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[#5A5B6A]">{f.desc}</p>
+                  <h3 className="text-[15px] font-extrabold text-slate-900 tracking-tight">{f.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{f.desc}</p>
                 </div>
               </FadeIn>
             ))}
@@ -465,7 +465,7 @@ export default function Home() {
           <FadeIn className="mt-10 text-center">
             <Link
               href="/pricing"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-[#4B45FF] hover:text-[#3B35EF] transition-colors"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-[#0F5C5C] hover:text-[#0D4F4F] transition-colors"
             >
               {t("home.platformIncluded")}
               <ArrowRight size={14} />
@@ -478,20 +478,20 @@ export default function Home() {
           § 4  FEATURE SHOWCASES — 3 sections with real coded UIs
          ══════════════════════════════════════════════════════ */}
       {showcases.map((sc, i) => (
-        <section key={i} className={`border-t border-slate-200/60 ${i % 2 === 0 ? "bg-white" : "bg-[#F7F8FA]"}`}>
+        <section key={i} className={`border-t border-slate-200/60 ${i % 2 === 0 ? "bg-white" : "bg-slate-50"}`}>
           <div className={`${designTokens.layout.maxWidth} py-20 sm:py-28`}>
             <div className={`grid gap-12 lg:grid-cols-2 lg:gap-16 items-center ${sc.reverse ? "lg:grid-flow-dense" : ""}`}>
               <FadeIn className={sc.reverse ? "lg:col-start-2" : ""}>
-                <span className="inline-block text-[11px] font-bold uppercase tracking-[0.12em] mb-4 px-3 py-1 rounded-full bg-[#EDEDFF] text-[#4B45FF]">
+                <span className="inline-block text-[11px] font-bold uppercase tracking-[0.12em] mb-4 px-3 py-1 rounded-full bg-[#E6F4F4] text-[#0F5C5C]">
                   {sc.badge}
                 </span>
-                <h2 className="text-2xl font-extrabold tracking-tight text-[#0D0D12] sm:text-3xl leading-tight">
+                <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl leading-tight">
                   {sc.title}
                 </h2>
-                <p className="mt-4 text-[#5A5B6A] leading-relaxed">{sc.desc}</p>
+                <p className="mt-4 text-slate-600 leading-relaxed">{sc.desc}</p>
                 <Link
                   href={sc.href}
-                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0D0D12] px-6 py-3 text-sm font-semibold text-white hover:bg-[#1A1A2E] transition-colors"
+                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#1A1D23] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0F3D3D] transition-colors"
                 >
                   {sc.cta}
                   <ArrowRight size={14} />
@@ -513,13 +513,13 @@ export default function Home() {
       <section className="border-t border-slate-200/60 bg-white">
         <div className={`${designTokens.layout.maxWidth} py-20 sm:py-28`}>
           <FadeIn className="mx-auto max-w-[720px] text-center">
-            <span className="inline-block text-[11px] font-bold uppercase tracking-[0.12em] mb-4 px-3 py-1 rounded-full bg-[#EDEDFF] text-[#4B45FF]">
+            <span className="inline-block text-[11px] font-bold uppercase tracking-[0.12em] mb-4 px-3 py-1 rounded-full bg-[#E6F4F4] text-[#0F5C5C]">
               {t("home.stepperBadge")}
             </span>
-            <h2 className="text-3xl font-extrabold tracking-tight text-[#0D0D12] sm:text-4xl">
+            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
               {t("home.stepperTitle")}
             </h2>
-            <p className="mt-3 text-[#5A5B6A]">{t("home.stepperSubtitle")}</p>
+            <p className="mt-3 text-slate-600">{t("home.stepperSubtitle")}</p>
           </FadeIn>
 
           <div className="mt-14 grid gap-8 lg:grid-cols-2 lg:gap-16 items-start">
@@ -531,23 +531,23 @@ export default function Home() {
                     onClick={() => setActiveStep(i)}
                     className={`w-full text-left rounded-2xl border-2 p-6 transition-all duration-200 ${
                       activeStep === i
-                        ? "border-[#4B45FF] bg-[#EDEDFF]/40 shadow-[0_4px_16px_rgba(75,69,255,0.10)]"
-                        : "border-slate-200/80 bg-white hover:border-[#4B45FF]/30"
+                        ? "border-[#0F5C5C] bg-[#E6F4F4]/40 shadow-[0_4px_16px_rgba(15,92,92,0.10)]"
+                        : "border-slate-200/80 bg-white hover:border-[#0F5C5C]/30"
                     }`}
                   >
                     <div className="flex items-start gap-4">
-                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black transition-colors ${activeStep === i ? "bg-[#4B45FF] text-white" : "bg-slate-100 text-[#5A5B6A]"}`}>
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black transition-colors ${activeStep === i ? "bg-[#0F5C5C] text-white" : "bg-slate-100 text-slate-600"}`}>
                         {i + 1}
                       </span>
                       <div>
-                        <div className={`text-[15px] font-extrabold tracking-tight ${activeStep === i ? "text-[#0D0D12]" : "text-[#5A5B6A]"}`}>
+                        <div className={`text-[15px] font-extrabold tracking-tight ${activeStep === i ? "text-slate-900" : "text-slate-600"}`}>
                           {step.title}
                         </div>
                         {activeStep === i && (
                           <motion.p
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
-                            className="mt-2 text-sm leading-relaxed text-[#5A5B6A]"
+                            className="mt-2 text-sm leading-relaxed text-slate-600"
                           >
                             {step.desc}
                           </motion.p>
@@ -569,7 +569,7 @@ export default function Home() {
           <FadeIn className="mt-12 text-center">
             <Link
               href="/signup"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#4B45FF] to-[#6C67FF] px-8 py-4 text-[15px] font-semibold text-white shadow-[0_12px_28px_rgba(75,69,255,0.35)] transition-all hover:-translate-y-0.5"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0F5C5C] to-[#1E88A8] px-8 py-4 text-[15px] font-semibold text-white shadow-[0_12px_28px_rgba(15,92,92,0.35)] transition-all hover:-translate-y-0.5"
             >
               {t("home.stepperCta")}
               <ArrowRight size={16} />
@@ -581,32 +581,32 @@ export default function Home() {
       {/* ══════════════════════════════════════════════════════
           § 6  TESTIMONIALS — 3 cards with stars
          ══════════════════════════════════════════════════════ */}
-      <section className="bg-[#F7F8FA] border-t border-slate-200/60">
+      <section className="bg-slate-50 border-t border-slate-200/60">
         <div className={`${designTokens.layout.maxWidth} py-20 sm:py-28`}>
           <FadeIn className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0D0D12] tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
               {t("home.socialProofCount")}
             </h2>
-            <p className="mt-3 text-[#5A5B6A]">{t("home.testimonialsSubtitle")}</p>
+            <p className="mt-3 text-slate-600">{t("home.testimonialsSubtitle")}</p>
           </FadeIn>
 
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {testimonials.map((x, i) => (
               <FadeIn key={x.name} delay={i * 0.08}>
-                <figure className="relative h-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-7 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_10px_28px_rgba(75,69,255,0.08)] transition-all duration-300">
+                <figure className="relative h-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-7 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_10px_28px_rgba(15,92,92,0.08)] transition-all duration-300">
                   <div className="flex gap-0.5 mb-4">
                     {Array.from({ length: x.stars }).map((_, si) => (
                       <Star key={si} size={14} className="fill-amber-400 text-amber-400" />
                     ))}
                   </div>
-                  <blockquote className="text-[15px] leading-relaxed text-[#0D0D12]">&ldquo;{x.quote}&rdquo;</blockquote>
+                  <blockquote className="text-[15px] leading-relaxed text-slate-900">&ldquo;{x.quote}&rdquo;</blockquote>
                   <figcaption className="mt-5 flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#4B45FF] to-[#6C67FF] text-white flex items-center justify-center text-sm font-black shadow-[0_2px_8px_rgba(75,69,255,0.25)]">
+                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#0F5C5C] to-[#1E88A8] text-white flex items-center justify-center text-sm font-black shadow-[0_2px_8px_rgba(15,92,92,0.25)]">
                       {String(x.name || "H").slice(0, 1).toUpperCase()}
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-[#0D0D12]">{x.name}</div>
-                      <div className="text-xs font-semibold text-[#8E8EA0]">{x.role}</div>
+                      <div className="text-sm font-bold text-slate-900">{x.name}</div>
+                      <div className="text-xs font-semibold text-slate-400">{x.role}</div>
                     </div>
                   </figcaption>
                 </figure>
@@ -619,11 +619,11 @@ export default function Home() {
       {/* ══════════════════════════════════════════════════════
           § 7  CTA BANNER — Dark
          ══════════════════════════════════════════════════════ */}
-      <section className="bg-gradient-to-br from-[#0D0D12] via-[#13131A] to-[#1A1A2E]">
+      <section className="bg-gradient-to-br from-[#1A1D23] via-[#1F2937] to-[#0F3D3D]">
         <div className={`${designTokens.layout.maxWidth} py-20 sm:py-28`}>
           <FadeIn className="relative mx-auto max-w-2xl text-center">
-            <div className="pointer-events-none absolute -right-32 -top-32 h-72 w-72 rounded-full bg-[#4B45FF]/15 blur-3xl" />
-            <div className="pointer-events-none absolute -left-32 -bottom-32 h-72 w-72 rounded-full bg-[#6C67FF]/10 blur-3xl" />
+            <div className="pointer-events-none absolute -right-32 -top-32 h-72 w-72 rounded-full bg-[#0F5C5C]/15 blur-3xl" />
+            <div className="pointer-events-none absolute -left-32 -bottom-32 h-72 w-72 rounded-full bg-[#1E88A8]/10 blur-3xl" />
 
             <h2 className="relative text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
               {t("home.finalCtaTitle")}
@@ -632,7 +632,7 @@ export default function Home() {
             <div className="relative mt-10 flex flex-col sm:flex-row justify-center gap-3">
               <Link
                 href="/signup"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#4B45FF] to-[#6C67FF] px-8 py-4 text-[15px] font-semibold text-white shadow-[0_12px_28px_rgba(75,69,255,0.35)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(75,69,255,0.45)]"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0F5C5C] to-[#1E88A8] px-8 py-4 text-[15px] font-semibold text-white shadow-[0_12px_28px_rgba(15,92,92,0.35)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15,92,92,0.45)]"
               >
                 {t("home.finalCtaPrimary")}
                 <ArrowRight size={16} />
@@ -653,7 +653,7 @@ export default function Home() {
         <div className={`${designTokens.layout.maxWidth} py-10 sm:py-14`}>
           <Link
             href="/status"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-[#0D0D12] shadow-sm hover:bg-slate-50 transition-all"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50 transition-all"
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             {t("home.systemOperational")}
