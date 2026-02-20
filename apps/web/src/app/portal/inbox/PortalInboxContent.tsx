@@ -607,68 +607,82 @@ export default function PortalInboxContent() {
     } catch { /* */ }
   }, []);
 
-  // Fetch conversations
+  // Fetch conversations — with automatic retry for initial load resilience.
   const fetchConversations = useCallback(async (cursorVal?: string, append = false) => {
-    try {
-      // During background polling we don't want to flip loading state because it
-      // forces layout changes and contributes to scroll jitter.
-      const isBackgroundRefresh = !append && Boolean(cursorVal === undefined);
-      if (!append && !isBackgroundRefresh) setIsLoading(true);
-      setError(null);
-      const p = new URLSearchParams();
-      p.set("status", statusFilter);
-      p.set("assigned", assignedFilter);
-      if (unreadOnly) p.set("unreadOnly", "1");
-      if (debouncedSearch) p.set("q", debouncedSearch);
-      p.set("limit", "50");
-      if (cursorVal) p.set("cursor", cursorVal);
-      let res = await portalApiFetch(`/portal/conversations?${p.toString()}`);
-      // One defensive retry for transient 429/5xx issues.
-      if (!res.ok && (res.status === 429 || res.status >= 500)) {
-        await new Promise((r) => setTimeout(r, 300));
-        res = await portalApiFetch(`/portal/conversations?${p.toString()}`);
-      }
-      if (!res.ok) {
-        // Keep the current list on transient errors instead of hard-failing the UI.
-        if (res.status === 429 || res.status >= 500) return;
-        // Query param mismatch/cursor edge-case fallback: try default query once.
-        if (res.status === 400 || res.status === 404 || res.status === 422) {
-          res = await portalApiFetch("/portal/conversations?status=OPEN&assigned=unassigned&limit=50");
-          if (res.ok) {
-            const fallbackData = await res.json().catch(() => ({ items: [], nextCursor: null }));
-            const safeFallbackList = sortConversations(normalizeConversationListItems(fallbackData?.items));
-            setConversations((prev) => (areConversationListsEquivalent(prev, safeFallbackList) ? prev : safeFallbackList));
-            setNextCursor(fallbackData?.nextCursor || null);
-            hasLoadedConversationsRef.current = true;
+    const isInitialLoad = !hasLoadedConversationsRef.current;
+    const maxAttempts = isInitialLoad && !append ? 3 : 1;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        if (attempt > 1) await new Promise((r) => setTimeout(r, attempt * 600));
+
+        const isBackgroundRefresh = !append && Boolean(cursorVal === undefined);
+        if (!append && !isBackgroundRefresh && attempt === 1) setIsLoading(true);
+        if (attempt === 1) setError(null);
+
+        const p = new URLSearchParams();
+        p.set("status", statusFilter);
+        p.set("assigned", assignedFilter);
+        if (unreadOnly) p.set("unreadOnly", "1");
+        if (debouncedSearch) p.set("q", debouncedSearch);
+        p.set("limit", "50");
+        if (cursorVal) p.set("cursor", cursorVal);
+        let res = await portalApiFetch(`/portal/conversations?${p.toString()}`);
+
+        if (!res.ok && (res.status === 429 || res.status >= 500)) {
+          await new Promise((r) => setTimeout(r, 300));
+          res = await portalApiFetch(`/portal/conversations?${p.toString()}`);
+        }
+        if (!res.ok) {
+          if (res.status === 429 || res.status >= 500) {
+            if (hasLoadedConversationsRef.current) return;
+            if (attempt < maxAttempts) continue;
             return;
           }
+          if (res.status === 400 || res.status === 404 || res.status === 422) {
+            res = await portalApiFetch("/portal/conversations?status=OPEN&assigned=unassigned&limit=50");
+            if (res.ok) {
+              const fallbackData = await res.json().catch(() => ({ items: [], nextCursor: null }));
+              const safeFallbackList = sortConversations(normalizeConversationListItems(fallbackData?.items));
+              setConversations((prev) => (areConversationListsEquivalent(prev, safeFallbackList) ? prev : safeFallbackList));
+              setNextCursor(fallbackData?.nextCursor || null);
+              hasLoadedConversationsRef.current = true;
+              setIsLoading(false);
+              return;
+            }
+          }
+          if (attempt < maxAttempts) continue;
+          throw new Error();
         }
-        throw new Error();
-      }
-      const data = await res.json().catch(() => ({ items: [], nextCursor: null }));
-      const nextList = sortConversations(normalizeConversationListItems(data?.items));
-      if (append) {
-        setConversations((prev) => {
-          const merged = new Map<string, ConversationListItem>();
-          for (const c of prev) merged.set(c.id, c);
-          for (const c of nextList) merged.set(c.id, c);
-          return sortConversations(Array.from(merged.values()));
-        });
-      } else {
-        setConversations((prev) => (areConversationListsEquivalent(prev, nextList) ? prev : nextList));
-      }
-      setNextCursor(data.nextCursor || null);
-      hasLoadedConversationsRef.current = true;
-      fetchViewCounts();
-    } catch {
-      // If list was loaded at least once, keep current UI stable and retry silently.
-      if (hasLoadedConversationsRef.current) {
-        setError(null);
+
+        const data = await res.json().catch(() => ({ items: [], nextCursor: null }));
+        const nextList = sortConversations(normalizeConversationListItems(data?.items));
+        if (append) {
+          setConversations((prev) => {
+            const merged = new Map<string, ConversationListItem>();
+            for (const c of prev) merged.set(c.id, c);
+            for (const c of nextList) merged.set(c.id, c);
+            return sortConversations(Array.from(merged.values()));
+          });
+        } else {
+          setConversations((prev) => (areConversationListsEquivalent(prev, nextList) ? prev : nextList));
+        }
+        setNextCursor(data.nextCursor || null);
+        hasLoadedConversationsRef.current = true;
+        setIsLoading(false);
+        fetchViewCounts();
         return;
+      } catch {
+        if (attempt < maxAttempts) continue;
+        if (hasLoadedConversationsRef.current) {
+          setError(null);
+          setIsLoading(false);
+          return;
+        }
+        setError(t("dashboard.failedLoadConversations"));
+        setIsLoading(false);
       }
-      setError(t("dashboard.failedLoadConversations"));
     }
-    finally { setIsLoading(false); }
   }, [statusFilter, assignedFilter, unreadOnly, debouncedSearch, t, fetchViewCounts]);
 
   const handleBulkAction = useCallback(async (action: "CLOSE" | "OPEN" | "ASSIGN" | "UNASSIGN") => {

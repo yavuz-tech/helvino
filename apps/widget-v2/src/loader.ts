@@ -549,10 +549,7 @@ async function fetchAndApply(siteId: string): Promise<void> {
   }, 3000);
 
   try {
-    const res = await fetch(`${FRAME_ORIGIN}/api/bootloader?siteId=${encodeURIComponent(siteId)}`, {
-      method: "GET",
-      headers: { "x-site-id": siteId },
-    });
+    const res = await fetch(`${FRAME_ORIGIN}/api/bootloader?siteId=${encodeURIComponent(siteId)}`);
     const data = await res.json().catch(() => null);
     window.clearTimeout(fallbackTimer);
     if (!res.ok || !data) {

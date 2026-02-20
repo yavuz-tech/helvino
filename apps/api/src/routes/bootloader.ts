@@ -120,6 +120,19 @@ function sanitizeWidgetSettingsForPlan<T extends Record<string, unknown>>(
 }
 
 export async function bootloaderRoutes(fastify: FastifyInstance) {
+  // Bootloader is a public endpoint embedded on customer websites.
+  // Override CORS to allow any origin so the widget loader's fetch works
+  // without CORS preflight failures on third-party domains.
+  fastify.addHook("onSend", async (request, reply) => {
+    const url = request.url;
+    if (url.startsWith("/bootloader") || url.startsWith("/api/bootloader")) {
+      reply.header("Access-Control-Allow-Origin", "*");
+      reply.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+      reply.header("Access-Control-Allow-Headers", "x-site-id, x-org-key");
+      reply.header("Access-Control-Max-Age", "86400");
+    }
+  });
+
   const bootloaderRateLimit = createRateLimitMiddleware({
     limit: 120,
     windowMs: 60 * 1000,

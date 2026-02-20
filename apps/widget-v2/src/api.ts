@@ -149,12 +149,9 @@ async function readJsonSafe(res: Response): Promise<any> {
 
 export async function fetchBootloader(siteId: string): Promise<BootloaderResponse> {
   setContext({ siteId });
-  const res = await fetch(`${API_BASE}/api/bootloader?siteId=${encodeURIComponent(siteId)}`, {
-    method: "GET",
-    headers: {
-      "x-site-id": siteId,
-    },
-  });
+  // No custom headers: avoids CORS preflight on third-party customer websites.
+  // siteId is already in the query string.
+  const res = await fetch(`${API_BASE}/api/bootloader?siteId=${encodeURIComponent(siteId)}`);
   const data = (await readJsonSafe(res)) as BootloaderResponse;
   if (!res.ok) {
     throw new Error((data as any)?.error || `bootloader_failed_${res.status}`);

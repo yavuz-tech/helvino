@@ -594,10 +594,7 @@ function App() {
     const apiBase = getApiBase().replace(/\/+$/, "");
     const poll = async () => {
       try {
-        const res = await fetch(`${apiBase}/api/bootloader/version?siteId=${encodeURIComponent(siteId)}`, {
-          method: "GET",
-          headers: { "x-site-id": siteId },
-        });
+        const res = await fetch(`${apiBase}/api/bootloader/version?siteId=${encodeURIComponent(siteId)}`);
         const data = await res.json().catch(() => null);
         if (!res.ok || !data) return;
         const v = typeof data.configVersion === "number" ? data.configVersion : 0;
@@ -636,7 +633,7 @@ function App() {
     };
     const timer = window.setInterval(() => {
       if (!stopped) void poll();
-    }, 25_000);
+    }, 12_000);
     return () => {
       stopped = true;
       window.clearInterval(timer);
