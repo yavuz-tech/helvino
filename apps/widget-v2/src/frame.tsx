@@ -428,6 +428,7 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [isClosed, setIsClosed] = useState(false);
   const [bootOk, setBootOk] = useState(false);
   const [isAgentTyping, setIsAgentTyping] = useState(false);
   const initialLang = hostLangRef.current || "tr";
@@ -723,6 +724,10 @@ function App() {
         const conv = await createConversation(siteId, visitorId);
         cid = conv.id;
         setConversationId(cid);
+        // Join socket room immediately — don't wait for useEffect to avoid race condition
+        // where system messages (agent_joined, conversation_closed) arrive before the
+        // useEffect fires and the widget is not yet in the conv room.
+        try { socketRef.current?.emit("conversation:join", { conversationId: cid }); } catch { /* */ }
       }
 
       const sent = await sendMessage(cid, trimmed);
@@ -832,6 +837,7 @@ function App() {
         const conv = await createConversation(siteId, visitorId);
         cid = conv.id;
         setConversationId(cid);
+        try { socketRef.current?.emit("conversation:join", { conversationId: cid }); } catch { /* */ }
       }
 
       const sent = await sendMessage(cid, payload);
@@ -966,6 +972,11 @@ function App() {
             ? Boolean((msg as any).isAIGenerated)
             : true;
 
+        // Update conversation closed state based on system events
+        if (sys?.type === "conversation_closed") {
+          setIsClosed(true);
+        }
+
         setMessages((prev) => {
           const seen = new Set<string>();
           for (const m of prev) {
@@ -1006,15 +1017,61 @@ function App() {
     };
   }, [bootOk, siteId, visitorId]);
 
-  // When conversationId changes, join the conversation room on existing socket
+  // When conversationId changes, join the conversation room on existing socket.
+  // Also resets isClosed — new conversation means chat is open again.
   useEffect(() => {
-    if (!conversationId || !socketRef.current) return;
+    if (!conversationId) return;
+    setIsClosed(false);
+    if (!socketRef.current) return;
     try {
       socketRef.current.emit("conversation:join", { conversationId });
     } catch {
       // ignore
     }
   }, [conversationId]);
+
+  // Periodic fallback poll: catches system messages (agent_joined, conversation_closed)
+  // that were missed due to socket room join race conditions.
+  useEffect(() => {
+    if (!conversationId || view !== "chat") return;
+    let stopped = false;
+    const poll = async () => {
+      try {
+        const msgs = await getMessages(conversationId);
+        if (stopped || !msgs.length) return;
+        setMessages((prev) => {
+          const seenIds = new Set(prev.map((m) => m.serverId).filter(Boolean));
+          const newMsgs: ChatMessage[] = [];
+          for (const m of msgs) {
+            if (seenIds.has(m.id)) continue;
+            if (m.role === "user") continue;
+            const sys = parseSystemEvent(m.content);
+            const isAI = typeof (m as any)?.isAIGenerated === "boolean" ? Boolean((m as any).isAIGenerated) : true;
+            newMsgs.push({
+              id: `s_${m.id}`,
+              serverId: m.id,
+              role: sys ? "system" : "agent",
+              text: m.content,
+              time: formatTimeFromIso(m.timestamp),
+              isAI: sys ? undefined : isAI,
+            });
+          }
+          if (newMsgs.length === 0) return prev;
+          return [...prev, ...newMsgs];
+        });
+        // Check if any fetched message is conversation_closed to update isClosed
+        const hasClosed = msgs.some((m) => parseSystemEvent(m.content)?.type === "conversation_closed");
+        if (hasClosed) setIsClosed(true);
+      } catch {
+        // ignore
+      }
+    };
+    const timer = window.setInterval(poll, 15_000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [conversationId, view]);
 
   const emitTypingStartDebounced = () => {
     const cid = conversationId;
@@ -1209,6 +1266,11 @@ function App() {
 
           {/* FOOTER */}
           <div className="hv-footer">
+            {isClosed ? (
+              <div className="hv-closed-bar">
+                <span className="hv-closed-label">{tWidget(lang, "systemConversationClosed")}</span>
+              </div>
+            ) : (
             <div className="hv-input-bar">
               {ui.emojiPickerEnabled ? (
                 <div className="hv-emoji-wrap">
@@ -1321,6 +1383,7 @@ function App() {
                 </svg>
               </button>
             </div>
+            )}
           </div>
         </>
       )}
