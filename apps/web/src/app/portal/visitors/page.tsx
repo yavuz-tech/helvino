@@ -47,6 +47,7 @@ export default function PortalVisitorsPage() {
   const [query, setQuery] = useState("");
   const [chatLoadingId, setChatLoadingId] = useState<string | null>(null);
   const [planKey, setPlanKey] = useState<string>("free");
+  const [seedLoading, setSeedLoading] = useState(false);
 
   const fetchVisitors = useCallback(async () => {
     try {
@@ -69,6 +70,9 @@ export default function PortalVisitorsPage() {
   }, [loading, user, fetchVisitors]);
 
   const isPaidPlan = !["free", ""].includes(planKey);
+  const canSeedDemoVisitors =
+    String(user?.role || "").toLowerCase() === "owner" &&
+    String(user?.orgKey || "").toLowerCase() === "demo";
 
   const allVisitors = useMemo(() => {
     const live = data?.live || [];
@@ -106,6 +110,31 @@ export default function PortalVisitorsPage() {
     finally { setChatLoadingId(null); }
   }, []);
 
+  const handleSeedVisitors = useCallback(async () => {
+    if (!canSeedDemoVisitors) return;
+    if (seedLoading) return;
+    setSeedLoading(true);
+    try {
+      const res = await portalApiFetch("/portal/dashboard/visitors/seed", { method: "POST" });
+      if (!res.ok) {
+        if (res.status === 403) {
+          window.alert("Bu işlem için owner yetkisi gerekiyor.");
+          return;
+        }
+        window.alert("Demo ziyaretçi eklenemedi. Lütfen tekrar dene.");
+        return;
+      }
+      const json = await res.json().catch(() => null) as { created?: number } | null;
+      await fetchVisitors();
+      const created = json?.created ?? 0;
+      window.alert(`${created} demo ziyaretçi eklendi.`);
+    } catch {
+      window.alert("Bir hata oluştu. Lütfen tekrar dene.");
+    } finally {
+      setSeedLoading(false);
+    }
+  }, [canSeedDemoVisitors, fetchVisitors, seedLoading]);
+
   return (
     <div className="h-[calc(100vh-126px)] min-h-[620px] overflow-hidden rounded-2xl border border-[#d6deec] bg-white">
       <div className="grid h-full grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -114,9 +143,21 @@ export default function PortalVisitorsPage() {
             <h1 className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#374151]">
               ZİYARETÇİLER
             </h1>
-            <span className="rounded-md bg-[#f4b648] px-2.5 py-1 text-[10px] font-bold text-white">
-              Canlı
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-[#f4b648] px-2.5 py-1 text-[10px] font-bold text-white">
+                Canlı
+              </span>
+              {canSeedDemoVisitors ? (
+                <button
+                  type="button"
+                  onClick={handleSeedVisitors}
+                  disabled={seedLoading}
+                  className="rounded-md bg-[#2563eb] px-2.5 py-1 text-[10px] font-bold text-white transition hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {seedLoading ? "Ekleniyor..." : "8 Demo Ekle"}
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="relative min-h-0 flex-1 overflow-y-auto">
