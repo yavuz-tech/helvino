@@ -1,13 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-  Marker,
-  ZoomableGroup,
-} from "react-simple-maps";
+import { useEffect, useMemo, useRef } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 export interface LiveVisitorPoint {
   id: string;
@@ -17,9 +12,6 @@ export interface LiveVisitorPoint {
 }
 
 type LatLng = { lat: number; lng: number };
-
-const GEO_URL =
-  "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 const COUNTRY_CENTER: Record<string, LatLng> = {
   TR: { lat: 39.0, lng: 35.0 },
@@ -100,17 +92,32 @@ function normalizeCountryToIso2(raw: string | null): string {
   return COUNTRY_ALIASES[normalized] || "";
 }
 
-function visitorToCoord(v: LiveVisitorPoint): [number, number] {
+function visitorToLatLng(v: LiveVisitorPoint): [number, number] {
   const code = normalizeCountryToIso2(v.country);
   const c = COUNTRY_CENTER[code] || { lat: 20, lng: 0 };
-  return [c.lng, c.lat];
+  return [c.lat, c.lng];
 }
 
-function countryToFlagEmoji(country: string | null): string | null {
+function countryToFlag(country: string | null): string {
   const iso2 = normalizeCountryToIso2(country);
-  if (!/^[A-Z]{2}$/.test(iso2)) return null;
+  if (!/^[A-Z]{2}$/.test(iso2)) return "";
   const base = 127397;
   return String.fromCodePoint(...[...iso2].map((c) => c.charCodeAt(0) + base));
+}
+
+function makePulseIcon(flag: string): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    html: `
+      <div style="position:relative;width:32px;height:32px;display:flex;align-items:center;justify-content:center;">
+        <div style="position:absolute;width:28px;height:28px;border-radius:50%;background:rgba(74,222,128,0.35);animation:leafletPulse 1.6s ease-out infinite;"></div>
+        <div style="width:12px;height:12px;border-radius:50%;background:#4ade80;border:2px solid #fff;box-shadow:0 0 6px rgba(74,222,128,0.6);z-index:2;"></div>
+        ${flag ? `<span style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:16px;line-height:1;pointer-events:none;user-select:none;">${flag}</span>` : ""}
+      </div>
+    `,
+  });
 }
 
 export default function VisitorsMap({
@@ -122,131 +129,94 @@ export default function VisitorsMap({
   onlineCount: number;
   activeCount: number;
 }) {
-  const width = 960;
-  const height = 500;
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<L.Marker[]>([]);
 
-  const [position, setPosition] = useState({ coordinates: [20, 30] as [number, number], zoom: 1.6 });
-
-  const markers = useMemo(
+  const points = useMemo(
     () =>
       visitors.map((v) => ({
         id: v.id,
-        coordinates: visitorToCoord(v),
-        flag: countryToFlagEmoji(v.country),
+        latlng: visitorToLatLng(v),
+        flag: countryToFlag(v.country),
+        city: v.city,
+        country: v.country,
       })),
     [visitors]
   );
 
-  const handleMoveEnd = useCallback(
-    (pos: { coordinates: [number, number]; zoom: number }) => {
-      setPosition(pos);
-    },
-    []
-  );
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
 
-  const handleZoomIn = useCallback(() => {
-    setPosition((p) => ({ ...p, zoom: Math.min(6, p.zoom * 1.35) }));
+    const map = L.map(mapContainerRef.current, {
+      center: [30, 20],
+      zoom: 3,
+      minZoom: 2,
+      maxZoom: 10,
+      zoomControl: false,
+      attributionControl: false,
+      scrollWheelZoom: true,
+      dragging: true,
+      doubleClickZoom: true,
+      touchZoom: true,
+    });
+
+    L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+      { subdomains: "abcd", maxZoom: 19 }
+    ).addTo(map);
+
+    L.control.attribution({ position: "bottomleft", prefix: false })
+      .addAttribution("© <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> © <a href='https://carto.com/'>CARTO</a>")
+      .addTo(map);
+
+    L.control.zoom({ position: "bottomright" }).addTo(map);
+
+    mapRef.current = map;
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
   }, []);
-
-  const handleZoomOut = useCallback(() => {
-    setPosition((p) => ({ ...p, zoom: Math.max(1, p.zoom / 1.35) }));
-  }, []);
-
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const direction = e.deltaY < 0 ? 1 : -1;
-      setPosition((p) => {
-        const factor = 1 + direction * 0.12;
-        return { ...p, zoom: Math.max(1, Math.min(6, p.zoom * factor)) };
-      });
-    };
-    el.addEventListener("wheel", handler, { passive: false });
-    return () => el.removeEventListener("wheel", handler);
-  }, []);
+    const map = mapRef.current;
+    if (!map) return;
+
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+
+    for (const p of points) {
+      const icon = makePulseIcon(p.flag);
+      const marker = L.marker(p.latlng, { icon }).addTo(map);
+      const label = [p.city, p.country].filter(Boolean).join(", ");
+      if (label) marker.bindTooltip(label, { direction: "top", offset: [0, -18] });
+      markersRef.current.push(marker);
+    }
+
+    if (points.length > 0) {
+      const bounds = L.latLngBounds(points.map((p) => p.latlng));
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 5 });
+    }
+  }, [points]);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative h-full min-h-[540px] overflow-hidden rounded-r-2xl rounded-l-none bg-[#a8d4f0]"
-      style={{ touchAction: "none" }}
-    >
+    <div className="relative h-full min-h-[540px] overflow-hidden rounded-r-2xl rounded-l-none">
       <style>{`
-        @keyframes visitorPulseWhite {
-          0% { transform: scale(0.6); opacity: 0.9; }
-          70% { transform: scale(2.5); opacity: 0; }
-          100% { transform: scale(2.5); opacity: 0; }
+        @keyframes leafletPulse {
+          0% { transform: scale(0.5); opacity: 0.9; }
+          70% { transform: scale(2.2); opacity: 0; }
+          100% { transform: scale(2.2); opacity: 0; }
         }
-        .rsm-svg { display: block; width: 100%; height: 100%; }
+        .leaflet-container { width: 100%; height: 100%; background: #b3d1f0; font-family: inherit; }
+        .leaflet-control-zoom a { background: #2a2d33 !important; color: #fff !important; border-color: rgba(255,255,255,0.15) !important; }
+        .leaflet-control-zoom a:hover { background: #3a3d43 !important; }
       `}</style>
 
-      <ComposableMap
-        width={width}
-        height={height}
-        projection="geoMercator"
-        projectionConfig={{
-          scale: 130,
-          center: [0, 20],
-        }}
-        style={{ width: "100%", height: "100%" }}
-      >
-        <ZoomableGroup
-          center={position.coordinates}
-          zoom={position.zoom}
-          onMoveEnd={handleMoveEnd}
-          minZoom={1}
-          maxZoom={6}
-        >
-          <Geographies geography={GEO_URL}>
-            {({ geographies }: { geographies: { rsmKey: string; [k: string]: unknown }[] }) =>
-              geographies.map((geo: { rsmKey: string; [k: string]: unknown }) => (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  fill="#8fa8c4"
-                  stroke="#7a99b8"
-                  strokeWidth={0.3}
-                  style={{
-                    default: { outline: "none" },
-                    hover: { outline: "none", fill: "#9ab3cc" },
-                    pressed: { outline: "none" },
-                  }}
-                />
-              ))
-            }
-          </Geographies>
-          {markers.map((m) => (
-            <Marker key={m.id} coordinates={m.coordinates}>
-              <g>
-                {m.flag ? (
-                  <text
-                    x={0}
-                    y={-14}
-                    textAnchor="middle"
-                    style={{ fontSize: 14, userSelect: "none", pointerEvents: "none" }}
-                  >
-                    {m.flag}
-                  </text>
-                ) : null}
-                <circle
-                  r={12}
-                  fill="rgba(255,255,255,0.45)"
-                  style={{ animation: "visitorPulseWhite 1.8s ease-out infinite" }}
-                />
-                <circle r={4.5} fill="#ffffff" stroke="#d0d0d0" strokeWidth={1.2} />
-              </g>
-            </Marker>
-          ))}
-        </ZoomableGroup>
-      </ComposableMap>
+      <div ref={mapContainerRef} className="h-full w-full" />
 
-      {/* Stats tooltip */}
-      <div className="absolute left-6 top-5 rounded-lg bg-[#2a2d33] px-4 py-3 shadow-xl">
+      <div className="pointer-events-none absolute left-5 top-4 z-[1000] rounded-lg bg-[#2a2d33]/90 px-4 py-3 shadow-xl backdrop-blur-sm">
         <p className="text-[13px] font-medium text-white">
           <span className="mr-1 font-bold text-[#4ade80]">{onlineCount}</span>
           çevrimiçi kullanıcı
@@ -258,31 +228,6 @@ export default function VisitorsMap({
         <p className="mt-2 text-[11px] text-[#9ca3af]">
           MagicMap&apos;ten canlı görüntü
         </p>
-      </div>
-
-      {/* Zoom controls */}
-      <div className="absolute bottom-5 right-5 flex flex-col overflow-hidden rounded-lg bg-[#2a2d33] shadow-lg">
-        <button
-          type="button"
-          className="flex h-9 w-9 items-center justify-center text-[18px] font-bold text-white transition hover:bg-white/15 active:bg-white/25"
-          onClick={handleZoomIn}
-          aria-label="Yakınlaştır"
-        >
-          +
-        </button>
-        <button
-          type="button"
-          className="flex h-9 w-9 items-center justify-center border-t border-white/15 text-[18px] font-bold text-white transition hover:bg-white/15 active:bg-white/25"
-          onClick={handleZoomOut}
-          aria-label="Uzaklaştır"
-        >
-          −
-        </button>
-      </div>
-
-      {/* Attribution */}
-      <div className="absolute bottom-2 left-4 text-[10px] text-[#6b7280]">
-        © OpenStreetMap
       </div>
     </div>
   );
