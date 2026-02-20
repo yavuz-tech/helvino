@@ -154,6 +154,59 @@ function sortConversations(list: ConversationListItem[]): ConversationListItem[]
   });
 }
 
+function normalizeConversationListItems(rawItems: unknown): ConversationListItem[] {
+  const items = Array.isArray(rawItems) ? rawItems : [];
+  return items
+    .map((raw): ConversationListItem | null => {
+      const c = (raw || {}) as Record<string, unknown>;
+      const id = typeof c.id === "string" ? c.id : "";
+      if (!id) return null;
+      const status = typeof c.status === "string" ? c.status : "OPEN";
+      const updatedAt =
+        typeof c.updatedAt === "string" && c.updatedAt
+          ? c.updatedAt
+          : new Date().toISOString();
+      const createdAt =
+        typeof c.createdAt === "string" && c.createdAt
+          ? c.createdAt
+          : updatedAt;
+      const lastMessageAt =
+        typeof c.lastMessageAt === "string" && c.lastMessageAt
+          ? c.lastMessageAt
+          : updatedAt;
+      const previewObj =
+        c.preview && typeof c.preview === "object"
+          ? (c.preview as Record<string, unknown>)
+          : null;
+      const previewText = typeof previewObj?.text === "string" ? previewObj.text : "";
+      const previewFrom = typeof previewObj?.from === "string" ? previewObj.from : "";
+      return {
+        id,
+        status,
+        assignedToOrgUserId:
+          typeof c.assignedToOrgUserId === "string" ? c.assignedToOrgUserId : null,
+        assignedTo:
+          c.assignedTo && typeof c.assignedTo === "object"
+            ? (c.assignedTo as { id: string; email: string; role: string })
+            : null,
+        closedAt: typeof c.closedAt === "string" ? c.closedAt : null,
+        createdAt,
+        updatedAt,
+        messageCount: Number(c.messageCount || 0) || 0,
+        lastMessageAt,
+        noteCount: Number(c.noteCount || 0) || 0,
+        hasUnreadMessages: Boolean(c.hasUnreadMessages),
+        preview: previewText || previewFrom ? { text: previewText, from: previewFrom } : null,
+        slaStatus:
+          c.slaStatus === "ok" || c.slaStatus === "warning" || c.slaStatus === "breached"
+            ? c.slaStatus
+            : null,
+        slaDueAt: typeof c.slaDueAt === "string" ? c.slaDueAt : null,
+      };
+    })
+    .filter((x): x is ConversationListItem => Boolean(x));
+}
+
 function sanitizeConversationDetail(detail: ConversationDetail): ConversationDetail {
   return {
     ...detail,
@@ -249,6 +302,7 @@ export default function PortalInboxContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const hasLoadedConversationsRef = useRef(false);
 
   // Filters — default Unassigned so new messages (OPEN + unassigned) show there, not under Solved
   const [statusFilter, setStatusFilter] = useState<"OPEN" | "CLOSED" | "ALL">("OPEN");
@@ -577,10 +631,22 @@ export default function PortalInboxContent() {
       if (!res.ok) {
         // Keep the current list on transient errors instead of hard-failing the UI.
         if (res.status === 429 || res.status >= 500) return;
+        // Query param mismatch/cursor edge-case fallback: try default query once.
+        if (res.status === 400 || res.status === 404 || res.status === 422) {
+          res = await portalApiFetch("/portal/conversations?status=OPEN&assigned=unassigned&limit=50");
+          if (res.ok) {
+            const fallbackData = await res.json().catch(() => ({ items: [], nextCursor: null }));
+            const safeFallbackList = sortConversations(normalizeConversationListItems(fallbackData?.items));
+            setConversations((prev) => (areConversationListsEquivalent(prev, safeFallbackList) ? prev : safeFallbackList));
+            setNextCursor(fallbackData?.nextCursor || null);
+            hasLoadedConversationsRef.current = true;
+            return;
+          }
+        }
         throw new Error();
       }
-      const data = await res.json();
-      const nextList = sortConversations(data.items || []);
+      const data = await res.json().catch(() => ({ items: [], nextCursor: null }));
+      const nextList = sortConversations(normalizeConversationListItems(data?.items));
       if (append) {
         setConversations((prev) => {
           const merged = new Map<string, ConversationListItem>();
@@ -592,8 +658,16 @@ export default function PortalInboxContent() {
         setConversations((prev) => (areConversationListsEquivalent(prev, nextList) ? prev : nextList));
       }
       setNextCursor(data.nextCursor || null);
+      hasLoadedConversationsRef.current = true;
       fetchViewCounts();
-    } catch { setError(t("dashboard.failedLoadConversations")); }
+    } catch {
+      // If list was loaded at least once, keep current UI stable and retry silently.
+      if (hasLoadedConversationsRef.current) {
+        setError(null);
+        return;
+      }
+      setError(t("dashboard.failedLoadConversations"));
+    }
     finally { setIsLoading(false); }
   }, [statusFilter, assignedFilter, unreadOnly, debouncedSearch, t, fetchViewCounts]);
 
