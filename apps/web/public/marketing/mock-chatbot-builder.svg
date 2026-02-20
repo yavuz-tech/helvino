@@ -1,0 +1,109 @@
+<svg width="1200" height="700" viewBox="0 0 1200 700" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="700" rx="16" fill="#FFFFFF"/>
+  <rect x="1" y="1" width="1198" height="698" rx="15" stroke="#E2E8F0" stroke-width="2"/>
+  <!-- Header -->
+  <rect x="0" y="0" width="1200" height="60" rx="16" fill="#F8FAFC"/>
+  <rect x="0" y="44" width="1200" height="16" fill="#F8FAFC"/>
+  <rect x="0" y="60" width="1200" height="1" fill="#E2E8F0"/>
+  <rect x="40" y="18" width="120" height="14" rx="7" fill="#0F172A"/>
+  <rect x="40" y="38" width="80" height="10" rx="5" fill="#94A3B8"/>
+  <!-- Deploy button -->
+  <rect x="1060" y="14" width="100" height="36" rx="10" fill="#4B45FF"/>
+  <rect x="1082" y="28" width="56" height="8" rx="4" fill="#FFFFFF"/>
+
+  <!-- Left panel - steps -->
+  <rect x="0" y="60" width="280" height="640" fill="#F8FAFC"/>
+  <rect x="280" y="60" width="1" height="640" fill="#E2E8F0"/>
+  <rect x="24" y="84" width="80" height="10" rx="5" fill="#94A3B8"/>
+  <!-- Trigger node -->
+  <rect x="16" y="108" width="248" height="56" rx="12" fill="#FFFFFF" stroke="#4B45FF" stroke-width="1.5"/>
+  <rect x="32" y="120" width="24" height="24" rx="8" fill="#4B45FF" fill-opacity="0.1"/>
+  <rect x="40" y="128" width="8" height="8" rx="2" fill="#4B45FF"/>
+  <rect x="64" y="124" width="100" height="12" rx="6" fill="#0F172A"/>
+  <rect x="64" y="142" width="140" height="8" rx="4" fill="#94A3B8"/>
+  <!-- Condition node -->
+  <rect x="16" y="176" width="248" height="56" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <rect x="32" y="188" width="24" height="24" rx="8" fill="#F59E0B" fill-opacity="0.1"/>
+  <rect x="40" y="196" width="8" height="8" rx="2" fill="#F59E0B"/>
+  <rect x="64" y="192" width="80" height="12" rx="6" fill="#0F172A"/>
+  <rect x="64" y="210" width="160" height="8" rx="4" fill="#94A3B8"/>
+  <!-- AI Reply node -->
+  <rect x="16" y="244" width="248" height="56" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <rect x="32" y="256" width="24" height="24" rx="8" fill="#6C67FF" fill-opacity="0.1"/>
+  <rect x="40" y="264" width="8" height="8" rx="2" fill="#6C67FF"/>
+  <rect x="64" y="260" width="60" height="12" rx="6" fill="#0F172A"/>
+  <rect x="64" y="278" width="120" height="8" rx="4" fill="#94A3B8"/>
+  <!-- Handoff node -->
+  <rect x="16" y="312" width="248" height="56" rx="12" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <rect x="32" y="324" width="24" height="24" rx="8" fill="#22C55E" fill-opacity="0.1"/>
+  <rect x="40" y="332" width="8" height="8" rx="2" fill="#22C55E"/>
+  <rect x="64" y="328" width="100" height="12" rx="6" fill="#0F172A"/>
+  <rect x="64" y="346" width="140" height="8" rx="4" fill="#94A3B8"/>
+
+  <!-- Canvas area - workflow visualization -->
+  <rect x="281" y="61" width="919" height="639" fill="#FAFBFC"/>
+  <!-- Grid dots -->
+  <circle cx="340" cy="120" r="1.5" fill="#CBD5E1"/>
+  <circle cx="380" cy="120" r="1.5" fill="#CBD5E1"/>
+  <circle cx="420" cy="120" r="1.5" fill="#CBD5E1"/>
+  <circle cx="460" cy="120" r="1.5" fill="#CBD5E1"/>
+  <circle cx="500" cy="120" r="1.5" fill="#CBD5E1"/>
+  <circle cx="340" cy="160" r="1.5" fill="#CBD5E1"/>
+  <circle cx="380" cy="160" r="1.5" fill="#CBD5E1"/>
+  <circle cx="420" cy="160" r="1.5" fill="#CBD5E1"/>
+  <circle cx="460" cy="160" r="1.5" fill="#CBD5E1"/>
+  <circle cx="500" cy="160" r="1.5" fill="#CBD5E1"/>
+
+  <!-- Workflow nodes on canvas -->
+  <!-- Start node -->
+  <rect x="520" y="100" width="200" height="72" rx="16" fill="#FFFFFF" stroke="#4B45FF" stroke-width="2"/>
+  <circle cx="548" cy="136" r="14" fill="#4B45FF"/>
+  <rect x="572" y="122" width="80" height="12" rx="6" fill="#0F172A"/>
+  <rect x="572" y="140" width="120" height="8" rx="4" fill="#94A3B8"/>
+  <!-- Arrow down -->
+  <line x1="620" y1="172" x2="620" y2="220" stroke="#CBD5E1" stroke-width="2"/>
+  <polygon points="614,216 620,228 626,216" fill="#CBD5E1"/>
+
+  <!-- AI Check node -->
+  <rect x="480" y="228" width="280" height="72" rx="16" fill="#FFFFFF" stroke="#6C67FF" stroke-width="2"/>
+  <rect x="504" y="244" width="28" height="28" rx="8" fill="#6C67FF" fill-opacity="0.15"/>
+  <rect x="512" y="252" width="12" height="12" rx="3" fill="#6C67FF"/>
+  <rect x="544" y="250" width="120" height="12" rx="6" fill="#0F172A"/>
+  <rect x="544" y="268" width="180" height="8" rx="4" fill="#94A3B8"/>
+  <!-- AI badge -->
+  <rect x="696" y="248" width="44" height="20" rx="10" fill="#6C67FF" fill-opacity="0.15"/>
+  <rect x="706" y="254" width="24" height="8" rx="4" fill="#6C67FF"/>
+
+  <!-- Branch arrows -->
+  <line x1="560" y1="300" x2="460" y2="360" stroke="#22C55E" stroke-width="2"/>
+  <line x1="680" y1="300" x2="780" y2="360" stroke="#F59E0B" stroke-width="2"/>
+
+  <!-- Yes branch - Auto reply -->
+  <rect x="360" y="360" width="200" height="72" rx="16" fill="#FFFFFF" stroke="#22C55E" stroke-width="2"/>
+  <rect x="384" y="376" width="28" height="28" rx="8" fill="#22C55E" fill-opacity="0.15"/>
+  <rect x="392" y="384" width="12" height="12" rx="3" fill="#22C55E"/>
+  <rect x="424" y="382" width="80" height="12" rx="6" fill="#0F172A"/>
+  <rect x="424" y="400" width="100" height="8" rx="4" fill="#94A3B8"/>
+
+  <!-- No branch - Handoff -->
+  <rect x="680" y="360" width="200" height="72" rx="16" fill="#FFFFFF" stroke="#F59E0B" stroke-width="2"/>
+  <rect x="704" y="376" width="28" height="28" rx="8" fill="#F59E0B" fill-opacity="0.15"/>
+  <rect x="712" y="384" width="12" height="12" rx="3" fill="#F59E0B"/>
+  <rect x="744" y="382" width="100" height="12" rx="6" fill="#0F172A"/>
+  <rect x="744" y="400" width="80" height="8" rx="4" fill="#94A3B8"/>
+
+  <!-- Labels -->
+  <rect x="470" y="336" width="40" height="18" rx="9" fill="#22C55E" fill-opacity="0.1"/>
+  <rect x="478" y="342" width="24" height="6" rx="3" fill="#22C55E"/>
+  <rect x="730" y="336" width="32" height="18" rx="9" fill="#F59E0B" fill-opacity="0.1"/>
+  <rect x="738" y="342" width="16" height="6" rx="3" fill="#F59E0B"/>
+
+  <!-- End nodes -->
+  <line x1="460" y1="432" x2="460" y2="480" stroke="#CBD5E1" stroke-width="2"/>
+  <circle cx="460" cy="496" r="16" fill="#22C55E" fill-opacity="0.15" stroke="#22C55E" stroke-width="2"/>
+  <rect x="452" y="492" width="16" height="8" rx="4" fill="#22C55E"/>
+
+  <line x1="780" y1="432" x2="780" y2="480" stroke="#CBD5E1" stroke-width="2"/>
+  <circle cx="780" cy="496" r="16" fill="#F59E0B" fill-opacity="0.15" stroke="#F59E0B" stroke-width="2"/>
+  <rect x="772" y="492" width="16" height="8" rx="4" fill="#F59E0B"/>
+</svg>

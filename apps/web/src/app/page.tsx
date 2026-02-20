@@ -8,7 +8,6 @@ import {
   BarChart3,
   BookOpen,
   Bot,
-  Code2,
   Inbox,
   MessageSquare,
   Megaphone,
@@ -37,22 +36,29 @@ export default function Home() {
   ];
 
   const steps = [
-    { title: t("home.step1Title"), desc: t("home.step1Desc") },
-    { title: t("home.step2Title"), desc: t("home.step2Desc") },
-    { title: t("home.step3Title"), desc: t("home.step3Desc") },
-    { title: t("home.step4Title"), desc: t("home.step4Desc") },
+    { title: t("home.step1Title"), desc: t("home.step1Desc"), img: "/marketing/mock-hero-dashboard.svg" },
+    { title: t("home.step2Title"), desc: t("home.step2Desc"), img: "/marketing/mock-shared-inbox.svg" },
+    { title: t("home.step3Title"), desc: t("home.step3Desc"), img: "/marketing/mock-chatbot-builder.svg" },
+    { title: t("home.step4Title"), desc: t("home.step4Desc"), img: "/marketing/mock-analytics.svg" },
   ];
 
   const showcases = [
-    { title: t("home.showcase1Title"), desc: t("home.showcase1Desc"), cta: t("home.showcase1Cta"), href: "/product", icon: Inbox },
-    { title: t("home.showcase2Title"), desc: t("home.showcase2Desc"), cta: t("home.showcase2Cta"), href: "/product", icon: BookOpen },
-    { title: t("home.showcase3Title"), desc: t("home.showcase3Desc"), cta: t("home.showcase3Cta"), href: "/product", icon: Workflow },
+    { title: t("home.showcase1Title"), desc: t("home.showcase1Desc"), cta: t("home.showcase1Cta"), href: "/product", img: "/marketing/mock-shared-inbox.svg", badge: "Shared Inbox" },
+    { title: t("home.showcase2Title"), desc: t("home.showcase2Desc"), cta: t("home.showcase2Cta"), href: "/product", img: "/marketing/mock-knowledge-base.svg", badge: "Knowledge Base" },
+    { title: t("home.showcase3Title"), desc: t("home.showcase3Desc"), cta: t("home.showcase3Cta"), href: "/product", img: "/marketing/mock-chatbot-builder.svg", badge: "Automations" },
+  ];
+
+  const miniFeatures = [
+    { icon: MessageSquare, title: t("home.pf2Title"), desc: t("home.pf2Desc"), href: "/product", img: "/marketing/mock-hero-dashboard.svg" },
+    { icon: Users, title: t("home.pf5Title"), desc: t("home.pf5Desc"), href: "/product", img: "/marketing/mock-shared-inbox.svg" },
+    { icon: Bot, title: t("home.pf1Title"), desc: t("home.pf1Desc"), href: "/product", img: "/marketing/mock-chatbot-builder.svg" },
+    { icon: BarChart3, title: t("home.pf6Title"), desc: t("home.pf6Desc"), href: "/product", img: "/marketing/mock-analytics.svg" },
   ];
 
   const builtForTabs = [
-    { label: t("home.builtForSupport"), desc: t("home.builtForSupportDesc"), icon: ShieldCheck },
-    { label: t("home.builtForSales"), desc: t("home.builtForSalesDesc"), icon: Zap },
-    { label: t("home.builtForMarketing"), desc: t("home.builtForMarketingDesc"), icon: Megaphone },
+    { label: t("home.builtForSupport"), desc: t("home.builtForSupportDesc"), icon: ShieldCheck, img: "/marketing/mock-shared-inbox.svg" },
+    { label: t("home.builtForSales"), desc: t("home.builtForSalesDesc"), icon: Zap, img: "/marketing/mock-chatbot-builder.svg" },
+    { label: t("home.builtForMarketing"), desc: t("home.builtForMarketingDesc"), icon: Megaphone, img: "/marketing/mock-analytics.svg" },
   ];
 
   const testimonials = [
@@ -66,9 +72,9 @@ export default function Home() {
 
   return (
     <PublicLayout>
-      {/* ═══════════════════════════════════════════════════════════
-          HERO — Dark gradient, pill badge, big title, 2 CTAs, screenshot
-         ═══════════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════════
+          § 1  HERO — Dark gradient + screenshot frame
+         ══════════════════════════════════════════════════════ */}
       <section className="relative overflow-hidden bg-gradient-to-b from-[#0D0D12] via-[#13131A] to-[#1A1A2E]">
         <div className="pointer-events-none absolute -left-44 top-10 h-[560px] w-[560px] rounded-full bg-[#4B45FF]/10 blur-3xl" />
         <div className="pointer-events-none absolute -right-48 -top-24 h-[620px] w-[620px] rounded-full bg-[#6C67FF]/8 blur-3xl" />
@@ -114,27 +120,25 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-14 sm:mt-18">
-            <div className="mx-auto max-w-[1120px] rounded-3xl bg-gradient-to-br from-[#4B45FF]/30 via-[#13131A] to-[#6C67FF]/20 p-[1px] shadow-[0_34px_110px_rgba(75,69,255,0.18)]">
-              <div className="rounded-3xl border border-white/5 bg-[#13131A]/80 p-4 backdrop-blur-2xl sm:p-5">
-                <Image
-                  src="/marketing/mock-dashboard.svg"
-                  alt=""
-                  aria-hidden="true"
-                  width={1400}
-                  height={900}
-                  className="h-auto w-full rounded-2xl border border-slate-700/50 shadow-[0_18px_55px_rgba(0,0,0,0.30)]"
-                  priority
-                />
-              </div>
+          {/* Screenshot frame — like Crisp hero */}
+          <div className="mt-14 sm:mt-20">
+            <div className="mx-auto max-w-[1120px] rounded-2xl border border-white/10 bg-[#16171F] p-2 shadow-[0_40px_120px_rgba(0,0,0,0.50)]">
+              <Image
+                src="/marketing/mock-hero-dashboard.svg"
+                alt="Helvion dashboard"
+                width={1200}
+                height={760}
+                className="h-auto w-full rounded-xl"
+                priority
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════════
-          PLATFORM FEATURE GRID — 6 cards with icons (Crisp style)
-         ═══════════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════════
+          § 2  PLATFORM GRID — 6 feature cards (Crisp style)
+         ══════════════════════════════════════════════════════ */}
       <section className="border-t border-slate-200/60 bg-[#F7F8FA]">
         <div className={`${designTokens.layout.maxWidth} py-20 sm:py-28`}>
           <div className="mx-auto max-w-[720px] text-center">
@@ -171,9 +175,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════════
-          4-STEP STEPPER — Interactive, Crisp "Build your AI Agent" style
-         ═══════════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════════
+          § 3  4-STEP BUILDER — Left stepper + right screenshot
+         ══════════════════════════════════════════════════════ */}
       <section className="border-t border-slate-200/60 bg-white">
         <div className={`${designTokens.layout.maxWidth} py-20 sm:py-28`}>
           <div className="mx-auto max-w-[720px] text-center">
@@ -187,6 +191,7 @@ export default function Home() {
           </div>
 
           <div className="mt-14 grid gap-8 lg:grid-cols-2 lg:gap-16 items-start">
+            {/* Left — step buttons */}
             <div className="space-y-3">
               {steps.map((step, i) => (
                 <button
@@ -213,7 +218,7 @@ export default function Home() {
                         {step.title}
                       </div>
                       {activeStep === i && (
-                        <p className="mt-2 text-sm leading-relaxed text-[#5A5B6A] animate-in fade-in duration-200">
+                        <p className="mt-2 text-sm leading-relaxed text-[#5A5B6A]">
                           {step.desc}
                         </p>
                       )}
@@ -223,22 +228,17 @@ export default function Home() {
               ))}
             </div>
 
-            <div className="relative">
-              <div className="rounded-3xl bg-gradient-to-br from-[#4B45FF]/20 via-[#EDEDFF] to-[#6C67FF]/10 p-[1px] shadow-[0_20px_60px_rgba(75,69,255,0.12)]">
-                <div className="rounded-3xl bg-white p-6 sm:p-8">
-                  <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-slate-50 to-[#EDEDFF]/60 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#4B45FF] to-[#6C67FF] shadow-[0_4px_16px_rgba(75,69,255,0.30)]">
-                        {activeStep === 0 && <Code2 size={28} className="text-white" />}
-                        {activeStep === 1 && <Users size={28} className="text-white" />}
-                        {activeStep === 2 && <Bot size={28} className="text-white" />}
-                        {activeStep === 3 && <BarChart3 size={28} className="text-white" />}
-                      </div>
-                      <p className="mt-4 text-lg font-extrabold text-[#0D0D12]">{steps[activeStep].title}</p>
-                      <p className="mt-2 max-w-xs mx-auto text-sm text-[#5A5B6A] leading-relaxed">{steps[activeStep].desc}</p>
-                    </div>
-                  </div>
-                </div>
+            {/* Right — screenshot that changes per step */}
+            <div className="sticky top-24">
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_20px_60px_rgba(75,69,255,0.10)]">
+                <Image
+                  key={activeStep}
+                  src={steps[activeStep].img}
+                  alt={steps[activeStep].title}
+                  width={1200}
+                  height={760}
+                  className="h-auto w-full rounded-xl"
+                />
               </div>
             </div>
           </div>
@@ -255,9 +255,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════════
-          3x FEATURE SHOWCASES — Full-width, alternating layout
-         ═══════════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════════
+          § 4  FEATURE SHOWCASES — 3x full-width with screenshots
+         ══════════════════════════════════════════════════════ */}
       {showcases.map((sc, i) => (
         <section
           key={i}
@@ -265,29 +265,33 @@ export default function Home() {
         >
           <div className={`${designTokens.layout.maxWidth} py-20 sm:py-28`}>
             <div className={`grid gap-12 lg:grid-cols-2 lg:gap-16 items-center ${i % 2 === 1 ? "lg:grid-flow-dense" : ""}`}>
+              {/* Text side */}
               <div className={i % 2 === 1 ? "lg:col-start-2" : ""}>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#4B45FF] to-[#6C67FF] shadow-[0_2px_8px_rgba(75,69,255,0.25)] mb-6">
-                  <sc.icon size={22} className="text-white" />
-                </div>
-                <h2 className="text-2xl font-extrabold tracking-tight text-[#0D0D12] sm:text-3xl">
+                <span className="inline-block text-[11px] font-bold uppercase tracking-[0.12em] mb-4 px-3 py-1 rounded-full bg-[#EDEDFF] text-[#4B45FF]">
+                  {sc.badge}
+                </span>
+                <h2 className="text-2xl font-extrabold tracking-tight text-[#0D0D12] sm:text-3xl leading-tight">
                   {sc.title}
                 </h2>
                 <p className="mt-4 text-[#5A5B6A] leading-relaxed">{sc.desc}</p>
                 <Link
                   href={sc.href}
-                  className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#4B45FF] hover:text-[#3B35EF] transition-colors"
+                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0D0D12] px-6 py-3 text-sm font-semibold text-white hover:bg-[#1A1A2E] transition-colors"
                 >
                   {sc.cta}
                   <ArrowRight size={14} />
                 </Link>
               </div>
+              {/* Screenshot side */}
               <div className={i % 2 === 1 ? "lg:col-start-1" : ""}>
-                <div className="rounded-3xl bg-gradient-to-br from-[#4B45FF]/15 via-[#EDEDFF]/60 to-[#6C67FF]/10 p-[1px] shadow-[0_16px_48px_rgba(75,69,255,0.10)]">
-                  <div className="rounded-3xl bg-white p-5">
-                    <div className="aspect-[16/10] rounded-2xl bg-gradient-to-br from-slate-50 to-[#EDEDFF]/40 flex items-center justify-center">
-                      <sc.icon size={48} className="text-[#4B45FF]/30" />
-                    </div>
-                  </div>
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_16px_48px_rgba(0,0,0,0.06)]">
+                  <Image
+                    src={sc.img}
+                    alt={sc.title}
+                    width={1200}
+                    height={700}
+                    className="h-auto w-full rounded-xl"
+                  />
                 </div>
               </div>
             </div>
@@ -295,10 +299,56 @@ export default function Home() {
         </section>
       ))}
 
-      {/* ═══════════════════════════════════════════════════════════
-          BUILT FOR — 3 tabs (Support, Sales, Marketing)
-         ═══════════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════════
+          § 5  MINI FEATURE CARDS — 4 cards with screenshots
+         ══════════════════════════════════════════════════════ */}
       <section className="border-t border-slate-200/60 bg-white">
+        <div className={`${designTokens.layout.maxWidth} py-20 sm:py-28`}>
+          <div className="mx-auto max-w-[720px] text-center mb-14">
+            <h2 className="text-2xl font-extrabold tracking-tight text-[#0D0D12] sm:text-3xl">
+              {t("home.featureTitle")}
+            </h2>
+            <p className="mt-3 text-[#5A5B6A]">{t("home.featureSubtitle")}</p>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            {miniFeatures.map((mf, i) => (
+              <Link
+                key={i}
+                href={mf.href}
+                className="group rounded-2xl border border-slate-200/80 bg-white overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_14px_40px_rgba(75,69,255,0.08)] hover:-translate-y-0.5 transition-all duration-300"
+              >
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#4B45FF] to-[#6C67FF] shadow-sm">
+                      <mf.icon size={18} className="text-white" />
+                    </div>
+                    <h3 className="text-[15px] font-extrabold text-[#0D0D12] tracking-tight">{mf.title}</h3>
+                  </div>
+                  <p className="text-sm leading-relaxed text-[#5A5B6A]">{mf.desc}</p>
+                  <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#4B45FF] group-hover:gap-2 transition-all">
+                    Learn more <ArrowRight size={14} />
+                  </span>
+                </div>
+                <div className="border-t border-slate-100 bg-slate-50/50 p-3">
+                  <Image
+                    src={mf.img}
+                    alt={mf.title}
+                    width={1200}
+                    height={700}
+                    className="h-auto w-full rounded-lg"
+                  />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════
+          § 6  BUILT FOR — 3 tabs with screenshot
+         ══════════════════════════════════════════════════════ */}
+      <section className="border-t border-slate-200/60 bg-[#F7F8FA]">
         <div className={`${designTokens.layout.maxWidth} py-20 sm:py-28`}>
           <div className="mx-auto max-w-[720px] text-center">
             <h2 className="text-3xl font-extrabold tracking-tight text-[#0D0D12] sm:text-4xl">
@@ -307,7 +357,7 @@ export default function Home() {
             <p className="mt-2 text-lg text-[#5A5B6A]">{t("home.builtForSubtitle")}</p>
           </div>
 
-          <div className="mt-12 flex flex-wrap justify-center gap-3">
+          <div className="mt-10 flex flex-wrap justify-center gap-3">
             {builtForTabs.map((tab, i) => (
               <button
                 key={i}
@@ -315,7 +365,7 @@ export default function Home() {
                 className={`inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-all duration-200 ${
                   activeTab === i
                     ? "bg-[#0D0D12] text-white shadow-lg"
-                    : "bg-slate-100 text-[#5A5B6A] hover:bg-slate-200"
+                    : "bg-white text-[#5A5B6A] border border-slate-200 hover:bg-slate-50"
                 }`}
               >
                 <tab.icon size={16} />
@@ -324,31 +374,52 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="mt-10 mx-auto max-w-2xl">
-            <div className="rounded-3xl border border-slate-200/80 bg-[#F7F8FA] p-8 sm:p-12 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#4B45FF] to-[#6C67FF] shadow-[0_4px_16px_rgba(75,69,255,0.25)] mb-6">
-                {(() => { const Icon = builtForTabs[activeTab].icon; return <Icon size={28} className="text-white" />; })()}
+          <div className="mt-10 grid gap-8 lg:grid-cols-2 lg:gap-12 items-center">
+            <div>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#4B45FF] to-[#6C67FF] shadow-[0_4px_16px_rgba(75,69,255,0.25)] mb-6">
+                {(() => { const Icon = builtForTabs[activeTab].icon; return <Icon size={26} className="text-white" />; })()}
               </div>
-              <h3 className="text-xl font-extrabold text-[#0D0D12]">{builtForTabs[activeTab].label}</h3>
-              <p className="mt-3 text-[#5A5B6A] leading-relaxed">{builtForTabs[activeTab].desc}</p>
+              <h3 className="text-2xl font-extrabold text-[#0D0D12]">{builtForTabs[activeTab].label}</h3>
+              <p className="mt-3 text-[#5A5B6A] leading-relaxed max-w-md">{builtForTabs[activeTab].desc}</p>
+              <Link
+                href="/product"
+                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0D0D12] px-6 py-3 text-sm font-semibold text-white hover:bg-[#1A1A2E] transition-colors"
+              >
+                Learn more
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_16px_48px_rgba(0,0,0,0.06)]">
+              <Image
+                key={activeTab}
+                src={builtForTabs[activeTab].img}
+                alt={builtForTabs[activeTab].label}
+                width={1200}
+                height={700}
+                className="h-auto w-full rounded-xl"
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════════
-          TESTIMONIALS — 6 quotes in 2-row grid
-         ═══════════════════════════════════════════════════════════ */}
-      <section className="bg-[#F7F8FA] border-t border-slate-200/60">
+      {/* ══════════════════════════════════════════════════════
+          § 7  TESTIMONIALS — 6 quotes grid
+         ══════════════════════════════════════════════════════ */}
+      <section className="bg-white border-t border-slate-200/60">
         <div className={`${designTokens.layout.maxWidth} py-20 sm:py-28`}>
           <div className="mx-auto max-w-2xl text-center">
-            <span className="inline-block text-[11px] font-bold uppercase tracking-[0.12em] mb-4 px-3 py-1 rounded-full bg-[#EDEDFF] text-[#4B45FF]">
-              Testimonials
-            </span>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0D0D12] tracking-tight">
               {t("home.socialProofCount")}
             </h2>
             <p className="mt-3 text-[#5A5B6A]">{t("home.testimonialsSubtitle")}</p>
+            <Link
+              href="/contact"
+              className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#4B45FF] hover:text-[#3B35EF] transition-colors"
+            >
+              {t("home.socialProofCta")}
+              <ArrowRight size={14} />
+            </Link>
           </div>
 
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -374,9 +445,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════════
-          FINAL CTA — Dark banner
-         ═══════════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════════
+          § 8  FINAL CTA — Dark banner
+         ══════════════════════════════════════════════════════ */}
       <section className="bg-gradient-to-br from-[#0D0D12] via-[#13131A] to-[#1A1A2E]">
         <div className={`${designTokens.layout.maxWidth} py-20 sm:py-28`}>
           <div className="relative mx-auto max-w-2xl text-center">
