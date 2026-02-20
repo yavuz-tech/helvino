@@ -13,7 +13,6 @@ import MfaPolicyBanner from "@/components/MfaPolicyBanner";
 import OnboardingOverlay from "@/components/OnboardingOverlay";
 import TrialBanner from "@/components/TrialBanner";
 import UsageNudge from "@/components/UsageNudge";
-import UpgradeModal from "@/components/UpgradeModal";
 import FeatureCard from "@/components/ui/FeatureCard";
 import StatCard from "@/components/ui/StatCard";
 import {
@@ -112,8 +111,6 @@ export default function PortalOverviewPage() {
   const router = useRouter();
   const [org, setOrg] = useState<OrgInfo | null>(null);
   const [showMfaBanner, setShowMfaBanner] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [chatLoading, setChatLoading] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(() => {
     try {
       const cached = sessionStorage.getItem("helvion_dashboard_stats");
@@ -277,20 +274,6 @@ export default function PortalOverviewPage() {
       router.replace("/portal/security-onboarding");
     }
   }, [authLoading, user, router]);
-
-  const handleStartChat = useCallback(async (visitorId: string) => {
-    setChatLoading(visitorId);
-    try {
-      const res = await portalApiFetch(`/portal/dashboard/visitors/${visitorId}/chat`, { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        router.push(`/portal/inbox?c=${data.conversationId}`);
-      }
-    } catch {
-      // ignore
-    }
-    setChatLoading(null);
-  }, [router]);
 
   if (authLoading) {
     return <div className="flex items-center justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#1A1A2E]" /></div>;
@@ -456,14 +439,23 @@ export default function PortalOverviewPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
         <div className="space-y-6 lg:col-span-3">
-          <LiveVisitorsPanel
-            visitors={visitors}
-            isPro={isPro}
-            onStartChat={handleStartChat}
-            chatLoading={chatLoading}
-            onUpgrade={() => setShowUpgradeModal(true)}
-            t={t}
-          />
+          <Link
+            href="/portal/visitors"
+            className="group flex items-center justify-between rounded-2xl border border-[#D6E4FA] bg-[linear-gradient(135deg,#EEF5FF,#E2EEFF)] px-6 py-5 transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(59,130,246,0.16)]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#3B82F6] text-white shadow-[0_8px_20px_rgba(59,130,246,0.35)]">
+                <Eye size={22} />
+              </div>
+              <div>
+                <p className="text-[15px] font-bold text-[#1E3A5F]">Ziyaretçiler</p>
+                <p className="mt-0.5 text-[12px] text-[#4A6690]">Canlı ziyaretçi haritası ve liste ekranını aç</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-[#22C55E] px-3 py-1 text-[11px] font-bold text-white">
+              {(visitors?.counts.live ?? 0)} canlı
+            </span>
+          </Link>
 
           <div className="overflow-hidden rounded-2xl border border-amber-200/70 bg-white">
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
@@ -720,8 +712,6 @@ export default function PortalOverviewPage() {
           </div>
         </div>
       </div>
-
-      <UpgradeModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
     </div>
   );
 }

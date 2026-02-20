@@ -42,7 +42,7 @@ interface NavItemDef {
   labelKey: TranslationKey;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  badge?: "unread"; // inbox only
+  badge?: "unread" | "onlineVisitors";
   roles?: Array<"owner" | "admin">;
 }
 
@@ -113,6 +113,16 @@ function UsageIcon({ className }: { className?: string }) {
       <rect x="4" y="13" width="4" height="8" rx="1" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
       <rect x="10" y="3" width="4" height="18" rx="1" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
       <rect x="16" y="8" width="4" height="13" rx="1" fill="var(--icon-stroke)" stroke="var(--icon-stroke)" strokeWidth="1.8" opacity="0.8" />
+    </svg>
+  );
+}
+
+function VisitorsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18z" fill="var(--icon-bg)" stroke="var(--icon-stroke)" strokeWidth="1.8" />
+      <path d="M3.5 12h17" stroke="var(--icon-stroke)" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M12 3c2.6 2.4 3.9 5.4 3.9 9s-1.3 6.6-3.9 9c-2.6-2.4-3.9-5.4-3.9-9s1.3-6.6 3.9-9z" stroke="var(--icon-stroke)" strokeWidth="1.6" />
     </svg>
   );
 }
@@ -196,7 +206,10 @@ const navSections: NavSectionDef[] = [
   },
   {
     sectionKey: "nav.section.insights",
-    items: [{ labelKey: "nav.usage", href: "/portal/usage", icon: UsageIcon }],
+    items: [
+      { labelKey: "dashboard.liveVisitors", href: "/portal/visitors", icon: VisitorsIcon, badge: "onlineVisitors" },
+      { labelKey: "nav.usage", href: "/portal/usage", icon: UsageIcon },
+    ],
   },
   {
     sectionKey: "nav.section.general",
@@ -233,6 +246,7 @@ export default function PortalLayout({
   const [currentPlanKey, setCurrentPlanKey] = useState<string | null>(null);
   const [bellOpen, setBellOpen] = useState(false);
   const [widgetSettings, setWidgetSettings] = useState<WidgetBubbleSettings | null>(null);
+  const [onlineVisitorsCount, setOnlineVisitorsCount] = useState(0);
   const [bubbleHover, setBubbleHover] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -252,6 +266,17 @@ export default function PortalLayout({
       if (!res.ok) return;
       const data = await res.json();
       if (data?.settings) setWidgetSettings(data.settings as WidgetBubbleSettings);
+    } catch {
+      // silent
+    }
+  }, []);
+
+  const fetchOnlineVisitors = useCallback(async () => {
+    try {
+      const res = await portalApiFetch(`/portal/dashboard/visitors?_t=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setOnlineVisitorsCount(Number(data?.counts?.live || 0));
     } catch {
       // silent
     }
@@ -284,7 +309,10 @@ export default function PortalLayout({
     if (!user) return;
     fetchWidgetSettings();
     syncPublicWidgetIdentity();
-  }, [user, fetchWidgetSettings, syncPublicWidgetIdentity]);
+    fetchOnlineVisitors();
+    const timer = window.setInterval(fetchOnlineVisitors, 30000);
+    return () => window.clearInterval(timer);
+  }, [user, fetchWidgetSettings, syncPublicWidgetIdentity, fetchOnlineVisitors]);
 
   // Refresh widget settings when user customizes them
   useEffect(() => {
@@ -525,7 +553,9 @@ export default function PortalLayout({
                   const isActive = pathname === item.href;
                   const Icon = item.icon;
                   const showUnread = item.badge === "unread" && totalUnread > 0;
+                  const showOnlineVisitors = item.badge === "onlineVisitors" && onlineVisitorsCount > 0;
                   const isInboxItem = item.href === "/portal/inbox";
+                  const isVisitorsItem = item.href === "/portal/visitors";
                   const iconToneClass = isActive
                     ? "[--icon-stroke:#FFFFFF] [--icon-bg:rgba(255,255,255,0.3)]"
                     : "[--icon-stroke:#64748B] [--icon-bg:rgba(245,158,11,0.12)] group-hover:[--icon-stroke:#92400E]";
@@ -542,17 +572,17 @@ export default function PortalLayout({
                     >
                       <span className="relative flex-shrink-0">
                         <Icon className={`h-5 w-5 flex-shrink-0 ${iconToneClass}`} />
-                        {showUnread && (
+                        {(showUnread || showOnlineVisitors) && (
                           sidebarOpen ? (
-                            // Inbox item uses the inline badge next to label; keep icon clean.
-                            isInboxItem ? null : (
+                            // Inbox + visitors items use inline badges next to labels; keep icon clean.
+                            (isInboxItem || isVisitorsItem) ? null : (
                               <span className={`absolute -top-1 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-[10px] px-[7px] text-[10.5px] font-[var(--font-heading)] font-bold ${isActive ? "bg-white/30 text-white" : "bg-[#EF4444] text-white"} bell-dot`}>
-                                {totalUnread > 99 ? "99+" : totalUnread}
+                                {showUnread ? (totalUnread > 99 ? "99+" : totalUnread) : (onlineVisitorsCount > 99 ? "99+" : onlineVisitorsCount)}
                               </span>
                             )
                           ) : (
-                            // Inbox item uses the inline badge; keep icon clean.
-                            isInboxItem ? null : (
+                            // Inbox + visitors items use inline badges; keep icon clean.
+                            (isInboxItem || isVisitorsItem) ? null : (
                               <span className={`absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full border-2 ${isActive ? "border-white bg-white/85" : "border-white bg-[#EF4444]"} bell-dot`} />
                             )
                           )
@@ -571,6 +601,11 @@ export default function PortalLayout({
                       {sidebarOpen && isInboxItem && totalUnread > 0 && (
                         <span className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold leading-none text-white">
                           {totalUnread > 99 ? "99+" : totalUnread}
+                        </span>
+                      )}
+                      {sidebarOpen && isVisitorsItem && onlineVisitorsCount > 0 && (
+                        <span className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[11px] font-bold leading-none text-white">
+                          {onlineVisitorsCount > 99 ? "99+" : onlineVisitorsCount}
                         </span>
                       )}
                     </Link>
