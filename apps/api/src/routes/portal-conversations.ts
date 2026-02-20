@@ -123,7 +123,29 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
         findArgs.skip = 1;
       }
 
-      const entries = await prisma.conversation.findMany(findArgs as any);
+      let entries: any[] = [];
+      try {
+        entries = await prisma.conversation.findMany(findArgs as any);
+      } catch (err: any) {
+        // Cursor can become stale when the list changes rapidly (realtime updates, deletes).
+        // Fallback to a clean first-page query instead of returning 500 to the inbox UI.
+        request.log.warn(
+          {
+            err: err?.message || String(err),
+            code: err?.code,
+            orgId: actor.orgId,
+            cursor,
+          },
+          "portal conversations query failed; retrying without cursor"
+        );
+
+        const fallbackArgs: Record<string, unknown> = {
+          ...findArgs,
+        };
+        delete (fallbackArgs as any).cursor;
+        delete (fallbackArgs as any).skip;
+        entries = await prisma.conversation.findMany(fallbackArgs as any);
+      }
       const slaPolicy = await prisma.slaPolicy.findFirst({
         where: { orgId: actor.orgId, enabled: true },
         orderBy: { createdAt: "asc" },

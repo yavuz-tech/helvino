@@ -568,8 +568,17 @@ export default function PortalInboxContent() {
       if (debouncedSearch) p.set("q", debouncedSearch);
       p.set("limit", "50");
       if (cursorVal) p.set("cursor", cursorVal);
-      const res = await portalApiFetch(`/portal/conversations?${p.toString()}`);
-      if (!res.ok) throw new Error();
+      let res = await portalApiFetch(`/portal/conversations?${p.toString()}`);
+      // One defensive retry for transient 429/5xx issues.
+      if (!res.ok && (res.status === 429 || res.status >= 500)) {
+        await new Promise((r) => setTimeout(r, 300));
+        res = await portalApiFetch(`/portal/conversations?${p.toString()}`);
+      }
+      if (!res.ok) {
+        // Keep the current list on transient errors instead of hard-failing the UI.
+        if (res.status === 429 || res.status >= 500) return;
+        throw new Error();
+      }
       const data = await res.json();
       const nextList = sortConversations(data.items || []);
       if (append) {
