@@ -1103,6 +1103,10 @@ export default function PortalInboxContent() {
 
   const handleTakeOverFromAi = async () => {
     if (!user?.id || isUpdating) return;
+    if (!canUseTakeover) {
+      openUpgradeForPlan("starter", "takeover");
+      return;
+    }
     await handleAssignmentChange(user.id);
   };
 
@@ -1320,13 +1324,12 @@ export default function PortalInboxContent() {
   const isOpen = currentStatus === "OPEN";
   const isOnline = isOpen;
   const hasAiMessagesInThread = Boolean(
-    conversationDetail?.messages?.some((m) => m.role === "assistant" && m.isAIGenerated)
+    conversationDetail?.messages?.some((m) => m.role === "assistant" && (m.isAIGenerated || Boolean(m.aiProvider)))
   );
   const showTakeoverCta = Boolean(
     selectedConversationId &&
     user?.id &&
     isOpen &&
-    canUseTakeover &&
     hasAiMessagesInThread &&
     !conversationDetail?.assignedTo?.id
   );
@@ -1867,9 +1870,9 @@ export default function PortalInboxContent() {
                         cursor: isUpdating ? "not-allowed" : "pointer",
                         opacity: isUpdating ? 0.6 : 1,
                       }}
-                      title="AI yanitlarini durdur ve bu sohbeti devral"
+                      title="Sohbeti AI'den devir al"
                     >
-                      🤝 AI'dan Devral
+                      🤝 Sohbeti AI'den Devir Al
                     </button>
                   )}
 
