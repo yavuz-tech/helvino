@@ -61,14 +61,14 @@ jobs:
       - name: Generate Prisma client
         run: cd apps/api && npx prisma generate
 
+      - name: Build shared
+        run: cd packages/shared && pnpm build
+
       - name: Typecheck API
         run: cd apps/api && npx tsc --noEmit
 
       - name: Typecheck Web
         run: cd apps/web && npx tsc --noEmit
-
-      - name: Build shared
-        run: cd packages/shared && pnpm build
 
       - name: Test API
         env:
