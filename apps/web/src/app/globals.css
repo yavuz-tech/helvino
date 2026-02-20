@@ -8,14 +8,20 @@
 :root {
   --font-heading: "Satoshi", -apple-system, sans-serif;
   --font-body: "Manrope", -apple-system, sans-serif;
-  --primary: #1A1D23;
-  --accent: #F59E0B;
-  --highlight: #FB7185;
-  --bg-warm: #FFFBEB;
-  --bg-glass: rgba(255, 251, 235, 0.8);
-  --text-primary: #1A1D23;
-  --text-secondary: #64748B;
-  --text-muted: #94A3B8;
+  --primary: #4B45FF;
+  --primary-hover: #3B35EF;
+  --primary-soft: #6C67FF;
+  --accent: #4B45FF;
+  --highlight: #7C78FF;
+  --hero-bg: #0D0D12;
+  --hero-bg-alt: #13131A;
+  --footer-bg: #0D0D12;
+  --surface-alt: #F7F8FA;
+  --bg-warm: #F7F8FA;
+  --bg-glass: rgba(247, 248, 250, 0.8);
+  --text-primary: #0D0D12;
+  --text-secondary: #5A5B6A;
+  --text-muted: #8E8EA0;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -67,7 +73,7 @@ body, p, span, div, input, button, label {
 .hv-logo-float {
   animation: helvion-logo-float 3.8s ease-in-out infinite;
   will-change: transform;
-  filter: drop-shadow(0 18px 30px rgba(245, 158, 11, 0.14));
+  filter: drop-shadow(0 18px 30px rgba(75, 69, 255, 0.14));
 }
 
 @media (prefers-reduced-motion: reduce) {

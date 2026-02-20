@@ -1,76 +1,77 @@
-# Helvino — Session Handoff
-**Son güncelleme:** 14 Şubat 2026, ~10:35 UTC
+# Helvion — Handoff & Son İşlemler
 
-## AKTİF ÇALIŞMA
-**Görev:** Railway Deploy Hazırlığı
-**Durum:** TAMAMLANDI ✅
+Bu dosya proje durumunu ve en son yapılan işlemleri özetler. Yeni bir geliştirici veya oturum devam ederken referans olarak kullanılabilir.
 
-**Checklist:**
-1. [x] Proje yapısı analizi (package names: @helvino/*, build output: dist/, entry: index.js)
-2. [x] API Dockerfile — multi-stage, argon2 native deps, Prisma generate, migrate deploy
-3. [x] Web Dockerfile — multi-stage, standalone output, widget embed.js dahil
-4. [x] next.config.ts → `output: "standalone"` eklendi
-5. [x] Widget stratejisi: embed.js web Dockerfile'da build edilip public/'e kopyalanıyor
-6. [x] Fastify HOST/PORT kontrolü: zaten `0.0.0.0` ve `process.env.PORT` (değişiklik gerekmedi)
-7. [x] CORS kontrolü: zaten env var'lardan okunuyor (değişiklik gerekmedi)
-8. [x] railway-env-template.txt oluşturuldu (tüm env var'lar şablonu)
-9. [x] .dockerignore oluşturuldu
-10. [x] .gitignore güncellendi (.env.* pattern)
-11. [x] API package.json start script: `prisma migrate deploy && node dist/index.js`
-12. [x] TypeScript check: 0 hata
-13. [x] docs/RAILWAY-DEPLOY-GUIDE.md oluşturuldu
+---
 
-### Bu görevde oluşturulan/değişen dosyalar
-- `apps/api/Dockerfile` — YENİ: 5-stage multi-stage build (base→deps→builder→prod-deps→runner)
-- `apps/web/Dockerfile` — YENİ: 4-stage build, standalone Next.js + widget embed.js
-- `apps/web/next.config.ts` — `output: "standalone"` eklendi (satır 5)
-- `apps/api/package.json` — start script güncellendi: `prisma migrate deploy && node dist/index.js`
-- `.dockerignore` — YENİ: node_modules, dist, .next, .env, docs, stress-tests exclude
-- `.gitignore` — `.env*.local` → `.env.*` + `!.env.example` pattern güncellendi
-- `railway-env-template.txt` — YENİ: Railway dashboard'a eklenecek tüm env var şablonu
-- `docs/RAILWAY-DEPLOY-GUIDE.md` — YENİ: tam deploy rehberi
+## En Son Tamamlanan İşlemler
 
-## ÖNCEKİ GÖREV: Security Audit PART 2/10
-**Durum:** TAMAMLANDI ✅
-(Detaylar: docs/security-audit/PART2-API-INPUT-VALIDATION.md)
+### 1. Ziyaretçiler sayfası ve harita
+- **Harita**: `react-simple-maps` kaldırıldı, **Leaflet** + OpenStreetMap (CARTO Voyager) tile'ları ile profesyonel dünya haritası eklendi.
+- **Konum**: `apps/web/src/components/VisitorsMap.tsx` — mouse ile sürükleyerek pan, scroll ile zoom (sadece harita hareket eder).
+- **Plan gating**: Free planda 3 ziyaretçi görünür, geri kalanı blur + "Planı Yükselt" CTA.
+- **Demo ziyaretçi**: Portal Ziyaretçiler sayfasında "8 Demo Ekle" butonu eklendi; sadece **demo org + owner** hesabında görünür (`apps/web/src/app/portal/visitors/page.tsx`).
+- **Backend**: `POST /portal/dashboard/visitors/seed` — 8 ülkeden demo ziyaretçi oluşturur (TR, US, DE, BR, JP, GB, FR, IN).
 
-## ÖNCEKİ GÖREV: Security Audit PART 1/10 + Fix
-**Durum:** TAMAMLANDI ✅
-(Detaylar: docs/security-audit/PART1-AUTH-SESSION.md, PART1-FIX-REPORT.md)
+### 2. Inbox — Ziyaretçiden tıklayınca doğru konuşma açılsın
+- Ziyaretçiler sayfasından bir ziyaretçiye tıklanınca `/portal/inbox?c=<conversationId>` ile yönlendirme yapılıyordu ancak mevcut filtreler (OPEN + unassigned) o konuşmayı gizleyebiliyordu.
+- **Düzeltme**: `apps/web/src/app/portal/inbox/PortalInboxContent.tsx` — URL'de `?c=` varsa hedef konuşma her zaman açılıyor; gerekirse filtreler otomatik gevşetiliyor (status=ALL, assigned=any) ve ilgili konuşma seçiliyor.
 
-## BİLİNEN NOKTALAR
-- Debug log'lar halen var (temizlik bekliyor)
-- `widget-test.html` lokal test amaçlı — production'a çıkmadan kaldırılmalı
-- PART 1 manual tasks: MFA route encryption entegrasyonu, env var'lar (MFA_ENCRYPTION_KEY, INTERNAL_API_KEY)
-- Railway deploy sonrası: Stripe webhook endpoint güncellenmeli, DNS CNAME'ler eklenmeli
+### 3. Harita metin ve attribution
+- Harita üstündeki "MagicMap'ten canlı görüntü" metni daha profesyonel bir ifadeyle değiştirildi.
+- OpenStreetMap attribution sadeleştirildi ve minimal stile çekildi (lisans gereği tamamen kaldırılmadı). `apps/web/src/components/VisitorsMap.tsx`.
 
-## BİR SONRAKİ ADIM
-1. **Git commit + push** — Railway auto-deploy için
-2. **Railway dashboard setup** — guide'daki adımları takip et
-3. **DNS ayarları** — api.helvion.io + app.helvion.io CNAME'leri
-4. **Stripe webhook** — production endpoint oluştur
-5. **Post-deploy test** — checklist'teki tüm maddeleri doğrula
+### 4. Test dosyalarının kaldırılması
+- Gereksiz test dosyaları silindi: `seed-visitors.sh`, `test-visitors-seed.html`.
 
-## TEST KOMUTLARI
-```bash
-# Sağlık kontrolü
-curl -sf http://localhost:4000/health && echo "API OK"
-curl -sf http://localhost:3000/ && echo "WEB OK"
+### 5. Crisp tarzı tam site yeniden tasarım planı
+- **Plan dosyası**: `~/.cursor/plans/helvion_crisp_redesign_28c91eb6.plan.md` (veya workspace içinde `.cursor/plans/` altında).
+- **Kapsam**: Tüm public sayfalar Crisp.chat seviyesinde, koyu mavi-mor palet ile sıfırdan tasarlanacak.
+- **Renk paleti**: Primary `#4B45FF`, Hero BG `#0D0D12` → `#13131A`, Footer `#0D0D12`, Surface Alt `#F7F8FA`.
+- **Uygulama sırası**: Design tokens → PublicLayout → Ortak bileşenler → Homepage → Pricing → Product → Contact → İkincil sayfalar → Auth sayfaları → Final test.
+- **Durum**: Plan onaylandı; **henüz kod tarafında uygulama başlamadı**. Tüm plan todo'ları `pending`.
 
-# TypeScript check
-cd apps/api && npx tsc --noEmit
+---
 
-# Docker build test (lokal)
-docker build -f apps/api/Dockerfile -t helvion-api .
-docker build -f apps/web/Dockerfile -t helvion-web .
-```
+## Crisp Redesign — Sıradaki Adımlar
 
-## SUNUCU DURUMU
-- API (4000): Çalışıyor ✅
-- Web (3000): Çalışıyor ✅
+Plan uygulanırken takip edilecek sıra:
 
-## DB / KİMLİK
-- Test kullanıcı: `yavuz@yuksel.ltd` / `sinan1989123`
-- Org key: `yuksel-ltd`
-- Org ID: `cyukselltdorg01`
-- Site ID: `site_61b617b492db931ff6e5dcde`
+1. **Faz 1a** — `apps/web/src/lib/designTokens.ts`, `apps/web/src/lib/design-tokens.ts`, `apps/web/src/app/globals.css` içinde renkleri yeni palete çevir.
+2. **Faz 1b** — `apps/web/src/components/PublicLayout.tsx`: Header (sticky, blur, mega menu) + Footer (koyu, 5+ sütun).
+3. **Faz 1c** — Ortak bileşenler: `SectionShowcase.tsx`, `TrustLogos.tsx`, `TestimonialCard.tsx`, `CtaBanner.tsx`, `StepCards.tsx`, `FaqAccordion.tsx`, `ScreenshotFrame.tsx`.
+4. **Faz 2** — Homepage, Pricing, Product, Contact sayfalarını Crisp şablonuna göre yeniden yaz.
+5. **Faz 3** — Security, Developers, Integrations, Solutions, Resources, Help Center, Status, Compare sayfaları.
+6. **Faz 4** — Signup/Login sayfalarında renk uyumu.
+7. **Screenshots** — Portal ekran görüntüleri `public/marketing/screenshots/` altında; `ScreenshotFrame` ile kullanım.
+8. **i18n** — Yeni metinler için EN + TR + ES key'leri.
+9. **Final** — `pnpm build`, `tsc --noEmit`, deploy.
+
+---
+
+## Önemli Dosya Yolları
+
+| Ne | Dosya |
+|----|--------|
+| Public site layout | `apps/web/src/components/PublicLayout.tsx` |
+| Design tokens (teal/mevcut) | `apps/web/src/lib/designTokens.ts` |
+| Design tokens (renk/font) | `apps/web/src/lib/design-tokens.ts` |
+| Global CSS | `apps/web/src/app/globals.css` |
+| Homepage | `apps/web/src/app/page.tsx` |
+| Pricing | `apps/web/src/app/pricing/page.tsx` |
+| Portal visitors | `apps/web/src/app/portal/visitors/page.tsx` |
+| Visitors map | `apps/web/src/components/VisitorsMap.tsx` |
+| Portal inbox | `apps/web/src/app/portal/inbox/PortalInboxContent.tsx` |
+| i18n locales | `apps/web/src/i18n/locales/{en,tr,es}.json` |
+
+---
+
+## Build & Deploy
+
+- **Typecheck**: `pnpm --filter @helvino/web exec tsc --noEmit`
+- **Build**: `pnpm --filter @helvino/web build`
+- **Deploy**: Değişiklikler `main` branch’e push edildiğinde (Railway vb.) otomatik deploy tetiklenir.
+
+---
+
+*Son güncelleme: Bu handoff, ziyaretçiler/harita/inbox düzeltmeleri ve Crisp redesign planının dokümante edilmesiyle oluşturuldu. Crisp redesign implementasyonu henüz başlamamıştır.*

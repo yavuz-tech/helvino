@@ -109,7 +109,7 @@ export default function StatusPage() {
 
       {/* Service list */}
       <section className="max-w-3xl mx-auto px-6 pb-10">
-        <div className="bg-white rounded-xl border border-[#F3E8D8] divide-y divide-[#F3E8D8]">
+        <div className="bg-white rounded-xl border border-slate-200/80 divide-y divide-slate-200/60">
           {SERVICES.map((svc, i) => (
             <div key={i} className="flex items-center justify-between px-5 py-4">
               <span className="text-sm font-medium text-[#1E293B]">
@@ -130,7 +130,7 @@ export default function StatusPage() {
       {/* Incident history */}
       <section className="max-w-3xl mx-auto px-6 pb-20">
         <h2 className="text-lg font-semibold text-[#1A1D23] font-heading mb-4">{t("pubStatus.incidentHistory")}</h2>
-        <div className="bg-white rounded-xl border border-[#F3E8D8] p-6 text-center">
+        <div className="bg-white rounded-xl border border-slate-200/80 p-6 text-center">
           <p className="text-sm text-[#64748B]">{t("pubStatus.noIncidents")}</p>
         </div>
         <p className="text-xs text-[#94A3B8] mt-3 text-center">{t("pubStatus.uptimeNote")}</p>

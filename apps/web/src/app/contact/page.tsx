@@ -85,7 +85,7 @@ export default function ContactPage() {
               <p className="text-sm text-[#475569] mb-4 leading-relaxed">{ch.desc}</p>
               <p className="text-sm font-medium text-[#1E293B]">
                 {t("pubContact.emailLabel")}:{" "}
-                <span className="text-amber-600">{ch.email}</span>
+                <span className="text-[#4B45FF]">{ch.email}</span>
               </p>
             </Card>
           ))}
@@ -141,7 +141,7 @@ export default function ContactPage() {
               </label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4B45FF]/20"
               />
             </div>
             <div>
@@ -150,7 +150,7 @@ export default function ContactPage() {
               </label>
               <input
                 type="email"
-                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4B45FF]/20"
               />
             </div>
             <div>
@@ -159,7 +159,7 @@ export default function ContactPage() {
               </label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4B45FF]/20"
               />
             </div>
             <div>
@@ -168,12 +168,12 @@ export default function ContactPage() {
               </label>
               <textarea
                 rows={4}
-                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none"
+                className="w-full px-3 py-2 border border-[#E2E8F0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4B45FF]/20 resize-none"
               />
             </div>
             <button
               type="submit"
-              className="w-full px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-medium rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors"
+              className="w-full px-4 py-2.5 bg-gradient-to-r from-[#4B45FF] to-[#6C67FF] text-white text-sm font-medium rounded-lg hover:from-[#3B35EF] hover:to-[#4B45FF] transition-colors shadow-[0_2px_8px_rgba(75,69,255,0.25)]"
             >
               {t("pubContact.formSend")}
             </button>
