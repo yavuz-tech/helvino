@@ -872,12 +872,32 @@ export default function PortalInboxContent() {
     refreshUnreadBadge();
   }, [refreshUnreadBadge]);
 
-  // Auto-select from URL
+  // Auto-open targeted conversation from URL (?c=...)
+  // If current filters hide it (e.g. "unassigned"), relax filters so the target can be opened.
   useEffect(() => {
-    if (typeof window === "undefined" || authLoading || conversations.length === 0) return;
-    const c = searchParams.get("c");
-    if (c && !selectedConversationId && conversations.find(cv => cv.id === c)) selectConversation(c);
-  }, [authLoading, conversations, searchParams, selectedConversationId, selectConversation]);
+    if (typeof window === "undefined" || authLoading) return;
+    const targetId = searchParams.get("c");
+    if (!targetId) return;
+    if (selectedConversationId === targetId) return;
+
+    const existsInCurrentList = conversations.some((cv) => cv.id === targetId);
+    if (!existsInCurrentList) {
+      if (statusFilter !== "ALL") setStatusFilter("ALL");
+      if (assignedFilter !== "any") setAssignedFilter("any");
+      if (unreadOnly) setUnreadOnly(false);
+    }
+
+    selectConversation(targetId);
+  }, [
+    authLoading,
+    conversations,
+    searchParams,
+    selectedConversationId,
+    selectConversation,
+    statusFilter,
+    assignedFilter,
+    unreadOnly,
+  ]);
 
   // Fallback polling when Socket.IO is not connected (gentle, 30s+ interval)
   useEffect(() => {
