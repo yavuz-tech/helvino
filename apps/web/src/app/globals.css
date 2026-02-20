@@ -335,6 +335,12 @@ body, p, span, div, input, button, label {
   background: #f8fafc;
 }
 
+/* ── Marquee: infinite scroll for trust logos ── */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
 /* Keep inbox layout aligned when desktop sidebar is collapsed */
 @media (min-width: 1024px) {
   .portal-shell[data-sidebar-collapsed="1"] .portal-inbox-root {
