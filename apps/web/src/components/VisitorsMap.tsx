@@ -143,6 +143,13 @@ function visitorToCoord(v: LiveVisitorPoint): [number, number] {
   return [c.lng, c.lat];
 }
 
+function countryToFlagEmoji(country: string | null): string | null {
+  const iso2 = normalizeCountryToIso2(country);
+  if (!/^[A-Z]{2}$/.test(iso2)) return null;
+  const base = 127397;
+  return String.fromCodePoint(...[...iso2].map((c) => c.charCodeAt(0) + base));
+}
+
 export default function VisitorsMap({
   visitors,
   onlineCount,
@@ -163,8 +170,17 @@ export default function VisitorsMap({
       visitors.map((v) => ({
         id: v.id,
         coordinates: visitorToCoord(v),
+        flag: countryToFlagEmoji(v.country),
       })),
     [visitors]
+  );
+
+  const handleMove = useCallback(
+    (event: { coordinates: [number, number]; zoom: number }) => {
+      setCenter(event.coordinates);
+      setZoom(event.zoom);
+    },
+    []
   );
 
   const handleMoveEnd = useCallback(
@@ -188,14 +204,11 @@ export default function VisitorsMap({
   }, []);
 
   const handleMapWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const delta = e.deltaY;
-    setZoom((z) =>
-      delta < 0
-        ? Math.min(5.5, Number((z + 0.18).toFixed(2)))
-        : Math.max(1.2, Number((z - 0.18).toFixed(2)))
-    );
+    // Prevent browser/page zoom on Ctrl/Cmd + wheel while map is focused.
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   }, []);
 
   return (
@@ -225,6 +238,7 @@ export default function VisitorsMap({
         <ZoomableGroup
           zoom={zoom}
           center={center}
+          onMove={handleMove}
           onMoveEnd={handleMoveEnd}
           minZoom={1.2}
           maxZoom={5.5}
@@ -250,6 +264,16 @@ export default function VisitorsMap({
           {markers.map((m) => (
             <Marker key={m.id} coordinates={m.coordinates}>
               <g>
+                {m.flag ? (
+                  <text
+                    x={0}
+                    y={-12}
+                    textAnchor="middle"
+                    style={{ fontSize: 11, userSelect: "none", pointerEvents: "none" }}
+                  >
+                    {m.flag}
+                  </text>
+                ) : null}
                 <circle
                   r={14}
                   fill="rgba(255,255,255,0.5)"

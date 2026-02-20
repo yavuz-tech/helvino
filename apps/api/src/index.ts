@@ -64,6 +64,7 @@ import { requestContextPlugin } from "./plugins/request-context";
 import { metricsTracker } from "./utils/metrics";
 import { createRateLimitMiddleware } from "./middleware/rate-limit";
 import { getRealIP } from "./utils/get-real-ip";
+import geoip from "geoip-lite";
 import { validateOrgKey, validateVisitorId, validateJsonContentType, validateMessageContent } from "./middleware/validation";
 import { validateDomainAllowlist } from "./middleware/domain-allowlist";
 import { requireOrgToken } from "./middleware/require-org-token";
@@ -506,9 +507,24 @@ fastify.post<{
   if (visitorKey) {
     try {
       const clientIp = getRealIP(request);
+      const cfCountryHeader = String(request.headers["cf-ipcountry"] || "")
+        .trim()
+        .toUpperCase();
+      const cfCountry =
+        /^[A-Z]{2}$/.test(cfCountryHeader) && cfCountryHeader !== "XX"
+          ? cfCountryHeader
+          : null;
+      const geo =
+        clientIp && clientIp !== "unknown"
+          ? geoip.lookup(clientIp)
+          : null;
+      const visitorCountry = cfCountry || geo?.country || undefined;
+      const visitorCity = geo?.city || undefined;
       const visitor = await upsertVisitor(org.id, visitorKey, {
         userAgent,
         ip: clientIp || undefined,
+        country: visitorCountry,
+        city: visitorCity,
         currentPage: request.headers["referer"] as string || undefined,
       });
       visitorId = visitor.id;
