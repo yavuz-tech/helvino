@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ComposableMap,
   Geographies,
@@ -71,56 +71,19 @@ const COUNTRY_CENTER: Record<string, LatLng> = {
 };
 
 const COUNTRY_ALIASES: Record<string, string> = {
-  TURKEY: "TR",
-  TURKIYE: "TR",
-  "TURKIYE CUMHURIYETI": "TR",
-  "UNITED STATES": "US",
-  USA: "US",
-  "UNITED KINGDOM": "GB",
-  UK: "GB",
-  GERMANY: "DE",
-  FRANCE: "FR",
-  SPAIN: "ES",
-  ITALY: "IT",
-  NETHERLANDS: "NL",
-  RUSSIA: "RU",
-  INDIA: "IN",
-  BRAZIL: "BR",
-  CANADA: "CA",
-  AUSTRALIA: "AU",
-  JAPAN: "JP",
-  CHINA: "CN",
-  "SAUDI ARABIA": "SA",
-  "UNITED ARAB EMIRATES": "AE",
-  EGYPT: "EG",
-  MEXICO: "MX",
-  ARGENTINA: "AR",
-  CHILE: "CL",
-  COLOMBIA: "CO",
-  PERU: "PE",
-  "SOUTH AFRICA": "ZA",
-  NIGERIA: "NG",
-  KENYA: "KE",
-  MOROCCO: "MA",
-  ALGERIA: "DZ",
-  TUNISIA: "TN",
-  PAKISTAN: "PK",
-  BANGLADESH: "BD",
-  THAILAND: "TH",
-  VIETNAM: "VN",
-  INDONESIA: "ID",
-  "SOUTH KOREA": "KR",
-  UKRAINE: "UA",
-  POLAND: "PL",
-  SWEDEN: "SE",
-  NORWAY: "NO",
-  FINLAND: "FI",
-  GREECE: "GR",
-  ROMANIA: "RO",
-  BULGARIA: "BG",
-  ISRAEL: "IL",
-  IRAQ: "IQ",
-  IRAN: "IR",
+  TURKEY: "TR", TURKIYE: "TR", "TURKIYE CUMHURIYETI": "TR",
+  "UNITED STATES": "US", USA: "US",
+  "UNITED KINGDOM": "GB", UK: "GB",
+  GERMANY: "DE", FRANCE: "FR", SPAIN: "ES", ITALY: "IT", NETHERLANDS: "NL",
+  RUSSIA: "RU", INDIA: "IN", BRAZIL: "BR", CANADA: "CA", AUSTRALIA: "AU",
+  JAPAN: "JP", CHINA: "CN", "SAUDI ARABIA": "SA", "UNITED ARAB EMIRATES": "AE",
+  EGYPT: "EG", MEXICO: "MX", ARGENTINA: "AR", CHILE: "CL", COLOMBIA: "CO",
+  PERU: "PE", "SOUTH AFRICA": "ZA", NIGERIA: "NG", KENYA: "KE",
+  MOROCCO: "MA", ALGERIA: "DZ", TUNISIA: "TN", PAKISTAN: "PK",
+  BANGLADESH: "BD", THAILAND: "TH", VIETNAM: "VN", INDONESIA: "ID",
+  "SOUTH KOREA": "KR", UKRAINE: "UA", POLAND: "PL", SWEDEN: "SE",
+  NORWAY: "NO", FINLAND: "FI", GREECE: "GR", ROMANIA: "RO", BULGARIA: "BG",
+  ISRAEL: "IL", IRAQ: "IQ", IRAN: "IR",
 };
 
 function normalizeCountryToIso2(raw: string | null): string {
@@ -159,11 +122,10 @@ export default function VisitorsMap({
   onlineCount: number;
   activeCount: number;
 }) {
-  // center: [longitude, latitude] — ZoomableGroup koordinat bekliyor
-  const [center, setCenter] = useState<[number, number]>([20, 30]);
-  const [zoom, setZoom] = useState(2.6);
-  const width = 1200;
-  const height = 620;
+  const width = 960;
+  const height = 500;
+
+  const [position, setPosition] = useState({ coordinates: [20, 30] as [number, number], zoom: 1.6 });
 
   const markers = useMemo(
     () =>
@@ -175,47 +137,44 @@ export default function VisitorsMap({
     [visitors]
   );
 
-  const handleMove = useCallback(
-    (event: { coordinates: [number, number]; zoom: number }) => {
-      setCenter(event.coordinates);
-      setZoom(event.zoom);
-    },
-    []
-  );
-
   const handleMoveEnd = useCallback(
-    (event: { coordinates: [number, number]; zoom: number }) => {
-      setCenter(event.coordinates);
-      setZoom(event.zoom);
+    (pos: { coordinates: [number, number]; zoom: number }) => {
+      setPosition(pos);
     },
     []
   );
 
-  const handleZoomIn = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setZoom((z) => Math.min(5.5, Number((z + 0.25).toFixed(2))));
+  const handleZoomIn = useCallback(() => {
+    setPosition((p) => ({ ...p, zoom: Math.min(6, p.zoom * 1.35) }));
   }, []);
 
-  const handleZoomOut = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setZoom((z) => Math.max(1.2, Number((z - 0.25).toFixed(2))));
+  const handleZoomOut = useCallback(() => {
+    setPosition((p) => ({ ...p, zoom: Math.max(1, p.zoom / 1.35) }));
   }, []);
 
-  const handleMapWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-    // Prevent browser/page zoom on Ctrl/Cmd + wheel while map is focused.
-    if (e.ctrlKey || e.metaKey) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
       e.preventDefault();
       e.stopPropagation();
-    }
+      const direction = e.deltaY < 0 ? 1 : -1;
+      setPosition((p) => {
+        const factor = 1 + direction * 0.12;
+        return { ...p, zoom: Math.max(1, Math.min(6, p.zoom * factor)) };
+      });
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
   }, []);
 
   return (
     <div
-      className="relative h-full min-h-[540px] overflow-hidden rounded-r-2xl rounded-l-none bg-[#a8d4f0] touch-none"
+      ref={containerRef}
+      className="relative h-full min-h-[540px] overflow-hidden rounded-r-2xl rounded-l-none bg-[#a8d4f0]"
       style={{ touchAction: "none" }}
-      onWheel={handleMapWheel}
     >
       <style>{`
         @keyframes visitorPulseWhite {
@@ -223,25 +182,25 @@ export default function VisitorsMap({
           70% { transform: scale(2.5); opacity: 0; }
           100% { transform: scale(2.5); opacity: 0; }
         }
+        .rsm-svg { display: block; width: 100%; height: 100%; }
       `}</style>
 
       <ComposableMap
         width={width}
         height={height}
-        projection="geoEqualEarth"
+        projection="geoMercator"
         projectionConfig={{
-          scale: 140,
-          center: [20, 20],
+          scale: 130,
+          center: [0, 20],
         }}
         style={{ width: "100%", height: "100%" }}
       >
         <ZoomableGroup
-          zoom={zoom}
-          center={center}
-          onMove={handleMove}
+          center={position.coordinates}
+          zoom={position.zoom}
           onMoveEnd={handleMoveEnd}
-          minZoom={1.2}
-          maxZoom={5.5}
+          minZoom={1}
+          maxZoom={6}
         >
           <Geographies geography={GEO_URL}>
             {({ geographies }: { geographies: { rsmKey: string; [k: string]: unknown }[] }) =>
@@ -250,11 +209,11 @@ export default function VisitorsMap({
                   key={geo.rsmKey}
                   geography={geo}
                   fill="#8fa8c4"
-                  stroke="#6b8aad"
-                  strokeWidth={0.4}
+                  stroke="#7a99b8"
+                  strokeWidth={0.3}
                   style={{
                     default: { outline: "none" },
-                    hover: { outline: "none", fill: "#9ab0cc" },
+                    hover: { outline: "none", fill: "#9ab3cc" },
                     pressed: { outline: "none" },
                   }}
                 />
@@ -267,28 +226,26 @@ export default function VisitorsMap({
                 {m.flag ? (
                   <text
                     x={0}
-                    y={-12}
+                    y={-14}
                     textAnchor="middle"
-                    style={{ fontSize: 11, userSelect: "none", pointerEvents: "none" }}
+                    style={{ fontSize: 14, userSelect: "none", pointerEvents: "none" }}
                   >
                     {m.flag}
                   </text>
                 ) : null}
                 <circle
-                  r={14}
-                  fill="rgba(255,255,255,0.5)"
-                  style={{
-                    animation: "visitorPulseWhite 1.8s ease-out infinite",
-                  }}
+                  r={12}
+                  fill="rgba(255,255,255,0.45)"
+                  style={{ animation: "visitorPulseWhite 1.8s ease-out infinite" }}
                 />
-                <circle r={4} fill="#ffffff" stroke="#e0e0e0" strokeWidth={1} />
+                <circle r={4.5} fill="#ffffff" stroke="#d0d0d0" strokeWidth={1.2} />
               </g>
             </Marker>
           ))}
         </ZoomableGroup>
       </ComposableMap>
 
-      {/* Tooltip - referans: koyu gri kutu, her iki sayı parlak yeşil */}
+      {/* Stats tooltip */}
       <div className="absolute left-6 top-5 rounded-lg bg-[#2a2d33] px-4 py-3 shadow-xl">
         <p className="text-[13px] font-medium text-white">
           <span className="mr-1 font-bold text-[#4ade80]">{onlineCount}</span>
@@ -303,11 +260,11 @@ export default function VisitorsMap({
         </p>
       </div>
 
-      {/* Zoom controls - referans: koyu gri, beyaz ikonlar */}
+      {/* Zoom controls */}
       <div className="absolute bottom-5 right-5 flex flex-col overflow-hidden rounded-lg bg-[#2a2d33] shadow-lg">
         <button
           type="button"
-          className="flex h-9 w-9 items-center justify-center text-white transition hover:bg-white/15"
+          className="flex h-9 w-9 items-center justify-center text-[18px] font-bold text-white transition hover:bg-white/15 active:bg-white/25"
           onClick={handleZoomIn}
           aria-label="Yakınlaştır"
         >
@@ -315,7 +272,7 @@ export default function VisitorsMap({
         </button>
         <button
           type="button"
-          className="flex h-9 w-9 items-center justify-center border-t border-white/15 text-white transition hover:bg-white/15"
+          className="flex h-9 w-9 items-center justify-center border-t border-white/15 text-[18px] font-bold text-white transition hover:bg-white/15 active:bg-white/25"
           onClick={handleZoomOut}
           aria-label="Uzaklaştır"
         >
@@ -323,7 +280,7 @@ export default function VisitorsMap({
         </button>
       </div>
 
-      {/* OpenStreetMap - sol alt */}
+      {/* Attribution */}
       <div className="absolute bottom-2 left-4 text-[10px] text-[#6b7280]">
         © OpenStreetMap
       </div>

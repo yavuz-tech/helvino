@@ -259,6 +259,46 @@ export async function portalDashboardRoutes(fastify: FastifyInstance) {
   });
 
   /**
+   * POST /portal/dashboard/visitors/seed
+   * Creates demo visitors for testing the map (owner-only, rate-limited)
+   */
+  fastify.post("/portal/dashboard/visitors/seed", {
+    preHandler: [requirePortalUser, requirePortalRole(["owner"]), createRateLimitMiddleware({ limit: 5, windowMs: 60000 })],
+  }, async (request, reply) => {
+    const user = (request as any).portalUser;
+    if (!user) return reply.code(401).send({ error: "Unauthorized" });
+
+    const demoVisitors = [
+      { country: "TR", city: "Istanbul", browser: "Chrome", os: "Windows" },
+      { country: "US", city: "New York", browser: "Safari", os: "macOS" },
+      { country: "DE", city: "Berlin", browser: "Firefox", os: "Linux" },
+      { country: "BR", city: "São Paulo", browser: "Chrome", os: "Android" },
+      { country: "JP", city: "Tokyo", browser: "Edge", os: "Windows" },
+      { country: "GB", city: "London", browser: "Safari", os: "iOS" },
+    ];
+
+    const now = new Date();
+    const results = [];
+    for (const demo of demoVisitors) {
+      const visitorKey = `demo_${demo.country.toLowerCase()}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const visitor = await prisma.visitor.create({
+        data: {
+          orgId: user.orgId,
+          visitorKey,
+          country: demo.country,
+          city: demo.city,
+          userAgent: `Mozilla/5.0 (${demo.os}) ${demo.browser}/120.0`,
+          firstSeenAt: now,
+          lastSeenAt: now,
+        },
+      });
+      results.push({ id: visitor.id, country: demo.country, city: demo.city });
+    }
+
+    return { created: results.length, visitors: results };
+  });
+
+  /**
    * POST /portal/dashboard/visitors/:visitorId/chat
    * Start or resume a conversation with a visitor from the portal
    * Returns the conversation ID to navigate to inbox
