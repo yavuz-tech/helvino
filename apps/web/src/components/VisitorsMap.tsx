@@ -167,7 +167,7 @@ export default function VisitorsMap({
     ).addTo(map);
 
     L.control.attribution({ position: "bottomleft", prefix: false })
-      .addAttribution("© <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> © <a href='https://carto.com/'>CARTO</a>")
+      .addAttribution("© OpenStreetMap")
       .addTo(map);
 
     L.control.zoom({ position: "bottomright" }).addTo(map);
@@ -212,6 +212,20 @@ export default function VisitorsMap({
         .leaflet-container { width: 100%; height: 100%; background: #b3d1f0; font-family: inherit; }
         .leaflet-control-zoom a { background: #2a2d33 !important; color: #fff !important; border-color: rgba(255,255,255,0.15) !important; }
         .leaflet-control-zoom a:hover { background: #3a3d43 !important; }
+        .leaflet-control-attribution {
+          background: rgba(17, 24, 39, 0.45) !important;
+          color: rgba(255, 255, 255, 0.75) !important;
+          border-radius: 8px !important;
+          margin: 8px !important;
+          padding: 2px 6px !important;
+          backdrop-filter: blur(4px);
+          font-size: 10px !important;
+          line-height: 1.2 !important;
+        }
+        .leaflet-control-attribution a {
+          color: rgba(255, 255, 255, 0.85) !important;
+          text-decoration: none !important;
+        }
       `}</style>
 
       <div ref={mapContainerRef} className="h-full w-full" />
@@ -226,7 +240,7 @@ export default function VisitorsMap({
           aktif kullanıcı
         </p>
         <p className="mt-2 text-[11px] text-[#9ca3af]">
-          MagicMap&apos;ten canlı görüntü
+          Canli ziyaretci islem haritasi
         </p>
       </div>
     </div>
