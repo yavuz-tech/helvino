@@ -114,11 +114,6 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
         take: limit + 1,
         include: {
           assignedTo: { select: { id: true, email: true, role: true } },
-          messages: {
-            orderBy: { timestamp: "desc" as const },
-            take: 5,
-            select: { content: true, role: true, timestamp: true },
-          },
           _count: { select: { notes: true } },
         },
       };
@@ -138,10 +133,16 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
       const slice = hasMore ? entries.slice(0, limit) : entries;
       const nextCursor = hasMore ? slice[slice.length - 1]?.id || null : null;
 
+      const toIso = (value: unknown, fallbackIso: string) => {
+        if (value instanceof Date) return value.toISOString();
+        if (typeof value === "string" && value.trim()) {
+          const d = new Date(value);
+          return Number.isNaN(d.getTime()) ? fallbackIso : d.toISOString();
+        }
+        return fallbackIso;
+      };
+
       const items = slice.map((conv: any) => {
-        // Prefer the last non-system/note message for preview text
-        const recentMsgs = conv.messages || [];
-        const lastMsg = recentMsgs.find((m: any) => !/^\[(system|note)\]/i.test(m.content)) || recentMsgs[0] || null;
         let slaStatus: "ok" | "warning" | "breached" | null = null;
         let slaDueAt: string | null = null;
         if (slaPolicy && conv.status === "OPEN") {
@@ -160,24 +161,15 @@ export async function portalConversationRoutes(fastify: FastifyInstance) {
           assignedToOrgUserId: conv.assignedToOrgUserId || null,
           assignedTo: conv.assignedTo || null,
           closedAt: conv.closedAt?.toISOString() || null,
-          createdAt: conv.createdAt.toISOString(),
-          updatedAt: conv.updatedAt.toISOString(),
+          createdAt: toIso(conv.createdAt, new Date().toISOString()),
+          updatedAt: toIso(conv.updatedAt, new Date().toISOString()),
           messageCount: conv.messageCount,
-          lastMessageAt: lastMsg?.timestamp?.toISOString() || conv.updatedAt.toISOString(),
+          // Keep list endpoint light to avoid timeouts when recent messages contain
+          // large base64 attachments. Conversation detail endpoint still returns messages.
+          lastMessageAt: toIso(conv.updatedAt, new Date().toISOString()),
           noteCount: conv._count?.notes || 0,
           hasUnreadMessages: !!conv.hasUnreadFromUser,
-          preview: lastMsg
-            ? {
-                text: (() => {
-                  // Strip [system]/[note] prefixes and HTML tags for clean preview
-                  const cleaned = lastMsg.content
-                    .replace(/^\[(system|note)\]\s*/i, "")
-                    .replace(/<[^>]*>/g, "");
-                  return cleaned.length > 100 ? cleaned.slice(0, 100) + "..." : cleaned;
-                })(),
-                from: lastMsg.role,
-              }
-            : null,
+          preview: null,
           slaStatus,
           slaDueAt,
         };
