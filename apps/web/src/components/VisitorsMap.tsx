@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ComposableMap,
   Geographies,
@@ -57,8 +57,9 @@ export default function VisitorsMap({
   onlineCount: number;
   activeCount: number;
 }) {
-  const [zoom, setZoom] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  // center: [longitude, latitude] — ZoomableGroup koordinat bekliyor
+  const [center, setCenter] = useState<[number, number]>([25, 40]);
+  const [zoom, setZoom] = useState(2.2);
   const width = 1200;
   const height = 620;
 
@@ -71,11 +72,41 @@ export default function VisitorsMap({
     [visitors]
   );
 
-  const handleZoomIn = () => setZoom((z) => Math.min(3, z + 0.4));
-  const handleZoomOut = () => setZoom((z) => Math.max(1, z - 0.4));
+  const handleMoveEnd = useCallback(
+    (event: { coordinates: [number, number]; zoom: number }) => {
+      setCenter(event.coordinates);
+      setZoom(event.zoom);
+    },
+    []
+  );
+
+  const handleZoomIn = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setZoom((z) => Math.min(4, z + 0.5));
+  }, []);
+
+  const handleZoomOut = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setZoom((z) => Math.max(1, z - 0.5));
+  }, []);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => e.preventDefault();
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, []);
 
   return (
-    <div className="relative h-full min-h-[540px] overflow-hidden rounded-r-2xl rounded-l-none bg-[#a8d4f0]">
+    <div
+      ref={containerRef}
+      className="relative h-full min-h-[540px] overflow-hidden rounded-r-2xl rounded-l-none bg-[#a8d4f0] touch-none"
+      style={{ touchAction: "none" }}
+    >
       <style>{`
         @keyframes visitorPulseWhite {
           0% { transform: scale(0.6); opacity: 0.9; }
@@ -96,10 +127,10 @@ export default function VisitorsMap({
       >
         <ZoomableGroup
           zoom={zoom}
-          center={[position.x, position.y]}
-          onMoveEnd={setPosition}
+          center={center}
+          onMoveEnd={handleMoveEnd}
           minZoom={1}
-          maxZoom={4}
+          maxZoom={5}
         >
           <Geographies geography={GEO_URL}>
             {({ geographies }: { geographies: { rsmKey: string; [k: string]: unknown }[] }) =>
