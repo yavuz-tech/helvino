@@ -56,6 +56,8 @@ interface Message {
   content: string;
   timestamp: string;
   isAIGenerated?: boolean;
+  aiProvider?: string | null;
+  aiModel?: string | null;
 }
 
 interface ConversationDetail {
@@ -1016,6 +1018,11 @@ export default function PortalInboxContent() {
     } catch { /* */ } finally { setIsUpdating(false); }
   };
 
+  const handleTakeOverFromAi = async () => {
+    if (!user?.id || isUpdating) return;
+    await handleAssignmentChange(user.id);
+  };
+
   const handleAddNote = async () => {
     if (!canUseInternalNotes) {
       openUpgradeForPlan("starter");
@@ -1229,6 +1236,17 @@ export default function PortalInboxContent() {
   const currentStatus = conversationDetail?.status || "OPEN";
   const isOpen = currentStatus === "OPEN";
   const isOnline = isOpen;
+  const hasAiMessagesInThread = Boolean(
+    conversationDetail?.messages?.some((m) => m.role === "assistant" && m.isAIGenerated)
+  );
+  const showTakeoverCta = Boolean(
+    selectedConversationId &&
+    user?.id &&
+    isOpen &&
+    canUseTakeover &&
+    hasAiMessagesInThread &&
+    !conversationDetail?.assignedTo?.id
+  );
   const selectedConvExtra = selectedConv as (ConversationListItem & {
     channel?: string;
     recipientId?: string;
@@ -1751,6 +1769,27 @@ export default function PortalInboxContent() {
                     {teamMembers.filter((m) => m.isActive).map((m) => <option key={m.id} value={m.id}>{m.email.split("@")[0]}</option>)}
                   </select>
 
+                  {showTakeoverCta && (
+                    <button
+                      onClick={handleTakeOverFromAi}
+                      disabled={isUpdating}
+                      style={{
+                        padding: "7px 12px",
+                        borderRadius: "10px",
+                        border: "1px solid #BFDBFE",
+                        background: "#EFF6FF",
+                        color: "#1D4ED8",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        cursor: isUpdating ? "not-allowed" : "pointer",
+                        opacity: isUpdating ? 0.6 : 1,
+                      }}
+                      title="AI yanitlarini durdur ve bu sohbeti devral"
+                    >
+                      🤝 AI'dan Devral
+                    </button>
+                  )}
+
                   <button
                     onClick={() => handleStatusChange(isOpen ? "CLOSED" : "OPEN")}
                     style={{
@@ -2102,7 +2141,7 @@ export default function PortalInboxContent() {
                       ? "system"
                       : /^\[note\]/i.test(msg.content)
                         ? "note"
-                        : msg.isAIGenerated
+                        : (msg.isAIGenerated || Boolean(msg.aiProvider))
                           ? "ai"
                           : "agent";
                 const message = {

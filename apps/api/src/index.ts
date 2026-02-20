@@ -778,7 +778,7 @@ fastify.post<{
     // Fire-and-forget: don't block the user's request
     (async () => {
       try {
-        const emitAssistantToConversation = async (text: string) => {
+        const emitAssistantToConversation = async (text: string, model = "system-template") => {
           try {
             const sanitized = sanitizeHTML(String(text || "")).trim();
             if (!sanitized) return;
@@ -793,7 +793,13 @@ fastify.post<{
             } catch {
               // ignore read failures
             }
-            const m = await store.addMessage(id, org.id, "assistant", sanitized);
+            const m = await store.addMessage(id, org.id, "assistant", sanitized, {
+              provider: "helvion-ai",
+              model,
+              tokensUsed: 0,
+              cost: 0,
+              responseTimeMs: 0,
+            });
             if (!m) return;
             fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message: m });
             fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message: m });
@@ -902,7 +908,7 @@ fastify.post<{
         // High-signal intents: when the visitor explicitly requests a human agent,
         // don't waste tokens on a generic LLM reply and don't say misleading things.
         if (looksLikeAgentRequest(sanitizedContent)) {
-          await emitAssistantToConversation(getAgentHandoffMessage());
+          await emitAssistantToConversation(getAgentHandoffMessage(), "agent-handoff");
           return;
         }
 
@@ -996,7 +1002,13 @@ fastify.post<{
 
           // Graceful fallback: send configured fallback message instead of dropping the reply.
           if (fallbackText) {
-            const fallbackMessage = await store.addMessage(id, org.id, "assistant", sanitizeHTML(fallbackText));
+            const fallbackMessage = await store.addMessage(id, org.id, "assistant", sanitizeHTML(fallbackText), {
+              provider: "helvion-ai",
+              model: "fallback-template",
+              tokensUsed: 0,
+              cost: 0,
+              responseTimeMs: 0,
+            });
             if (fallbackMessage) {
               fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message: fallbackMessage });
               fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message: fallbackMessage });
@@ -1035,7 +1047,13 @@ fastify.post<{
         await (async () => {
           try {
             const fallback = "Su an AI yanit uretemiyor. Lutfen biraz sonra tekrar deneyin.";
-            const m = await store.addMessage(id, org.id, "assistant", sanitizeHTML(fallback));
+            const m = await store.addMessage(id, org.id, "assistant", sanitizeHTML(fallback), {
+              provider: "helvion-ai",
+              model: "fallback-error",
+              tokensUsed: 0,
+              cost: 0,
+              responseTimeMs: 0,
+            });
             if (m) {
               fastify.io.to(`org:${org.id}:agents`).emit("message:new", { conversationId: id, message: m });
               fastify.io.to(`conv:${id}`).emit("message:new", { conversationId: id, message: m });
