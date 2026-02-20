@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, User } from "lucide-react";
 import { portalApiFetch } from "@/lib/portal-auth";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import VisitorsMap, { type LiveVisitorPoint } from "@/components/VisitorsMap";
-import { colors, fonts } from "@/lib/design-tokens";
 
 interface LiveVisitor extends LiveVisitorPoint {
   visitorKey: string;
@@ -38,7 +37,6 @@ function dedupeVisitors(input: LiveVisitor[]) {
 }
 
 export default function PortalVisitorsPage() {
-  void fonts;
   const { user, loading } = usePortalAuth();
   const [data, setData] = useState<VisitorsData | null>(null);
   const [query, setQuery] = useState("");
@@ -101,54 +99,58 @@ export default function PortalVisitorsPage() {
   return (
     <div className="h-[calc(100vh-126px)] min-h-[620px] overflow-hidden rounded-2xl border border-[#d6deec] bg-white">
       <div className="grid h-full grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <section className="flex h-full min-h-0 flex-col border-r border-[#e7ebf3] bg-[#f7f8fa]">
-          <div className="flex items-center justify-between border-b border-[#e7ebf3] px-4 py-3">
-            <h1 className="text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#2f3d52]">
+        {/* Sol panel - PNG referansı: turuncu avatar, kırmızı C badge, visitor151 / Hugo */}
+        <section className="flex h-full min-h-0 flex-col border-r border-[#e5e7eb] bg-[#fafafa]">
+          <div className="flex items-center justify-between border-b border-[#e5e7eb] px-4 py-3">
+            <h1 className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-[#374151]">
               ZİYARETÇİLER
             </h1>
-            <span className="rounded-md bg-[#f4b648] px-2 py-0.5 text-[10px] font-bold text-white">
+            <span className="rounded-md bg-[#f4b648] px-2.5 py-1 text-[10px] font-bold text-white">
               Canlı
             </span>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto">
             {filtered.map((v) => {
-              const title = v.city || v.country || "Visitor";
-              const subtitle = `Helvion Bot · ${v.browser}`;
-              const initial = title.slice(0, 1).toUpperCase() || "V";
+              const title = v.visitorKey || v.city || v.country || "Visitor";
+              const displayTitle = title.length > 12 ? title.slice(0, 12) : title;
+              const subtitle = v.city || v.country || v.browser || "—";
               return (
                 <button
                   key={v.id}
                   type="button"
                   onClick={() => handleStartChat(v.id)}
-                  className="group flex w-full items-center gap-3 border-b border-[#edf1f7] px-4 py-3 text-left transition hover:bg-white"
+                  className="group flex w-full items-center gap-3 border-b border-[#e5e7eb] px-4 py-3.5 text-left transition hover:bg-white"
                 >
-                  <div className="relative">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f1f3f8] text-sm font-bold text-[#425268]">
-                      {initial}
+                  {/* Avatar: açık turuncu arka plan, koyu turuncu kişi ikonu, kırmızı C badge */}
+                  <div className="relative shrink-0">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fde8d4]">
+                      <User size={18} className="text-[#c2410c]" strokeWidth={2.5} />
                     </div>
-                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-white bg-[#ef4444]" />
+                    <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-[#dc2626] text-[9px] font-bold text-white">
+                      C
+                    </span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-semibold text-[#2a3342]">{title}</p>
-                    <p className="truncate text-[11px] text-[#8a95a7]">{subtitle}</p>
+                    <p className="truncate text-[13px] font-bold text-[#1f2937]">{displayTitle}</p>
+                    <p className="truncate text-[12px] text-[#6b7280]">{subtitle}</p>
                   </div>
                   {chatLoadingId === v.id ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#9ab2d6] border-t-[#3b82f6]" />
+                    <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#9ca3af] border-t-[#3b82f6]" />
                   ) : null}
                 </button>
               );
             })}
           </div>
 
-          <div className="border-t border-[#e7ebf3] p-3">
+          <div className="border-t border-[#e5e7eb] p-3">
             <label className="relative block">
-              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa5b5]" />
+              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Ada, şehre göre filtrele..."
-                className="w-full rounded-md border border-[#d9e1ef] bg-white py-2 pl-9 pr-3 text-[12px] text-[#344154] outline-none transition focus:border-[#7ea8ea]"
+                className="w-full rounded-lg border border-[#d1d5db] bg-white py-2.5 pl-9 pr-3 text-[12px] text-[#374151] placeholder:text-[#9ca3af] outline-none transition focus:border-[#7ea8ea] focus:ring-1 focus:ring-[#7ea8ea]"
               />
             </label>
           </div>
@@ -162,8 +164,6 @@ export default function PortalVisitorsPage() {
           />
         </section>
       </div>
-
-      <div className="hidden" style={{ color: colors.neutral[500] }} />
     </div>
   );
 }

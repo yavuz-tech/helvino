@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { colors } from "@/lib/design-tokens";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+  ZoomableGroup,
+} from "react-simple-maps";
 
 export interface LiveVisitorPoint {
   id: string;
@@ -11,6 +17,9 @@ export interface LiveVisitorPoint {
 }
 
 type LatLng = { lat: number; lng: number };
+
+const GEO_URL =
+  "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 const COUNTRY_CENTER: Record<string, LatLng> = {
   TR: { lat: 39.0, lng: 35.0 },
@@ -33,15 +42,10 @@ const COUNTRY_CENTER: Record<string, LatLng> = {
   EG: { lat: 26.8, lng: 30.8 },
 };
 
-function toMapPoint(lat: number, lng: number, width: number, height: number) {
-  const x = ((lng + 180) / 360) * width;
-  const y = ((90 - lat) / 180) * height;
-  return { x, y };
-}
-
-function visitorToCoord(v: LiveVisitorPoint): LatLng {
+function visitorToCoord(v: LiveVisitorPoint): [number, number] {
   const code = String(v.country || "").toUpperCase();
-  return COUNTRY_CENTER[code] || { lat: 20, lng: 0 };
+  const c = COUNTRY_CENTER[code] || { lat: 20, lng: 0 };
+  return [c.lng, c.lat];
 }
 
 export default function VisitorsMap({
@@ -54,109 +58,123 @@ export default function VisitorsMap({
   activeCount: number;
 }) {
   const [zoom, setZoom] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
   const width = 1200;
   const height = 620;
 
-  const points = useMemo(
+  const markers = useMemo(
     () =>
-      visitors.map((v) => {
-        const { lat, lng } = visitorToCoord(v);
-        const { x, y } = toMapPoint(lat, lng, width, height);
-        return { id: v.id, x, y };
-      }),
+      visitors.map((v) => ({
+        id: v.id,
+        coordinates: visitorToCoord(v),
+      })),
     [visitors]
   );
 
+  const handleZoomIn = () => setZoom((z) => Math.min(3, z + 0.4));
+  const handleZoomOut = () => setZoom((z) => Math.max(1, z - 0.4));
+
   return (
-    <div className="relative h-full min-h-[540px] overflow-hidden rounded-r-2xl rounded-l-none border border-[#2f69b6] bg-[#5f8fd4]">
-      <style jsx>{`
-        @keyframes visitorPulse {
-          0% { transform: scale(0.85); opacity: 0.85; }
-          70% { transform: scale(2.1); opacity: 0; }
-          100% { transform: scale(2.1); opacity: 0; }
+    <div className="relative h-full min-h-[540px] overflow-hidden rounded-r-2xl rounded-l-none bg-[#a8d4f0]">
+      <style>{`
+        @keyframes visitorPulseWhite {
+          0% { transform: scale(0.6); opacity: 0.9; }
+          70% { transform: scale(2.5); opacity: 0; }
+          100% { transform: scale(2.5); opacity: 0; }
         }
       `}</style>
 
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(140% 100% at 20% 10%, rgba(142,182,239,0.42) 0%, rgba(95,143,212,0.96) 55%, rgba(73,123,194,1) 100%)",
+      <ComposableMap
+        width={width}
+        height={height}
+        projection="geoEqualEarth"
+        projectionConfig={{
+          scale: 140,
+          center: [20, 20],
         }}
-      />
+        style={{ width: "100%", height: "100%" }}
+      >
+        <ZoomableGroup
+          zoom={zoom}
+          center={[position.x, position.y]}
+          onMoveEnd={setPosition}
+          minZoom={1}
+          maxZoom={4}
+        >
+          <Geographies geography={GEO_URL}>
+            {({ geographies }: { geographies: { rsmKey: string; [k: string]: unknown }[] }) =>
+              geographies.map((geo: { rsmKey: string; [k: string]: unknown }) => (
+                <Geography
+                  key={geo.rsmKey}
+                  geography={geo}
+                  fill="#8fa8c4"
+                  stroke="#6b8aad"
+                  strokeWidth={0.4}
+                  style={{
+                    default: { outline: "none" },
+                    hover: { outline: "none", fill: "#9ab0cc" },
+                    pressed: { outline: "none" },
+                  }}
+                />
+              ))
+            }
+          </Geographies>
+          {markers.map((m) => (
+            <Marker key={m.id} coordinates={m.coordinates}>
+              <g>
+                <circle
+                  r={14}
+                  fill="rgba(255,255,255,0.5)"
+                  style={{
+                    animation: "visitorPulseWhite 1.8s ease-out infinite",
+                  }}
+                />
+                <circle r={4} fill="#ffffff" stroke="#e0e0e0" strokeWidth={1} />
+              </g>
+            </Marker>
+          ))}
+        </ZoomableGroup>
+      </ComposableMap>
 
-      <div className="absolute inset-0 opacity-40">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="none">
-          <g
-            transform={`translate(${width / 2}px, ${height / 2}px) scale(${zoom}) translate(${-width / 2}px, ${-height / 2}px)`}
-            style={{ transformOrigin: "center center" }}
-          >
-            <path d="M89 168L123 146L170 142L224 154L260 180L289 209L324 227L330 252L307 268L258 261L232 247L191 237L149 228L125 202L96 195L82 177Z" fill="#7ca6df" fillOpacity="0.55" />
-            <path d="M319 256L362 271L385 304L398 334L407 369L420 403L443 430L434 455L402 462L370 444L342 412L326 373L309 333L298 297Z" fill="#7ca6df" fillOpacity="0.52" />
-            <path d="M559 168L590 160L635 167L678 179L715 200L753 216L796 242L825 278L818 303L779 301L735 291L705 277L678 252L650 238L611 225L584 205L563 184Z" fill="#7ca6df" fillOpacity="0.56" />
-            <path d="M606 315L642 303L684 304L721 324L744 358L742 385L710 398L681 393L650 401L623 434L594 450L569 444L551 418L560 381L579 351Z" fill="#7ca6df" fillOpacity="0.53" />
-            <path d="M811 360L844 351L882 359L924 382L949 411L960 439L953 472L930 497L902 508L875 492L856 468L840 433L821 401Z" fill="#7ca6df" fillOpacity="0.55" />
-            <path d="M990 527L1022 533L1047 552L1038 572L1004 578L986 559Z" fill="#7ca6df" fillOpacity="0.52" />
-          </g>
-        </svg>
-      </div>
-
-      <div className="absolute left-8 top-6 rounded-lg bg-[#2a3e5a]/88 px-4 py-3 text-white shadow-2xl">
-        <p className="text-[14px] font-semibold">
-          <span className="mr-1 text-[#7cff63]">{onlineCount}</span>
+      {/* Tooltip - referans: koyu gri kutu, her iki sayı parlak yeşil */}
+      <div className="absolute left-6 top-5 rounded-lg bg-[#2a2d33] px-4 py-3 shadow-xl">
+        <p className="text-[13px] font-medium text-white">
+          <span className="mr-1 font-bold text-[#4ade80]">{onlineCount}</span>
           çevrimiçi kullanıcı
         </p>
-        <p className="mt-1 text-[14px] font-semibold">
-          <span className="mr-1 text-[#61a9ff]">{activeCount}</span>
+        <p className="mt-1 text-[13px] font-medium text-white">
+          <span className="mr-1 font-bold text-[#4ade80]">{activeCount}</span>
           aktif kullanıcı
         </p>
-        <p className="mt-2 text-[11px] text-white/65">MagicMap&apos;ten canlı görüntü</p>
+        <p className="mt-2 text-[11px] text-[#9ca3af]">
+          MagicMap&apos;ten canlı görüntü
+        </p>
       </div>
 
-      <div className="absolute inset-0">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="none">
-          <g
-            transform={`translate(${width / 2}px, ${height / 2}px) scale(${zoom}) translate(${-width / 2}px, ${-height / 2}px)`}
-            style={{ transformOrigin: "center center" }}
-          >
-            {points.map((p) => (
-              <g key={p.id} transform={`translate(${p.x} ${p.y})`}>
-                <circle r="16" fill="rgba(20, 255, 120, 0.26)" style={{ animation: "visitorPulse 1.6s infinite" }} />
-                <circle r="5.5" fill="#30e96f" stroke="#d5ffe4" strokeWidth="2" />
-              </g>
-            ))}
-          </g>
-        </svg>
-      </div>
-
-      <div className="absolute bottom-5 right-5 flex flex-col overflow-hidden rounded-lg border border-white/30 bg-[#2a3e5a]/90 text-white">
+      {/* Zoom controls - referans: koyu gri, beyaz ikonlar */}
+      <div className="absolute bottom-5 right-5 flex flex-col overflow-hidden rounded-lg bg-[#2a2d33] shadow-lg">
         <button
           type="button"
-          className="h-8 w-8 text-[18px] leading-none transition hover:bg-white/15"
-          onClick={() => setZoom((z) => Math.min(2.2, Number((z + 0.2).toFixed(2))))}
-          aria-label="Zoom in"
+          className="flex h-9 w-9 items-center justify-center text-white transition hover:bg-white/15"
+          onClick={handleZoomIn}
+          aria-label="Yakınlaştır"
         >
           +
         </button>
         <button
           type="button"
-          className="h-8 w-8 border-t border-white/20 text-[18px] leading-none transition hover:bg-white/15"
-          onClick={() => setZoom((z) => Math.max(1, Number((z - 0.2).toFixed(2))))}
-          aria-label="Zoom out"
+          className="flex h-9 w-9 items-center justify-center border-t border-white/15 text-white transition hover:bg-white/15"
+          onClick={handleZoomOut}
+          aria-label="Uzaklaştır"
         >
-          -
+          −
         </button>
       </div>
 
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-white/70">
+      {/* OpenStreetMap - sol alt */}
+      <div className="absolute bottom-2 left-4 text-[10px] text-[#6b7280]">
         © OpenStreetMap
       </div>
-
-      <div className="pointer-events-none absolute inset-0 rounded-r-2xl rounded-l-none ring-1 ring-inset ring-white/10" />
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-px bg-white/10" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#4f7fc7]/25 to-transparent" />
-      <div className="pointer-events-none absolute inset-0 opacity-5" style={{ background: colors.neutral.white }} />
     </div>
   );
 }
-
